@@ -1,0 +1,102 @@
+[gd_scene load_steps=2 format=3 uid="uid://blc6d71g3r5gy"]
+
+[ext_resource type="Script" uid="uid://b6ulcciv17i7r" path="res://scripts/lobby.gd" id="1_40puj"]
+
+[node name="Lobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_40puj")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.2, 0.3, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -200.0
+offset_right = 300.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Game Lobby"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="PlayerListLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Players Connected:"
+horizontal_alignment = 1
+
+[node name="PlayerList" type="ScrollContainer" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+
+[node name="PlayerListVBox" type="VBoxContainer" parent="VBoxContainer/PlayerList"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="NameChangeContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="VBoxContainer/NameChangeContainer"]
+layout_mode = 2
+text = "Your Name:"
+
+[node name="NameInput" type="LineEdit" parent="VBoxContainer/NameChangeContainer"]
+layout_mode = 2
+text = "Player"
+placeholder_text = "Enter your name"
+
+[node name="ChangeNameButton" type="Button" parent="VBoxContainer/NameChangeContainer"]
+layout_mode = 2
+text = "Change"
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="ButtonContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="StartGameButton" type="Button" parent="VBoxContainer/ButtonContainer"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Start Game"
+
+[node name="LeaveButton" type="Button" parent="VBoxContainer/ButtonContainer"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Leave"
+
+[node name="StatusLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -30.0
+offset_right = 400.0
+offset_bottom = -10.0
+grow_vertical = 0
+text = "Waiting for players..."
+horizontal_alignment = 1

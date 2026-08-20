@@ -1,0 +1,1038 @@
+[gd_scene format=3 uid="uid://mc5du7xgk6b1"]
+
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_s0nni"]
+[ext_resource type="Texture2D" uid="uid://crgs6ku1nis60" path="res://Assets/UI/pips-female-Sheet.png" id="6_3xj3m"]
+[ext_resource type="Texture2D" uid="uid://q32nagr62ido" path="res://Assets/UI/Energy-Sheet.png" id="6_aug50"]
+[ext_resource type="Texture2D" uid="uid://b6ugwucajnrhk" path="res://Assets/UI/pips-male-Sheet.png" id="7_mcffj"]
+[ext_resource type="PackedScene" uid="uid://ygi0h704mijm" path="res://UI/Healthbar/healthbar-building.tscn" id="8_400sg"]
+[ext_resource type="Texture2D" uid="uid://dhupykxrkicdq" path="res://Assets/landscape/Night Sky -6e98-79e8.png" id="9_45i86"]
+[ext_resource type="Texture2D" uid="uid://cik5uy8ydn8xc" path="res://Assets/landscape/map.png" id="10_2rd6h"]
+[ext_resource type="Texture2D" uid="uid://cbh5dyl7dpuab" path="res://Assets/title/Sprite-0001-Sheet.png" id="12_mcffj"]
+
+[sub_resource type="GDScript" id="GDScript_400sg"]
+script/source = "extends Control
+
+# Game.gd - manages card display, selection, and building placement
+# Uses CardSlot functions properly for card display and selection
+
+@onready var player_cards = $CanvasLayer/PlayerCards
+@onready var opponent_cards = $CanvasLayer/OpponentCards
+@onready var timer_label = $CanvasLayer/Label
+var local_hand: Hand = null
+var card_pool_meta := {}
+var revealed_cards := {} # peer_id -> { slot_index: card_id }
+var selected_card_id = null
+var selected_card_slot_index = null
+var seconds_passed = 0
+@export var card_reveal_duration := 1.0 # Duration in seconds to show revealed cards
+var game_timer: Timer = null
+@onready var player_sprite = $CanvasLayer/PlayerSprite
+@onready var opponent_sprite = $CanvasLayer/OpponentSprite
+
+func _ready():
+	# Inform the authoritative server that this client finished loading the Game scene.
+	# Server will collect these signals and, when everyone is ready, spawn players and send hands.
+	# If we're running as the server (host), call the handler directly. Clients should rpc_id the server.
+	if Network and Network.multiplayer:
+		Network.call_or_rpc_id(1, \"rpc_client_loaded\")
+
+	# Optionally, initialize UI placeholders
+	_clear_card_holders()
+	# Connect plot slots so player can tap to place buildings
+	_connect_plot_slots()
+	# Start the game timer
+	_start_game_timer()
+	setup_player_roles()
+
+func setup_player_roles():
+	var is_host = multiplayer.is_server()
+
+	if is_host:
+		# Host controls player, so play \"host\" anim on player's side
+		player_sprite.play(\"host\")
+		opponent_sprite.play(\"opponent\")
+	else:
+		# Client controls the opponent sprite's role reversed visually
+		player_sprite.flip_h = true
+		opponent_sprite.flip_h = true
+		player_sprite.play(\"opponent\")
+		opponent_sprite.play(\"host\")
+
+
+func _start_game_timer() -> void:
+	# Create and configure timer
+	game_timer = Timer.new()
+	game_timer.wait_time = 1.0  # 1 second
+	game_timer.one_shot = false  # Repeat
+	add_child(game_timer)
+	game_timer.timeout.connect(_on_timer_timeout)
+	game_timer.start()
+	print(\"[Game] Timer started\")
+
+func _clear_card_holders():
+	# Do not free slot nodes. Instead deactivate the item display inside each
+	# existing slot so the layout remains intact and we avoid creating new slots.
+	if player_cards and player_cards.get_child_count() > 0:
+		for holder in player_cards.get_children():
+			var layout = holder
+			if holder.has_node(\"GridContainer\"):
+				layout = holder.get_node(\"GridContainer\")
+			for slot_node in layout.get_children():
+				if slot_node.has_node(\"CenterContainer/Panel/itemDisplay\"):
+					slot_node.get_node(\"CenterContainer/Panel/itemDisplay\").visible = false
+				# remove any dynamic labels left from previous fills
+				var panel = slot_node.get_node(\"CenterContainer/Panel\")
+				for child in panel.get_children():
+					if child.name != \"itemDisplay\":
+						child.queue_free()
+	if opponent_cards and opponent_cards.get_child_count() > 0:
+		for holder in opponent_cards.get_children():
+			var layout2 = holder
+			if holder.has_node(\"GridContainer\"):
+				layout2 = holder.get_node(\"GridContainer\")
+			for slot2_node in layout2.get_children():
+				if slot2_node.has_node(\"CenterContainer/Panel/itemDisplay\"):
+					slot2_node.get_node(\"CenterContainer/Panel/itemDisplay\").visible = false
+				var panel2 = slot2_node.get_node(\"CenterContainer/Panel\")
+				for child2 in panel2.get_children():
+					if child2.name != \"itemDisplay\":
+						child2.queue_free()
+
+func _highlight_playable_cards(current_energy: int):
+	if not player_cards or local_hand == null:
+		return
+	var layout = player_cards.get_child(0)
+	if layout.has_node(\"GridContainer\"):
+		layout = layout.get_node(\"GridContainer\")
+	for i in range(local_hand.slots.size()):
+		var card_slot = local_hand.slots[i]
+		var node = layout.get_child(i)
+		# call UI method on slot node to set playable/dim state
+		if card_slot.item != null:
+			var cost = card_slot.item.cost if card_slot.item.has_method(\"cost\") else 1
+			node.call_deferred(\"set_playable\", current_energy >= cost)
+		else:
+			node.call_deferred(\"set_playable\", false)
+		# reflect selection state
+		if selected_card_slot_index != null and selected_card_slot_index == i:
+			node.call_deferred(\"set_selected\", true)
+		else:
+			node.call_deferred(\"set_selected\", false)
+
+func _on_card_clicked(slot_index: int) -> void:
+	print(\"[Game] Card slot clicked:\", slot_index)
+	
+	# First determine if this is a player or opponent card based on which container was clicked
+	var in_player_cards := false
+	
+	# Check if clicked slot is in player_cards
+	if player_cards and player_cards.get_child_count() > 0:
+		var layout = player_cards.get_child(0)
+		if layout.has_node(\"GridContainer\"):
+			layout = layout.get_node(\"GridContainer\")
+		if slot_index < layout.get_child_count():
+			in_player_cards = true
+	
+	# If it's a player card, handle selection and validation
+	if in_player_cards and local_hand != null and slot_index >= 0 and slot_index < local_hand.slots.size():
+		var card_slot = local_hand.slots[slot_index]
+		if card_slot.item != null:
+			# Select the card if player has enough energy
+			var card_cost = card_slot.item.cost if card_slot.item.has_method(\"cost\") else 1
+			var my_id = multiplayer.get_unique_id()
+			var current_energy = Network.player_energy.get(my_id, 0)
+			if current_energy >= card_cost:
+				# Deselect previous selection
+				if selected_card_slot_index != null and selected_card_slot_index >= 0:
+					# clear previous visual
+					var prev_layout = player_cards.get_child(0)
+					if prev_layout.has_node(\"GridContainer\"):
+						prev_layout = prev_layout.get_node(\"GridContainer\")
+					if selected_card_slot_index < prev_layout.get_child_count():
+						var prev_node = prev_layout.get_child(selected_card_slot_index)
+						prev_node.call_deferred(\"set_selected\", false)
+				# set new selection
+				selected_card_id = card_slot.item.id
+				selected_card_slot_index = slot_index
+				var layout = player_cards.get_child(0)
+				if layout.has_node(\"GridContainer\"):
+					layout = layout.get_node(\"GridContainer\")
+				if slot_index < layout.get_child_count():
+					var node = layout.get_child(slot_index)
+					node.call_deferred(\"set_selected\", true)
+				print(\"[Game] Selected card id:\", selected_card_id)
+			else:
+				print(\"[Game] Not enough energy to select card (cost: %d, current: %d)\" % [card_cost, current_energy])
+	# If it's an opponent card, request reveal
+	elif not in_player_cards:
+		var opp_id = _get_opponent_peer_id()
+		if opp_id > 0:
+			Network.request_reveal_peer_card(opp_id, slot_index)
+
+func _replace_card(slot_index: int) -> void:
+	if not Network or not Network.available_card_ids or Network.available_card_ids.is_empty():
+		return
+	
+	# Check if this player's board is full - if so, only draw disaster cards
+	var my_id = multiplayer.get_unique_id()
+	var board_full = _is_player_board_full()
+	if board_full:
+		# Tell the server this player should only receive disaster cards
+		Network.call_or_rpc_id(1, \"set_player_disaster_draw\", [my_id, true])
+		# Pick a random disaster card
+		var disaster_pool = Network.disaster_only_card_ids
+		if disaster_pool.is_empty():
+			return
+		var new_id = disaster_pool[randi() % disaster_pool.size()]
+		var res_path = \"res://cards/card_%d.tres\" % new_id
+		if ResourceLoader.exists(res_path):
+			var card_res = ResourceLoader.load(res_path)
+			if local_hand and slot_index >= 0 and slot_index < local_hand.slots.size():
+				local_hand.slots[slot_index].item = card_res
+				_populate_card_holder(player_cards, [], true)
+		return
+	
+	# Pick a random card from available pool
+	var available = Network.available_card_ids
+	var new_id = available[randi() % available.size()]
+	
+	# Load the card resource
+	var res_path = \"res://cards/card_%d.tres\" % new_id
+	if ResourceLoader.exists(res_path):
+		var card_res = ResourceLoader.load(res_path)
+		if local_hand and slot_index >= 0 and slot_index < local_hand.slots.size():
+			local_hand.slots[slot_index].item = card_res
+			# Update UI
+			_populate_card_holder(player_cards, [], true)
+
+func _is_player_board_full() -> bool:
+	# Check if all plots on the player's board are occupied
+	if not has_node(\"PlayerPlot\"):
+		return false
+	var player_plot = $PlayerPlot
+	if not player_plot.has_node(\"GridContainer\"):
+		return false
+	var container = player_plot.get_node(\"GridContainer\")
+	var total_plots = container.get_child_count()
+	var occupied = 0
+	for i in range(total_plots):
+		var btn = container.get_child(i)
+		if btn and btn.is_occupied:
+			occupied += 1
+	return occupied >= total_plots
+
+# Connect player plot buttons so taps can place buildings
+func _connect_plot_slots() -> void:
+	if not has_node(\"PlayerPlot\"):
+		return
+	var player_plot = $PlayerPlot
+	var container = player_plot.get_node(\"GridContainer\")
+	for i in range(container.get_child_count()):
+		var btn = container.get_child(i)
+		# bind them with their index [0,0 to 4,4]
+		print(\"Asads\")
+		if btn:
+			var plot_idx = [int(i % 5), int(i / 5)] # assuming 5x5 grid
+			btn.set_plot_index(plot_idx)
+			btn.current_building = null
+			btn.board_owner = \"player\"
+			var callable = Callable(self, \"_on_plot_pressed\").bind(plot_idx, btn)
+			btn.pressed.connect(callable)
+	
+	var opponent_plot = $OpponentPlot
+	container = opponent_plot.get_node(\"GridContainer\")
+	for i in range(container.get_child_count()):
+		var btn = container.get_child(i)
+		# bind them with their index [0,0 to 4,4]
+		print(\"Asads\")
+		if btn:
+			var plot_idx = [int(i % 5), int(i / 5)] # assuming 5x5 grid
+			btn.set_plot_index(plot_idx)
+			btn.current_building = null
+			btn.board_owner = \"opponent\"
+			var callable = Callable(self, \"_on_enemy_plot_pressed\").bind(plot_idx, btn)
+			btn.pressed.connect(callable)
+
+
+# Handler when a plot is pressed by the local player
+func _on_plot_pressed(idx, btn) -> void:
+	if not player_cards.current_selected_type == \"Building\":
+		print(\"not a building lols\")
+		return
+
+	print(\"asdakdjadja\")
+	var plot_index = idx
+	if player_cards.current_selected == -1:
+		print(\"[Game] No card selected to place\")
+		return
+	if btn.is_occupied:
+		print(\"[Game] Plot is already occupied\")
+		return
+
+	var card_slot = local_hand.slots[player_cards.current_selected]
+	var my_id = multiplayer.get_unique_id()
+	var card_id = card_slot.item.id
+	var card_cost = card_slot.item.cost
+	var current_energy = Network.player_energy.get(my_id, 0)
+	if current_energy < card_cost:
+		print(\"[Game] Not enough energy to place building %d\", current_energy)
+		return
+	# Request server to place building (server will validate and broadcast)
+	if Network:
+		print(\"this is reached or something lols\")
+		Network.call_or_rpc_id(1, \"request_place_building\", [my_id, plot_index, card_id])
+	# Locally remove the card and schedule replacement
+	local_hand.remove_from_slot(player_cards.current_selected)
+	# clear selection visuals
+	var layout = player_cards.get_child(0)
+	if layout.has_node(\"GridContainer\"):
+		layout = layout.get_node(\"GridContainer\")
+	if player_cards.current_selected < layout.get_child_count():
+		var node = layout.get_child(player_cards.current_selected)
+		node.call_deferred(\"set_selected\", false)
+	# schedule replacement
+	await get_tree().create_timer(0.2).timeout
+	if local_hand.slots[player_cards.current_selected].item != null:
+		return
+	var timer = get_tree().create_timer(3.0)
+	timer.timeout.connect(_replace_card.bind(player_cards.current_selected))
+	_populate_card_holder(player_cards, [], true)
+	player_cards.deselect_other_slots(-1)
+	selected_card_id = null
+
+func _on_enemy_plot_pressed(idx, btn) -> void:
+	if not player_cards.current_selected_type == \"Disaster\":
+		print(\"not a disaster lols\")
+		return
+
+	print(\"asdakdjadja\")
+	var plot_index = idx
+	if player_cards.current_selected == -1:
+		print(\"No card selected to place\")
+		return
+
+	var card_slot = local_hand.slots[player_cards.current_selected]
+	var my_id = multiplayer.get_unique_id()
+	var card_id = card_slot.item.id
+	var card_cost = card_slot.item.cost
+	var current_energy = Network.player_energy.get(my_id, 0)
+	if current_energy < card_cost:
+		print(\"Not enough energy to place building %d\", current_energy)
+		return
+	# Request server to place building (server will validate and broadcast)
+	if Network:
+		print(\"this is reached or something lols\")
+		Network.call_or_rpc_id(1, \"request_use_disaster\", [my_id, plot_index, card_id])
+	# Locally remove the card and schedule replacement
+	local_hand.remove_from_slot(player_cards.current_selected)
+	# clear selection visuals
+	var layout = player_cards.get_child(0)
+	if layout.has_node(\"GridContainer\"):
+		layout = layout.get_node(\"GridContainer\")
+	if player_cards.current_selected < layout.get_child_count():
+		var node = layout.get_child(player_cards.current_selected)
+		node.call_deferred(\"set_selected\", false)
+	# schedule replacement
+	var timer = get_tree().create_timer(3.0)
+	timer.timeout.connect(_replace_card.bind(player_cards.current_selected))
+	_populate_card_holder(player_cards, [], true)
+	player_cards.deselect_other_slots(-1)
+	selected_card_id = null
+
+func _get_opponent_peer_id() -> int:
+	if not Network or not Network.players:
+		return -1
+	var my_id = multiplayer.get_unique_id()
+	# In 2-player game, find first id that isn't ours
+	for peer_id in Network.players.keys():
+		if peer_id != my_id:
+			return peer_id
+	return -1
+
+@rpc(\"any_peer\", \"reliable\")
+func rpc_receive_private_hand(hand: Array):
+	# The server will send the array of card ids to the owning client
+	# For each id we will try to load a Card resource (res://cards/card_<id>.tres)
+	# and instantiate a card slot for it so the card graphic appears.
+	# Build a Hand resource instance from the playerhand template and the received ids
+	var template = ResourceLoader.load(\"res://cards/playerhand.tres\")
+	if template:
+		# deep duplicate so we can modify slots safely
+		local_hand = template.duplicate(true)
+	else:
+		# fallback: create minimal Hand instance
+		local_hand = Hand.new()
+
+	# Fill hand resource slots with Card resources where available
+	for i in range(local_hand.slots.size()):
+		if i < hand.size():
+			var cid = hand[i]
+			var res_path = \"res://cards/card_%d.tres\" % cid
+			if ResourceLoader.exists(res_path):
+				var card_res = ResourceLoader.load(res_path)
+				local_hand.slots[i].item = card_res
+			else:
+				local_hand.slots[i].item = null
+		else:
+			local_hand.slots[i].item = null
+
+	# Populate UI using the id array (keeps existing behavior) and keep local_hand for monitoring
+	_populate_card_holder(player_cards, hand, true)
+
+# Runs on all clients; provides how many cards each player has (public info)
+@rpc(\"any_peer\", \"reliable\")
+func rpc_set_public_hand_counts(public_counts: Dictionary):
+	# Use public_counts to populate opponent_cards with X placeholders for remote players
+	print(\"[Game] Public counts: %s\" % public_counts)
+	# For a simple 2-player layout assume one opponent with peer id != local
+	var my_id = multiplayer.get_unique_id()
+	for peer_id in public_counts.keys():
+		if peer_id == my_id:
+			# our own UI is handled by rpc_receive_private_hand
+			continue
+		var count = public_counts[peer_id]
+		_populate_card_holder(opponent_cards, Array(), false, count)
+
+func _populate_card_holder(container: Node, _hand: Array, face_up: bool, count: int = -1):
+	# Find the layout GridContainer inside the holder
+	var layout_node: Node = container
+	if container.has_node(\"GridContainer\"):
+		layout_node = container.get_node(\"GridContainer\")
+
+	# Determine how many slots to iterate: always prefer explicit count, otherwise 3
+	var cards_to_create = 4
+	if count >= 0:
+		cards_to_create = count
+
+	var existing = layout_node.get_child_count()
+	if existing == 0:
+		push_warning(\"Card holder has no child slots; expected at least one slot.\")
+
+	# Iterate over expected slots and update visuals based on local_hand (for player)
+	for i in range(cards_to_create):
+		if i >= existing:
+			push_warning(\"Not enough slots in holder; expected %d but found %d\" % [cards_to_create, existing])
+			continue
+
+		var slot_node: Node = layout_node.get_child(i)
+		var panel = slot_node.get_node(\"CenterContainer/Panel\")
+		# remove dynamic labels
+		for child in panel.get_children():
+			if child.name != \"itemDisplay\":
+				child.queue_free()
+
+		# Set slot index if present
+		slot_node.slot_index = i
+
+		# Connect click signal once
+		var click_callable = Callable(self, \"_on_card_clicked\")
+		if not slot_node.is_connected(\"slot_clicked\", click_callable):
+			slot_node.connect(\"slot_clicked\", click_callable)
+
+		# For player holder: show item if local_hand has item in this slot
+		if container == player_cards and local_hand != null:
+			var s = local_hand.slots[i]
+			slot_node.card_resource = s.item
+			var itemDisplay = slot_node.get_node(\"CenterContainer/Panel/itemDisplay\")
+			slot_node.set_card(s.item)
+
+@rpc(\"any_peer\", \"reliable\")
+func rpc_set_player_names(names: Dictionary):
+	# names is a dictionary mapping peer_id -> display name
+	# RPC serialization can convert integer keys to strings, so coerce keys to int
+	var my_id = multiplayer.get_unique_id()
+	var my_name = null
+	var opp_name = null
+	for raw_key in names.keys():
+		var pid = int(raw_key)
+		var pname = names[raw_key]
+		if pid == my_id:
+			my_name = pname
+		else:
+			# take the first other peer as opponent (works for 2-player layout)
+			if opp_name == null:
+				opp_name = pname
+
+	# Set local UI labels (PlayerName on left, OpponentName on right)
+	if my_name != null and has_node(\"CanvasLayer/PlayerName\"):
+		$CanvasLayer/PlayerName.text = str(my_name)
+	if opp_name != null and has_node(\"CanvasLayer/OpponentName\"):
+		$CanvasLayer/OpponentName.text = str(opp_name)
+
+
+
+
+@rpc(\"any_peer\", \"reliable\")
+func rpc_update_energies(energies: Dictionary) -> void:
+	# Update UI labels for player and opponent energy whenever the server broadcasts
+	var my_id = multiplayer.get_unique_id()
+	var my_energy = null
+	var opp_energy = null
+	for raw_key in energies.keys():
+		var pid = int(raw_key)
+		var val = energies[raw_key]
+		if pid == my_id:
+			my_energy = val
+		else:
+			if opp_energy == null:
+				opp_energy = val
+
+	if my_energy != null and has_node(\"CanvasLayer/PlayerEnergy\"):
+		$CanvasLayer/PlayerEnergy.text = str(my_energy)
+	if opp_energy != null and has_node(\"CanvasLayer/OpponentEnergy\"):
+		$CanvasLayer/OpponentEnergy.text = \"Energy: \" + str(opp_energy)
+
+
+func rpc_set_card_pool(pool_meta: Dictionary) -> void:
+	# Store the card pool metadata for UI/debug monitoring (id -> name/path/frequency)
+	card_pool_meta = pool_meta.duplicate()
+	print(\"[Game] Received card pool metadata: %s\" % card_pool_meta)
+
+func get_selected_card_id():
+	return selected_card_id
+
+
+@rpc(\"any_peer\", \"reliable\")
+func rpc_place_building(owner_peer_id: int, plot_index, card_id: int) -> void:
+	print(\"[Game] rpc_place_building called owner=%d plot=%s card=%d\" % [owner_peer_id, str(plot_index), card_id])
+
+	var root = get_tree().get_current_scene()
+	if not root:
+		push_warning(\"[Game] rpc_place_building: no current scene\")
+		return
+
+	# Determine which plot node belongs to the owner_peer_id.
+	# Adjust node names to match your scene: PlayerPlot = local player's grid, OpponentPlot = other player's grid
+	var target_plot_node: Node = null
+	var my_id = multiplayer.get_unique_id()
+	if owner_peer_id == my_id:
+		if root.has_node(\"PlayerPlot\"):
+			target_plot_node = root.get_node(\"PlayerPlot\")
+	else:
+		# remote player's plot (opponent)
+		if root.has_node(\"OpponentPlot\"):
+			target_plot_node = root.get_node(\"OpponentPlot\")
+
+	if target_plot_node == null:
+		push_warning(\"[Game] rpc_place_building: could not find plot node for owner %d\" % owner_peer_id)
+		return
+
+	var container = target_plot_node
+	if target_plot_node.has_node(\"GridContainer\"):
+		container = target_plot_node.get_node(\"GridContainer\")
+
+	# Load the card resource locally and get its building_scene
+	var card_res_path = \"res://cards/card_%d.tres\" % card_id
+	if not ResourceLoader.exists(card_res_path):
+		push_warning(\"[Game] rpc_place_building: card resource not found: %s\" % card_res_path)
+		return
+	var card_res = ResourceLoader.load(card_res_path)
+	if card_res == null:
+		push_warning(\"[Game] rpc_place_building: failed to load card resource %s\" % card_res_path)
+		return
+
+	# Expect the Card resource to have a `building_scene` property (PackedScene)
+	var building_scene: PackedScene = null
+	building_scene = card_res.building_scene
+	
+	if building_scene == null:
+		push_warning(\"[Game] rpc_place_building: no building_scene defined on card %d\" % card_id)
+		return
+
+	# Find the matching button by plot_index and instantiate the building under it
+	for i in range(container.get_child_count()):
+		var btn = container.get_child(i)
+		if not btn:
+			continue
+		var plot_idx = [int(i % 5), int(i / 5)]
+		if plot_idx.size() == plot_index.size() and int(plot_idx[0]) == int(plot_index[0]) and int(plot_idx[1]) == int(plot_index[1]):
+			var building_instance = building_scene.instantiate()
+			btn.add_child(building_instance)
+			btn.current_building = card_id
+			btn.is_occupied = true
+			btn.building_scene = building_instance
+			btn.building_scene.plot_index = plot_idx
+			print(\"Placed building for owner %d at %s (btn idx %d)\" % [owner_peer_id, str(plot_index), i])
+			if card_id == 0:
+				print(\"Smart Center placed\")
+				Network.request_full_hand_draw(owner_peer_id)
+			# Center the building visually within the plot slot (uses Pivot or exported placement_offset if available)
+			_align_building_on_plot(btn, building_instance)
+			print(\"[Game] Placed building for owner %d at %s (btn idx %d)\" % [owner_peer_id, str(plot_index), i])
+			break
+
+@rpc(\"any_peer\", \"reliable\")
+func rpc_use_disaster(owner_peer_id: int, plot_index, card_id: int) -> void:
+	print(\"[Game] Disaster triggered by %d at plot %s\" % [owner_peer_id, str(plot_index)])
+
+	var root = get_tree().get_current_scene()
+	if not root:
+		return
+
+	# Determine target plot (enemy’s land)
+	var my_id = multiplayer.get_unique_id()
+	var target_plot: Node = null
+	if owner_peer_id == my_id:
+		# If I'm the one casting it, target opponent's plot
+		if root.has_node(\"OpponentPlot\"):
+			target_plot = root.get_node(\"OpponentPlot\")
+	else:
+		# If opponent cast it, target my plot
+		if root.has_node(\"PlayerPlot\"):
+			target_plot = root.get_node(\"PlayerPlot\")
+
+	if not target_plot:
+		push_warning(\"Could not find target plot for disaster.\")
+		return
+
+	# Load the card resource locally and get its building_scene
+	var card_res_path = \"res://cards/card_%d.tres\" % card_id
+	if not ResourceLoader.exists(card_res_path):
+		push_warning(\"[Game] rpc_place_building: card resource not found: %s\" % card_res_path)
+		return
+	var card_res = ResourceLoader.load(card_res_path)
+	if card_res == null:
+		push_warning(\"[Game] rpc_place_building: failed to load card resource %s\" % card_res_path)
+		return
+
+	var disaster_scene = card_res.disaster_scene
+
+	# Example effect: destroy or damage all buildings in target plot cell
+	var container = target_plot.get_node(\"GridContainer\")
+
+	for i in range(container.get_child_count()):
+		var btn = container.get_child(i)
+		if not btn:
+			continue
+			
+		var plot_idx = [int(i % 5), int(i / 5)]
+		# element-wise compare to support arrays
+		if plot_idx.size() == plot_index.size() and int(plot_idx[0]) == int(plot_index[0]) and int(plot_idx[1]) == int(plot_index[1]):
+			var disaster_instance = disaster_scene.instantiate()
+			btn.add_child(disaster_instance)
+			btn.trigger_disaster(card_id, disaster_instance)
+			print(\"lol disaster go boogsh\")
+			break
+
+# Helper: align a Node2D building inside a Control plot button so it appears centered
+func _align_building_on_plot(plot_btn: Control, building: Node) -> void:
+	if plot_btn == null or building == null:
+		return
+	# Determine the local center of the plot button (Control uses size)
+	var center := Vector2.ZERO
+	if \"size\" in plot_btn:
+		center = plot_btn.size * 0.5
+	else:
+		# Fallback: try rect_size (older APIs)
+		center = plot_btn.get_rect().size * 0.5 if plot_btn.has_method(\"get_rect\") else Vector2.ZERO
+
+	var offset := Vector2.ZERO
+	# If the building provides a Pivot node, align that to the center
+	var pivot: Node = building.get_node_or_null(\"Pivot\")
+	if pivot and pivot is Node2D:
+		offset = -(pivot as Node2D).position
+	# Else, if the building exposes an exported placement_offset, use it
+	elif \"placement_offset\" in building:
+		offset = building.placement_offset
+
+	# Apply final local position
+	if \"position\" in building:
+		building.position = center + offset
+
+func _on_timer_timeout():
+	seconds_passed += 1
+	@warning_ignore(\"integer_division\")
+	var minutes = seconds_passed / 60
+	var seconds = seconds_passed % 60
+	timer_label.text = \"Time: %02d:%02d\" % [minutes, seconds]
+"
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kiw3p"]
+atlas = ExtResource("6_aug50")
+region = Rect2(0, 0, 70, 70)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_400sg"]
+atlas = ExtResource("6_aug50")
+region = Rect2(70, 0, 70, 70)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g4kob"]
+atlas = ExtResource("6_aug50")
+region = Rect2(140, 0, 70, 70)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qy1jj"]
+atlas = ExtResource("6_aug50")
+region = Rect2(210, 0, 70, 70)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_3xj3m"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kiw3p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_400sg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g4kob")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qy1jj")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 6.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3xj3m"]
+atlas = ExtResource("6_3xj3m")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mcffj"]
+atlas = ExtResource("6_3xj3m")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2rd6h"]
+atlas = ExtResource("7_mcffj")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7ua8r"]
+atlas = ExtResource("7_mcffj")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_7ua8r"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3xj3m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mcffj")
+}],
+"loop": 1,
+"name": &"host",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2rd6h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7ua8r")
+}],
+"loop": 1,
+"name": &"opponent",
+"speed": 5.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vjgi4"]
+atlas = ExtResource("6_3xj3m")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kyk2p"]
+atlas = ExtResource("6_3xj3m")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r7sob"]
+atlas = ExtResource("7_mcffj")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_y5y3l"]
+atlas = ExtResource("7_mcffj")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_vjgi4"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vjgi4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kyk2p")
+}],
+"loop": 1,
+"name": &"host",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_r7sob")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_y5y3l")
+}],
+"loop": 1,
+"name": &"opponent",
+"speed": 5.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_45i86"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(0, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sv1m6"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(640, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a8wo8"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(1280, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_attvq"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(1920, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bneo8"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(2560, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ocgqw"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(3200, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jbgew"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(3840, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a85ww"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(4480, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jhsr3"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(5120, 0, 640, 360)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0bq3a"]
+atlas = ExtResource("12_mcffj")
+region = Rect2(5760, 0, 640, 360)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_754j2"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": null
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_45i86")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sv1m6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a8wo8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_attvq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bneo8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ocgqw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jbgew")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a85ww")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jhsr3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0bq3a")
+}],
+"loop": 2,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Game" type="Control" unique_id=494729718]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 4.0
+offset_right = 4.0
+script = SubResource("GDScript_400sg")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=337563452]
+
+[node name="PlayerName" type="Label" parent="CanvasLayer" unique_id=1887077953]
+offset_left = 127.0
+offset_top = 513.0
+offset_right = 277.0
+offset_bottom = 541.0
+theme_override_fonts/font = ExtResource("3_s0nni")
+text = "CUrrent Player"
+
+[node name="PlayerEnergy" type="Label" parent="CanvasLayer" unique_id=1821601239]
+offset_left = 562.0
+offset_top = 565.0
+offset_right = 599.0
+offset_bottom = 593.0
+theme_override_colors/font_color = Color(0.0347404, 0.193706, 0.0775828, 1)
+theme_override_fonts/font = ExtResource("3_s0nni")
+text = " 3"
+horizontal_alignment = 1
+
+[node name="OpponentName" type="Label" parent="CanvasLayer" unique_id=441534481]
+offset_left = 868.0
+offset_top = 517.0
+offset_right = 982.0
+offset_bottom = 545.0
+theme_override_fonts/font = ExtResource("3_s0nni")
+text = "OppPlayer"
+horizontal_alignment = 2
+
+[node name="OpponentEnergy" type="Label" parent="CanvasLayer" unique_id=625480444]
+offset_left = 1018.0
+offset_top = 617.0
+offset_right = 1132.0
+offset_bottom = 670.0
+theme_override_fonts/font = ExtResource("3_s0nni")
+text = "Energy: 3
+"
+horizontal_alignment = 2
+
+[node name="EnergySprite" type="AnimatedSprite2D" parent="CanvasLayer" unique_id=1483124272]
+visible = false
+position = Vector2(1032, 686)
+scale = Vector2(0.871429, 0.871429)
+sprite_frames = SubResource("SpriteFrames_3xj3m")
+autoplay = "default"
+frame_progress = 0.242046
+
+[node name="Label" type="Label" parent="CanvasLayer" unique_id=939281389]
+visible = false
+offset_left = 566.09
+offset_top = 627.5
+offset_right = 613.73
+offset_bottom = 641.5
+scale = Vector2(0.63, 0.63)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("3_s0nni")
+theme_override_font_sizes/font_size = 8
+horizontal_alignment = 1
+
+[node name="Timer" type="Timer" parent="CanvasLayer" unique_id=1813547125]
+autostart = true
+
+[node name="PlayerHealthbar" parent="CanvasLayer" unique_id=1390892545 instance=ExtResource("8_400sg")]
+offset_left = 28.0
+offset_top = 427.0
+offset_right = 292.0
+offset_bottom = 801.0
+metadata/_edit_lock_ = true
+
+[node name="Sprite2D" parent="CanvasLayer/PlayerHealthbar" index="1"]
+position = Vector2(131.5, 181.375)
+scale = Vector2(3.5125, 3.81563)
+
+[node name="OpponentHealthbar" parent="CanvasLayer" unique_id=1751915666 instance=ExtResource("8_400sg")]
+offset_left = 873.0
+offset_top = 433.0
+offset_right = 1137.0
+offset_bottom = 807.0
+metadata/_edit_lock_ = true
+
+[node name="Sprite2D" parent="CanvasLayer/OpponentHealthbar" index="1"]
+position = Vector2(131.5, 181.375)
+scale = Vector2(3.5125, 3.81563)
+
+[node name="OpponentCards" parent="CanvasLayer" unique_id=1389160309]
+z_index = 1
+offset_left = -483.0
+offset_top = -157.0
+offset_right = -72.0
+offset_bottom = -10.0
+
+[node name="PlayerCards" parent="CanvasLayer" unique_id=1356552431]
+z_index = 1
+offset_left = 354.0
+offset_top = 575.0
+offset_right = 733.952
+offset_bottom = 722.208
+
+[node name="PlayerSprite" type="AnimatedSprite2D" parent="CanvasLayer" unique_id=453662843]
+position = Vector2(105, 503)
+scale = Vector2(2.32813, 2.65625)
+sprite_frames = SubResource("SpriteFrames_7ua8r")
+animation = &"host"
+autoplay = "host"
+frame_progress = 0.0131258
+metadata/_edit_lock_ = true
+
+[node name="OpponentSprite" type="AnimatedSprite2D" parent="CanvasLayer" unique_id=952357003]
+position = Vector2(1057, 498)
+scale = Vector2(2.32813, 2.65625)
+sprite_frames = SubResource("SpriteFrames_vjgi4")
+animation = &"opponent"
+autoplay = "opponent"
+frame_progress = 0.0617318
+metadata/_edit_lock_ = true
+
+[node name="camera_manager" parent="." unique_id=1012840274]
+position = Vector2(-4, 0)
+min_zoom = 1.0
+drag_speed = 2.0
+limit_left = -850.0
+limit_top = -500.0
+limit_right = 1800.0
+limit_bottom = 300.0
+pan_margin = 128.0
+
+[node name="ColorRect" type="ColorRect" parent="camera_manager" unique_id=644342814]
+offset_left = -1087.0
+offset_top = -511.0
+offset_right = -978.25
+offset_bottom = -455.57
+scale = Vector2(31.94, 31.94)
+color = Color(0, 0, 0, 1)
+
+[node name="Sprite2D4" type="Sprite2D" parent="camera_manager" unique_id=269115669]
+position = Vector2(568, 156)
+scale = Vector2(1.13, 1.13)
+texture = ExtResource("9_45i86")
+
+[node name="Sprite2D6" type="Sprite2D" parent="camera_manager" unique_id=1337678372]
+position = Vector2(2724, 156)
+scale = Vector2(1.13, 1.13)
+texture = ExtResource("9_45i86")
+
+[node name="Sprite2D3" type="Sprite2D" parent="camera_manager" unique_id=1571980923]
+position = Vector2(349, 248)
+scale = Vector2(0.9, 0.9)
+texture = ExtResource("10_2rd6h")
+
+[node name="Sprite2D5" type="Sprite2D" parent="camera_manager" unique_id=1074082386]
+position = Vector2(1654, 248)
+scale = Vector2(0.9, 0.9)
+texture = ExtResource("10_2rd6h")
+
+[node name="Players" type="Node" parent="." unique_id=1058644435]
+
+[node name="PlayerPlot" parent="." unique_id=1223270048]
+layout_mode = 0
+offset_left = -8.0
+offset_top = 49.0
+offset_right = -8.0
+offset_bottom = 49.0
+scale = Vector2(6, 6)
+
+[node name="OpponentPlot" parent="." unique_id=1001996243]
+layout_mode = 0
+offset_left = 1297.0
+offset_top = 45.0
+offset_right = 1297.0
+offset_bottom = 45.0
+scale = Vector2(6, 6)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=785212416]
+visible = false
+position = Vector2(315, 132)
+scale = Vector2(0.32578132, 0.34999996)
+sprite_frames = SubResource("SpriteFrames_754j2")
+frame_progress = 0.9179157
+
+[connection signal="timeout" from="CanvasLayer/Timer" to="." method="_on_timer_timeout"]
+
+[editable path="CanvasLayer/PlayerHealthbar"]
+[editable path="CanvasLayer/OpponentHealthbar"]

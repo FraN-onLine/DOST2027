@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://c253bntq5g4gy"]
+
+[ext_resource type="Script" uid="uid://bf27br628nx3k" path="res://UI/card_slot.gd" id="1_p0pna"]
+[ext_resource type="Texture2D" uid="uid://c1aaa7qemqw7e" path="res://Assets/cards/seismic-card.png" id="2_4432s"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_4432s"]
+
+[node name="card_slot" type="Panel"]
+self_modulate = Color(0, 0, 0, 1)
+offset_right = 62.0
+offset_bottom = 61.0
+script = ExtResource("1_p0pna")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(31, 30)
+scale = Vector2(1.90625, 1.90625)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+offset_right = 61.0
+offset_bottom = 61.0
+
+[node name="Panel" type="Panel" parent="CenterContainer"]
+self_modulate = Color(1, 0.09, 0.09, 1)
+layout_mode = 2
+
+[node name="itemDisplay" type="Sprite2D" parent="CenterContainer/Panel"]
+texture = ExtResource("2_4432s")
+
+[node name="Cost" type="Label" parent="."]
+layout_mode = 0
+offset_left = 11.0
+offset_top = -81.0
+offset_right = 51.0
+offset_bottom = -53.0
+theme_override_colors/font_color = Color(1, 0.883333, 0, 1)
+theme_override_fonts/font = ExtResource("3_4432s")
+text = "5"
+horizontal_alignment = 1
+vertical_alignment = 1

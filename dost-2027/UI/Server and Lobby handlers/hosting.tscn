@@ -1,0 +1,113 @@
+[gd_scene load_steps=2 format=3 uid="uid://ciypeq8dbd4cg"]
+
+[ext_resource type="Script" uid="uid://c2ui5kirtd4ry" path="res://scripts/hosting.gd" id="1_im37f"]
+
+[node name="HostJoin" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_im37f")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.1, 0.15, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainVBox" type="VBoxContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(500, 0)
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="CenterContainer/MainVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "DOST LevelUP"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="CenterContainer/MainVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.65, 0.7, 1)
+text = "LAN Multiplayer"
+horizontal_alignment = 1
+
+[node name="HostSection" type="VBoxContainer" parent="CenterContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HostLabel" type="Label" parent="CenterContainer/MainVBox/HostSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Host a Game"
+horizontal_alignment = 1
+
+[node name="HostNameInput" type="LineEdit" parent="CenterContainer/MainVBox/HostSection"]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+placeholder_text = "Enter your name..."
+alignment = 1
+
+[node name="HostButton" type="Button" parent="CenterContainer/MainVBox/HostSection"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Host Game"
+
+[node name="HSeparator" type="HSeparator" parent="CenterContainer/MainVBox"]
+layout_mode = 2
+
+[node name="JoinSection" type="VBoxContainer" parent="CenterContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="JoinLabel" type="Label" parent="CenterContainer/MainVBox/JoinSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Join a Game"
+horizontal_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="CenterContainer/MainVBox/JoinSection"]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+
+[node name="HostListVBox" type="VBoxContainer" parent="CenterContainer/MainVBox/JoinSection/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/MainVBox/JoinSection"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RefreshButton" type="Button" parent="CenterContainer/MainVBox/JoinSection/ButtonRow"]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Refresh"
+
+[node name="JoinButton" type="Button" parent="CenterContainer/MainVBox/JoinSection/ButtonRow"]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Join"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/MainVBox/JoinSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.65, 0.7, 1)
+text = "Searching for hosts..."
+horizontal_alignment = 1

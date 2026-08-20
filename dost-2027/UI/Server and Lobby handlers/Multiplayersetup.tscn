@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://cyfeubi0cycy2"]
+
+[ext_resource type="PackedScene" uid="uid://ciypeq8dbd4cg" path="res://UI/Server and Lobby handlers/hosting.tscn" id="1_i80on"]
+[ext_resource type="Script" uid="uid://cyo3g5j0v1wpx" path="res://UI/Server and Lobby handlers/multiplayer_spawner.gd" id="2_o2g3a"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="HostJoin" parent="." instance=ExtResource("1_i80on")]
+offset_left = 494.0
+offset_top = 228.0
+offset_right = 494.0
+offset_bottom = 228.0
+metadata/_edit_use_anchors_ = true
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
+script = ExtResource("2_o2g3a")
