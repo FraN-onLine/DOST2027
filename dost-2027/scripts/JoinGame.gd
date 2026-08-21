@@ -6,6 +6,7 @@ extends Control
 @onready var back_button = $CenterContainer/VBoxContainer/BackButton
 @onready var status_label = $StatusLabel
 @onready var search_spinner = $CenterContainer/VBoxContainer/SearchLabel
+@onready var name_input = $CenterContainer/VBoxContainer/NameInput
 
 var host_items := {}  # ip -> Button
 var _search_timer: Timer
@@ -19,6 +20,9 @@ func _ready():
 	Network.host_discovered.connect(_on_host_discovered)
 	Network.host_lost.connect(_on_host_lost)
 	Network.connected.connect(_on_network_connected)
+	
+	# Pre-fill with a random name suggestion
+	name_input.text = Network.RANDOM_NAMES[randi() % Network.RANDOM_NAMES.size()]
 	
 	refresh_button.disabled = true
 	status_label.text = "Scanning for hosts on LAN..."
@@ -100,12 +104,22 @@ func _refresh_host_list():
 		host_items[ip] = button
 
 func _on_host_pressed(ip: String, host_name: String):
+	# Save the chosen name before joining
+	var chosen_name: String = name_input.text.strip_edges()
+	if chosen_name.is_empty():
+		chosen_name = Network.RANDOM_NAMES[randi() % Network.RANDOM_NAMES.size()]
+	Network.set_my_name(chosen_name)
+	
 	status_label.text = "Connecting to %s..." % host_name
 	refresh_button.disabled = true
 	back_button.disabled = true
 	
-	# Join the host - auto uses the discovered IP on the LAN
-	Network.join_host(ip)
+	# Join the host using the discovered IP and port
+	var port := Network.DEFAULT_PORT
+	var discovered := Network.get_discovered_hosts()
+	if discovered.has(ip) and discovered[ip].has("port"):
+		port = int(discovered[ip]["port"])
+	Network.join_host(ip, port)
 
 func _on_network_connected(success: bool, reason: String):
 	refresh_button.disabled = false

@@ -59,6 +59,23 @@ theme_override_font_sizes/font_size = 13
 text = "Scanning for hosts..."
 horizontal_alignment = 1
 
+[node name="NameLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+text = "YOUR NAME"
+horizontal_alignment = 1
+
+[node name="NameInput" type="LineEdit" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(420, 36)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 16
+placeholder_text = "Enter your name"
+alignment = 1
+max_length = 16
+
 [node name="HostListScroll" type="ScrollContainer" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(420, 300)
 layout_mode = 2

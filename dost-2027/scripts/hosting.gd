@@ -37,6 +37,9 @@ func _start_hosting():
 		status_label.text = "Please enter a name first"
 		return
 	
+	# Save the chosen name so it's used consistently
+	Network.set_my_name(name)
+	
 	status_label.text = "Starting host as '%s'..." % name
 	start_button.disabled = true
 	
