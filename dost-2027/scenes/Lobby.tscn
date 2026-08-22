@@ -123,7 +123,7 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 15
 text = "LEAVE"
 
-[node name="IPLabel" type="Label" parent="." unique_id=845840231]
+[node name="LobbyIdLabel" type="Label" parent="." unique_id=845840231]
 visible = false
 layout_mode = 1
 anchors_preset = 10
@@ -133,7 +133,7 @@ offset_bottom = 40.0
 grow_horizontal = 2
 theme_override_colors/font_color = Color(0.2, 1, 0.2, 1)
 theme_override_font_sizes/font_size = 20
-text = "Share this IP: 192.168.x.x | Port: 12345"
+text = "Lobby ID: ABCD"
 horizontal_alignment = 1
 vertical_alignment = 1
 

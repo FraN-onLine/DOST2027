@@ -6,16 +6,10 @@ extends Control
 @onready var start_game_button = $CenterContainer/VBoxContainer/ButtonContainer/StartGameButton
 @onready var leave_button = $CenterContainer/VBoxContainer/ButtonContainer/LeaveButton
 @onready var status_label = $StatusLabel
-@onready var ip_label = $IPLabel
+@onready var lobby_id_label = $LobbyIdLabel
 
 var connected_players = {}
 var is_host = false
-
-func _get_host_ip() -> String:
-	for ip in IP.get_local_addresses():
-		if typeof(ip) == TYPE_STRING and not ip.begins_with("127.") and ":" not in ip:
-			return ip
-	return "localhost"
 
 func _ready():
 	# Connect button signals
@@ -34,10 +28,10 @@ func _ready():
 	
 	if is_host:
 		status_label.text = "You are the host. Waiting for players..."
-		# Show the host's LAN IP so others can join manually if discovery fails
-		if ip_label:
-			ip_label.text = "Share this IP: %s | Port: %d" % [_get_host_ip(), Network.DEFAULT_PORT]
-			ip_label.visible = true
+		# Show the lobby ID so friends can join directly - no IP/port needed
+		if lobby_id_label:
+			lobby_id_label.text = "Lobby ID: %s" % Network.lobby_id
+			lobby_id_label.visible = true
 		# Prefill name with the host's random name
 		var my_id = multiplayer.get_unique_id()
 		if my_id in Network.players:
@@ -45,9 +39,9 @@ func _ready():
 	else:
 		status_label.text = "Connected to host. Waiting for game to start..."
 		start_game_button.visible = false
-		# Hide IP label for clients
-		if ip_label:
-			ip_label.visible = false
+		# Hide lobby ID label for clients
+		if lobby_id_label:
+			lobby_id_label.visible = false
 	
 	# Request current player list from server
 	if is_host:

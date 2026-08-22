@@ -1,15 +1,19 @@
 extends Node
 
 # ============================================
-# Stripped-down LAN Lobby Network
+# LAN Lobby Network + Lobby ID joining
 # ============================================
 
 const DEFAULT_PORT := 12345
 const DISCOVERY_PORT := 12346
+const DISCOVERY_PORT_RANGE := 10
 const DISCOVERY_INTERVAL := 1.0
 const DISCOVERY_TIMEOUT_MS := 5000
+const LOBBY_JOIN_TIMEOUT_MS := 4000
 const MAX_PLAYERS := 4
 const MIN_PLAYERS_TO_START := 2
+
+const LOBBY_ID_ALPHABET := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 const RANDOM_NAMES := [
 	"SunnyReign",
@@ -24,12 +28,13 @@ signal player_left(peer_id)
 signal connected(success, reason)
 signal player_list_updated(players)
 signal game_started
-signal host_discovered(host_name, ip)
-signal host_lost(ip)
+signal host_discovered(host_key, host_name, ip, port, lobby_id)
+signal host_lost(host_key, ip)
 signal player_stats_updated(player_stats)
 
 var host_name := "Host"
 var my_name := "" # The name the user chose before hosting/joining
+var lobby_id := "" # Short code used to join a specific host
 var players := {} # peer_id -> name
 var player_stats := {} # peer_id -> {hp: int, attack: int} (client-side synced copy)
 var player_data := {} # peer_id -> PlayerData (server-side authoritative)
@@ -42,9 +47,15 @@ var _discovery_broadcast_timer: Timer = null
 var _discovery_request_timer: Timer = null
 var _host_listen_udp: PacketPeerUDP = null
 var _host_listen_timer: Timer = null
-var _discovered_hosts := {}  # ip -> {name: String, last_seen: int}
+var _host_listen_port := DISCOVERY_PORT
+var _discovered_hosts := {}  # "ip:discovery_port" -> {name, ip, port, lobby_id, discovery_port, last_seen}
 var _discovery_active := false
 var _is_host_broadcasting := false
+var _game_in_progress := false
+
+# --- Lobby ID join state ---
+var _pending_lobby_join_id := ""
+var _pending_lobby_join_timer: Timer = null
 
 var peer: ENetMultiplayerPeer
 var _join_port := DEFAULT_PORT
@@ -86,6 +97,7 @@ func start_host(port: int = DEFAULT_PORT) -> void:
 	port = actual_port
 	multiplayer.multiplayer_peer = peer
 	_current_port = port
+	_game_in_progress = false
 
 	# Use the name the user entered (or a random one if empty)
 	var host_id := multiplayer.get_unique_id()
@@ -97,19 +109,26 @@ func start_host(port: int = DEFAULT_PORT) -> void:
 	_used_names[name] = true
 	player_data[host_id] = PlayerData.new(name)
 
+	# Create a short, human-friendly lobby ID so friends can join directly
+	lobby_id = _generate_lobby_id()
+
 	broadcast_player_list()
 	start_host_discovery()
 
 	print("========================================")
 	print("Server started on port %d" % port)
 	print("Host name: %s" % name)
-	print("Broadcasting presence on LAN (port %d)..." % DISCOVERY_PORT)
+	print("Lobby ID: %s" % lobby_id)
+	print("Broadcasting presence on LAN (port %d)..." % _host_listen_port)
 	print("========================================")
 	emit_signal("connected", true, "host_started")
 
 
 func stop_host() -> void:
 	stop_host_discovery()
+	_cancel_lobby_join()
+	lobby_id = ""
+	_game_in_progress = false
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer = null
 		peer = null
@@ -140,8 +159,36 @@ func join_host(ip: String, port: int = DEFAULT_PORT) -> void:
 	_join_port = port
 
 
+func join_lobby(lobby_id_to_join: String) -> void:
+	var clean_id := lobby_id_to_join.strip_edges().to_upper()
+	if clean_id.is_empty():
+		emit_signal("connected", false, "invalid_lobby_id")
+		return
+
+	# Make sure discovery is running so we can hear the host's reply
+	if not _discovery_active:
+		start_discovery()
+
+	# If we already discovered a host with this lobby ID, join immediately
+	for host_key in _discovered_hosts.keys():
+		var info: Dictionary = _discovered_hosts[host_key]
+		if str(info.get("lobby_id", "")).to_upper() == clean_id:
+			_cancel_lobby_join()
+			join_host(str(info["ip"]), int(info["port"]))
+			return
+
+	# Otherwise broadcast a resolve request and wait for the matching host
+	_pending_lobby_join_id = clean_id
+	_start_lobby_join_timeout()
+	_send_lobby_resolve_request(clean_id)
+	print("[Network] Looking for lobby ID: %s" % clean_id)
+	emit_signal("connected", false, "resolving_lobby_id")
+
+
 func leave_host() -> void:
 	stop_host_discovery()
+	_cancel_lobby_join()
+	lobby_id = ""
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer = null
 		peer = null
@@ -149,6 +196,41 @@ func leave_host() -> void:
 		player_stats.clear()
 		player_data.clear()
 		print("Left host / disconnected")
+
+
+# ============================================
+# Lobby ID Join (pending resolve)
+# ============================================
+
+func _start_lobby_join_timeout() -> void:
+	_cancel_lobby_join()
+	_pending_lobby_join_timer = Timer.new()
+	_pending_lobby_join_timer.wait_time = float(LOBBY_JOIN_TIMEOUT_MS) / 1000.0
+	_pending_lobby_join_timer.one_shot = true
+	add_child(_pending_lobby_join_timer)
+	_pending_lobby_join_timer.timeout.connect(_on_lobby_join_timeout)
+	_pending_lobby_join_timer.start()
+
+
+func _cancel_lobby_join() -> void:
+	_pending_lobby_join_id = ""
+	if _pending_lobby_join_timer:
+		_pending_lobby_join_timer.stop()
+		_pending_lobby_join_timer.queue_free()
+		_pending_lobby_join_timer = null
+
+
+func _on_lobby_join_timeout() -> void:
+	if _pending_lobby_join_id != "":
+		print("[Network] Lobby not found: %s" % _pending_lobby_join_id)
+		_pending_lobby_join_id = ""
+		_pending_lobby_join_timer = null
+		emit_signal("connected", false, "lobby_not_found")
+
+
+func _send_lobby_resolve_request(lobby_id_to_find: String) -> void:
+	var msg := "DOST_LEVELUP_RESOLVE|%s" % lobby_id_to_find
+	_udp_broadcast_message(msg)
 
 
 # ============================================
@@ -179,6 +261,16 @@ func _release_name(name: String) -> void:
 	_used_names.erase(name)
 
 
+func _generate_lobby_id() -> String:
+	var id := ""
+	var alphabet := LOBBY_ID_ALPHABET
+	id += alphabet[randi() % alphabet.length()]
+	id += alphabet[randi() % alphabet.length()]
+	id += alphabet[randi() % alphabet.length()]
+	id += alphabet[randi() % alphabet.length()]
+	return id
+
+
 # ============================================
 # LAN Host Discovery (UDP broadcast)
 # ============================================
@@ -187,16 +279,35 @@ func get_discovered_hosts() -> Dictionary:
 	return _discovered_hosts.duplicate()
 
 
+func _discovery_port_range() -> Array:
+	var ports := []
+	for p in range(DISCOVERY_PORT, DISCOVERY_PORT + DISCOVERY_PORT_RANGE):
+		ports.append(p)
+	return ports
+
+
 func start_host_discovery() -> void:
 	if _is_host_broadcasting:
 		return
 	_is_host_broadcasting = true
 
-	_host_listen_udp = PacketPeerUDP.new()
-	var err = _host_listen_udp.bind(DISCOVERY_PORT)
-	if err != OK:
-		push_warning("Failed to bind host discovery listen port %d: %s" % [DISCOVERY_PORT, err])
+	# Bind a unique discovery port so multiple hosts on the same machine/LAN
+	# can all respond to discovery requests instead of only the first one.
+	_host_listen_port = DISCOVERY_PORT
+	var bind_ok := false
+	for attempt in range(DISCOVERY_PORT_RANGE):
+		_host_listen_udp = PacketPeerUDP.new()
+		var err := _host_listen_udp.bind(_host_listen_port)
+		if err == OK:
+			bind_ok = true
+			break
 		_host_listen_udp = null
+		_host_listen_port += 1
+	if not bind_ok:
+		push_warning("Failed to bind any host discovery listen port!")
+		_host_listen_udp = null
+		_is_host_broadcasting = false
+		return
 
 	_discovery_broadcast_timer = Timer.new()
 	_discovery_broadcast_timer.wait_time = DISCOVERY_INTERVAL
@@ -214,7 +325,7 @@ func start_host_discovery() -> void:
 		_host_listen_timer.start()
 
 	_broadcast_host_presence()
-	print("[Network] Host discovery broadcasting started (name: %s)" % host_name)
+	print("[Network] Host discovery broadcasting started (name: %s, listen port: %d)" % [host_name, _host_listen_port])
 
 
 func stop_host_discovery() -> void:
@@ -232,11 +343,16 @@ func stop_host_discovery() -> void:
 		_host_listen_udp = null
 
 
+func _host_presence_message() -> String:
+	return "DOST_LEVELUP_HOST|%s|%d|%d|%s" % [host_name, _current_port, _host_listen_port, lobby_id]
+
+
 func _broadcast_host_presence() -> void:
 	if not _is_host_broadcasting:
 		return
-	# Include the game port so clients know which port to join
-	var msg := "DOST_LEVELUP_HOST|%s|%d" % [host_name, _current_port]
+	# Include the game port + discovery listen port + lobby ID so clients know
+	# how to join, where to find this specific host, and what code to share.
+	var msg := _host_presence_message()
 	var payload := msg.to_utf8_buffer()
 	var destinations := ["255.255.255.255"]
 	for ip in IP.get_local_addresses():
@@ -256,6 +372,15 @@ func _broadcast_host_presence() -> void:
 		udp.close()
 
 
+func _respond_host_presence(request_ip: String, request_port: int) -> void:
+	var udp := PacketPeerUDP.new()
+	var err := udp.set_dest_address(request_ip, request_port)
+	if err == OK:
+		udp.put_packet((_host_presence_message()).to_utf8_buffer())
+	udp.close()
+	print("[Network] Responded to discovery request from %s:%d" % [request_ip, request_port])
+
+
 func _process_host_discovery_requests() -> void:
 	if not _is_host_broadcasting or not _host_listen_udp:
 		return
@@ -265,26 +390,35 @@ func _process_host_discovery_requests() -> void:
 		var from_port := _host_listen_udp.get_packet_port()
 		var data := packet.get_string_from_utf8()
 		if data == "DOST_LEVELUP_DISCOVER":
-			var udp := PacketPeerUDP.new()
-			var err := udp.set_dest_address(from_ip, from_port)
-			if err == OK:
-				var msg := "DOST_LEVELUP_HOST|%s|%d" % [host_name, _current_port]
-				udp.put_packet(msg.to_utf8_buffer())
-			udp.close()
-			print("[Network] Responded to discovery request from %s:%d" % [from_ip, from_port])
+			_respond_host_presence(from_ip, from_port)
+		elif data.begins_with("DOST_LEVELUP_RESOLVE|"):
+			var requested_id := data.get_slice("|", 1).strip_edges().to_upper()
+			if requested_id == lobby_id.to_upper() and not lobby_id.is_empty():
+				_respond_host_presence(from_ip, from_port)
+				print("[Network] Lobby resolve match for '%s'" % lobby_id)
 
 
 func start_discovery() -> void:
 	if _discovery_active:
+		_udp_broadcast_message("DOST_LEVELUP_DISCOVER")
 		return
 	_discovery_active = true
 	_discovered_hosts.clear()
+
 	_discovery_udp = PacketPeerUDP.new()
-	var err := _discovery_udp.bind(0)
+	var err := _discovery_udp.bind(DISCOVERY_PORT)
 	if err != OK:
-		push_error("Failed to bind discovery UDP: %s" % err)
-		_discovery_active = false
-		return
+		# Another local process already owns the port (e.g. a second client on
+		# the same machine or a host). Fall back to an ephemeral port - the
+		# request/response flow still works because hosts reply to our source
+		# port directly.
+		_discovery_udp = PacketPeerUDP.new()
+		err = _discovery_udp.bind(0)
+		if err != OK:
+			push_error("Failed to bind discovery UDP: %s" % err)
+			_discovery_active = false
+			return
+
 	_send_discovery_request()
 	_discovery_listen_timer = Timer.new()
 	_discovery_listen_timer.wait_time = 0.5
@@ -292,6 +426,7 @@ func start_discovery() -> void:
 	add_child(_discovery_listen_timer)
 	_discovery_listen_timer.timeout.connect(_process_discovery_packets)
 	_discovery_listen_timer.start()
+
 	_discovery_request_timer = Timer.new()
 	_discovery_request_timer.wait_time = 2.0
 	_discovery_request_timer.one_shot = false
@@ -303,6 +438,7 @@ func start_discovery() -> void:
 
 func stop_discovery() -> void:
 	_discovery_active = false
+	_cancel_lobby_join()
 	if _discovery_udp:
 		_discovery_udp.close()
 		_discovery_udp = null
@@ -317,10 +453,10 @@ func stop_discovery() -> void:
 	_discovered_hosts.clear()
 
 
-func _send_discovery_request() -> void:
+func _udp_broadcast_message(msg: String) -> void:
 	if not _discovery_active or not _discovery_udp:
 		return
-	var payload := "DOST_LEVELUP_DISCOVER".to_utf8_buffer()
+	var payload := msg.to_utf8_buffer()
 	var destinations := ["255.255.255.255"]
 	for ip in IP.get_local_addresses():
 		if typeof(ip) == TYPE_STRING and not ip.begins_with("127.") and ":" not in ip:
@@ -332,9 +468,18 @@ func _send_discovery_request() -> void:
 					destinations.append(subnet_bcast)
 	_discovery_udp.set_broadcast_enabled(true)
 	for dest in destinations:
-		var err := _discovery_udp.set_dest_address(dest, DISCOVERY_PORT)
-		if err == OK:
-			_discovery_udp.put_packet(payload)
+		# Probe every host discovery port so hosts that had to pick a higher
+		# unique port on this machine still receive the request.
+		for p in _discovery_port_range():
+			var err := _discovery_udp.set_dest_address(dest, p)
+			if err == OK:
+				_discovery_udp.put_packet(payload)
+
+
+func _send_discovery_request() -> void:
+	if not _discovery_active or not _discovery_udp:
+		return
+	_udp_broadcast_message("DOST_LEVELUP_DISCOVER")
 
 
 func _process_discovery_packets() -> void:
@@ -344,27 +489,73 @@ func _process_discovery_packets() -> void:
 	while _discovery_udp.get_available_packet_count() > 0:
 		var packet := _discovery_udp.get_packet()
 		var from_ip := _discovery_udp.get_packet_ip()
+		var from_port := _discovery_udp.get_packet_port()
 		var data := packet.get_string_from_utf8()
 		if data.begins_with("DOST_LEVELUP_HOST|"):
 			var parts := data.split("|")
 			var host_name_from_packet := parts[1] if parts.size() > 1 else "Host"
 			var host_port := int(parts[2]) if parts.size() > 2 else DEFAULT_PORT
-			if not _discovered_hosts.has(from_ip):
-				_discovered_hosts[from_ip] = {"name": host_name_from_packet, "port": host_port, "last_seen": now}
-				print("[Network] Discovered host: %s at %s:%d" % [host_name_from_packet, from_ip, host_port])
-				emit_signal("host_discovered", host_name_from_packet, from_ip)
+			var host_disc_port := int(parts[3]) if parts.size() > 3 else from_port
+			var host_lobby := parts[4] if parts.size() > 4 else ""
+			# Key by ip+discovery port so hosts on the same IP don't overwrite
+			var host_key := "%s:%d" % [from_ip, host_disc_port]
+			if not _discovered_hosts.has(host_key):
+				_discovered_hosts[host_key] = {
+					"name": host_name_from_packet,
+					"ip": from_ip,
+					"port": host_port,
+					"lobby_id": host_lobby,
+					"discovery_port": host_disc_port,
+					"last_seen": now,
+				}
+				print("[Network] Discovered host: %s (%s) at %s:%d" % [host_name_from_packet, host_lobby, from_ip, host_port])
+				emit_signal("host_discovered", host_key, host_name_from_packet, from_ip, host_port, host_lobby)
 			else:
-				_discovered_hosts[from_ip]["last_seen"] = now
-				_discovered_hosts[from_ip]["name"] = host_name_from_packet
-				_discovered_hosts[from_ip]["port"] = host_port
+				_discovered_hosts[host_key]["last_seen"] = now
+				_discovered_hosts[host_key]["name"] = host_name_from_packet
+				_discovered_hosts[host_key]["port"] = host_port
+				_discovered_hosts[host_key]["lobby_id"] = host_lobby
+
+			# If we're waiting to join by lobby ID and this host matches, connect now
+			if _pending_lobby_join_id != "" and host_lobby.to_upper() == _pending_lobby_join_id:
+				_pending_lobby_join_id = ""
+				if _pending_lobby_join_timer:
+					_pending_lobby_join_timer.stop()
+					_pending_lobby_join_timer.queue_free()
+					_pending_lobby_join_timer = null
+				print("[Network] Lobby '%s' found, connecting to %s:%d..." % [host_lobby, from_ip, host_port])
+				join_host(from_ip, host_port)
+
+	# Deduplicate: a host can broadcast from multiple network interfaces
+	# (different source IPs), producing several keys for the same lobby.
+	# Keep only the first-seen key per lobby ID so one host shows once.
+	var seen_lobby_ids := {}
+	var duplicate_keys := []
+	for host_key in _discovered_hosts.keys():
+		var lid := str(_discovered_hosts[host_key].get("lobby_id", ""))
+		if lid == "":
+			continue
+		var lid_upper := lid.to_upper()
+		if seen_lobby_ids.has(lid_upper):
+			duplicate_keys.append(host_key)
+		else:
+			seen_lobby_ids[lid_upper] = true
+	for dup_key in duplicate_keys:
+		var removed_ip := str(_discovered_hosts.get(dup_key, {}).get("ip", ""))
+		_discovered_hosts.erase(dup_key)
+		print("[Network] Removed duplicate host entry: %s" % dup_key)
+		emit_signal("host_lost", dup_key, removed_ip)
+
 	var to_remove := []
-	for ip in _discovered_hosts.keys():
-		if now - int(_discovered_hosts[ip]["last_seen"]) > DISCOVERY_TIMEOUT_MS:
-			to_remove.append(ip)
-	for ip in to_remove:
-		_discovered_hosts.erase(ip)
-		print("[Network] Host lost: %s" % ip)
-		emit_signal("host_lost", ip)
+	for host_key in _discovered_hosts.keys():
+		if now - int(_discovered_hosts[host_key]["last_seen"]) > DISCOVERY_TIMEOUT_MS:
+			to_remove.append(host_key)
+	for host_key in to_remove:
+		var info: Dictionary = _discovered_hosts[host_key]
+		var removed_ip := str(info.get("ip", ""))
+		_discovered_hosts.erase(host_key)
+		print("[Network] Host lost: %s" % host_key)
+		emit_signal("host_lost", host_key, removed_ip)
 
 
 # ============================================
@@ -374,6 +565,11 @@ func _process_discovery_packets() -> void:
 func _on_peer_connected(id: int) -> void:
 	print("Peer connected: %d" % id)
 	if multiplayer.is_server():
+		if _game_in_progress:
+			print("Game already in progress. Rejecting peer %d" % id)
+			if peer:
+				peer.disconnect_peer(id)
+			return
 		if players.size() >= MAX_PLAYERS:
 			print("Max players reached (%d). Disconnecting peer %d" % [MAX_PLAYERS, id])
 			if peer:
@@ -495,6 +691,12 @@ func start_game() -> void:
 		push_warning("Too many players to start (currently %d)" % players.size())
 		return
 	print("[Network] Starting game with %d players" % players.size())
+
+	# A game session has started - stop advertising this lobby on the LAN so
+	# unrelated clients no longer see it or receive game RPC broadcasts.
+	_game_in_progress = true
+	stop_host_discovery()
+	_discovered_hosts.clear()
 
 	# Initialize stats for all players
 	for pid in players.keys():

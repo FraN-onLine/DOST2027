@@ -1,8 +1,8 @@
 extends PanelContainer
 
 @onready var name_label = $MarginContainer/VBoxContainer/NameLabel
-@onready var hp_label = $MarginContainer/VBoxContainer/StatsLabel/HpValue
-@onready var attack_label = $MarginContainer/VBoxContainer/StatsLabel/AttackValue
+@onready var hp_label = $MarginContainer/VBoxContainer/StatsLabel/HpBox/HpValue
+@onready var attack_label = $MarginContainer/VBoxContainer/StatsLabel/AttackBox/AttackValue
 
 var player_id := 0
 

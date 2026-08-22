@@ -5,8 +5,8 @@ extends Control
 # Stats are server-authoritative and broadcast in real time.
 
 @onready var own_name_label = $TopLeft/VBoxContainer/NameLabel
-@onready var own_hp_label = $TopLeft/VBoxContainer/StatsRow/HpValue
-@onready var own_attack_label = $TopLeft/VBoxContainer/StatsRow/AttackValue
+@onready var own_hp_label = $TopLeft/VBoxContainer/StatsRow/HpBox/HpValue
+@onready var own_attack_label = $TopLeft/VBoxContainer/StatsRow/AttackBox/AttackValue
 @onready var opponent_vbox = $OpponentPanelContainer/VBoxContainer
 
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")

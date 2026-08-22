@@ -7,14 +7,18 @@ extends Control
 @onready var status_label = $StatusLabel
 @onready var search_spinner = $CenterContainer/VBoxContainer/SearchLabel
 @onready var name_input = $CenterContainer/VBoxContainer/NameInput
+@onready var lobby_id_input = $CenterContainer/VBoxContainer/LobbyIdInput
+@onready var join_lobby_button = $CenterContainer/VBoxContainer/JoinLobbyButton
 
-var host_items := {}  # ip -> Button
+var host_items := {}  # host_key -> Button
 var _search_timer: Timer
 
 func _ready():
 	# Connect button signals
 	refresh_button.pressed.connect(_on_refresh_pressed)
 	back_button.pressed.connect(_on_back_pressed)
+	join_lobby_button.pressed.connect(_on_join_lobby_pressed)
+	lobby_id_input.text_submitted.connect(_on_lobby_id_submitted)
 	
 	# Connect to network discovery signals
 	Network.host_discovered.connect(_on_host_discovered)
@@ -48,13 +52,38 @@ func _on_back_pressed():
 	Network.stop_discovery()
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
 
-func _on_host_discovered(host_name: String, ip: String):
-	print("JoinGame: host discovered: %s at %s" % [host_name, ip])
+func _on_host_discovered(_host_key: String, host_name: String, _ip: String, _port: int, _lobby_id: String):
+	print("JoinGame: host discovered: %s" % host_name)
 	_refresh_host_list()
 
-func _on_host_lost(ip: String):
-	print("JoinGame: host lost: %s" % ip)
+func _on_host_lost(_host_key: String, _ip: String):
+	print("JoinGame: host lost: %s" % _host_key)
 	_refresh_host_list()
+
+func _on_join_lobby_pressed():
+	_join_by_lobby_id()
+
+func _on_lobby_id_submitted(_text: String):
+	_join_by_lobby_id()
+
+func _join_by_lobby_id():
+	var lobby_code: String = lobby_id_input.text.strip_edges()
+	if lobby_code.is_empty():
+		status_label.text = "Enter a lobby ID first"
+		return
+	
+	# Save the chosen name before joining
+	var chosen_name: String = name_input.text.strip_edges()
+	if chosen_name.is_empty():
+		chosen_name = Network.RANDOM_NAMES[randi() % Network.RANDOM_NAMES.size()]
+	Network.set_my_name(chosen_name)
+	
+	status_label.text = "Looking for lobby %s..." % lobby_code.to_upper()
+	refresh_button.disabled = true
+	back_button.disabled = true
+	join_lobby_button.disabled = true
+	
+	Network.join_lobby(lobby_code)
 
 func _refresh_host_list():
 	# Clear existing host entries immediately (not deferred) to prevent overlap
@@ -73,17 +102,23 @@ func _refresh_host_list():
 	
 	search_spinner.visible = false
 	
-	# Deduplicate by host name - the same host may be discovered via multiple
-	# broadcast destinations (255.255.255.255 + subnet broadcast) and unicast responses
-	var seen_names := {}
 	var hosts := []
-	for ip in discovered.keys():
-		var name = str(discovered[ip]["name"])
-		var name_key = name.to_lower()
-		if seen_names.has(name_key):
-			continue  # skip duplicate host with same name
-		seen_names[name_key] = true
-		hosts.append({"ip": ip, "name": name})
+	var seen_lobbies := {}  # lobby_id (uppercase) -> true, UI-level dedupe
+	for host_key in discovered.keys():
+		var info = discovered[host_key]
+		var lobby_id := str(info.get("lobby_id", ""))
+		# Skip duplicate entries for the same lobby (same host via multiple adapters)
+		if lobby_id != "":
+			var lid_key := lobby_id.to_upper()
+			if seen_lobbies.has(lid_key):
+				continue
+			seen_lobbies[lid_key] = true
+		hosts.append({
+			"key": host_key,
+			"ip": str(info["ip"]),
+			"name": str(info["name"]),
+			"lobby_id": lobby_id,
+		})
 	
 	status_label.text = "Found %d host(s) on LAN - tap to join" % hosts.size()
 	
@@ -91,39 +126,47 @@ func _refresh_host_list():
 	hosts.sort_custom(func(a, b): return a["name"].to_lower() < b["name"].to_lower())
 	
 	for host_info in hosts:
+		var host_key = host_info["key"]
 		var ip = host_info["ip"]
 		var name = host_info["name"]
+		var lobby_id = host_info["lobby_id"]
 		
 		var button = Button.new()
-		button.custom_minimum_size = Vector2(360, 48)
+		button.custom_minimum_size = Vector2(420, 48)
 		button.text = name
-		button.tooltip_text = "Join %s (%s)" % [name, ip]
-		button.pressed.connect(_on_host_pressed.bind(ip, name))
+		if lobby_id != "":
+			button.text += "  [%s]" % lobby_id
+		button.tooltip_text = "Join %s (%s) - Lobby ID: %s" % [name, ip, lobby_id]
+		button.pressed.connect(_on_host_pressed.bind(host_key))
 		button.add_theme_font_size_override("font_size", 16)
 		host_list_vbox.add_child(button)
-		host_items[ip] = button
+		host_items[host_key] = button
 
-func _on_host_pressed(ip: String, host_name: String):
+func _on_host_pressed(host_key: String):
+	var discovered = Network.get_discovered_hosts()
+	if not discovered.has(host_key):
+		status_label.text = "That host is no longer available"
+		return
+	var info = discovered[host_key]
+	
 	# Save the chosen name before joining
 	var chosen_name: String = name_input.text.strip_edges()
 	if chosen_name.is_empty():
 		chosen_name = Network.RANDOM_NAMES[randi() % Network.RANDOM_NAMES.size()]
 	Network.set_my_name(chosen_name)
 	
-	status_label.text = "Connecting to %s..." % host_name
+	status_label.text = "Connecting to %s..." % str(info["name"])
 	refresh_button.disabled = true
 	back_button.disabled = true
+	join_lobby_button.disabled = true
 	
 	# Join the host using the discovered IP and port
-	var port := Network.DEFAULT_PORT
-	var discovered := Network.get_discovered_hosts()
-	if discovered.has(ip) and discovered[ip].has("port"):
-		port = int(discovered[ip]["port"])
-	Network.join_host(ip, port)
+	Network.join_host(str(info["ip"]), int(info["port"]))
 
 func _on_network_connected(success: bool, reason: String):
 	refresh_button.disabled = false
 	back_button.disabled = false
+	join_lobby_button.disabled = false
 	
 	if success:
 		Network.stop_discovery()
@@ -131,4 +174,12 @@ func _on_network_connected(success: bool, reason: String):
 		# Switch to lobby scene
 		get_tree().change_scene_to_file("res://scenes/Lobby.tscn")
 	else:
-		status_label.text = "Connection failed: " + reason
+		match reason:
+			"lobby_not_found":
+				status_label.text = "Lobby not found. Check the ID and try again."
+			"invalid_lobby_id":
+				status_label.text = "Please enter a valid lobby ID."
+			"resolving_lobby_id":
+				status_label.text = "Searching for lobby... (keep this screen open)"
+			_:
+				status_label.text = "Connection failed: " + reason
