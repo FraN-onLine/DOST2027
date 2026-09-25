@@ -1,5 +1,9 @@
 extends Node2D
 
+@export var embedded := false
+var embedded_rect := Rect2()
+signal trial_complete
+
 # MAYARI - Patintero x King of the Hill.
 #
 # Two of Mayari's clones hunt you down: one slides along your row, the other
@@ -112,6 +116,9 @@ func _ready() -> void:
 
 	hud = HUD_SCENE.instantiate()
 	ui_layer.add_child(hud)
+	if embedded:
+		hud.get_node("StatsPanel").visible = false
+		hud.get_node("LeaderPanel").visible = false
 
 	dialogue = DIALOGUE_SCENE.instantiate()
 	ui_layer.add_child(dialogue)
@@ -176,6 +183,17 @@ func _on_viewport_resized() -> void:
 
 func _build_field() -> void:
 	var view := get_viewport_rect().size
+	if embedded and embedded_rect.size.x > 0.0 and embedded_rect.size.y > 0.0:
+		_field = embedded_rect
+		_last_view_size = view
+		player.bounds = _field
+		player.global_position = Vector2(_field.position.x + 46.0, _field.get_center().y)
+		if _authority:
+			_spawn_zones()
+			_spawn_clones()
+			_publish_layout()
+		queue_redraw()
+		return
 	# Leave room for the HUD stats panel up top and the event line at the bottom.
 	var top_margin := 180.0
 	var bottom_margin := 96.0
@@ -217,7 +235,11 @@ func _spawn_zones() -> void:
 	]
 	var labels := ["NW CORNER", "NE CORNER", "SW CORNER", "SE CORNER"]
 	for index in range(corners.size()):
-		_zones.append(_make_zone(corners[index], CORNER_SIZE, CORNER_RATE, labels[index], index >= 2))
+		# The embedded Game layout reserves one live corner for the current god.
+		# Mayari's arena is the southeast corner in this presentation.
+		if embedded and index != 3:
+			continue
+		_zones.append(_make_zone(corners[index], CORNER_SIZE, CORNER_RATE, labels[index], index == 3))
 
 
 func _make_zone(center: Vector2, size_value: Vector2, rate: float, label: String, far: bool) -> Node2D:
@@ -1040,7 +1062,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		Phase.RESULTS:
 			if event.is_action_pressed("advance_dialogue"):
 				viewport.set_input_as_handled()
-				get_tree().reload_current_scene()
+				if embedded:
+					trial_complete.emit()
+				else:
+					get_tree().reload_current_scene()
 		_:
 			pass
 

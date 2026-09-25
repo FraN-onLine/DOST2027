@@ -4,7 +4,6 @@ extends Control
 @onready var name_input = $CenterContainer/VBoxContainer/NameInput
 @onready var change_name_button = $CenterContainer/VBoxContainer/ChangeNameButton
 @onready var start_game_button = $CenterContainer/VBoxContainer/ButtonContainer/StartGameButton
-@onready var god_games_button = $CenterContainer/VBoxContainer/ButtonContainer/GodGamesButton
 @onready var leave_button = $CenterContainer/VBoxContainer/ButtonContainer/LeaveButton
 @onready var status_label = $StatusLabel
 @onready var lobby_id_label = $LobbyIdLabel
@@ -15,7 +14,6 @@ var is_host = false
 func _ready():
 	# Connect button signals
 	start_game_button.pressed.connect(_on_start_game_pressed)
-	god_games_button.pressed.connect(_on_god_games_pressed)
 	leave_button.pressed.connect(_on_leave_pressed)
 	change_name_button.pressed.connect(_on_change_name_pressed)
 	name_input.text_submitted.connect(_on_name_submitted)
@@ -41,7 +39,6 @@ func _ready():
 	else:
 		status_label.text = "Connected to host. Waiting for game to start..."
 		start_game_button.visible = false
-		god_games_button.visible = false
 		# Hide lobby ID label for clients
 		if lobby_id_label:
 			lobby_id_label.visible = false
@@ -62,11 +59,6 @@ func _ready():
 func _on_start_game_pressed():
 	if is_host and connected_players.size() >= Network.MIN_PLAYERS_TO_START:
 		Network.start_game()
-
-func _on_god_games_pressed():
-	# Bathala's God's Games - every mortal in the lobby drops into the arena.
-	if is_host:
-		Network.start_god_games()
 
 func _on_leave_pressed():
 	if is_host:

@@ -112,7 +112,7 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 15
 text = "START GAME"
 
-[node name="GodGamesButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonContainer"]
+[node name="DetailsButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonContainer"]
 custom_minimum_size = Vector2(200, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68652165, 0.7156887, 0.8392816, 1)
@@ -121,7 +121,7 @@ theme_override_colors/font_pressed_color = Color(0.12, 0.13, 0.2, 1)
 theme_override_colors/font_hover_color = Color(0.05, 0.06, 0.12, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 15
-text = "GOD'S GAMES"
+text = "DETAILS"
 
 [node name="LeaveButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonContainer" unique_id=722802359]
 custom_minimum_size = Vector2(200, 44)
