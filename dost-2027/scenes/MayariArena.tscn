@@ -1,0 +1,54 @@
+[gd_scene format=3 uid="uid://cmayariarena001"]
+
+[ext_resource type="Script" path="res://scripts/mayari_arena.gd" id="1_arena"]
+[ext_resource type="Script" path="res://scripts/arena/arena_player.gd" id="2_player"]
+[ext_resource type="Texture2D" path="res://icon.svg" id="3_icon"]
+[ext_resource type="Shader" path="res://UI/GodsArena/vision_mask.gdshader" id="4_vision"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_mortal"]
+radius = 13.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vision"]
+shader = ExtResource("4_vision")
+shader_parameter/radius = 0.16
+shader_parameter/center = Vector2(0.5, 0.5)
+shader_parameter/softness = 0.06
+shader_parameter/aspect = 1.7777778
+
+[node name="MayariArena" type="Node2D"]
+script = ExtResource("1_arena")
+
+[node name="Zones" type="Node2D" parent="."]
+
+[node name="Clones" type="Node2D" parent="."]
+
+[node name="Ghosts" type="Node2D" parent="."]
+
+[node name="Player" type="CharacterBody2D" parent="."]
+motion_mode = 1
+script = ExtResource("2_player")
+
+[node name="Sprite" type="Sprite2D" parent="Player"]
+scale = Vector2(0.22, 0.22)
+texture = ExtResource("3_icon")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("CircleShape2D_mortal")
+
+[node name="VisionLayer" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="VisionMask" type="ColorRect" parent="VisionLayer"]
+visible = false
+material = SubResource("ShaderMaterial_vision")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10

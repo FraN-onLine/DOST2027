@@ -32,6 +32,15 @@ signal host_discovered(host_key, host_name, ip, port, lobby_id)
 signal host_lost(host_key, ip)
 signal player_stats_updated(player_stats)
 
+# --- God's Games (Bathala) ---
+signal god_games_started
+signal god_state_received(state)          # host -> clients: absolute FAVOR snapshot
+signal god_favor_requested(peer_id, amount, reason)
+signal god_skill_requested(peer_id, slot)
+signal god_grant_requested(peer_id, favor_id)
+signal arena_layout_received(layout)      # host -> clients: field / corners / clones
+signal arena_state_received(state)        # host -> clients: 10 Hz world tick
+
 var host_name := "Host"
 var my_name := "" # The name the user chose before hosting/joining
 var lobby_id := "" # Short code used to join a specific host
@@ -49,6 +58,8 @@ var _host_listen_udp: PacketPeerUDP = null
 var _host_listen_timer: Timer = null
 var _host_listen_port := DISCOVERY_PORT
 var _discovered_hosts := {}  # "ip:discovery_port" -> {name, ip, port, lobby_id, discovery_port, last_seen}
+var god_state := {}         # peer_id -> {favor, due, favors, cooldowns, ...} (host: authoritative)
+var mortal_positions := {}  # peer_id -> Vector2 (host: latest reported position)
 var _discovery_active := false
 var _is_host_broadcasting := false
 var _game_in_progress := false
@@ -795,3 +806,141 @@ func _broadcast_player_stats() -> void:
 		serialized[pid] = player_data[pid].to_dict()
 	rpc("rpc_broadcast_player_stats", serialized)
 	call_deferred("rpc_broadcast_player_stats", serialized)
+
+
+# ============================================
+# God's Games (Bathala) - FAVOR stays server-authoritative
+# ============================================
+
+func has_multiplayer_peer() -> bool:
+	# Godot hands out an OfflineMultiplayerPeer when nothing is connected, so a
+	# plain null check is not enough.
+	var peer := multiplayer.get_multiplayer_peer()
+	return peer != null and not (peer is OfflineMultiplayerPeer)
+
+
+func is_game_host() -> bool:
+	return not has_multiplayer_peer() or multiplayer.is_server()
+
+
+# --- lobby -> God's Games ---------------------------------------------------
+
+func start_god_games(scene_path := "res://scenes/MayariArena.tscn") -> void:
+	# Host-only, mirrors start_game(): every peer drops into Bathala's games.
+	if has_multiplayer_peer() and not multiplayer.is_server():
+		return
+	if players.is_empty():
+		push_warning("No players to start the God's Games")
+		return
+	print("[Network] Starting the God's Games with %d player(s)" % players.size())
+	_game_in_progress = true
+	stop_host_discovery()
+	_discovered_hosts.clear()
+	god_state.clear()
+	mortal_positions.clear()
+	for pid in players.keys():
+		god_state[int(pid)] = {
+			"favor": 0, "due": 0, "favors": [], "cooldowns": {},
+			"durations": {}, "immunity": 0.0, "pending": 0.0, "claimed": {},
+		}
+	if has_multiplayer_peer():
+		rpc("rpc_change_scene", scene_path)
+	emit_signal("god_games_started")
+	get_tree().change_scene_to_file(scene_path)
+
+
+# --- FAVOR snapshots (host -> everyone) -------------------------------------
+
+func publish_god_state(state: Dictionary) -> void:
+	god_state = state.duplicate(true)
+	if has_multiplayer_peer():
+		rpc("rpc_god_state", god_state)
+
+
+@rpc("any_peer", "reliable")
+func rpc_god_state(remote_state: Dictionary) -> void:
+	if multiplayer.is_server():
+		return
+	god_state = remote_state.duplicate(true)
+	emit_signal("god_state_received", god_state)
+
+
+@rpc("any_peer", "reliable")
+func request_god_state() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		emit_signal("god_state_received", god_state)
+	elif has_multiplayer_peer():
+		rpc_id(sender, "rpc_god_state", god_state)
+
+
+# --- client intents (client -> host) ----------------------------------------
+
+@rpc("any_peer", "reliable")
+func request_god_favor_add(amount: int, reason: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("god_favor_requested", sender, amount, reason)
+
+
+@rpc("any_peer", "reliable")
+func request_god_skill(slot: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("god_skill_requested", sender, slot)
+
+
+@rpc("any_peer", "reliable")
+func request_god_grant(favor_id: StringName) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("god_grant_requested", sender, favor_id)
+
+
+# --- arena world sync -------------------------------------------------------
+
+func publish_arena_layout(layout: Dictionary) -> void:
+	if not has_multiplayer_peer():
+		return
+	rpc("rpc_arena_layout", layout)
+
+
+@rpc("any_peer", "reliable")
+func rpc_arena_layout(layout: Dictionary) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("arena_layout_received", layout)
+
+
+func publish_arena_state(state: Dictionary) -> void:
+	if not has_multiplayer_peer():
+		return
+	rpc("rpc_arena_state", state)
+
+
+@rpc("any_peer", "unreliable_ordered")
+func rpc_arena_state(state: Dictionary) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("arena_state_received", state)
+
+
+@rpc("any_peer", "unreliable_ordered")
+func report_mortal_position(position: Vector2) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	mortal_positions[sender] = position

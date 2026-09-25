@@ -115,6 +115,21 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_constants/separation = 12
 
+[node name="GodButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(260, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08, 0.09, 0.15, 1)
+theme_override_colors/font_focus_color = Color(0.08, 0.09, 0.15, 1)
+theme_override_colors/font_pressed_color = Color(0.12, 0.13, 0.2, 1)
+theme_override_colors/font_hover_color = Color(0.05, 0.06, 0.12, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("1")
+theme_override_styles/pressed = SubResource("3")
+theme_override_styles/hover = SubResource("2")
+theme_override_styles/focus = SubResource("1")
+text = "GOD'S GAMES"
+
 [node name="HostButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1787189722]
 custom_minimum_size = Vector2(260, 52)
 layout_mode = 2

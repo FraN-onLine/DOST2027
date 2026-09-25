@@ -1,14 +1,15 @@
 extends Control
 
-@onready var host_list = $CenterContainer/VBoxContainer/HostListScroll
-@onready var host_list_vbox = $CenterContainer/VBoxContainer/HostListScroll/HostListVBox
-@onready var refresh_button = $CenterContainer/VBoxContainer/RefreshButton
-@onready var back_button = $CenterContainer/VBoxContainer/BackButton
+@onready var host_list = $ContentRoot/VBoxContainer/HostListScroll
+@onready var host_list_vbox = $ContentRoot/VBoxContainer/HostListScroll/HostListVBox
+@onready var no_hosts_label = $ContentRoot/VBoxContainer/NoHostsLabel
+@onready var refresh_button = $ContentRoot/VBoxContainer/RefreshButton
+@onready var back_button = $ContentRoot/VBoxContainer/BackButton
 @onready var status_label = $StatusLabel
-@onready var search_spinner = $CenterContainer/VBoxContainer/SearchLabel
-@onready var name_input = $CenterContainer/VBoxContainer/NameInput
-@onready var lobby_id_input = $CenterContainer/VBoxContainer/LobbyIdInput
-@onready var join_lobby_button = $CenterContainer/VBoxContainer/JoinLobbyButton
+@onready var search_spinner = $ContentRoot/VBoxContainer/SearchLabel
+@onready var name_input = $ContentRoot/VBoxContainer/NameInput
+@onready var lobby_id_input = $ContentRoot/VBoxContainer/LobbyIdInput
+@onready var join_lobby_button = $ContentRoot/VBoxContainer/JoinLobbyButton
 
 var host_items := {}  # host_key -> Button
 var _search_timer: Timer
@@ -33,6 +34,9 @@ func _ready():
 	
 	# Start LAN discovery automatically
 	Network.start_discovery()
+	
+	# Build the list (or the "no hosts" message) right away instead of waiting for the first scan tick
+	_refresh_host_list()
 	
 	# Refresh the host list periodically so new hosts appear automatically
 	_search_timer = Timer.new()
@@ -95,11 +99,13 @@ func _refresh_host_list():
 	var discovered = Network.get_discovered_hosts()
 	
 	if discovered.size() == 0:
-		status_label.text = "No hosts found on LAN. Make sure the host started the game."
-		search_spinner.visible = true
-		search_spinner.text = "Scanning for hosts..."
+		# Nothing to list - show the "no hosts" message inside the list area instead of a long status line
+		_show_host_list(false)
+		search_spinner.visible = false
+		status_label.text = "Scanning for hosts on LAN..."
 		return
 	
+	_show_host_list(true)
 	search_spinner.visible = false
 	
 	var hosts := []
@@ -141,6 +147,11 @@ func _refresh_host_list():
 		button.add_theme_font_size_override("font_size", 16)
 		host_list_vbox.add_child(button)
 		host_items[host_key] = button
+
+func _show_host_list(has_hosts: bool):
+	# Swap between the scrollable host list and the "no hosts" message
+	host_list.visible = has_hosts
+	no_hosts_label.visible = not has_hosts
 
 func _on_host_pressed(host_key: String):
 	var discovered = Network.get_discovered_hosts()

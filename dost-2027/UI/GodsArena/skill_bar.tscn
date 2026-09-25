@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://csk1llbar0001"]
+
+[ext_resource type="Script" path="res://UI/GodsArena/skill_bar.gd" id="1_bar"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar"]
+bg_color = Color(0.09, 0.11, 0.18, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.28, 0.32, 0.44, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="SkillBar" type="PanelContainer"]
+custom_minimum_size = Vector2(190, 38)
+offset_right = 190.0
+offset_bottom = 38.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_bar")
+script = ExtResource("1_bar")
+
+[node name="Body" type="Control" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Fill" type="ColorRect" parent="Body"]
+layout_mode = 1
+anchor_bottom = 1.0
+grow_vertical = 2
+color = Color(0.55, 0.85, 1, 0.7)
+
+[node name="Text" type="Label" parent="Body"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "E  --"
+horizontal_alignment = 1
+vertical_alignment = 1

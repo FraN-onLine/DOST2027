@@ -22,20 +22,24 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.04, 0.05, 0.1, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="ContentRoot" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 8.0
+offset_bottom = -48.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="ContentRoot"]
 custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
-theme_override_constants/separation = 10
+size_flags_horizontal = 4
+size_flags_vertical = 3
+theme_override_constants/separation = 8
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="ContentRoot/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
 theme_override_fonts/font = ExtResource("2_font")
@@ -43,7 +47,7 @@ theme_override_font_sizes/font_size = 32
 text = "JOIN GAME"
 horizontal_alignment = 1
 
-[node name="SubtitleLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+[node name="SubtitleLabel" type="Label" parent="ContentRoot/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_font")
@@ -51,7 +55,7 @@ theme_override_font_sizes/font_size = 13
 text = "Available hosts on your network"
 horizontal_alignment = 1
 
-[node name="SearchLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+[node name="SearchLabel" type="Label" parent="ContentRoot/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_font")
@@ -59,7 +63,7 @@ theme_override_font_sizes/font_size = 13
 text = "Scanning for hosts..."
 horizontal_alignment = 1
 
-[node name="NameLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+[node name="NameLabel" type="Label" parent="ContentRoot/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
 theme_override_fonts/font = ExtResource("2_font")
@@ -67,7 +71,7 @@ theme_override_font_sizes/font_size = 13
 text = "YOUR NAME"
 horizontal_alignment = 1
 
-[node name="NameInput" type="LineEdit" parent="CenterContainer/VBoxContainer"]
+[node name="NameInput" type="LineEdit" parent="ContentRoot/VBoxContainer"]
 custom_minimum_size = Vector2(420, 36)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
@@ -76,11 +80,11 @@ placeholder_text = "Enter your name"
 alignment = 1
 max_length = 16
 
-[node name="HSeparator" type="HSeparator" parent="CenterContainer/VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="ContentRoot/VBoxContainer"]
 custom_minimum_size = Vector2(420, 4)
 layout_mode = 2
 
-[node name="LobbyIdLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+[node name="LobbyIdLabel" type="Label" parent="ContentRoot/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
 theme_override_fonts/font = ExtResource("2_font")
@@ -88,7 +92,7 @@ theme_override_font_sizes/font_size = 13
 text = "OR JOIN WITH A LOBBY ID"
 horizontal_alignment = 1
 
-[node name="LobbyIdInput" type="LineEdit" parent="CenterContainer/VBoxContainer"]
+[node name="LobbyIdInput" type="LineEdit" parent="ContentRoot/VBoxContainer"]
 custom_minimum_size = Vector2(420, 36)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
@@ -97,7 +101,7 @@ placeholder_text = "Enter 4-letter lobby ID"
 alignment = 1
 max_length = 4
 
-[node name="JoinLobbyButton" type="Button" parent="CenterContainer/VBoxContainer"]
+[node name="JoinLobbyButton" type="Button" parent="ContentRoot/VBoxContainer"]
 custom_minimum_size = Vector2(420, 36)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.85, 0.4, 1)
@@ -108,22 +112,35 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 14
 text = "JOIN BY LOBBY ID"
 
-[node name="HSeparator2" type="HSeparator" parent="CenterContainer/VBoxContainer"]
+[node name="HSeparator2" type="HSeparator" parent="ContentRoot/VBoxContainer"]
 custom_minimum_size = Vector2(420, 4)
 layout_mode = 2
 
-[node name="HostListScroll" type="ScrollContainer" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(420, 240)
+[node name="HostListScroll" type="ScrollContainer" parent="ContentRoot/VBoxContainer"]
+custom_minimum_size = Vector2(420, 120)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="HostListVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/HostListScroll"]
+[node name="HostListVBox" type="VBoxContainer" parent="ContentRoot/VBoxContainer/HostListScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="RefreshButton" type="Button" parent="CenterContainer/VBoxContainer"]
+[node name="NoHostsLabel" type="Label" parent="ContentRoot/VBoxContainer"]
+custom_minimum_size = Vector2(420, 120)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+text = "No hosts found on LAN.\nMake sure the host started the game\nand is on the same network."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="RefreshButton" type="Button" parent="ContentRoot/VBoxContainer"]
 custom_minimum_size = Vector2(420, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
@@ -134,7 +151,7 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 14
 text = "REFRESH"
 
-[node name="BackButton" type="Button" parent="CenterContainer/VBoxContainer"]
+[node name="BackButton" type="Button" parent="ContentRoot/VBoxContainer"]
 custom_minimum_size = Vector2(420, 36)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
@@ -147,15 +164,20 @@ text = "BACK"
 
 [node name="StatusLabel" type="Label" parent="."]
 layout_mode = 1
-anchors_preset = 2
+anchors_preset = 12
 anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -40.0
-offset_right = 800.0
-offset_bottom = -10.0
+offset_left = 20.0
+offset_top = -48.0
+offset_right = -20.0
+offset_bottom = -8.0
+grow_horizontal = 2
 grow_vertical = 0
 theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 13
 text = "Scanning for hosts on LAN..."
 horizontal_alignment = 1
+vertical_alignment = 2
+autowrap_mode = 3
