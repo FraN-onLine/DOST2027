@@ -1051,6 +1051,3 @@ func _leave() -> void:
 		get_tree().change_scene_to_file("res://scenes/Lobby.tscn")
 	else:
 		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
-
-
-
