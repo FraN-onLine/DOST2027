@@ -3,7 +3,7 @@ extends Control
 # BATHALA - Ang Laro ng mga diyos (the God Games).
 # Title / story screen that leads into the first god's arena.
 
-const FALLBACK_ARENA := "res://scenes/MayariArena.tscn"
+const FALLBACK_ARENA := "res://scenes/Game.tscn"
 
 @onready var story_label: Label = $CenterContainer/VBox/StoryLabel
 @onready var gods_list: VBoxContainer = $CenterContainer/VBox/GodsList
@@ -44,8 +44,7 @@ func _game_name(god: God) -> String:
 func _start() -> void:
 	var order := Gods.trial_order()
 	var target := FALLBACK_ARENA
-	if not order.is_empty() and order[0].arena_scene != "":
-		target = order[0].arena_scene
+	# God trials always run inside the shared Game shell.
 	status_label.text = "Entering %s's arena..." % order[0].display_name
 	get_tree().change_scene_to_file(target)
 

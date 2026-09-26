@@ -3,26 +3,21 @@ extends Control
 # Bathala's game shell. The shell owns shared player panels and chooses the
 # current trial; each god arena remains a replaceable child controller.
 
-const MAYARI_ARENA_SCENE := preload("res://scenes/MayariArena.tscn")
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
 const TRIAL_COUNT := 5
 
 @onready var own_name_label: Label = $TopLeft/VBoxContainer/NameLabel
-@onready var favor_label: Label = $BathalaPanel/Margin/VBox/StatsRow/FavorValue
-@onready var due_label: Label = $BathalaPanel/Margin/VBox/StatsRow/DueValue
-@onready var e_bar: ProgressBar = $BathalaPanel/Margin/VBox/SkillRow/EBar
-@onready var q_bar: ProgressBar = $BathalaPanel/Margin/VBox/SkillRow/QBar
-@onready var trial_label: Label = $BathalaPanel/Margin/VBox/TrialLabel
-@onready var god_label: Label = $BathalaPanel/Margin/VBox/GodLabel
-@onready var arena_title: Label = $ArenaPanel/ArenaTitle
-@onready var opponent_vbox: VBoxContainer = $OpponentPanelContainer/VBoxContainer
+@onready var favor_label: Label = $TopLeft/VBoxContainer/StatsRow/FavorBox/FavorValue
+@onready var due_label: Label = $TopLeft/VBoxContainer/StatsRow/DueBox/DueValue
+@onready var other_players_vbox: VBoxContainer = $OtherPlayersPanel/Margin/VBox
+@onready var timer_label: Label = $TrialTimer
 
 var arena: Node = null
 var rules: GodMatch = null
-var opponent_panels := {}
 var trial_order: Array[God] = []
 var trial_index := 0
 var run_snapshot := {}
+var other_player_panels := {}
 
 
 func _ready() -> void:
@@ -33,21 +28,25 @@ func _ready() -> void:
 
 func _build_hud() -> void:
 	var my_id := multiplayer.get_unique_id()
-	$TopLeft/VBoxContainer/StatsRow.visible = false
 	own_name_label.text = str(Network.players.get(my_id, Network.my_name if Network.my_name != "" else "Mortal"))
-	for child in opponent_vbox.get_children():
+	$TopLeft/VBoxContainer/StatsRow/FavorBox/FavorCaption.text = "FAVOR"
+	$TopLeft/VBoxContainer/StatsRow/DueBox/DueCaption.text = "DUE"
+	_build_other_player_panels()
+
+
+func _build_other_player_panels() -> void:
+	for child in other_players_vbox.get_children():
 		child.queue_free()
-	opponent_panels.clear()
-	for pid in Network.players.keys():
-		var id_int := int(pid)
-		if id_int == my_id:
+	other_player_panels.clear()
+	var my_id := multiplayer.get_unique_id()
+	for peer_id in Network.players.keys():
+		var id := int(peer_id)
+		if id == my_id:
 			continue
 		var panel := OPPONENT_PANEL_SCENE.instantiate()
-		opponent_vbox.add_child(panel)
-		panel.setup(id_int, str(Network.players[pid]), 100, 10)
-		opponent_panels[id_int] = panel
-	e_bar.value = 0.0
-	q_bar.value = 0.0
+		other_players_vbox.add_child(panel)
+		panel.setup(id, str(Network.players[peer_id]), 0, 0)
+		other_player_panels[id] = panel
 
 
 func _build_trial_order() -> void:
@@ -66,26 +65,43 @@ func _build_trial_order() -> void:
 
 func _start_current_trial() -> void:
 	var god := trial_order[trial_index]
-	god_label.text = god.display_name
-	god_label.add_theme_color_override("font_color", god.color)
-	trial_label.text = "TRIAL %d OF %d" % [trial_index + 1, trial_order.size()]
-	arena_title.text = "%s  |  %s" % [god.display_name, god.game_name]
 
-	# Bathala is the closing challenge marker until its dedicated arena exists.
-	# The modular slot is kept in the shell so adding BathalaArena later does not
-	# require changing the lobby or player HUD.
-	if god.id == Gods.BATHALA:
+	# Every god of the trial order ships its own arena scene (res://scenes/gods/
+	# <god>/). Bathala has none yet, so it stays the marker that closes the run.
+	if not god.implemented or god.arena_scene == "":
+		timer_label.text = "THE GODS ARE PLEASED"
 		return
-	if god.id != Gods.MAYARI:
-		god = Gods.mayari()
-	var arena_instance := MAYARI_ARENA_SCENE.instantiate()
+	var packed: PackedScene = load(god.arena_scene)
+	if packed == null:
+		push_warning("Cannot load the %s arena (%s)" % [god.display_name, god.arena_scene])
+		return
+	var arena_instance: Node2D = packed.instantiate()
+	arena_instance.god_id = god.id
 	arena_instance.embedded = true
-	arena_instance.embedded_rect = Rect2(270.0, 180.0, maxf(460.0, size.x - 520.0), maxf(280.0, size.y - 270.0))
+	arena_instance.dialogue_prefix = "trial_%d" % (trial_index + 1)
+	arena_instance.embedded_rect = _arena_rect()
 	$ArenaPanel.add_child(arena_instance)
 	arena = arena_instance
 	arena.tree_exited.connect(_on_arena_exited)
 	arena.trial_complete.connect(_on_trial_complete)
 	call_deferred("_on_arena_ready")
+
+
+func _arena_rect() -> Rect2:
+	# The right-hand play area, beside the stat panels on the left.
+	return Rect2(270.0, 180.0, maxf(460.0, size.x - 520.0), maxf(280.0, size.y - 270.0))
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED:
+		_update_arena_rect()
+
+
+func _update_arena_rect() -> void:
+	if arena == null or not is_instance_valid(arena):
+		return
+	arena.embedded_rect = _arena_rect()
+	arena.refresh_field()
 
 
 func _on_arena_ready() -> void:
@@ -96,16 +112,22 @@ func _on_arena_ready() -> void:
 		return
 	rules.favor_changed.connect(_on_favor_changed)
 	rules.due_changed.connect(_on_due_changed)
+	if arena.has_signal("trial_time_changed"):
+		arena.trial_time_changed.connect(_on_trial_time_changed)
 	if not run_snapshot.is_empty():
 		rules.apply_snapshot(run_snapshot)
 	_refresh_local_stats()
 
 
+func _on_trial_time_changed(seconds: float) -> void:
+	var clamped := maxf(0.0, seconds)
+	timer_label.text = "%d:%02d" % [int(clamped / 60.0), int(clamped) % 60]
+
+
 func _process(_delta: float) -> void:
 	_refresh_local_stats()
 	if rules != null:
-		_update_skill_bar(e_bar, GodFavor.Slot.E)
-		_update_skill_bar(q_bar, GodFavor.Slot.Q)
+		_update_panel_stats()
 
 
 func _refresh_local_stats() -> void:
@@ -118,13 +140,30 @@ func _refresh_local_stats() -> void:
 	due_label.text = str(mortal.due)
 
 
-func _update_skill_bar(bar: ProgressBar, slot: int) -> void:
-	var favor := rules.skill_favor(slot)
+func _update_panel_stats() -> void:
+	var mortal := rules.local()
+	if mortal == null:
+		return
+	_update_skill_bar($TopLeft/VBoxContainer/StatsRow/FavorBox/EBar, GodFavor.Slot.E, mortal)
+	_update_skill_bar($TopLeft/VBoxContainer/StatsRow/DueBox/QBar, GodFavor.Slot.Q, mortal)
+	for id in other_player_panels.keys():
+		var other := rules.mortal(int(id))
+		if other == null:
+			continue
+		other_player_panels[id].update_stats(other.favor, other.due)
+		other_player_panels[id].update_skill_bar(rules, other)
+
+
+func _update_skill_bar(bar: ProgressBar, slot: int, mortal: GodMatch.Mortal) -> void:
+	var favor := mortal.favor_in_slot(slot)
 	if favor == null:
 		bar.value = 0.0
 		bar.tooltip_text = "%s  --" % ("E" if slot == GodFavor.Slot.E else "Q")
 		return
-	bar.value = rules.skill_cooldown_ratio(slot) * 100.0
+	var ratio := 1.0
+	if favor.cooldown > 0.0:
+		ratio = clampf(1.0 - mortal.cooldown_left(favor.id) / favor.cooldown, 0.0, 1.0)
+	bar.value = ratio * 100.0
 	bar.tooltip_text = "%s  %s" % [("E" if slot == GodFavor.Slot.E else "Q"), favor.display_name]
 	bar.modulate = favor.color
 

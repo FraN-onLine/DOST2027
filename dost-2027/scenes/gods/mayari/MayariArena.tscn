@@ -1,0 +1,122 @@
+[gd_scene format=3 uid="uid://dwhxsllbl4qbg"]
+
+[ext_resource type="Script" path="res://scripts/gods/mayari/mayari_arena.gd" id="1_arena"]
+[ext_resource type="Script" path="res://scripts/gods/mayari/mayari_arena_field.gd" id="2_field"]
+[ext_resource type="PackedScene" path="res://scenes/gods/mayari/MayariGoal.tscn" id="3_goal"]
+[ext_resource type="PackedScene" path="res://scenes/gods/mayari/MayariClone.tscn" id="4_clone"]
+[ext_resource type="PackedScene" path="res://scenes/gods/common/Mortal.tscn" id="5_mortal"]
+[ext_resource type="Texture2D" path="res://Assets/cards/Smart Center.png" id="6_ground"]
+[ext_resource type="Shader" path="res://UI/GodsArena/vision_mask.gdshader" id="7_vision"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vision"]
+shader = ExtResource("7_vision")
+shader_parameter/radius = 0.16
+shader_parameter/center = Vector2(0.5, 0.5)
+shader_parameter/softness = 0.06
+shader_parameter/aspect = 1.7777778
+
+[node name="MayariArena" type="Node2D"]
+script = ExtResource("1_arena")
+god_id = &"mayari"
+active_goal_corner = 3
+field_rect = Rect2(56, 216, 1040, 360)
+
+[node name="BackgroundLayer" type="CanvasLayer" parent="."]
+layer = -10
+
+[node name="Background" type="ColorRect" parent="BackgroundLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.03, 0.04, 0.08, 1)
+
+[node name="ArenaField" type="Node2D" parent="."]
+z_index = 1
+script = ExtResource("2_field")
+
+[node name="Backdrop" type="Sprite2D" parent="ArenaField"]
+modulate = Color(0.22, 0.32, 0.55, 0.65)
+position = Vector2(576, 396)
+scale = Vector2(8.125, 2.8125)
+texture = ExtResource("6_ground")
+
+[node name="FloorTint" type="ColorRect" parent="ArenaField"]
+offset_left = 56.0
+offset_top = 216.0
+offset_right = 1096.0
+offset_bottom = 576.0
+mouse_filter = 2
+color = Color(0.04, 0.06, 0.12, 0.55)
+
+[node name="Border" type="Line2D" parent="ArenaField"]
+points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
+width = 4.0
+default_color = Color(0.55, 0.85, 1, 0.75)
+
+[node name="StartLine" type="Line2D" parent="ArenaField"]
+points = PackedVector2Array(102, 216, 102, 576)
+width = 2.0
+default_color = Color(1, 1, 1, 0.22)
+
+[node name="MidLine" type="Line2D" parent="ArenaField"]
+points = PackedVector2Array(576, 216, 576, 576)
+width = 2.0
+default_color = Color(1, 1, 1, 0.08)
+
+[node name="Zones" type="Node2D" parent="."]
+z_index = 2
+
+[node name="NorthWestGoal" parent="Zones" instance=ExtResource("3_goal")]
+position = Vector2(176, 294)
+zone_label = "NW GOAL"
+
+[node name="NorthEastGoal" parent="Zones" instance=ExtResource("3_goal")]
+position = Vector2(996, 294)
+zone_label = "NE GOAL"
+
+[node name="SouthWestGoal" parent="Zones" instance=ExtResource("3_goal")]
+position = Vector2(176, 498)
+is_far = true
+zone_label = "SW GOAL"
+
+[node name="SouthEastGoal" parent="Zones" instance=ExtResource("3_goal")]
+position = Vector2(996, 498)
+is_far = true
+zone_label = "SE GOAL"
+
+[node name="Clones" type="Node2D" parent="."]
+z_index = 3
+
+[node name="MayariHorizontal" parent="Clones" instance=ExtResource("4_clone")]
+position = Vector2(576, 295)
+
+[node name="MayariVertical" parent="Clones" instance=ExtResource("4_clone")]
+position = Vector2(389, 396)
+
+[node name="Ghosts" type="Node2D" parent="."]
+z_index = 3
+
+[node name="Player" parent="." instance=ExtResource("5_mortal")]
+z_index = 4
+position = Vector2(102, 396)
+
+[node name="VisionLayer" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="VisionMask" type="ColorRect" parent="VisionLayer"]
+visible = false
+material = SubResource("ShaderMaterial_vision")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10
+

@@ -1,9 +1,12 @@
+class_name MayariClone
 extends Node2D
 
 # One of Mayari's clones sweeping a lane of the arena, patintero style.
 # axis 0 -> sweeps left/right along a fixed y, axis 1 -> sweeps up/down along a fixed x.
-
-const ICON := preload("res://icon.svg")
+#
+# Art lives in MayariClone.tscn (Glow, Icon, Name, Lane). The Lane is a Line2D
+# drawn in world space (`top_level`) so it stays put while the clone slides; the
+# script only re-points it, it never draws.
 
 enum Mode { SWEEP, TRACK_X, TRACK_Y }
 
@@ -25,6 +28,11 @@ var _pulse := 0.0
 var _surge := 0.0  # seconds of speed surge left
 var _net_target := Vector2.ZERO
 
+@onready var glow: Sprite2D = get_node_or_null("Glow")
+@onready var icon: Sprite2D = get_node_or_null("Icon")
+@onready var name_label: Label = get_node_or_null("Name")
+@onready var lane_line: Line2D = get_node_or_null("Lane")
+
 
 func setup_sweep(lane_axis: int, lane_coord: float, from_value: float, to_value: float) -> void:
 	mode = Mode.SWEEP
@@ -36,7 +44,8 @@ func setup_sweep(lane_axis: int, lane_coord: float, from_value: float, to_value:
 		position = Vector2(travel_min, lane)
 	else:
 		position = Vector2(lane, travel_min)
-	queue_redraw()
+	_refresh_visual()
+	_refresh_lane()
 
 
 func setup_tracker(track_mode: int, at: Vector2, min_value: float, max_value: float) -> void:
@@ -47,7 +56,8 @@ func setup_tracker(track_mode: int, at: Vector2, min_value: float, max_value: fl
 	travel_max = maxf(max_value, min_value)
 	position = at
 	lane = at.y if axis == 0 else at.x
-	queue_redraw()
+	_refresh_visual()
+	_refresh_lane()
 
 
 func set_moving(enabled: bool) -> void:
@@ -80,7 +90,7 @@ func _process(delta: float) -> void:
 		# Host-driven clone: glide towards the position we were given.
 		if _net_target != Vector2.ZERO:
 			global_position = global_position.lerp(_net_target, clampf(delta * 14.0, 0.0, 1.0))
-		queue_redraw()
+		_refresh_visual()
 		return
 	match mode:
 		Mode.TRACK_X:
@@ -89,7 +99,7 @@ func _process(delta: float) -> void:
 			_chase(false, delta)
 		_:
 			_sweep(delta)
-	queue_redraw()
+	_refresh_visual()
 
 
 func _sweep(delta: float) -> void:
@@ -121,19 +131,37 @@ func _chase(horizontal: bool, delta: float) -> void:
 		position.x = lane
 
 
-func _draw() -> void:
-	# The lane Mayari's clone patrols (drawn in local space).
+func _refresh_lane() -> void:
+	# The Lane Line2D is top_level, so its points are world coordinates: it marks
+	# the line the clone is patrolling without following the clone around.
+	if lane_line == null:
+		return
 	if axis == 0:
-		var from_x := travel_min - position.x
-		var to_x := travel_max - position.x
-		draw_rect(Rect2(Vector2(from_x, -1.5), Vector2(to_x - from_x, 3.0)), lane_color, true)
+		lane_line.points = PackedVector2Array([
+			Vector2(travel_min, lane),
+			Vector2(travel_max, lane),
+		])
 	else:
-		var from_y := travel_min - position.y
-		var to_y := travel_max - position.y
-		draw_rect(Rect2(Vector2(-1.5, from_y), Vector2(3.0, to_y - from_y)), lane_color, true)
+		lane_line.points = PackedVector2Array([
+			Vector2(lane, travel_min),
+			Vector2(lane, travel_max),
+		])
 
+
+func _refresh_visual() -> void:
+	if icon == null:
+		return
 	var pulse := 0.5 + 0.5 * sin(_pulse * 4.0)
-	draw_circle(Vector2.ZERO, radius + 7.0, Color(color.r, color.g, color.b, 0.16 + 0.12 * pulse))
-	draw_circle(Vector2.ZERO, radius, Color(color.r, color.g, color.b, 0.75))
-	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 28, Color(1, 1, 1, 0.8), 2.0)
-	draw_texture_rect(ICON, Rect2(Vector2(-radius * 0.75, -radius * 0.75), Vector2(radius * 1.5, radius * 1.5)), false, Color(1, 1, 1, 0.85))
+	var alpha := 0.7 + 0.25 * pulse
+	icon.modulate = Color(color.r, color.g, color.b, alpha)
+	if glow != null:
+		glow.modulate = Color(color.r, color.g, color.b, 0.18 + 0.22 * pulse)
+	if name_label != null:
+		name_label.text = "MAYARI"
+		name_label.modulate = Color(1, 1, 1, 0.5 + 0.4 * pulse)
+	if lane_line != null:
+		var lane_alpha := lane_color.a * (0.6 + 0.6 * pulse)
+		if _surge > 0.0:
+			lane_alpha = minf(1.0, lane_alpha * 1.6)
+		lane_line.default_color = Color(lane_color.r, lane_color.g, lane_color.b, lane_alpha)
+

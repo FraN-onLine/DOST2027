@@ -109,7 +109,7 @@ static func mayari() -> God:
 	god.color = color
 	god.game_name = "PATINTERO x KING OF THE HILL"
 	god.game_blurb = "Cross Mayari's lines. Stand inside the glowing boxes she lights up and hold them while her two clones sweep the field - go the whole way down and back for extra FAVOR."
-	god.arena_scene = "res://scenes/MayariArena.tscn"
+	god.arena_scene = "res://scenes/gods/mayari/MayariArena.tscn"
 	god.implemented = true
 	god.favors = favors
 	god.intro_lines = [

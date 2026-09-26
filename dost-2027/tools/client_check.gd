@@ -14,13 +14,21 @@ func _frames(count: int) -> void:
 	for i in range(count):
 		await process_frame
 
+
+# Fail-safe so a broken step can never leave the headless run hanging.
+func _watchdog() -> void:
+	await create_timer(30.0).timeout
+	printerr("client_check: timed out")
+	quit()
+
 func _run() -> void:
+	_watchdog()
 	_view = SubViewport.new()
 	_view.size = Vector2i(1152, 648)
 	_view.disable_3d = true
 	get_root().add_child(_view)
 
-	_host = load("res://scenes/MayariArena.tscn").instantiate()
+	_host = load("res://scenes/gods/mayari/MayariArena.tscn").instantiate()
 	_view.add_child(_host)
 	await _frames(3)
 
@@ -49,7 +57,7 @@ func _run() -> void:
 		layout["zones"].size(), layout["clones"].size(), str(god_snapshot.keys())])
 
 	print("=== CLIENT SIDE (mirror) ===")
-	_client = load("res://scenes/MayariArena.tscn").instantiate()
+	_client = load("res://scenes/gods/mayari/MayariArena.tscn").instantiate()
 	_view.add_child(_client)
 	await _frames(2)
 	# Force client mode: authority=false, mirroring the host.

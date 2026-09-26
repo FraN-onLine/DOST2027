@@ -59,38 +59,66 @@ layout_mode = 2
 alignment = 1
 theme_override_constants/separation = 12
 
-[node name="HpBox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatsLabel"]
+[node name="FavorBox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatsLabel"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="HpIcon" type="TextureRect" parent="MarginContainer/VBoxContainer/StatsLabel/HpBox"]
-custom_minimum_size = Vector2(16, 16)
+[node name="FavorCaption" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/FavorBox"]
 layout_mode = 2
-texture = ExtResource("2_icon")
-expand_mode = 1
-stretch_mode = 5
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 9
+text = "FAVOR"
 
-[node name="HpValue" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/HpBox"]
+[node name="FavorValue" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/FavorBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.3, 1, 0.4, 1)
 theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 14
-text = "100"
+text = "0"
 
-[node name="AttackBox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatsLabel"]
+[node name="FavorValue" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/FavorBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 14
+text = "0"
+
+[node name="DueBox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatsLabel"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="AttackIcon" type="TextureRect" parent="MarginContainer/VBoxContainer/StatsLabel/AttackBox"]
-custom_minimum_size = Vector2(16, 16)
+[node name="DueCaption" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/DueBox"]
 layout_mode = 2
-texture = ExtResource("2_icon")
-expand_mode = 1
-stretch_mode = 5
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 9
+text = "DUE"
 
-[node name="AttackValue" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/AttackBox"]
+[node name="DueValue" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/DueBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.5, 0.3, 1)
 theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 14
-text = "10"
+text = "0"
+
+[node name="DueValue" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/DueBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 1, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 14
+text = "0"
+
+[node name="SkillRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="EBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/SkillRow"]
+custom_minimum_size = Vector2(70, 16)
+layout_mode = 2
+value = 0.0
+show_percentage = false
+tooltip_text = "E  --"
+
+[node name="QBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/SkillRow"]
+custom_minimum_size = Vector2(70, 16)
+layout_mode = 2
+value = 0.0
+show_percentage = false
+tooltip_text = "Q  --"

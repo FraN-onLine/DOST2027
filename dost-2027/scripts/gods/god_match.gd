@@ -213,6 +213,14 @@ func bestow_favor(favor: GodFavor, player_id: int = -1) -> bool:
 	var m := _resolve(player_id)
 	if m == null or favor == null or m.has_favor(favor.id):
 		return false
+	# E and Q are single slots. A newly chosen skill replaces the old skill
+	# while passive and end-of-trial favors remain owned for the whole run.
+	if favor.is_skill():
+		for index in range(m.favors.size() - 1, -1, -1):
+			if m.favors[index].slot == favor.slot:
+				m.cooldowns.erase(m.favors[index].id)
+				m.durations.erase(m.favors[index].id)
+				m.favors.remove_at(index)
 	m.favors.append(favor)
 	if favor.cooldown > 0.0:
 		m.cooldowns[favor.id] = 0.0
@@ -475,4 +483,3 @@ func end_trial() -> Dictionary:
 	trial_active = false
 	trial_ended.emit(summary)
 	return summary
-

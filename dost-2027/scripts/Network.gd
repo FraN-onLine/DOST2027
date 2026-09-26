@@ -40,6 +40,7 @@ signal god_skill_requested(peer_id, slot)
 signal god_grant_requested(peer_id, favor_id)
 signal arena_layout_received(layout)      # host -> clients: field / corners / clones
 signal arena_state_received(state)        # host -> clients: 10 Hz world tick
+signal dialogue_released(dialogue_id)
 
 var host_name := "Host"
 var my_name := "" # The name the user chose before hosting/joining
@@ -63,6 +64,7 @@ var mortal_positions := {}  # peer_id -> Vector2 (host: latest reported position
 var _discovery_active := false
 var _is_host_broadcasting := false
 var _game_in_progress := false
+var _dialogue_done := {}
 
 # --- Lobby ID join state ---
 var _pending_lobby_join_id := ""
@@ -825,7 +827,7 @@ func is_game_host() -> bool:
 
 # --- lobby -> God's Games ---------------------------------------------------
 
-func start_god_games(scene_path := "res://scenes/MayariArena.tscn") -> void:
+func start_god_games(scene_path := "res://scenes/Game.tscn") -> void:
 	# Host-only, mirrors start_game(): every peer drops into Bathala's games.
 	if has_multiplayer_peer() and not multiplayer.is_server():
 		return
@@ -909,6 +911,49 @@ func request_god_grant(favor_id: StringName) -> void:
 
 
 # --- arena world sync -------------------------------------------------------
+
+@rpc("any_peer", "reliable")
+func report_dialogue_finished(dialogue_id: String) -> void:
+	if not has_multiplayer_peer():
+		return
+	if multiplayer.is_server():
+		var peer_id := multiplayer.get_remote_sender_id()
+		if peer_id == 0:
+			peer_id = multiplayer.get_unique_id()
+		if not _dialogue_done.has(dialogue_id):
+			_dialogue_done[dialogue_id] = {}
+		_dialogue_done[dialogue_id][peer_id] = true
+		_check_dialogue_complete(dialogue_id)
+	else:
+		rpc_id(1, "report_dialogue_finished", dialogue_id)
+
+
+func dialogue_finished_count(dialogue_id: String) -> int:
+	return _dialogue_done.get(dialogue_id, {}).size()
+
+
+func _check_dialogue_complete(dialogue_id: String) -> void:
+	if not multiplayer.is_server():
+		return
+	if dialogue_finished_count(dialogue_id) < players.size():
+		return
+	_dialogue_done.erase(dialogue_id)
+	rpc("rpc_dialogue_release", dialogue_id)
+	emit_signal("dialogue_released", dialogue_id)
+
+
+func release_dialogue(dialogue_id: String) -> void:
+	if not multiplayer.is_server():
+		return
+	_dialogue_done.erase(dialogue_id)
+	rpc("rpc_dialogue_release", dialogue_id)
+	emit_signal("dialogue_released", dialogue_id)
+
+
+@rpc("any_peer", "reliable")
+func rpc_dialogue_release(dialogue_id: String) -> void:
+	_dialogue_done.erase(dialogue_id)
+	emit_signal("dialogue_released", dialogue_id)
 
 func publish_arena_layout(layout: Dictionary) -> void:
 	if not has_multiplayer_peer():

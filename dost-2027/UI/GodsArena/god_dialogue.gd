@@ -64,6 +64,12 @@ func close_now() -> void:
 		_close()
 
 
+func dismiss() -> void:
+	# Hide a stale remote copy without pretending this player completed it.
+	_active = false
+	visible = false
+
+
 func _close() -> void:
 	_active = false
 	visible = false

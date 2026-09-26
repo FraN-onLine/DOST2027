@@ -163,6 +163,7 @@ text = "TRIAL 1 OF 5"
 horizontal_alignment = 1
 
 [node name="LeaderPanel" type="PanelContainer" parent="."]
+visible = false
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0

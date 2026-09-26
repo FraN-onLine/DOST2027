@@ -1,10 +1,9 @@
 [gd_scene format=3 uid="uid://mc5du7xgk6b1"]
 
-[ext_resource type="Script" uid="uid://dgamehud000001" path="res://scripts/Game.gd" id="1_game"]
+[ext_resource type="Script" uid="uid://dwlvkcj7rkeke" path="res://scripts/Game.gd" id="1_game"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="3_icon"]
 
-[node name="Game" type="Control"]
+[node name="Game" type="Control" unique_id=1698441976]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -13,7 +12,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_game")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=1021997398]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -22,18 +21,19 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.04, 0.05, 0.1, 1)
 
-[node name="TopLeft" type="PanelContainer" parent="."]
+[node name="TopLeft" type="PanelContainer" parent="." unique_id=226519229]
+z_index = 10
+layout_mode = 0
 offset_left = 20.0
 offset_top = 20.0
-offset_right = 220.0
+offset_right = 205.0
 offset_bottom = 120.0
-z_index = 10
 
-[node name="VBoxContainer" type="VBoxContainer" parent="TopLeft"]
+[node name="VBoxContainer" type="VBoxContainer" parent="TopLeft" unique_id=1752690579]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="NameLabel" type="Label" parent="TopLeft/VBoxContainer"]
+[node name="NameLabel" type="Label" parent="TopLeft/VBoxContainer" unique_id=853832918]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
 theme_override_fonts/font = ExtResource("2_font")
@@ -41,160 +41,87 @@ theme_override_font_sizes/font_size = 18
 text = "You"
 horizontal_alignment = 1
 
-[node name="StatsRow" type="HBoxContainer" parent="TopLeft/VBoxContainer"]
+[node name="StatsRow" type="HBoxContainer" parent="TopLeft/VBoxContainer" unique_id=533297541]
 layout_mode = 2
-alignment = 1
 theme_override_constants/separation = 16
-
-[node name="HpBox" type="HBoxContainer" parent="TopLeft/VBoxContainer/StatsRow"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="HpIcon" type="TextureRect" parent="TopLeft/VBoxContainer/StatsRow/HpBox"]
-custom_minimum_size = Vector2(18, 18)
-layout_mode = 2
-texture = ExtResource("3_icon")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="HpValue" type="Label" parent="TopLeft/VBoxContainer/StatsRow/HpBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.3, 1, 0.4, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 16
-text = "100"
-
-[node name="AttackBox" type="HBoxContainer" parent="TopLeft/VBoxContainer/StatsRow"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="AttackIcon" type="TextureRect" parent="TopLeft/VBoxContainer/StatsRow/AttackBox"]
-custom_minimum_size = Vector2(18, 18)
-layout_mode = 2
-texture = ExtResource("3_icon")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="AttackValue" type="Label" parent="TopLeft/VBoxContainer/StatsRow/AttackBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.5, 0.3, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 16
-text = "10"
-
-[node name="OpponentPanelContainer" type="PanelContainer" parent="."]
-offset_left = 20.0
-offset_top = 140.0
-offset_right = 220.0
-offset_bottom = 640.0
-z_index = 10
-
-[node name="VBoxContainer" type="VBoxContainer" parent="OpponentPanelContainer"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="OpponentsLabel" type="Label" parent="OpponentPanelContainer/VBoxContainer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "OPPONENTS"
-horizontal_alignment = 1
-
-[node name="BathalaPanel" type="PanelContainer" parent="."]
-offset_left = 20.0
-offset_top = 130.0
-offset_right = 220.0
-offset_bottom = 320.0
-z_index = 10
-
-[node name="Margin" type="MarginContainer" parent="BathalaPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
-
-[node name="VBox" type="VBoxContainer" parent="BathalaPanel/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 7
-
-[node name="GodLabel" type="Label" parent="BathalaPanel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 15
-text = "MAYARI"
-horizontal_alignment = 1
-
-[node name="Subtitle" type="Label" parent="BathalaPanel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 9
-text = "FAVOR / GOD'S DUE"
-horizontal_alignment = 1
-
-[node name="StatsRow" type="HBoxContainer" parent="BathalaPanel/Margin/VBox"]
-layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 12
 
-[node name="FavorCaption" type="Label" parent="BathalaPanel/Margin/VBox/StatsRow"]
+[node name="FavorBox" type="HBoxContainer" parent="TopLeft/VBoxContainer/StatsRow" unique_id=955531282]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FavorCaption" type="Label" parent="TopLeft/VBoxContainer/StatsRow/FavorBox" unique_id=1565000611]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 9
+theme_override_font_sizes/font_size = 10
 text = "FAVOR"
 
-[node name="FavorValue" type="Label" parent="BathalaPanel/Margin/VBox/StatsRow"]
+[node name="FavorValue" type="Label" parent="TopLeft/VBoxContainer/StatsRow/FavorBox" unique_id=105599669]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "0"
 
-[node name="DueCaption" type="Label" parent="BathalaPanel/Margin/VBox/StatsRow"]
+[node name="EBar" type="ProgressBar" parent="TopLeft/VBoxContainer/StatsRow/FavorBox" unique_id=903103553]
+custom_minimum_size = Vector2(48, 18)
+layout_mode = 2
+tooltip_text = "E  --"
+show_percentage = false
+
+[node name="DueBox" type="HBoxContainer" parent="TopLeft/VBoxContainer/StatsRow" unique_id=847355597]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DueCaption" type="Label" parent="TopLeft/VBoxContainer/StatsRow/DueBox" unique_id=250978974]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 9
+theme_override_font_sizes/font_size = 10
 text = "DUE"
 
-[node name="DueValue" type="Label" parent="BathalaPanel/Margin/VBox/StatsRow"]
+[node name="DueValue" type="Label" parent="TopLeft/VBoxContainer/StatsRow/DueBox" unique_id=1395866843]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.9, 1, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "0"
 
-[node name="SkillRow" type="VBoxContainer" parent="BathalaPanel/Margin/VBox"]
+[node name="QBar" type="ProgressBar" parent="TopLeft/VBoxContainer/StatsRow/DueBox" unique_id=1382924829]
+custom_minimum_size = Vector2(48, 18)
 layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="EBar" type="ProgressBar" parent="BathalaPanel/Margin/VBox/SkillRow"]
-custom_minimum_size = Vector2(0, 22)
-layout_mode = 2
-value = 0.0
-show_percentage = false
-tooltip_text = "E  --"
-
-[node name="QBar" type="ProgressBar" parent="BathalaPanel/Margin/VBox/SkillRow"]
-custom_minimum_size = Vector2(0, 22)
-layout_mode = 2
-value = 0.0
-show_percentage = false
 tooltip_text = "Q  --"
+show_percentage = false
 
-[node name="TrialLabel" type="Label" parent="BathalaPanel/Margin/VBox"]
+[node name="OtherPlayersPanel" type="PanelContainer" parent="." unique_id=110846096]
+z_index = 10
+layout_mode = 0
+offset_left = 20.0
+offset_top = 135.0
+offset_right = 200.0
+offset_bottom = 650.0
+
+[node name="Margin" type="MarginContainer" parent="OtherPlayersPanel" unique_id=1375121128]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="OtherPlayersPanel/Margin" unique_id=589541731]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="OtherPlayersPanel/Margin/VBox" unique_id=1987111472]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 9
-text = "TRIAL 1 OF 5"
+theme_override_font_sizes/font_size = 12
+text = "OTHER PLAYERS"
 horizontal_alignment = 1
 
-[node name="ArenaPanel" type="Control" parent="."]
+[node name="ArenaPanel" type="Control" parent="." unique_id=936311631]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -203,14 +130,18 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="ArenaTitle" type="Label" parent="ArenaPanel"]
-offset_left = 270.0
-offset_top = 140.0
-offset_right = 900.0
-offset_bottom = 170.0
-z_index = 10
-theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+[node name="TrialTimer" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -60.0
+offset_top = 20.0
+offset_right = 60.0
+offset_bottom = 52.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
-text = "MAYARI  |  PATINTERO x KING OF THE HILL"
+theme_override_font_sizes/font_size = 20
+text = "1:00"
 horizontal_alignment = 1

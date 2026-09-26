@@ -64,14 +64,14 @@ func _rebuild() -> void:
 	else:
 		due_label.text = "GOD'S DUE VOUCHERS: %d" % due
 
-	# Candidates: this god's favors you do not hold yet. Skills and instant
-	# boons first - those are the ones you can spend mid-trial.
+	# Every opening rolls a fresh set. E/Q candidates stay eligible because
+	# selecting one replaces the currently owned skill in that slot.
 	var candidates: Array[GodFavor] = []
 	if mortal != null:
 		for favor in _god.favors:
 			if not mortal.has_favor(favor.id):
 				candidates.append(favor)
-	candidates.sort_custom(func(a, b): return _kind_rank(a) < _kind_rank(b))
+	candidates.shuffle()
 
 	var count := mini(MAX_ROWS, candidates.size())
 	for index in range(count):
@@ -146,7 +146,12 @@ func _make_row(number: int, favor: GodFavor, due: int) -> PanelContainer:
 	desc.add_theme_color_override("font_color", Color(0.72, 0.76, 0.85))
 
 	var cost := Label.new()
-	if _free_grants > 0:
+	var mortal := _match.local()
+	var current_skill: GodFavor = mortal.favor_in_slot(favor.slot) if mortal != null and favor.is_skill() else null
+	if current_skill != null:
+		cost.text = "REPLACES: %s" % current_skill.display_name
+		cost.add_theme_color_override("font_color", Color(1.0, 0.8, 0.4))
+	elif _free_grants > 0:
 		cost.text = "FREE - GIFT OF %s" % _god.display_name
 	elif due > 0:
 		cost.text = "COST: 1 GOD'S DUE"
@@ -171,6 +176,7 @@ func _choose(index: int) -> void:
 		# Multiplayer client: the host decides. Emit straight away - the arena
 		# forwards the request and the next snapshot updates our favor list.
 		favor_chosen.emit(favor, _free_grants)
+		close()
 		return
 	var granted := false
 	if _free_grants > 0:
@@ -181,7 +187,7 @@ func _choose(index: int) -> void:
 		granted = _match.grant_favor(favor)
 	if granted:
 		favor_chosen.emit(favor, _free_grants)
-		_rebuild()
+		close()
 
 
 func _unhandled_input(event: InputEvent) -> void:
