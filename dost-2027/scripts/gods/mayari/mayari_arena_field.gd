@@ -10,18 +10,15 @@ extends Node2D
 const TEXTURE_SIZE := Vector2(128.0, 128.0)
 const START_OFFSET := 46.0
 
-@export var field_rect := Rect2(56.0, 216.0, 1040.0, 360.0)
+# Cached copy of the field the arena asked for. MayariArena.field_rect is the
+# single source of truth - this node only moves its own art to match it.
+var field_rect := Rect2(56.0, 216.0, 1040.0, 360.0)
 
 @onready var backdrop: Sprite2D = $Backdrop
 @onready var floor_tint: ColorRect = $FloorTint
 @onready var border: Line2D = $Border
 @onready var start_line: Line2D = $StartLine
 @onready var mid_line: Line2D = $MidLine
-
-
-func _ready() -> void:
-	# Show the authored field even before a layout arrives.
-	set_field(field_rect, Color(0.55, 0.85, 1.0))
 
 
 func set_field(rect: Rect2, tint: Color) -> void:
