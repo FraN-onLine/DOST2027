@@ -11,8 +11,11 @@ extends Node2D
 #
 # The arena owns no art: MayariArena.tscn holds the floor, its border and the
 # patintero lines, the four goals (MayariGoal.tscn), the two clones
-# (MayariClone.tscn) and the mortal (Mortal.tscn). This script only moves those
-# nodes around and runs the rules - nothing here draws.
+# (MayariClone.tscn) and the mortal (Mortal.tscn). The scene is authored in
+# screen space for real play (see scripts/gods/god_arena.gd): the left strip
+# stays empty for the Game shell's panels, and the drawn border IS the field.
+# This script only runs the rules and moves the clones - nothing here draws and
+# nothing here re-lays-out the scene, so the editor layout is the played one.
 #
 # Solo: this scene simulates everything.
 # Multiplayer: the HOST is authoritative (clone movement, scoring, FAVOR) and
@@ -32,9 +35,10 @@ const TEMP_ICON := preload("res://icon.svg")
 
 @export_category("Identity")
 @export var god_id: StringName = &"mayari"
+# Set by the Game shell when the arena runs as one of its trials: the shell
+# draws the shared panels and the arena hides its duplicates.
 @export var embedded := false
 @export var dialogue_prefix := "mayari"
-var embedded_rect := Rect2()
 
 @export_category("Trial Tuning")
 @export var trial_time := 60.0
@@ -45,14 +49,12 @@ const INVULN_TIME := 1.2
 @export var disruption_interval := 15.0
 @export var success_favor := 1000
 @export var corner_rate := 26.0
-@export var corner_size := Vector2(152, 108)
 @export var tracker_speed := 130.0
 @export var blessing_time := 8.0
 @export var blessing_multiplier := 2.0
 @export_range(1, 4, 1) var goal_zone_count := 1
 @export_range(0, 3, 1) var active_goal_corner := 3
 @export var goal_switch_interval := 12.0
-@export var field_rect := Rect2(56.0, 216.0, 1040.0, 360.0)
 const NET_TICK_RATE := 10.0
 const NET_STATE_RATE := 5.0
 const LAYOUT_REPEAT := 2.0
@@ -81,6 +83,8 @@ var _zones: Array = []
 var _clones: Array = []
 var _ghosts: Dictionary = {}          # peer id -> ghost mortal
 var _field := Rect2()
+# The mortal's authored spawn: every round of the trial starts here.
+var _start_position := Vector2.ZERO
 var _phase := Phase.INTRO
 var _trial_time := 0.0
 var _countdown := 0.0
@@ -153,6 +157,9 @@ func _ready() -> void:
 	ui_layer.add_child(due_menu)
 	due_menu.favor_chosen.connect(_on_favor_chosen)
 
+	# The spawn is authored in the scene - remember it so every round starts from
+	# the drawn spot (never from arithmetic on a rect).
+	_start_position = player.global_position
 	_apply_field()
 	player.set_display_name(_mortal_name(), god.color)
 	hud.bind(rules, god)
@@ -192,26 +199,24 @@ func _mortal_name() -> String:
 
 
 func _on_viewport_resized() -> void:
-	# The shell owns the embedded rect; standalone runs keep their authored one.
-	if not _authority:
-		return
-	_apply_field()
+	# Nothing in the arena is laid out by code, so a resize only re-shapes the
+	# blindness mask - the field stays exactly where the designer drew it.
+	_apply_vision_mask()
 
 
 # --- FIELD LAYOUT -----------------------------------------------------------
 
 func _apply_field() -> void:
-	# One rect drives the whole arena: the floor art, the lines, the four goals,
-	# both clones and the mortal's bounds. Embedded runs follow the shell panel.
-	if embedded and embedded_rect.size.x > 0.0 and embedded_rect.size.y > 0.0:
-		_field = embedded_rect
-	else:
-		_field = field_rect
+	# The scene owns the layout (see scripts/gods/god_arena.gd): the field rect is
+	# read back from the border line the designer drew, and the goals, the clones
+	# and the mortal keep the positions and sizes they were authored with. Only
+	# the rules need numbers out of it - mortal bounds, clone travel, the round
+	# trip line - so every player reads the same authored screen.
+	_field = field_root.authored_rect()
 	var tint: Color = god.color if god != null else Color.WHITE
-	field_root.set_field(_field, tint)
+	field_root.apply_tint(tint)
 	player.bounds = _field
 	player.ring_color = tint
-	player.global_position = Vector2(_field.position.x + MayariArenaField.START_OFFSET, _field.get_center().y)
 	_apply_vision_mask()
 	if _authority:
 		_configure_goals()
@@ -219,33 +224,16 @@ func _apply_field() -> void:
 		_publish_layout()
 
 
-# The shell calls this when its arena panel changes size.
-func refresh_field() -> void:
-	if _authority:
-		_apply_field()
-
-
-func _corner_centers() -> Array:
-	var inset := 24.0
-	var half := corner_size * 0.5
-	return [
-		Vector2(_field.position.x + inset + half.x, _field.position.y + inset + half.y),
-		Vector2(_field.end.x - inset - half.x, _field.position.y + inset + half.y),
-		Vector2(_field.position.x + inset + half.x, _field.end.y - inset - half.y),
-		Vector2(_field.end.x - inset - half.x, _field.end.y - inset - half.y),
-	]
-
-
 func _configure_goals() -> void:
-	# The four corner goals are scene nodes; Mayari only lights one at a time.
+	# The four goals are authored scene nodes - Mayari only lights one at a time.
+	# Their place and their box size come from the scene, so the boxes drawn in
+	# the editor are the boxes the mortals hold.
 	_zones.clear()
-	var corners := _corner_centers()
 	var goals := zones_root.get_children()
 	_active_goal_index = clampi(active_goal_corner, 0, maxi(0, goals.size() - 1))
 	for index in range(goals.size()):
 		var goal: MayariGoal = goals[index]
-		goal.position = corners[index]
-		goal.box_size = corner_size
+		goal.sync_authored_size()
 		goal.color = god.color
 		goal.is_far = index >= 2
 		goal.set_rate(corner_rate)
@@ -256,10 +244,11 @@ func _configure_goals() -> void:
 
 
 func _configure_clones() -> void:
-	# The two regular Mayaris are authored scene nodes; extra sweepers come from
-	# MayariClone.tscn when a disruption calls for them.
-	var horizontal_at := Vector2(_field.get_center().x, _field.position.y + _field.size.y * 0.22)
-	var vertical_at := Vector2(_field.position.x + _field.size.x * 0.32, _field.get_center().y)
+	# The two regular Mayaris are authored scene nodes: the scene says which lane
+	# each one patrols, the drawn border says how far it may slide. Extra
+	# sweepers come from MayariClone.tscn when a disruption calls for them.
+	var horizontal_at := _authored_clone_position(0, Vector2(_field.get_center().x, _field.position.y))
+	var vertical_at := _authored_clone_position(1, Vector2(_field.position.x, _field.get_center().y))
 	for clone in _clones:
 		if is_instance_valid(clone) and clone.has_meta("dynamic"):
 			clone.queue_free()
@@ -278,6 +267,14 @@ func _configure_clones() -> void:
 		return
 	_spawn_tracker(MayariClone.Mode.TRACK_X, horizontal_at)
 	_spawn_tracker(MayariClone.Mode.TRACK_Y, vertical_at)
+
+
+func _authored_clone_position(index: int, fallback: Vector2) -> Vector2:
+	# Where the designer parked the clone in the scene is where its lane is.
+	var children := clones_root.get_children()
+	if index < children.size():
+		return children[index].position
+	return fallback
 
 
 func _configure_tracker(clone: MayariClone, track_mode: int, at: Vector2) -> void:
@@ -322,8 +319,10 @@ func _spawn_sweeper() -> MayariClone:
 # --- MULTIPLAYER: layout sync -----------------------------------------------
 
 func _zone_definition(zone: MayariGoal) -> Dictionary:
+	# Local coordinates: every peer owns the same authored scene, so the same
+	# child index sits at the same spot on every screen.
 	return {
-		"pos": zone.global_position,
+		"pos": zone.position,
 		"size": zone.box_size,
 		"rate": float(zone.base_rate),
 		"favor_amount": int(zone.favor_amount),
@@ -366,9 +365,10 @@ func _publish_layout() -> void:
 
 func _apply_layout(layout: Dictionary) -> void:
 	# Clients play on the host's field so everybody shares the same coordinates.
+	# Both read the same authored scene, so this normally changes nothing.
 	_field = layout.get("field", _field)
 	var tint: Color = god.color if god != null else Color.WHITE
-	field_root.set_field(_field, tint)
+	field_root.apply_tint(tint)
 	player.bounds = _field
 	_active_goal_index = int(layout.get("active_goal", _active_goal_index))
 	var definitions: Array = layout.get("zones", [])
@@ -428,7 +428,8 @@ func _start_countdown() -> void:
 	_countdown = countdown_time
 	_count_shown = -1
 	player.set_lock(true)
-	player.global_position = Vector2(_field.position.x + MayariArenaField.START_OFFSET, _field.get_center().y)
+	# Back to the spot the designer drew the mortal on.
+	player.global_position = _start_position
 
 
 func _start_trial() -> void:
@@ -640,8 +641,8 @@ func _check_round_trip() -> void:
 		# Reach the far edge of the field...
 		if position.x >= _field.end.x - 90.0:
 			_reached_far[mortal_id] = true
-		# ...then make it back to the starting line.
-		if bool(_reached_far.get(mortal_id, false)) and position.x <= _field.position.x + 60.0:
+		# ...then make it back to the starting line the designer drew.
+		if bool(_reached_far.get(mortal_id, false)) and position.x <= field_root.start_line_x() + 14.0:
 			_reached_far[mortal_id] = false
 			var gained := rules.add_favor(round_trip_favor, "round trip", mortal_id)
 			if mortal_id == _my_id:

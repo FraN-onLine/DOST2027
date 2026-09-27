@@ -164,4 +164,3 @@ func _refresh_visual() -> void:
 		if _surge > 0.0:
 			lane_alpha = minf(1.0, lane_alpha * 1.6)
 		lane_line.default_color = Color(lane_color.r, lane_color.g, lane_color.b, lane_alpha)
-

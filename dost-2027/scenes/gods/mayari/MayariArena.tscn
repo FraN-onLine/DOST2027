@@ -1,12 +1,38 @@
 [gd_scene format=3 uid="uid://dwhxsllbl4qbg"]
 
-[ext_resource type="Script" path="res://scripts/gods/mayari/mayari_arena.gd" id="1_arena"]
-[ext_resource type="Script" path="res://scripts/gods/mayari/mayari_arena_field.gd" id="2_field"]
-[ext_resource type="PackedScene" path="res://scenes/gods/mayari/MayariGoal.tscn" id="3_goal"]
-[ext_resource type="PackedScene" path="res://scenes/gods/mayari/MayariClone.tscn" id="4_clone"]
-[ext_resource type="PackedScene" path="res://scenes/gods/common/Mortal.tscn" id="5_mortal"]
-[ext_resource type="Texture2D" path="res://Assets/cards/Smart Center.png" id="6_ground"]
-[ext_resource type="Shader" path="res://UI/GodsArena/vision_mask.gdshader" id="7_vision"]
+[ext_resource type="Script" uid="uid://dpmo4rpwq4eip" path="res://scripts/gods/mayari/mayari_arena.gd" id="1_arena"]
+[ext_resource type="Script" uid="uid://du4n4773ee8ry" path="res://scripts/gods/mayari/mayari_arena_field.gd" id="2_field"]
+[ext_resource type="PackedScene" uid="uid://dwhxsrh6kuqbg" path="res://scenes/gods/mayari/MayariGoal.tscn" id="3_goal"]
+[ext_resource type="PackedScene" uid="uid://svxrl6j6aa6k" path="res://scenes/gods/mayari/MayariClone.tscn" id="4_clone"]
+[ext_resource type="Texture2D" uid="uid://b6ugwucajnrhk" path="res://Assets/UI/pips-male-Sheet.png" id="4_wlxev"]
+[ext_resource type="PackedScene" uid="uid://caeyjvhbdf8ae" path="res://scenes/gods/common/Mortal.tscn" id="5_mortal"]
+[ext_resource type="Texture2D" uid="uid://y0x6671fh4q8" path="res://Assets/cards/Smart Center.png" id="6_ground"]
+[ext_resource type="Shader" uid="uid://y0uyfc41fh00" path="res://UI/GodsArena/vision_mask.gdshader" id="7_vision"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_qwc0f"]
+size = Vector2(244, 654)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_35pk3"]
+atlas = ExtResource("4_wlxev")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vrftn"]
+atlas = ExtResource("4_wlxev")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_qwc0f"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_35pk3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vrftn")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_vision"]
 shader = ExtResource("7_vision")
@@ -15,98 +41,107 @@ shader_parameter/center = Vector2(0.5, 0.5)
 shader_parameter/softness = 0.06
 shader_parameter/aspect = 1.7777778
 
-[node name="MayariArena" type="Node2D"]
+[node name="MayariArena" type="Node2D" unique_id=357462759]
 script = ExtResource("1_arena")
-god_id = &"mayari"
-active_goal_corner = 3
-field_rect = Rect2(56, 216, 1040, 360)
 
-[node name="BackgroundLayer" type="CanvasLayer" parent="."]
+[node name="GAME UI AREA" type="StaticBody2D" parent="." unique_id=1938961839]
+metadata/_edit_lock_ = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GAME UI AREA" unique_id=408873893]
+position = Vector2(112, 317)
+shape = SubResource("RectangleShape2D_qwc0f")
+metadata/_edit_lock_ = true
+
+[node name="BackgroundLayer" type="CanvasLayer" parent="." unique_id=1582739784]
 layer = -10
 
-[node name="Background" type="ColorRect" parent="BackgroundLayer"]
+[node name="Background" type="ColorRect" parent="BackgroundLayer" unique_id=1830735072]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 238.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0.03, 0.04, 0.08, 1)
 
-[node name="ArenaField" type="Node2D" parent="."]
+[node name="ArenaField" type="Node2D" parent="." unique_id=1768829991]
 z_index = 1
 script = ExtResource("2_field")
 
-[node name="Backdrop" type="Sprite2D" parent="ArenaField"]
+[node name="Backdrop" type="Sprite2D" parent="ArenaField" unique_id=1599853382]
 modulate = Color(0.22, 0.32, 0.55, 0.65)
-position = Vector2(576, 396)
-scale = Vector2(8.125, 2.8125)
+position = Vector2(696, 531)
+scale = Vector2(7.0781255, 1.7968751)
 texture = ExtResource("6_ground")
 
-[node name="FloorTint" type="ColorRect" parent="ArenaField"]
-offset_left = 56.0
-offset_top = 216.0
-offset_right = 1096.0
-offset_bottom = 576.0
-mouse_filter = 2
-color = Color(0.04, 0.06, 0.12, 0.55)
-
-[node name="Border" type="Line2D" parent="ArenaField"]
+[node name="Border" type="Line2D" parent="ArenaField" unique_id=1894965792]
+position = Vector2(193.45038, 247.55435)
+scale = Vector2(0.8759542, 0.67663044)
 points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
 width = 4.0
 default_color = Color(0.55, 0.85, 1, 0.75)
 
-[node name="StartLine" type="Line2D" parent="ArenaField"]
+[node name="StartLine" type="Line2D" parent="ArenaField" unique_id=1220214231]
+position = Vector2(187, 260.0769)
+scale = Vector2(1, 0.65384614)
 points = PackedVector2Array(102, 216, 102, 576)
 width = 2.0
 default_color = Color(1, 1, 1, 0.22)
 
-[node name="MidLine" type="Line2D" parent="ArenaField"]
+[node name="MidLine" type="Line2D" parent="ArenaField" unique_id=240017245]
+position = Vector2(187, 60)
 points = PackedVector2Array(576, 216, 576, 576)
 width = 2.0
 default_color = Color(1, 1, 1, 0.08)
 
-[node name="Zones" type="Node2D" parent="."]
+[node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" unique_id=1862302527]
+position = Vector2(922, 194)
+scale = Vector2(5.953125, 6.21875)
+sprite_frames = SubResource("SpriteFrames_qwc0f")
+autoplay = "default"
+frame_progress = 0.303435
+
+[node name="Zones" type="Node2D" parent="." unique_id=826393556]
 z_index = 2
 
-[node name="NorthWestGoal" parent="Zones" instance=ExtResource("3_goal")]
-position = Vector2(176, 294)
+[node name="NorthWestGoal" parent="Zones" unique_id=1743326880 instance=ExtResource("3_goal")]
+position = Vector2(542, 457)
 zone_label = "NW GOAL"
 
-[node name="NorthEastGoal" parent="Zones" instance=ExtResource("3_goal")]
-position = Vector2(996, 294)
+[node name="NorthEastGoal" parent="Zones" unique_id=131699453 instance=ExtResource("3_goal")]
+position = Vector2(919, 460)
 zone_label = "NE GOAL"
 
-[node name="SouthWestGoal" parent="Zones" instance=ExtResource("3_goal")]
-position = Vector2(176, 498)
-is_far = true
+[node name="SouthWestGoal" parent="Zones" unique_id=762892231 instance=ExtResource("3_goal")]
+position = Vector2(546, 568)
 zone_label = "SW GOAL"
-
-[node name="SouthEastGoal" parent="Zones" instance=ExtResource("3_goal")]
-position = Vector2(996, 498)
 is_far = true
-zone_label = "SE GOAL"
 
-[node name="Clones" type="Node2D" parent="."]
+[node name="SouthEastGoal" parent="Zones" unique_id=1342542567 instance=ExtResource("3_goal")]
+position = Vector2(913, 571)
+is_far = true
+
+[node name="Clones" type="Node2D" parent="." unique_id=1113507873]
 z_index = 3
 
-[node name="MayariHorizontal" parent="Clones" instance=ExtResource("4_clone")]
-position = Vector2(576, 295)
+[node name="MayariHorizontal" parent="Clones" unique_id=1809770252 instance=ExtResource("4_clone")]
+position = Vector2(681, 522)
 
-[node name="MayariVertical" parent="Clones" instance=ExtResource("4_clone")]
-position = Vector2(389, 396)
+[node name="MayariVertical" parent="Clones" unique_id=1924692226 instance=ExtResource("4_clone")]
+position = Vector2(760, 459)
 
-[node name="Ghosts" type="Node2D" parent="."]
+[node name="Ghosts" type="Node2D" parent="." unique_id=1728222570]
 z_index = 3
 
-[node name="Player" parent="." instance=ExtResource("5_mortal")]
+[node name="Player" parent="." unique_id=765479374 instance=ExtResource("5_mortal")]
 z_index = 4
-position = Vector2(102, 396)
+position = Vector2(292, 533)
 
-[node name="VisionLayer" type="CanvasLayer" parent="."]
+[node name="VisionLayer" type="CanvasLayer" parent="." unique_id=1908845889]
 layer = 5
 
-[node name="VisionMask" type="ColorRect" parent="VisionLayer"]
+[node name="VisionMask" type="ColorRect" parent="VisionLayer" unique_id=1995961986]
 visible = false
 material = SubResource("ShaderMaterial_vision")
 anchors_preset = 15
@@ -117,6 +152,5 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 1)
 
-[node name="UILayer" type="CanvasLayer" parent="."]
+[node name="UILayer" type="CanvasLayer" parent="." unique_id=1195514062]
 layer = 10
-

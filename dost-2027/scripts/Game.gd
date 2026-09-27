@@ -2,6 +2,16 @@ extends Control
 
 # Bathala's game shell. The shell owns shared player panels and chooses the
 # current trial; each god arena remains a replaceable child controller.
+#
+# Arena contract (scripts/gods/god_arena.gd): every arena scene is authored in
+# screen space exactly as it is played - the scene fills the screen and keeps
+# the left GodArena.UI_STRIP_WIDTH pixels clear for the panels below. The shell
+# therefore just instantiates the arena: it never resizes, scales or re-centres
+# it, so every player sees the same authored layout.
+#
+# One trial = one arena child of ArenaPanel (a full-screen, input-transparent
+# Control), which is why the arena's own coordinates are already screen
+# coordinates.
 
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
 const TRIAL_COUNT := 5
@@ -77,31 +87,15 @@ func _start_current_trial() -> void:
 		return
 	var arena_instance: Node2D = packed.instantiate()
 	arena_instance.god_id = god.id
+	# The shell draws the shared panels; the arena keeps its left strip empty for
+	# them and owns the rest of the screen exactly as it was authored.
 	arena_instance.embedded = true
 	arena_instance.dialogue_prefix = "trial_%d" % (trial_index + 1)
-	arena_instance.embedded_rect = _arena_rect()
 	$ArenaPanel.add_child(arena_instance)
 	arena = arena_instance
 	arena.tree_exited.connect(_on_arena_exited)
 	arena.trial_complete.connect(_on_trial_complete)
 	call_deferred("_on_arena_ready")
-
-
-func _arena_rect() -> Rect2:
-	# The right-hand play area, beside the stat panels on the left.
-	return Rect2(270.0, 180.0, maxf(460.0, size.x - 520.0), maxf(280.0, size.y - 270.0))
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_RESIZED:
-		_update_arena_rect()
-
-
-func _update_arena_rect() -> void:
-	if arena == null or not is_instance_valid(arena):
-		return
-	arena.embedded_rect = _arena_rect()
-	arena.refresh_field()
 
 
 func _on_arena_ready() -> void:

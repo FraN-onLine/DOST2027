@@ -1,7 +1,8 @@
 extends SceneTree
 
-# Validation: the Game shell picks each trial's god arena and runs it embedded
-# inside the right-hand play area. Also checks that only the lit goal pays.
+# Validation: the Game shell picks each trial's god arena and runs it embedded.
+# The arena keeps the authored screen layout (the shell never resizes it), the
+# left strip stays clear for the panels, and only the lit goal pays.
 # Run: godot --headless --path <project> -s res://tools/trial_check.gd
 
 var _shell
@@ -44,8 +45,30 @@ func _run() -> void:
 		quit()
 		return
 	print("arena: %s (scene id=%s, embedded=%s)" % [arena.name, str(arena.god_id), str(arena.embedded)])
-	print("field=%s | shell panel=%s | match=%s" % [
-		str(arena._field), str(_shell._arena_rect()), str(arena._field == _shell._arena_rect())])
+	# The shell must not resize or re-centre an arena: the scene is authored in
+	# screen space, so the running field IS the border the designer drew, and the
+	# left GodArena.UI_STRIP_WIDTH pixels stay clear for the shared panels.
+	var authored: Rect2 = arena.field_root.authored_rect()
+	print("arena transform: pos=%s scale=%s (untouched scene values)" % [
+		str(arena.position), str(arena.scale)])
+	print("field=%s | authored border=%s | identical=%s" % [
+		str(arena._field), str(authored), str(arena._field == authored)])
+	print("left strip clear: %s (field starts at x=%.0f, strip is %.0f wide)" % [
+		str(authored.position.x >= GodArena.UI_STRIP_WIDTH),
+		authored.position.x, GodArena.UI_STRIP_WIDTH])
+	# WYSIWYG: the goals and the spawn must still be where the scene puts them.
+	var fresh: Node2D = load("res://scenes/gods/mayari/MayariArena.tscn").instantiate()
+	var fresh_zones := fresh.get_node("Zones").get_children()
+	var positions_match: bool = fresh_zones.size() == arena._zones.size()
+	for index in range(arena._zones.size()):
+		if not positions_match:
+			break
+		if arena._zones[index].position != fresh_zones[index].position:
+			positions_match = false
+	var spawn_matches: bool = arena._start_position == fresh.get_node("Player").position
+	fresh.free()
+	print("scene == played layout: goals=%s spawn=%s (player shown at %s)" % [
+		str(positions_match), str(spawn_matches), str(arena.player.position)])
 	print("goals=%d clones=%d lit_index=%d lit_flags=%s" % [
 		arena._zones.size(), arena._clones.size(), arena._active_goal_index,
 		str(arena._zones.map(func(z): return z.favor_enabled))])

@@ -31,7 +31,15 @@ var _pulse := 0.0
 
 func _ready() -> void:
 	title.text = zone_label
+	sync_authored_size()
 	_refresh_visual()
+
+
+# The box drawn in MayariGoal.tscn (the Fill rect) is the box that pays - the
+# size is read back from the scene instead of being assumed here.
+func sync_authored_size() -> void:
+	if fill != null and fill.size != Vector2.ZERO:
+		box_size = fill.size
 
 
 func setup(center: Vector2, size_value: Vector2, zone_rate: float, zone_color: Color, label_text: String, far: bool) -> void:
@@ -65,6 +73,9 @@ func set_active(active: bool) -> void:
 
 
 func bounds() -> Rect2:
+	# Exactly the authored Fill rect, wherever the designer put it.
+	if fill != null and fill.size != Vector2.ZERO:
+		return Rect2(global_position + fill.position, fill.size)
 	return Rect2(global_position - box_size * 0.5, box_size)
 
 
