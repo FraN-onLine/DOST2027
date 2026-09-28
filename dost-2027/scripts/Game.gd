@@ -8,6 +8,11 @@ extends Control
 # and one panel per rival mortal hangs underneath it. Game.tscn authors the
 # first rival panel so the layout can be seen without a second player.
 #
+# Both panels only ever grow downwards inside that strip: the rival column is
+# sized so every rival of Network.MAX_PLAYERS (three) fits above the bottom of
+# the screen, and a lobby name is clipped to its own panel with an ellipsis
+# instead of being allowed to widen it.
+#
 # Arena contract (scripts/gods/god_arena.gd): every arena scene is authored in
 # screen space exactly as it is played - the scene fills the screen and keeps
 # the left GodArena.UI_STRIP_WIDTH pixels clear for the panels below. The shell
