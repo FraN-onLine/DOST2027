@@ -1,5 +1,13 @@
 extends Control
 
+# Title screen: the God Games' name on top, then the three doors into a run
+# (host, join, quit). The words come from the registry (Gods) so the title
+# screen and Bathala's own dialogue can never drift apart.
+
+@onready var title_label: Label = $TitlePanel/Margin/TitleVBox/TitleLabel
+@onready var subtitle_label: Label = $TitlePanel/Margin/TitleVBox/SubtitleLabel
+@onready var alt_name_label: Label = $TitlePanel/Margin/TitleVBox/AltNameLabel
+@onready var prologue_label: Label = $TitlePanel/Margin/TitleVBox/PrologueLabel
 @onready var host_button = $CenterContainer/VBoxContainer/HostButton
 @onready var join_button = $CenterContainer/VBoxContainer/JoinButton
 @onready var quit_button = $CenterContainer/VBoxContainer/QuitButton
@@ -14,7 +22,19 @@ func _ready():
 	# Connect to network signals
 	Network.connected.connect(_on_network_connected)
 	
+	_brand_title()
 	status_label.text = "Ready to play!"
+
+
+# BATHALA / Ang Laro ng mga diyos / (Bathala: the God Games) plus the story the
+# gods open with - straight out of the registry, never typed twice.
+func _brand_title() -> void:
+	var bathala := Gods.bathala()
+	title_label.text = Gods.GAME_TITLE
+	title_label.add_theme_color_override("font_color", bathala.color)
+	subtitle_label.text = bathala.epithet
+	alt_name_label.text = "(%s)" % Gods.GAME_ALT_NAME
+	prologue_label.text = "%s\nFAVOR is the total points among all the challenges." % Gods.GAME_PROLOGUE
 
 func _on_host_pressed():
 	# Go to the hosting screen where the player sets their name

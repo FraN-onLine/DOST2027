@@ -3,8 +3,8 @@ extends Control
 # Arena HUD.
 # Top-left: the two stats - FAVOR and the GOD'S DUE voucher count - with the two
 # favor bars (E on the left, Q on the right) directly underneath them.
-# Also carries the trial clock, the rival mortals, the event line, the
-# disruption banner and the end-of-trial results panel.
+# Also carries the trial clock, the rival mortals, the event line, the banner
+# and the end-of-trial results panel.
 
 const COLOR_TIME_OK := Color(1, 1, 1, 1)
 const COLOR_TIME_LOW := Color(1, 0.4, 0.35, 1)
@@ -71,11 +71,6 @@ func show_banner(text: String, color: Color, duration := 2.0) -> void:
 	_banner_time = duration
 
 
-func hide_banner() -> void:
-	_banner_time = 0.0
-	banner_label.visible = false
-
-
 func log_event(text: String, color: Color) -> void:
 	event_label.text = text
 	event_label.add_theme_color_override("font_color", color)
@@ -94,10 +89,6 @@ func show_results(summary: Dictionary, title := "TRIAL COMPLETE") -> void:
 		lines.append(line)
 	results_label.text = "\n".join(lines)
 	results_panel.visible = true
-
-
-func hide_results() -> void:
-	results_panel.visible = false
 
 
 func set_results_hint(text: String) -> void:

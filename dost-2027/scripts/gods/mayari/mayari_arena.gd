@@ -1,26 +1,36 @@
 class_name MayariArena
-extends Node2D
+extends GodArena
 
-# MAYARI - Patintero x King of the Hill.  (scripts/gods/mayari + scenes/gods/mayari)
+# MAYARI - patintero, and nothing else yet.  (scripts/gods/mayari + scenes/gods/mayari)
 #
-# Two of Mayari's clones hunt you down: one slides along your row, the other
-# along your column. FAVOR is gained by PLAYING the game:
-#   - hold the corner Mayari is currently lighting        (passive, per second)
-#   - cross the field to the far edge and come back       (round trip bonus)
-# Getting caught by a clone costs FAVOR.
+# One arena, four favor zones, exactly TWO Mayaris and one minute thirty:
+#   * The four goals are the favor zones. Only the ONE Mayari is lighting burns
+#     - yellow - and only that one pays: every other zone draws nothing at all
+#     and is invisible on screen.
+#   * The two clones (one horizontal, one vertical, authored in
+#     MayariArena.tscn) walk the Line2D path drawn on each of them and never
+#     leave it.
+#   * Every so often a clone stops patrolling and hunts the nearest mortal: it
+#     still walks its own line, it just walks it towards whoever is closest.
+#   * A clone touching a mortal costs that mortal FAVOR.
+#   * Standing in the lit zone banks FAVOR until the clock runs out
+#     (GodArena.trial_time - the 1:30 shared by every arena).
+# That is the whole game. Everything else comes later, in due time.
 #
-# The arena owns no art: MayariArena.tscn holds the floor, its border and the
-# patintero lines, the four goals (MayariGoal.tscn), the two clones
-# (MayariClone.tscn) and the mortal (Mortal.tscn). The scene is authored in
-# screen space for real play (see scripts/gods/god_arena.gd): the left strip
-# stays empty for the Game shell's panels, and the drawn border IS the field.
-# This script only runs the rules and moves the clones - nothing here draws and
-# nothing here re-lays-out the scene, so the editor layout is the played one.
+# The arena owns no art: MayariArena.tscn holds the backdrop, the field, its
+# border and the patintero lines, the four favor zones (MayariGoal.tscn), the
+# two clones (MayariClone.tscn) and the mortal (Mortal.tscn). The scene is
+# authored in screen space for real play (see scripts/gods/god_arena.gd): the
+# left strip stays empty for the Game shell's panels, and the drawn border IS
+# the field. This script only runs the rules - nothing here draws and nothing
+# here re-lays-out the scene, so the editor layout is the played one.
 #
 # Solo: this scene simulates everything.
-# Multiplayer: the HOST is authoritative (clone movement, scoring, FAVOR) and
-# broadcasts an arena tick at 10 Hz plus FAVOR snapshots; every client sends its
-# mortal's position and mirrors whatever the host sends.
+# Multiplayer: the HOST is authoritative and is the only clock. It broadcasts
+# the round - phase, seconds, the lit zone, where the clones have walked and
+# where the mortals are - at 10 Hz, plus FAVOR snapshots at 5 Hz. Every client
+# sends its mortal's position and mirrors whatever the host sends, so all the
+# screens show the same second, the same lit zone and the same two Mayaris.
 
 signal trial_complete
 signal trial_time_changed(seconds: float)
@@ -29,8 +39,6 @@ const HUD_SCENE := preload("res://UI/GodsArena/god_hud.tscn")
 const DIALOGUE_SCENE := preload("res://UI/GodsArena/god_dialogue.tscn")
 const DUE_MENU_SCENE := preload("res://UI/GodsArena/gods_due_menu.tscn")
 const MORTAL_SCENE := preload("res://scenes/gods/common/Mortal.tscn")
-const GOAL_SCENE := preload("res://scenes/gods/mayari/MayariGoal.tscn")
-const CLONE_SCENE := preload("res://scenes/gods/mayari/MayariClone.tscn")
 const TEMP_ICON := preload("res://icon.svg")
 
 @export_category("Identity")
@@ -40,21 +48,16 @@ const TEMP_ICON := preload("res://icon.svg")
 @export var embedded := false
 @export var dialogue_prefix := "mayari"
 
-@export_category("Trial Tuning")
-@export var trial_time := 60.0
-@export var countdown_time := 3.0
-@export var round_trip_favor := 150
-@export var clone_penalty := 50
-const INVULN_TIME := 1.2
-@export var disruption_interval := 15.0
-@export var success_favor := 1000
-@export var corner_rate := 26.0
-@export var tracker_speed := 130.0
-@export var blessing_time := 8.0
-@export var blessing_multiplier := 2.0
-@export_range(1, 4, 1) var goal_zone_count := 1
-@export_range(0, 3, 1) var active_goal_corner := 3
-@export var goal_switch_interval := 12.0
+# The round clock (1:30) and the countdown are NOT declared here: they come
+# from the shared arena base - GodArena.trial_time / GodArena.countdown_time -
+# which is the one place every arena's time is edited.
+@export_category("Trial Rules")
+@export var favor_rate := 26.0                 # FAVOR banked per second in the lit zone
+@export var clone_penalty := 50                # FAVOR lost when a clone touches a mortal
+const INVULN_TIME := 1.2                       # mercy seconds after a touch
+@export_range(0, 3, 1) var starting_zone := 3  # the zone Mayari lights first
+@export var goal_switch_interval := 12.0       # seconds before the light moves on
+@export var success_favor := 1000              # FAVOR the closing lines call a success
 const NET_TICK_RATE := 10.0
 const NET_STATE_RATE := 5.0
 const LAYOUT_REPEAT := 2.0
@@ -90,16 +93,11 @@ var _trial_time := 0.0
 var _countdown := 0.0
 var _count_shown := -1
 var _zone_pending: Dictionary = {}    # mortal id -> fractional FAVOR not banked
-var _reached_far: Dictionary = {}     # mortal id -> touched the far edge
 var _invuln: Dictionary = {}          # mortal id -> seconds of mercy left
-var _disruption_timer := 0.0
-var _blind_time := 0.0
+var _blind_time := 0.0                # Half Vision favor only
 var _blind_radius := 0.16
-var _blessing_time := 0.0
-var _blessing_active := false
 var _free_grants := 0
 var _results: Dictionary = {}
-var _rng := RandomNumberGenerator.new()
 var _active_goal_index := 3
 var _goal_switch_timer := 0.0
 
@@ -121,7 +119,6 @@ const DIALOGUE_TIMEOUT := 20.0
 
 
 func _ready() -> void:
-	_rng.randomize()
 	god = Gods.by_id(god_id)
 	_net = get_node_or_null("/root/Network")
 	_networked = _detect_networked()
@@ -137,7 +134,6 @@ func _ready() -> void:
 		rules.setup(god, _mortal_name(), RIVAL_MORTALS if SIMULATE_RIVALS else [], SIMULATE_RIVALS)
 	rules.favor_changed.connect(_on_favor_changed)
 	rules.due_earned.connect(_on_due_earned)
-	rules.skill_used.connect(_on_skill_used)
 	rules.notice.connect(_on_notice)
 
 	hud = HUD_SCENE.instantiate()
@@ -163,7 +159,6 @@ func _ready() -> void:
 	_apply_field()
 	player.set_display_name(_mortal_name(), god.color)
 	hud.bind(rules, god)
-	hud.set_trial(1, 5)
 	_connect_network()
 	_sync_ghosts()
 	get_viewport().size_changed.connect(_on_viewport_resized)
@@ -208,140 +203,74 @@ func _on_viewport_resized() -> void:
 
 func _apply_field() -> void:
 	# The scene owns the layout (see scripts/gods/god_arena.gd): the field rect is
-	# read back from the border line the designer drew, and the goals, the clones
-	# and the mortal keep the positions and sizes they were authored with. Only
-	# the rules need numbers out of it - mortal bounds, clone travel, the round
-	# trip line - so every player reads the same authored screen.
+	# read back from the border line the designer drew, and the favor zones, the
+	# clones and the mortal keep the positions and sizes they were authored with.
+	# Only the rules need a number out of it - the mortal's walking bounds - so
+	# every player reads the same authored screen.
 	_field = field_root.authored_rect()
 	var tint: Color = god.color if god != null else Color.WHITE
 	field_root.apply_tint(tint)
 	player.bounds = _field
 	player.ring_color = tint
 	_apply_vision_mask()
+	# Both lists are built on EVERY peer: the zones and the clones are the
+	# authored scene nodes, so each screen already has the same boxes and the
+	# same two Mayaris. Only the lit one and the walked positions travel.
+	_collect_zones()
+	_collect_clones()
 	if _authority:
-		_configure_goals()
-		_configure_clones()
+		_light_zone(starting_zone)
 		_publish_layout()
 
 
-func _configure_goals() -> void:
-	# The four goals are authored scene nodes - Mayari only lights one at a time.
-	# Their place and their box size come from the scene, so the boxes drawn in
-	# the editor are the boxes the mortals hold.
+func _collect_zones() -> void:
+	# The four goals are authored scene nodes and they are only ever lit: their
+	# place and their box size come from the scene, so the boxes drawn in the
+	# editor are the boxes the mortals hold. Started dark - whoever is
+	# authoritative lights one in _light_zone().
 	_zones.clear()
-	var goals := zones_root.get_children()
-	_active_goal_index = clampi(active_goal_corner, 0, maxi(0, goals.size() - 1))
-	for index in range(goals.size()):
-		var goal: MayariGoal = goals[index]
-		goal.sync_authored_size()
-		goal.color = god.color
-		goal.is_far = index >= 2
-		goal.set_rate(corner_rate)
-		goal.set_active(index == _active_goal_index)
-		goal.visible = true
-		_zones.append(goal)
+	for node in zones_root.get_children():
+		var zone: MayariGoal = node
+		zone.sync_authored_size()
+		zone.rate = favor_rate
+		zone.set_active(false)
+		_zones.append(zone)
 	_goal_switch_timer = goal_switch_interval
 
 
-func _configure_clones() -> void:
-	# The two regular Mayaris are authored scene nodes: the scene says which lane
-	# each one patrols, the drawn border says how far it may slide. Extra
-	# sweepers come from MayariClone.tscn when a disruption calls for them.
-	var horizontal_at := _authored_clone_position(0, Vector2(_field.get_center().x, _field.position.y))
-	var vertical_at := _authored_clone_position(1, Vector2(_field.position.x, _field.get_center().y))
-	for clone in _clones:
-		if is_instance_valid(clone) and clone.has_meta("dynamic"):
-			clone.queue_free()
-	_clones.clear()
-	var authored: Array = []
-	for node in clones_root.get_children():
-		if not node.has_meta("dynamic"):
-			authored.append(node)
-	if authored.size() >= 2:
-		_configure_tracker(authored[0], MayariClone.Mode.TRACK_X, horizontal_at)
-		_configure_tracker(authored[1], MayariClone.Mode.TRACK_Y, vertical_at)
-		authored[0].visible = true
-		authored[1].visible = true
-		_clones.append(authored[0])
-		_clones.append(authored[1])
+# Exactly one zone burns at a time: Mayari lights one and every other zone goes
+# dark - invisible and paying nothing.
+func _light_zone(index: int) -> void:
+	if _zones.is_empty():
 		return
-	_spawn_tracker(MayariClone.Mode.TRACK_X, horizontal_at)
-	_spawn_tracker(MayariClone.Mode.TRACK_Y, vertical_at)
+	_active_goal_index = clampi(index, 0, _zones.size() - 1)
+	for i in range(_zones.size()):
+		_zones[i].set_active(i == _active_goal_index)
 
 
-func _authored_clone_position(index: int, fallback: Vector2) -> Vector2:
-	# Where the designer parked the clone in the scene is where its lane is.
-	var children := clones_root.get_children()
-	if index < children.size():
-		return children[index].position
-	return fallback
-
-
-func _configure_tracker(clone: MayariClone, track_mode: int, at: Vector2) -> void:
-	clone.color = god.color
-	clone.lane_color = Color(god.color.r, god.color.g, god.color.b, 0.22)
-	var from_value := _field.position.x if track_mode == MayariClone.Mode.TRACK_X else _field.position.y
-	var to_value := _field.end.x if track_mode == MayariClone.Mode.TRACK_X else _field.end.y
-	clone.setup_tracker(track_mode, at, from_value, to_value)
-	clone.track_speed = tracker_speed
-	clone.set_moving(_authority)
-
-
-func _make_clone(sweep_lane := 0.0) -> MayariClone:
-	var clone: MayariClone = CLONE_SCENE.instantiate()
-	clone.set_meta("dynamic", true)
-	clones_root.add_child(clone)
-	clone.color = god.color
-	clone.lane_color = Color(god.color.r, god.color.g, god.color.b, 0.22)
-	clone.setup_sweep(0, sweep_lane, _field.position.x, _field.end.x)
-	clone.speed = _rng.randf_range(150.0, 180.0)
-	return clone
-
-
-func _spawn_tracker(track_mode: int, at: Vector2) -> MayariClone:
-	var clone := _make_clone()
-	var from_value := _field.position.x if track_mode == MayariClone.Mode.TRACK_X else _field.position.y
-	var to_value := _field.end.x if track_mode == MayariClone.Mode.TRACK_X else _field.end.y
-	clone.setup_tracker(track_mode, at, from_value, to_value)
-	clone.track_speed = tracker_speed + _rng.randf_range(-8.0, 8.0)
-	_clones.append(clone)
-	return clone
-
-
-func _spawn_sweeper() -> MayariClone:
-	# Extra pressure for the "another Mayari" disruption.
-	var lane := _rng.randf_range(_field.position.y + 60.0, _field.end.y - 60.0)
-	var clone := _make_clone(lane)
-	_clones.append(clone)
-	return clone
+func _collect_clones() -> void:
+	# Exactly TWO Mayaris, both authored in the scene: one horizontal, one
+	# vertical. Each one walks the Line2D path drawn on it (MayariClone.gd), so
+	# there is nothing to lay out here - only the colour the clones burn in and
+	# which side is allowed to move them.
+	_clones.clear()
+	for node in clones_root.get_children():
+		var clone: MayariClone = node
+		clone.color = god.color
+		clone.set_moving(_authority)
+		_clones.append(clone)
+	if _clones.size() != 2:
+		push_warning("MayariArena: the arena wants exactly 2 authored clones, found %d" % _clones.size())
 
 
 # --- MULTIPLAYER: layout sync -----------------------------------------------
 
 func _zone_definition(zone: MayariGoal) -> Dictionary:
 	# Local coordinates: every peer owns the same authored scene, so the same
-	# child index sits at the same spot on every screen.
-	return {
-		"pos": zone.position,
-		"size": zone.box_size,
-		"rate": float(zone.base_rate),
-		"favor_amount": int(zone.favor_amount),
-		"label": str(zone.zone_label),
-		"favor_enabled": zone.favor_enabled,
-	}
-
-
-func _clone_definition(clone: MayariClone) -> Dictionary:
-	return {
-		"mode": int(clone.mode),
-		"axis": int(clone.axis),
-		"lane": float(clone.lane),
-		"min": float(clone.travel_min),
-		"max": float(clone.travel_max),
-		"speed": float(clone.speed),
-		"track_speed": float(clone.track_speed),
-		"pos": clone.global_position,
-	}
+	# child index sits at the same spot on every screen and the same box has the
+	# same size. The one thing that is NOT in the scene is which zone Mayari is
+	# lighting, so that single bit is all that travels.
+	return {"lit": zone.favor_enabled}
 
 
 func _publish_layout() -> void:
@@ -351,68 +280,34 @@ func _publish_layout() -> void:
 	for zone in _zones:
 		if is_instance_valid(zone):
 			zones.append(_zone_definition(zone))
-	var clones: Array = []
-	for clone in _clones:
-		if is_instance_valid(clone):
-			clones.append(_clone_definition(clone))
 	_net.publish_arena_layout({
 		"field": _field,
 		"active_goal": _active_goal_index,
 		"zones": zones,
-		"clones": clones,
 	})
 
 
 func _apply_layout(layout: Dictionary) -> void:
-	# Clients play on the host's field so everybody shares the same coordinates.
-	# Both read the same authored scene, so this normally changes nothing.
+	# Clients play on the host's field so everybody shares the same coordinates,
+	# and on the host's light. Both read the same authored scene, so the boxes,
+	# the two paths and the mortal are already right - only the lit zone changes.
 	_field = layout.get("field", _field)
 	var tint: Color = god.color if god != null else Color.WHITE
 	field_root.apply_tint(tint)
 	player.bounds = _field
-	_active_goal_index = int(layout.get("active_goal", _active_goal_index))
+	_collect_zones()
 	var definitions: Array = layout.get("zones", [])
 	for index in range(mini(definitions.size(), _zones.size())):
-		var zone: MayariGoal = _zones[index]
 		var definition: Dictionary = definitions[index]
-		zone.position = definition.get("pos", zone.position)
-		zone.box_size = definition.get("size", zone.box_size)
-		zone.zone_label = str(definition.get("label", zone.zone_label))
-		zone.favor_amount = int(definition.get("favor_amount", zone.favor_amount))
-		zone.set_rate(float(definition.get("rate", zone.base_rate)))
-		zone.set_active(bool(definition.get("favor_enabled", index == _active_goal_index)))
-	for clone in _clones:
-		if is_instance_valid(clone) and clone.has_meta("dynamic"):
-			clone.queue_free()
-	_clones.clear()
-	var authored: Array = []
-	for node in clones_root.get_children():
-		if not node.has_meta("dynamic"):
-			authored.append(node)
-	var clone_definitions: Array = layout.get("clones", [])
-	for index in range(clone_definitions.size()):
-		var definition: Dictionary = clone_definitions[index]
-		if index < authored.size():
-			var tracker: MayariClone = authored[index]
-			var mode := int(definition.get("mode", MayariClone.Mode.TRACK_X))
-			_configure_tracker(tracker, mode, definition.get("pos", Vector2.ZERO))
-			tracker.set_moving(false)
-			_clones.append(tracker)
-		else:
-			_clone_from_definition(definition)
-
-
-func _clone_from_definition(definition: Dictionary) -> void:
-	var mode := int(definition.get("mode", MayariClone.Mode.SWEEP))
-	var min_value := float(definition.get("min", _field.position.y))
-	var max_value := float(definition.get("max", _field.end.y))
-	var clone: MayariClone = _make_clone(float(definition.get("lane", _field.get_center().y)))
-	if mode != MayariClone.Mode.SWEEP:
-		clone.setup_tracker(mode, definition.get("pos", Vector2.ZERO), min_value, max_value)
-	clone.speed = float(definition.get("speed", 165.0))
-	clone.track_speed = float(definition.get("track_speed", tracker_speed))
-	clone.set_moving(false)  # the host owns clone movement
-	_clones.append(clone)
+		var lit := bool(definition.get("lit", definition.get("favor_enabled", false)))
+		if lit:
+			_active_goal_index = index
+		_zones[index].set_active(lit)
+	if definitions.is_empty():
+		_light_zone(int(layout.get("active_goal", _active_goal_index)))
+	# The clones are the authored ones on every peer: a client only mirrors the
+	# positions the host sends, it never walks them itself.
+	_collect_clones()
 
 
 # --- FLOW -------------------------------------------------------------------
@@ -428,8 +323,17 @@ func _start_countdown() -> void:
 	_countdown = countdown_time
 	_count_shown = -1
 	player.set_lock(true)
-	# Back to the spot the designer drew the mortal on.
+	# The full round is already on the clock while the mortals wait through the
+	# 3 - 2 - 1, and the host broadcasts it, so every screen shows 1:30 here.
+	_trial_time = trial_time
+	trial_time_changed.emit(_trial_time)
+	hud.set_time_left(_trial_time)
+	# Back to the spot the designer drew the mortal on, and both Mayaris back to
+	# the start of their paths, so every round begins the same way.
 	player.global_position = _start_position
+	for clone in _clones:
+		if is_instance_valid(clone) and clone.self_moving:
+			clone.restart()
 
 
 func _start_trial() -> void:
@@ -437,11 +341,9 @@ func _start_trial() -> void:
 	_trial_time = trial_time
 	trial_time_changed.emit(_trial_time)
 	_zone_pending.clear()
-	_reached_far.clear()
 	_invuln.clear()
 	_invuln[_my_id] = 1.0
 	_blind_time = 0.0
-	_disruption_timer = disruption_interval
 	player.set_lock(false)
 	rules.trial_active = true
 	_show_banner("GO!", god.color, 1.0)
@@ -462,42 +364,44 @@ func _process(delta: float) -> void:
 			_release_dialogue()
 	match _phase:
 		Phase.COUNTDOWN:
-			_countdown -= delta
-			var shown := int(ceil(maxf(0.0, _countdown)))
-			if shown != _count_shown:
-				_count_shown = shown
-				if shown > 0:
-					_show_banner(str(shown), god.color, 1.0)
-			if _countdown <= 0.0:
-				_start_trial()
+			# The host counts; a client never runs a clock of its own.
+			if _authority:
+				_countdown -= delta
+				var shown := int(ceil(maxf(0.0, _countdown)))
+				if shown != _count_shown:
+					_count_shown = shown
+					if shown > 0:
+						_show_banner(str(shown), god.color, 1.0)
+				if _countdown <= 0.0:
+					_start_trial()
 		Phase.PLAYING:
 			if _authority:
 				_tick_trial(delta)
 			else:
 				_client_tick(delta)
+	# The host is the clock: it broadcasts the round it just advanced - phase,
+	# seconds, the lit zone every two seconds, where the clones walked and where
+	# the mortals are - so every client shows the same second and the same light.
+	if _authority and _networked and _phase != Phase.INTRO:
+		_publish_net_tick(delta)
 	_apply_blindness(delta)
 	_move_ghosts(delta)
 
 
 func _tick_trial(delta: float) -> void:
+	# One round, start to finish: the clock runs down, the light moves on, the
+	# lit zone pays and Mayari costs FAVOR to whoever she touches.
 	_trial_time -= delta
 	trial_time_changed.emit(_trial_time)
 	hud.set_time_left(_trial_time)
 	_tick_invuln(delta)
-	_tick_blessing(delta)
 	_goal_switch_timer -= delta
 	if _goal_switch_timer <= 0.0:
 		_advance_active_goal()
-	_update_chasers()
-	_disruption_timer -= delta
-	if _disruption_timer <= 0.0:
-		_disruption_timer = disruption_interval
-		_trigger_disruption()
+	# Where the mortals are, so a clone can decide to hunt the nearest one.
+	_feed_clones()
 	_check_goals(delta)
 	_check_clones()
-	_check_round_trip()
-	_check_rivalry()
-	_publish_net_tick(delta)
 	if _trial_time <= 0.0:
 		_end_trial()
 
@@ -516,44 +420,27 @@ func _client_tick(delta: float) -> void:
 func _advance_active_goal() -> void:
 	if _zones.is_empty():
 		return
-	_active_goal_index = (_active_goal_index + 1) % _zones.size()
-	for index in range(_zones.size()):
-		var zone: MayariGoal = _zones[index]
-		zone.set_active(index == _active_goal_index)
+	_light_zone((_active_goal_index + 1) % _zones.size())
 	_goal_switch_timer = goal_switch_interval
 	_log("Mayari's light moves to the %s" % str(_zones[_active_goal_index].zone_label), god.color)
 	_publish_layout()
 
 
+# Where every mortal stands - a clone that is allowed to walk uses it to hunt
+# the nearest one (MayariClone.gd). Only the host feeds it: a client's clones
+# are driven by the positions the host sends.
+func _feed_clones() -> void:
+	var mortals := PackedVector2Array()
+	for entry in _mortal_entries():
+		mortals.append(entry["pos"])
+	for clone in _clones:
+		if is_instance_valid(clone):
+			clone.set_targets(mortals)
+
+
 func _tick_invuln(delta: float) -> void:
 	for id in _invuln.keys():
 		_invuln[id] = maxf(0.0, float(_invuln[id]) - delta)
-
-
-func _tick_blessing(delta: float) -> void:
-	var blessed := _blessing_time > 0.0
-	if blessed != _blessing_active:
-		_blessing_active = blessed
-		_apply_zone_multiplier(blessing_multiplier if blessed else 1.0)
-	_blessing_time = maxf(0.0, _blessing_time - delta)
-
-
-func _apply_zone_multiplier(multiplier: float) -> void:
-	for zone in _zones:
-		if is_instance_valid(zone):
-			zone.set_rate_multiplier(multiplier)
-	if _authority:
-		_publish_layout()
-
-
-func _update_chasers() -> void:
-	# Mayari's two clones hunt whichever mortal is nearest to them.
-	for clone in _clones:
-		if not is_instance_valid(clone):
-			continue
-		if int(clone.mode) == MayariClone.Mode.SWEEP:
-			continue
-		clone.target = _nearest_mortal_position(clone.global_position)
 
 
 func _publish_net_tick(delta: float) -> void:
@@ -634,51 +521,6 @@ func _on_clone_hit(clone: MayariClone, mortal_id: int, position: Vector2) -> voi
 		_log("A clone caught you but your favor held", god.color)
 
 
-func _check_round_trip() -> void:
-	for entry in _mortal_entries():
-		var mortal_id := int(entry["id"])
-		var position: Vector2 = entry["pos"]
-		# Reach the far edge of the field...
-		if position.x >= _field.end.x - 90.0:
-			_reached_far[mortal_id] = true
-		# ...then make it back to the starting line the designer drew.
-		if bool(_reached_far.get(mortal_id, false)) and position.x <= field_root.start_line_x() + 14.0:
-			_reached_far[mortal_id] = false
-			var gained := rules.add_favor(round_trip_favor, "round trip", mortal_id)
-			if mortal_id == _my_id:
-				_show_banner("ROUND TRIP  +%d FAVOR" % gained, Color(0.7, 1, 0.8), 1.6)
-				_log("You crossed the whole field and back  (+%d FAVOR)" % gained, Color(0.7, 1, 0.8))
-			else:
-				_log("%s crossed the field and back  (+%d FAVOR)" % [_mortal_label(mortal_id), gained], Color(0.7, 1, 0.8))
-
-
-func _check_rivalry() -> void:
-	var targets := rules.consume_rivalry_triggers()
-	for target in targets:
-		_show_banner("SIBLING'S RIVALRY", god.color, 2.0)
-		_log("%s fell behind - Mayari blots out their screen for 5s" % str(target.display_name), god.color)
-
-
-func _trigger_disruption() -> void:
-	var roll := _rng.randi_range(0, 2)
-	match roll:
-		0:
-			for clone in _clones:
-				if is_instance_valid(clone):
-					clone.surge(5.0)
-			_show_banner("MOONLIGHT RUSH!", god.color, 1.8)
-			_log("Mayari's clones speed up for 5s", god.color)
-		1:
-			_spawn_sweeper()
-			_publish_layout()
-			_show_banner("ANOTHER MAYARI!", god.color, 1.8)
-			_log("Mayari sends in another clone", god.color)
-		_:
-			_blessing_time = blessing_time
-			_show_banner("MOON BLESSING!", god.color, 1.8)
-			_log("Her corner glows brighter - double FAVOR for %ds" % int(blessing_time), god.color)
-
-
 # --- MORTAL LOOKUP ----------------------------------------------------------
 
 func _mortal_entries() -> Array:
@@ -694,20 +536,6 @@ func _mortal_entries() -> Array:
 	return entries
 
 
-func _nearest_mortal_position(from: Vector2) -> Vector2:
-	var best := player.global_position
-	var best_distance := from.distance_to(best)
-	for id in _mortal_positions.keys():
-		if int(id) == _my_id:
-			continue
-		var position: Vector2 = _mortal_positions[id]
-		var distance := from.distance_to(position)
-		if distance < best_distance:
-			best_distance = distance
-			best = position
-	return best
-
-
 func _mortal_label(mortal_id: int) -> String:
 	var mortal := rules.mortal(mortal_id)
 	return mortal.display_name if mortal != null else "Mortal"
@@ -715,8 +543,8 @@ func _mortal_label(mortal_id: int) -> String:
 
 # --- DIALOGUE / RESULTS -----------------------------------------------------
 
-func _speech(speaker: God, lines: Array, extra: Array = []) -> Array:
-	var out: Array = extra.duplicate()
+func _speech(speaker: God, lines: Array) -> Array:
+	var out: Array = []
 	for line in lines:
 		out.append({"speaker": speaker.display_name, "color": speaker.color, "text": str(line)})
 	return out
@@ -772,13 +600,18 @@ func _on_dialogue_released(dialogue_id: String) -> void:
 
 func _continue_dialogue() -> void:
 	if _dialogue_wait_id.ends_with("_intro"):
-		_start_countdown()
-	else:
-		hud.show_results(_results, "TRIAL COMPLETE")
-		if _free_grants > 0:
-			hud.set_results_hint("F - CLAIM YOUR FREE FAVOR      SPACE - PLAY AGAIN      ESC - LEAVE")
+		if _authority:
+			_start_countdown()
 		else:
-			hud.set_results_hint("SPACE - PLAY AGAIN      ESC - LEAVE")
+			# A client runs no countdown of its own: it waits for the host's
+			# ticks to walk it through the 3 - 2 - 1 and into the trial.
+			_phase = Phase.COUNTDOWN
+		return
+	hud.show_results(_results, "TRIAL COMPLETE")
+	if _free_grants > 0:
+		hud.set_results_hint("F - CLAIM YOUR FREE FAVOR      SPACE - PLAY AGAIN      ESC - LEAVE")
+	else:
+		hud.set_results_hint("SPACE - PLAY AGAIN      ESC - LEAVE")
 
 
 func _end_trial() -> void:
@@ -1006,13 +839,16 @@ func _publish_arena_tick() -> void:
 	for id in reported.keys():
 		_mortal_positions[int(id)] = reported[id]
 	var clones: Array = []
+	var hunts: Array = []
 	for clone in _clones:
 		if is_instance_valid(clone):
 			clones.append(clone.global_position)
+			hunts.append(clone.is_hunting())
 	_net.publish_arena_state({
 		"phase": int(_phase),
 		"trial_time": _trial_time,
 		"clones": clones,
+		"hunts": hunts,
 		"mortals": _mortal_positions.duplicate(),
 		"banner": hud.banner_label.text if hud.banner_label.visible else "",
 		"banner_color": hud.banner_label.get_theme_color("font_color"),
@@ -1035,15 +871,24 @@ func _on_arena_state_received(state: Dictionary) -> void:
 
 
 func _apply_arena_tick(state: Dictionary) -> void:
+	# The host's round, mirrored: the same second on the clock, the same lit
+	# zone, the same two Mayaris walking the same line.
 	var remote_phase := int(state.get("phase", int(_phase)))
 	_trial_time = float(state.get("trial_time", _trial_time))
+	# The shell's clock (Game.gd) reads this signal - without it a client's clock
+	# would sit still while the host's runs.
+	trial_time_changed.emit(_trial_time)
 	hud.set_time_left(_trial_time)
 
 	var clone_positions: Array = state.get("clones", [])
+	var hunts: Array = state.get("hunts", [])
 	for index in range(mini(clone_positions.size(), _clones.size())):
 		var clone = _clones[index]
-		if is_instance_valid(clone):
-			clone.sync_position(clone_positions[index])
+		if not is_instance_valid(clone):
+			continue
+		clone.sync_position(clone_positions[index])
+		if index < hunts.size():
+			clone.set_hunting(bool(hunts[index]))
 
 	var mortals: Dictionary = state.get("mortals", {})
 	_mortal_positions.clear()
@@ -1054,11 +899,9 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	if remote_phase == int(Phase.RESULTS) and _phase != Phase.RESULTS:
 		_end_trial()
 	elif remote_phase == int(Phase.PLAYING) and _phase != Phase.PLAYING and _phase != Phase.RESULTS:
-		_phase = Phase.PLAYING
-		if dialogue.is_active():
-			dialogue.close_now()
-		player.set_lock(false)
-		rules.trial_active = true
+		_enter_playing()
+	elif remote_phase == int(Phase.COUNTDOWN) and _phase == Phase.INTRO:
+		_phase = Phase.COUNTDOWN
 
 	# Mirror Mayari's announcements.
 	var banner := str(state.get("banner", ""))
@@ -1069,6 +912,16 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	if event != "" and event != _last_event:
 		_last_event = event
 		_log(event, state.get("event_color", god.color))
+
+
+# A client's copy of the step into the trial: the host's tick drives it, so the
+# dialogue is put away and the mortal may move.
+func _enter_playing() -> void:
+	_phase = Phase.PLAYING
+	if dialogue.is_active():
+		dialogue.close_now()
+	player.set_lock(false)
+	rules.trial_active = true
 
 
 func _on_god_state_received(state: Dictionary) -> void:
@@ -1122,11 +975,6 @@ func _on_due_earned(player_id: int, _due: int, milestone: int) -> void:
 		return
 	_show_banner("%d FAVOR - GOD'S DUE EARNED" % milestone, Color(1, 0.9, 0.45), 2.2)
 	_log("You reached %d FAVOR - one God's Due is yours (press F to spend it)" % milestone, Color(1, 0.9, 0.45))
-
-
-func _on_skill_used(_player_id: int, _favor: GodFavor) -> void:
-	# Hook for the network layer: this is where other mortals learn a skill fired.
-	pass
 
 
 func _on_notice(text: String) -> void:

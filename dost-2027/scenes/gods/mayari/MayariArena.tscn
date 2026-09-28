@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dwhxsllbl4qbg"]
 
 [ext_resource type="Script" uid="uid://dpmo4rpwq4eip" path="res://scripts/gods/mayari/mayari_arena.gd" id="1_arena"]
+[ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="2_35pk3"]
 [ext_resource type="Script" uid="uid://du4n4773ee8ry" path="res://scripts/gods/mayari/mayari_arena_field.gd" id="2_field"]
 [ext_resource type="PackedScene" uid="uid://dwhxsrh6kuqbg" path="res://scenes/gods/mayari/MayariGoal.tscn" id="3_goal"]
 [ext_resource type="PackedScene" uid="uid://svxrl6j6aa6k" path="res://scenes/gods/mayari/MayariClone.tscn" id="4_clone"]
@@ -44,6 +45,11 @@ shader_parameter/aspect = 1.7777778
 [node name="MayariArena" type="Node2D" unique_id=357462759]
 script = ExtResource("1_arena")
 
+[node name="Background" type="Sprite2D" parent="." unique_id=1839769271]
+position = Vector2(681, 274.00003)
+scale = Vector2(6.285, 4.87)
+texture = ExtResource("2_35pk3")
+
 [node name="GAME UI AREA" type="StaticBody2D" parent="." unique_id=1938961839]
 metadata/_edit_lock_ = true
 
@@ -52,24 +58,12 @@ position = Vector2(112, 317)
 shape = SubResource("RectangleShape2D_qwc0f")
 metadata/_edit_lock_ = true
 
-[node name="BackgroundLayer" type="CanvasLayer" parent="." unique_id=1582739784]
-layer = -10
-
-[node name="Background" type="ColorRect" parent="BackgroundLayer" unique_id=1830735072]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 238.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-color = Color(0.03, 0.04, 0.08, 1)
-
 [node name="ArenaField" type="Node2D" parent="." unique_id=1768829991]
 z_index = 1
 script = ExtResource("2_field")
 
 [node name="Backdrop" type="Sprite2D" parent="ArenaField" unique_id=1599853382]
+visible = false
 modulate = Color(0.22, 0.32, 0.55, 0.65)
 position = Vector2(696, 531)
 scale = Vector2(7.0781255, 1.7968751)
@@ -116,11 +110,9 @@ zone_label = "NE GOAL"
 [node name="SouthWestGoal" parent="Zones" unique_id=762892231 instance=ExtResource("3_goal")]
 position = Vector2(546, 568)
 zone_label = "SW GOAL"
-is_far = true
 
 [node name="SouthEastGoal" parent="Zones" unique_id=1342542567 instance=ExtResource("3_goal")]
 position = Vector2(913, 571)
-is_far = true
 
 [node name="Clones" type="Node2D" parent="." unique_id=1113507873]
 z_index = 3
@@ -129,7 +121,7 @@ z_index = 3
 position = Vector2(681, 522)
 
 [node name="MayariVertical" parent="Clones" unique_id=1924692226 instance=ExtResource("4_clone")]
-position = Vector2(760, 459)
+position = Vector2(765, 462)
 
 [node name="Ghosts" type="Node2D" parent="." unique_id=1728222570]
 z_index = 3

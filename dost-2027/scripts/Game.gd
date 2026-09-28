@@ -3,6 +3,11 @@ extends Control
 # Bathala's game shell. The shell owns shared player panels and chooses the
 # current trial; each god arena remains a replaceable child controller.
 #
+# The shell's own panel is a vertical stack - the mortal's name, FAVOR with DUE
+# on the row below it, then the E favor bar and the Q favor bar, one per row -
+# and one panel per rival mortal hangs underneath it. Game.tscn authors the
+# first rival panel so the layout can be seen without a second player.
+#
 # Arena contract (scripts/gods/god_arena.gd): every arena scene is authored in
 # screen space exactly as it is played - the scene fills the screen and keeps
 # the left GodArena.UI_STRIP_WIDTH pixels clear for the panels below. The shell
@@ -14,12 +19,14 @@ extends Control
 # coordinates.
 
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
-const TRIAL_COUNT := 5
 
 @onready var own_name_label: Label = $TopLeft/VBoxContainer/NameLabel
 @onready var favor_label: Label = $TopLeft/VBoxContainer/StatsRow/FavorBox/FavorValue
 @onready var due_label: Label = $TopLeft/VBoxContainer/StatsRow/DueBox/DueValue
+@onready var e_bar: ProgressBar = $TopLeft/VBoxContainer/EBar
+@onready var q_bar: ProgressBar = $TopLeft/VBoxContainer/QBar
 @onready var other_players_vbox: VBoxContainer = $OtherPlayersPanel/Margin/VBox
+@onready var opponent_placeholder: Control = $OtherPlayersPanel/Margin/VBox/OpponentPlaceholder
 @onready var timer_label: Label = $TrialTimer
 
 var arena: Node = null
@@ -45,8 +52,9 @@ func _build_hud() -> void:
 
 
 func _build_other_player_panels() -> void:
-	for child in other_players_vbox.get_children():
-		child.queue_free()
+	for panel in other_player_panels.values():
+		if is_instance_valid(panel):
+			panel.queue_free()
 	other_player_panels.clear()
 	var my_id := multiplayer.get_unique_id()
 	for peer_id in Network.players.keys():
@@ -57,19 +65,30 @@ func _build_other_player_panels() -> void:
 		other_players_vbox.add_child(panel)
 		panel.setup(id, str(Network.players[peer_id]), 0, 0)
 		other_player_panels[id] = panel
+	# OpponentPlaceholder is the panel authored in Game.tscn: it previews the
+	# layout while you are alone and steps aside for the first real rival.
+	opponent_placeholder.visible = other_player_panels.is_empty()
 
 
 func _build_trial_order() -> void:
+	# 4 to 6 challenges drawn from the gods that ship an arena, in a random
+	# order, and then Bathala's final challenge - Bathala is always last.
 	var playable: Array[God] = []
 	for god in Gods.all():
-		if god.implemented:
+		if god.implemented and god.arena_scene != "":
 			playable.append(god)
-	playable.shuffle()
 	if playable.is_empty():
 		playable.append(Gods.mayari())
+	var challenges := randi_range(Gods.CHALLENGE_MIN, Gods.CHALLENGE_MAX)
 	trial_order.clear()
-	for index in range(TRIAL_COUNT - 1):
-		trial_order.append(playable[index % playable.size()])
+	var pool: Array[God] = []
+	for index in range(challenges):
+		# A god can come back - the order and the appearances are random - but
+		# never twice before everyone else has had their turn.
+		if pool.is_empty():
+			pool = playable.duplicate()
+			pool.shuffle()
+		trial_order.append(pool.pop_front())
 	trial_order.append(Gods.bathala())
 
 
@@ -108,6 +127,15 @@ func _on_arena_ready() -> void:
 	rules.due_changed.connect(_on_due_changed)
 	if arena.has_signal("trial_time_changed"):
 		arena.trial_time_changed.connect(_on_trial_time_changed)
+	# The clock starts at the arena's own round length (GodArena.trial_time) and
+	# the shell - not the arena - is what knows which trial this is and how many
+	# the run holds.
+	var round_length = arena.get("trial_time")
+	if round_length != null:
+		_on_trial_time_changed(float(round_length))
+	var arena_hud = arena.get("hud")
+	if arena_hud != null:
+		arena_hud.set_trial(trial_index + 1, trial_order.size())
 	if not run_snapshot.is_empty():
 		rules.apply_snapshot(run_snapshot)
 	_refresh_local_stats()
@@ -138,8 +166,8 @@ func _update_panel_stats() -> void:
 	var mortal := rules.local()
 	if mortal == null:
 		return
-	_update_skill_bar($TopLeft/VBoxContainer/StatsRow/FavorBox/EBar, GodFavor.Slot.E, mortal)
-	_update_skill_bar($TopLeft/VBoxContainer/StatsRow/DueBox/QBar, GodFavor.Slot.Q, mortal)
+	_update_skill_bar(e_bar, GodFavor.Slot.E, mortal)
+	_update_skill_bar(q_bar, GodFavor.Slot.Q, mortal)
 	for id in other_player_panels.keys():
 		var other := rules.mortal(int(id))
 		if other == null:

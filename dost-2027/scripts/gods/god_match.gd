@@ -14,7 +14,6 @@ signal favor_granted(player_id: int, favor: GodFavor)
 signal skill_used(player_id: int, favor: GodFavor)
 signal skill_recharged(player_id: int, favor: GodFavor)
 signal notice(text: String)
-signal trial_ended(summary: Dictionary)
 
 const MILESTONE_STEP := 1000  # every 1000 FAVOR hands out one God's Due
 const LOCAL_ID := 1
@@ -32,7 +31,6 @@ class Mortal:
 	var cooldowns: Dictionary = {}  # favor id -> seconds left
 	var durations: Dictionary = {}  # favor id -> seconds left (timed effect)
 	var loss_immunity: float = 0.0
-	var rivalry_targets: Dictionary = {}  # player id -> already punished
 
 	func favor_by_id(favor_id: StringName) -> GodFavor:
 		for favor in favors:
@@ -179,16 +177,6 @@ func top_player_id() -> int:
 	return best_id
 
 
-func rival_high_score(player_id: int = -1) -> int:
-	var mine := _resolve(player_id)
-	var best := 0
-	for m in mortals.values():
-		if mine != null and m.id == mine.id:
-			continue
-		best = maxi(best, m.favor)
-	return best
-
-
 # --- GOD'S DUE / FAVORS -----------------------------------------------------
 
 func can_grant(favor: GodFavor, player_id: int = -1) -> bool:
@@ -230,38 +218,6 @@ func bestow_favor(favor: GodFavor, player_id: int = -1) -> bool:
 		if instant != 0:
 			add_favor(instant, favor.display_name, m.id)
 	return true
-
-
-func any_mortal_holds_god(god_id: String) -> bool:
-	for m in mortals.values():
-		for favor in m.favors:
-			if str(favor.god_id) == god_id:
-				return true
-	return false
-
-
-func consume_rivalry_triggers(player_id: int = -1) -> Array:
-	# Mayari's "Sibling's Rivalry": mortals that just fell far enough behind get
-	# marked here (once per rival, once per trial) so the arena can blind them.
-	var out: Array = []
-	var me := _resolve(player_id)
-	if me == null:
-		return out
-	for favor in me.favors:
-		if favor.id != &"siblings_rivalry":
-			continue
-		var requires := str(favor.params.get("requires_god", ""))
-		if requires != "" and not any_mortal_holds_god(requires):
-			continue
-		var behind_by := favor.param("behind_by", float(MILESTONE_STEP))
-		for other in mortals.values():
-			if other.id == me.id or me.rivalry_targets.has(other.id):
-				continue
-			if float(other.favor - me.favor) < behind_by:
-				continue
-			me.rivalry_targets[other.id] = true
-			out.append(other)
-	return out
 
 
 func set_local_id(id: int) -> void:
@@ -395,17 +351,6 @@ func skill_cooldown_ratio(slot: int, player_id: int = -1) -> float:
 	return clampf(1.0 - m.cooldown_left(favor.id) / favor.cooldown, 0.0, 1.0)
 
 
-func skill_active_time(slot: int, player_id: int = -1) -> float:
-	# Seconds left of the skill's timed effect (0 when it is not running).
-	var m := _resolve(player_id)
-	if m == null:
-		return 0.0
-	var favor := m.favor_in_slot(slot)
-	if favor == null:
-		return 0.0
-	return m.duration_left(favor.id)
-
-
 func use_skill(slot: int, player_id: int = -1) -> GodFavor:
 	var m := _resolve(player_id)
 	if m == null:
@@ -481,5 +426,4 @@ func end_trial() -> Dictionary:
 			"is_local": m.is_local,
 		}
 	trial_active = false
-	trial_ended.emit(summary)
 	return summary

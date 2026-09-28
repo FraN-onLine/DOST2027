@@ -1,23 +1,31 @@
 class_name GodArena
-extends RefCounted
+extends Node2D
 
-# Shared layout contract for every god's arena (Mayari, Apolaki, ...).
+# The shared base every god's arena extends (Mayari now, Apolaki and the rest
+# later): an arena scene's root script says `extends GodArena` and inherits
+# everything below.
 #
-# The Game shell (scenes/Game.tscn) draws the player panels - your name, FAVOR,
-# DUE, the E/Q favor bars and the other players - over the LEFT strip of the
-# screen. An arena is therefore authored in screen space, exactly as it will be
-# played:
+# WHAT EVERY ARENA GETS FROM HERE
 #
-#   * the scene is DESIGN_SIZE (1152 x 648) big;
-#   * the left UI_STRIP_WIDTH pixels stay EMPTY of gameplay art - no floor, no
-#     goal, no clone and no mortal starts there (MayariArena.tscn keeps a locked
+#   * UI_STRIP_WIDTH - the left band of the screen the Game shell
+#     (scenes/Game.tscn) covers with its panels (your name, FAVOR, DUE, the E/Q
+#     favor bars, the other mortals). An arena is therefore authored in screen
+#     space, exactly as it will be played: the scene is 1152 x 648 big, the left
+#     UI_STRIP_WIDTH pixels stay EMPTY of gameplay art (no floor, no goal, no
+#     clone and no mortal starts there - MayariArena.tscn keeps a locked
 #     "GAME UI AREA" body over the strip so the reservation is visible while
-#     editing);
-#   * the scene owns its own coordinates: nothing scales, stretches or
-#     re-centres it at runtime. The shell only instantiates the arena and hands
-#     it god_id / embedded / dialogue_prefix.
+#     editing) and nothing scales, stretches or re-centres the scene at runtime.
+#     The shell only instantiates the arena and hands it god_id / embedded /
+#     dialogue_prefix. What the designer sees in the arena scene is what every
+#     player gets.
 #
-# What the designer sees in the arena scene is what every player gets.
+#   * trial_time - THE round clock: one minute thirty seconds. Every arena runs
+#     on this single number, so change it here (in the arena code) and all of
+#     them change with it.
+#
+#   * countdown_time - the "3 - 2 - 1" the mortals wait through before it does.
+#
+#   * FAVOR_COLOR - the yellow a favor zone burns in while it is lit.
 #
 # Input every arena can count on (project.godot):
 #   move_left/right/up/down  WASD / arrows
@@ -27,20 +35,14 @@ extends RefCounted
 #                            menu is open, exactly like the other actions.
 
 const UI_STRIP_WIDTH := 238.0
-const DESIGN_SIZE := Vector2(1152.0, 648.0)
 
-# Node name of the locked marker scene designers leave over the strip.
-const UI_STRIP_NODE := "GAME UI AREA"
-
-
-# The left band of the screen the shell's panels cover: keep it clear.
-static func ui_strip_rect() -> Rect2:
-	return Rect2(Vector2.ZERO, Vector2(UI_STRIP_WIDTH, DESIGN_SIZE.y))
+# The colour a favor zone glows while Mayari is lighting it.
+const FAVOR_COLOR := Color(1.0, 0.86, 0.25)
 
 
-# The rest of the screen - the only place an arena may put its art.
-static func play_area() -> Rect2:
-	return Rect2(
-		Vector2(UI_STRIP_WIDTH, 0.0),
-		Vector2(DESIGN_SIZE.x - UI_STRIP_WIDTH, DESIGN_SIZE.y)
-	)
+@export_category("Shared Arena Rules")
+# The round every arena is played in - 1:30. This is the one clock shared by all
+# arenas: edit this number and every arena follows.
+@export var trial_time := 90.0
+# The "3 - 2 - 1" the mortals wait through before the round starts.
+@export var countdown_time := 3.0

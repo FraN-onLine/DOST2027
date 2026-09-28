@@ -23,11 +23,3 @@ func get_favor(favor_id: StringName) -> GodFavor:
 		if favor.id == favor_id:
 			return favor
 	return null
-
-
-func favors_for_slot(slot: int) -> Array[GodFavor]:
-	var out: Array[GodFavor] = []
-	for favor in favors:
-		if int(favor.slot) == slot:
-			out.append(favor)
-	return out

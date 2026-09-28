@@ -12,6 +12,17 @@ const MAYARI := &"mayari"
 const APOLAKI := &"apolaki"
 const BATHALA := &"bathala"
 
+# The God Games' own name: the title screen, the HUD and the finale all read
+# these, so the branding lives in exactly one place.
+const GAME_TITLE := "BATHALA"
+const GAME_SUBTITLE := "Ang Laro ng mga diyos"
+const GAME_ALT_NAME := "Bathala: the God Games"
+const GAME_PROLOGUE := "Bathala took the dearest of the mortals, convince him that they are ought to be released by getting FAVOR from God's challenges."
+
+# How many challenges a run holds, plus Bathala's final challenge.
+const CHALLENGE_MIN := 4
+const CHALLENGE_MAX := 6
+
 static var _cache: Dictionary = {}
 
 
@@ -96,10 +107,6 @@ static func mayari() -> God:
 			"Q - doubles the FAVOR you gain for the next 5s.",
 			GodFavor.Slot.Q, GodFavor.Kind.ACTIVE, color,
 			30.0, 5.0, {"gain_mult_while_active": 2.0}),
-		_new_favor(&"siblings_rivalry", MAYARI, "Sibling's Rivalry",
-			"Fall 1000 FAVOR behind another mortal and Mayari blots out part of their screen for 5s (once per mortal, once per trial). Needs an Apolaki favor in the match.",
-			GodFavor.Slot.PASSIVE, GodFavor.Kind.PASSIVE, color,
-			0.0, 5.0, {"behind_by": 1000, "requires_god": "apolaki"}),
 	]
 
 	var god := God.new()
@@ -107,8 +114,8 @@ static func mayari() -> God:
 	god.display_name = "MAYARI"
 	god.epithet = "Goddess of the Moon"
 	god.color = color
-	god.game_name = "PATINTERO x KING OF THE HILL"
-	god.game_blurb = "Cross Mayari's lines. Stand inside the glowing boxes she lights up and hold them while her two clones sweep the field - go the whole way down and back for extra FAVOR."
+	god.game_name = "PATINTERO"
+	god.game_blurb = "Four boxes sit on the field and Mayari lights one at a time. Stand in the lit box and hold it while her two clones walk the lines drawn for them - every so often one hunts the nearest mortal - and let one touch you and you pay for it."
 	god.arena_scene = "res://scenes/gods/mayari/MayariArena.tscn"
 	god.implemented = true
 	god.favors = favors
@@ -192,8 +199,8 @@ static func bathala() -> God:
 
 	var god := God.new()
 	god.id = BATHALA
-	god.display_name = "BATHALA"
-	god.epithet = "Ang Laro ng mga diyos"
+	god.display_name = GAME_TITLE
+	god.epithet = GAME_SUBTITLE
 	god.color = Color(1.0, 0.95, 0.78)
 	god.game_name = "THE FINAL CHALLENGE"
 	god.game_blurb = "Bathala judges the FAVOR you gathered from every god."
@@ -201,10 +208,11 @@ static func bathala() -> God:
 	god.favors = []
 	# Story text for the title screen / the finale.
 	god.intro_lines = [
-		"Bathala took the dearest of the mortals.",
-		"Convince him that they ought to be released by earning FAVOR from the gods' challenges.",
-		"FAVOR is the sum of every point you win across the challenges.",
-		"You and your fellow mortals take on 4 to 6 challenges, and then one final challenge.",
+		GAME_PROLOGUE,
+		"FAVOR is the total points among all the challenges.",
+		"You and fellow mortals take on a series of %d to %d challenges, and then one final challenge." % [CHALLENGE_MIN, CHALLENGE_MAX],
+		"Each god puts a Filipino sport in an arena and awards whoever entertained them the most.",
+		"Every 1000 FAVOR you reach hands you a God's Due to spend on their favors.",
 		"Play well. The gods are watching.",
 	]
 	god.success_lines = [

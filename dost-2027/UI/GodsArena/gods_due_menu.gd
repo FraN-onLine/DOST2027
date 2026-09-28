@@ -5,7 +5,6 @@ extends Control
 # If a god intervenes between trials you get a free grant instead of a voucher.
 
 signal favor_chosen(favor: GodFavor, free_grants_left: int)
-signal closed()
 
 const MAX_ROWS := 3
 
@@ -38,10 +37,7 @@ func open(host_god: God, host_match: GodMatch, free_grants := 0, remote := false
 
 
 func close() -> void:
-	if not visible:
-		return
 	visible = false
-	closed.emit()
 
 
 func _rebuild() -> void:
@@ -83,19 +79,6 @@ func _rebuild() -> void:
 		rows.add_child(_make_note("+%d more favor(s) show once these are taken." % (candidates.size() - count)))
 	elif candidates.is_empty():
 		rows.add_child(_make_note("You already hold every favor %s can give." % _god.display_name))
-
-
-func _kind_rank(favor: GodFavor) -> int:
-	match favor.kind:
-		GodFavor.Kind.ACTIVE:
-			return 0
-		GodFavor.Kind.INSTANT:
-			return 1
-		GodFavor.Kind.PASSIVE:
-			return 2
-		GodFavor.Kind.END_OF_TRIAL:
-			return 3
-	return 4
 
 
 func _make_note(text: String) -> Label:

@@ -6,17 +6,14 @@ extends Node2D
 #
 # The scene is authored in screen space (see scripts/gods/god_arena.gd) and this
 # node NEVER moves that art: the border the designer drew IS the field, and the
-# arena reads it back through authored_rect() to know where mortals may walk and
-# how far the clones may slide. What the designer draws is what the players play.
+# arena reads it back through authored_rect() to know where the mortals may
+# walk. What the designer draws is what the players play.
 
 # Read back from the drawn border by authored_rect(); the value below is only a
 # fallback for a scene that has lost its Border line.
 var field_rect := Rect2(242.5, 393.71, 910.99, 243.59)
 
-@onready var backdrop: Sprite2D = $Backdrop
 @onready var border: Line2D = $Border
-@onready var start_line: Line2D = $StartLine
-@onready var mid_line: Line2D = $MidLine
 
 
 # The bounding box of the authored border line, in screen coordinates.
@@ -27,16 +24,6 @@ func authored_rect() -> Rect2:
 	if bounds.size.x > 1.0 and bounds.size.y > 1.0:
 		field_rect = bounds
 	return field_rect
-
-
-# The x the round trip starts from - the authored start line, not a guess.
-func start_line_x() -> float:
-	if start_line == null or start_line.points.is_empty():
-		return field_rect.position.x
-	var left := INF
-	for point in start_line.points:
-		left = minf(left, start_line.to_global(point).x)
-	return left if is_finite(left) else field_rect.position.x
 
 
 # The god's colour is the only thing the code paints: the border glows in it.
