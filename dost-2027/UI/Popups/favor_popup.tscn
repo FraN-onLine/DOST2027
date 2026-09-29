@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://UI/Popups/favor_popup.gd" id="1_popup"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+
+[node name="FavorPopup" type="Node2D"]
+script = ExtResource("1_popup")
+
+[node name="Box" type="HBoxContainer" parent="."]
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Icon" type="TextureRect" parent="Box"]
+visible = false
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+stretch_mode = 5
+expand_mode = 1
+
+[node name="Label" type="Label" parent="Box"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.62, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.7)
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 14
+text = "+1 FAVOR"

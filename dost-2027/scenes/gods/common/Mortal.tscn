@@ -1,48 +1,49 @@
-[gd_scene format=3 uid="uid://cmortalscene001"]
+[gd_scene format=3 uid="uid://caeyjvhbdf8ae"]
 
-[ext_resource type="Script" path="res://scripts/gods/common/mortal.gd" id="1_mortal"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
-[ext_resource type="FontFile" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
+[ext_resource type="Script" uid="uid://mbsvj8vbhmue" path="res://scripts/gods/common/mortal.gd" id="1_mortal"]
+[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" uid="uid://djvl64idx1iwg" path="res://Assets/Player/player.png" id="3_af5nn"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_mortal"]
 radius = 13.0
 
-[node name="Mortal" type="CharacterBody2D"]
+[node name="Mortal" type="CharacterBody2D" unique_id=680107735]
 motion_mode = 1
 script = ExtResource("1_mortal")
 
-[node name="Glow" type="Sprite2D" parent="."]
-z_index = -1
+[node name="Glow" type="Sprite2D" parent="." unique_id=1591973812]
+visible = false
 modulate = Color(1, 0.95, 0.8, 0.25)
+z_index = -1
 scale = Vector2(0.34, 0.34)
 texture = ExtResource("2_icon")
 
-[node name="Sprite" type="Sprite2D" parent="."]
-scale = Vector2(0.22, 0.22)
-texture = ExtResource("2_icon")
+[node name="Sprite" type="Sprite2D" parent="." unique_id=1860989939]
+position = Vector2(1.9073486e-06, -10)
+scale = Vector2(0.7975, 0.76625)
+texture = ExtResource("3_af5nn")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1298435770]
 shape = SubResource("CircleShape2D_mortal")
 
-[node name="NameTag" type="Label" parent="."]
+[node name="NameTag" type="Label" parent="." unique_id=345467521]
 offset_left = -60.0
 offset_top = -42.0
 offset_right = 60.0
 offset_bottom = -26.0
-mouse_filter = 2
 theme_override_colors/font_color = Color(1, 0.95, 0.8, 0.85)
 theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 10
 text = "MORTAL"
 horizontal_alignment = 1
 
-[node name="FloatingStatus" type="Label" parent="."]
+[node name="FloatingStatus" type="Label" parent="." unique_id=638494987]
 visible = false
 offset_left = -90.0
 offset_top = -70.0
 offset_right = 90.0
 offset_bottom = -48.0
-mouse_filter = 2
 theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 12
 horizontal_alignment = 1

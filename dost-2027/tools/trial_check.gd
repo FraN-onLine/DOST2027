@@ -4,7 +4,7 @@ extends SceneTree
 # The arena keeps the authored screen layout (the shell never resizes it), the
 # left strip stays clear for the panels, only the lit favor zone pays, exactly
 # two Mayaris walk their authored Line2D paths, and the round clock is the one
-# shared by every arena (GodArena.trial_time = 1:30).
+# shared by every arena (Arena.trial_time = 1:30).
 # Run: godot --headless --path <project> -s res://tools/trial_check.gd
 
 var _shell
@@ -67,20 +67,20 @@ func _run() -> void:
 	print("arena: %s (scene id=%s, embedded=%s)" % [arena.name, str(arena.god_id), str(arena.embedded)])
 	# The round clock is the shared arena base: one number for every arena.
 	print("shared arena base: trial_time=%.1fs countdown=%.1fs favor_colour=%s" % [
-		arena.trial_time, arena.countdown_time, str(GodArena.FAVOR_COLOR)])
+		arena.trial_time, arena.countdown_time, str(Arena.FAVOR_COLOR)])
 	if not is_equal_approx(arena.trial_time, 90.0):
 		printerr("trial_check: trial_time is not 1:30")
 	# The shell must not resize or re-centre an arena: the scene is authored in
 	# screen space, so the running field IS the border the designer drew, and the
-	# left GodArena.UI_STRIP_WIDTH pixels stay clear for the shared panels.
+	# left Arena.UI_STRIP_WIDTH pixels stay clear for the shared panels.
 	var authored: Rect2 = arena.field_root.authored_rect()
 	print("arena transform: pos=%s scale=%s (untouched scene values)" % [
 		str(arena.position), str(arena.scale)])
 	print("field=%s | authored border=%s | identical=%s" % [
 		str(arena._field), str(authored), str(arena._field == authored)])
 	print("left strip clear: %s (field starts at x=%.0f, strip is %.0f wide)" % [
-		str(authored.position.x >= GodArena.UI_STRIP_WIDTH),
-		authored.position.x, GodArena.UI_STRIP_WIDTH])
+		str(authored.position.x >= Arena.UI_STRIP_WIDTH),
+		authored.position.x, Arena.UI_STRIP_WIDTH])
 	# WYSIWYG: the favor zones and the spawn must still be where the scene puts them.
 	var fresh: Node2D = load("res://scenes/gods/mayari/MayariArena.tscn").instantiate()
 	var fresh_zones := fresh.get_node("Zones").get_children()
@@ -103,7 +103,7 @@ func _run() -> void:
 		drawn.append(zone.fill.visible)
 	var lit: MayariGoal = arena._zones[arena._active_goal_index]
 	print("zone art: lit='%s' fill=%s (favor colour %s) | fill.visible per zone=%s" % [
-		lit.zone_label, str(lit.fill.color), str(GodArena.FAVOR_COLOR), str(drawn)])
+		lit.zone_label, str(lit.fill.color), str(Arena.FAVOR_COLOR), str(drawn)])
 	if drawn.count(true) != 1:
 		printerr("trial_check: %d zones are drawn - only the favor zone may show" % drawn.count(true))
 	# Exactly two Mayaris, each one walking its own authored Line2D path.
@@ -161,6 +161,32 @@ func _run() -> void:
 		network.players.erase(2)
 		_shell._build_other_player_panels()
 
+		# A rename is live data: the lobby's UPDATE NAME can land at any time, so
+		# the tag over the mortal, the shell's own panel, the match entry behind
+		# the results and the rival column all have to follow it.
+		network.players[2] = "RIVAL"
+		network.players[1] = "MORTAL OLD"
+		network.my_name = "MORTAL OLD"
+		_shell._build_other_player_panels()
+		network.player_name_changed.emit(1, "MORTAL NEW")
+		network.player_name_changed.emit(2, "RIVAL RENAMED")
+		var rival_panel_name := "-"
+		if _shell.other_player_panels.has(2):
+			rival_panel_name = str(_shell.other_player_panels[2].name_label.text)
+		print("rename: mortal tag '%s' | shell name '%s' | rival panel '%s' | match entry '%s'" % [
+			arena.player.name_tag.text, _shell.own_name_label.text,
+			rival_panel_name, arena.rules.local().display_name])
+		if arena.player.name_tag.text != "MORTAL NEW" or _shell.own_name_label.text != "MORTAL NEW":
+			printerr("trial_check: a rename must repaint the name over the mortal and on the shell")
+		if arena.rules.local().display_name != "MORTAL NEW":
+			printerr("trial_check: the match entry must carry the new name for the results")
+		if rival_panel_name != "RIVAL RENAMED":
+			printerr("trial_check: a renamed rival must repaint its panel")
+		network.players.erase(2)
+		network.players.erase(1)
+		network.my_name = ""
+		_shell._build_other_player_panels()
+
 	# Push the trial to PLAYING, then let Mayari move her light.
 	var guard := 0
 	while arena.dialogue.is_active() and guard < 60:
@@ -213,5 +239,94 @@ func _run() -> void:
 		arena._tick_trial(1.0 / 60.0)
 	print("holding the unlit %s for 2s -> +%d FAVOR" % [
 		dim.zone_label, arena.rules.local().favor - dim_before])
+
+	# Mayari's E (Half Vision) blinds the OTHER mortals - never the one who cast
+	# it. The caster has to keep seeing the field to play, and a screen can only
+	# be darkened on the machine that draws it, so the effect is per screen.
+	var half: GodFavor = arena.god.get_favor(&"half_vision")
+	arena.rules.bestow_favor(half, arena._my_id)
+	arena._use_skill(GodFavor.Slot.E)
+	await _frames(2)
+	print("Half Vision cast by us: darkness=%.2fs mask_visible=%s (the caster keeps both eyes)" % [
+		arena._blind_time, str(arena.vision_mask.visible)])
+	if arena._blind_time > 0.0 or arena.vision_mask.visible:
+		printerr("trial_check: Half Vision blinded the mortal that cast it")
+	# The very same favor cast by somebody else closes the mask in on us.
+	arena._apply_skill_effect(half, 2)
+	await _frames(2)
+	print("Half Vision cast by a rival: darkness=%.2fs radius=%.2f mask_visible=%s" % [
+		arena._blind_time, arena._blind_radius, str(arena.vision_mask.visible)])
+	if arena._blind_time <= 0.0 or not arena.vision_mask.visible:
+		printerr("trial_check: Half Vision must blind the other mortals")
+	if not is_equal_approx(arena._blind_radius, half.param("vision_radius", 0.16)):
+		printerr("trial_check: the mask must use the favor's vision_radius")
+	arena._blind_time = 0.0
+	await _frames(2)
+
+	# The shared base: Mayari's scene inherits scenes/gods/common/Arena.tscn, so
+	# the panels, the mortal, the ghosts, the popup layer, the vision mask and the
+	# arena UI layer are authored once and only the god's own nodes are added.
+	print("arena nodes: %s" % str(arena.get_children().map(func(c): return c.name)))
+	if not (arena is Arena):
+		printerr("trial_check: MayariArena.gd must extend the shared Arena base")
+	if not (arena.field_root is ArenaField):
+		printerr("trial_check: ArenaField must be the shared field script")
+	for shared in ["Background", "ArenaField", "Ghosts", "Popups", "Player", "VisionLayer", "UILayer"]:
+		if arena.get_node_or_null(shared) == null:
+			printerr("trial_check: the shared base node '%s' is missing" % shared)
+
+	# A clone touch: the mortal is shoved away from the clone, and the FAVOR it
+	# costs shows as a popup over its own head (light red - a loss).
+	arena._invuln.clear()
+	arena._gain_pending.clear()
+	var hit_clone: MayariClone = arena._clones[0]
+	arena.player.global_position = hit_clone.global_position + Vector2(2, 0)
+	var favor_before_hit: int = arena.rules.local().favor
+	arena._check_clones()
+	var shove: Vector2 = arena.player._knockback
+	var hit_text := _popup_text(arena)
+	print("clone hit: knockback %s (stun %.2f) | FAVOR %d -> %d | popup '%s'" % [
+		str(shove), arena.player._stun, favor_before_hit, arena.rules.local().favor, hit_text])
+	if shove.length() <= 0.0:
+		printerr("trial_check: a Mayari clone touch did not knock the mortal back")
+	if not arena._invuln.has(arena._my_id):
+		printerr("trial_check: a hit must leave the mortal its mercy seconds")
+	if not hit_text.begins_with("-"):
+		printerr("trial_check: a FAVOR loss must pop over the mortal as '-N FAVOR'")
+	# The shove has to really move the mortal, not just set a velocity.
+	var shoved_from: Vector2 = arena.player.global_position
+	for i in range(30):
+		await process_frame
+	print("knockback moved the mortal %.1f px (bounds %s)" % [
+		shoved_from.distance_to(arena.player.global_position), str(arena.player.bounds)])
+
+	# A gain pops in the light yellow: big changes at once, small ones gathered
+	# over the popup_flush window (a lit zone pays many times a second, so one
+	# popup per credit would be unreadable).
+	for child in arena.popups_root.get_children():
+		child.queue_free()
+	await _frames(2)
+	arena._gain_timer = 0.0
+	arena.bank_favor(arena.popup_big_delta + 5, "trial_check")
+	var big_text := _popup_text(arena)
+	arena._gain_timer = 0.0
+	arena.bank_favor(3, "trial_check")
+	arena._flush_favor_popups(1.0)
+	var gathered_text := _popup_text(arena)
+	print("gain popups: immediate '%s' | gathered '%s' | light yellow=%s" % [
+		big_text, gathered_text, str(Arena.POPUP_GAIN_COLOR)])
+	if not big_text.begins_with("+"):
+		printerr("trial_check: a big gain must pop at once as '+N FAVOR'")
+	if gathered_text == big_text:
+		printerr("trial_check: a small gain must be gathered and popped on the flush")
 	print("--- DONE ---")
 	quit()
+
+
+# The text of the newest FAVOR popup over a mortal ('' when there is none).
+func _popup_text(arena) -> String:
+	var popups: Array = arena.popups_root.get_children()
+	if popups.is_empty():
+		return ""
+	var label: Label = popups[popups.size() - 1].get_node_or_null("Box/Label")
+	return label.text if label != null else ""

@@ -1,7 +1,7 @@
 extends SceneTree
 
 # Validation: the input actions every arena counts on exist (see the contract in
-# scripts/gods/god_arena.gd). attack must be the LEFT MOUSE BUTTON - Arnis and
+# scripts/gods/common/arena.gd). attack must be the LEFT MOUSE BUTTON - Arnis and
 # Tumbang Preso use it as the mortal's attack.
 # Run: godot --headless --path <project> -s res://tools/input_check.gd
 

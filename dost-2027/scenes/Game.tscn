@@ -36,13 +36,13 @@ theme_override_constants/separation = 8
 
 [node name="NameLabel" type="Label" parent="TopLeft/VBoxContainer" unique_id=853832918]
 layout_mode = 2
-clip_text = true
-text_overrun_behavior = 3
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 18
 text = "You"
 horizontal_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="StatsRow" type="HBoxContainer" parent="TopLeft/VBoxContainer" unique_id=533297541]
 layout_mode = 2
@@ -124,11 +124,9 @@ theme_override_font_sizes/font_size = 12
 text = "OTHER PLAYERS"
 horizontal_alignment = 1
 
-[node name="OpponentPlaceholder" parent="OtherPlayersPanel/Margin/VBox" instance=ExtResource("3_opponent")]
+[node name="OpponentPlaceholder" parent="OtherPlayersPanel/Margin/VBox" unique_id=1091981192 instance=ExtResource("3_opponent")]
+custom_minimum_size = Vector2(180, 160)
 layout_mode = 2
-
-[node name="NameLabel" parent="OtherPlayersPanel/Margin/VBox/OpponentPlaceholder/MarginContainer/VBoxContainer" index="1"]
-text = "PLAYER 2"
 
 [node name="ArenaPanel" type="Control" parent="." unique_id=936311631]
 layout_mode = 1

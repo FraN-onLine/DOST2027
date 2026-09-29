@@ -92,6 +92,16 @@ func _run() -> void:
 	await _frames(2)
 	print("client mirror favor=%d due=%d mortals=%d" % [
 		_client.rules.local().favor, _client.rules.local().due, _client.rules.mortals.size()])
+	# Mirroring the host must never cost a client its own identity: the host's
+	# mortal is peer 1 and a solo rules object also calls peer 1 "local", so a
+	# client that took the solo path would read the HOST's FAVOR, name and
+	# results as its own. Arena._detect_networked is what stops that.
+	if str(_client.rules.local().display_name) != "MORTAL 2" or int(_client.rules.local_id) != 2:
+		printerr("client_check: a client must keep its own mortal as local (got '%s' / id %d)" % [
+			str(_client.rules.local().display_name), int(_client.rules.local_id)])
+	print("client identity: networked=%s authority=%s my_id=%d local_id=%d local_name='%s'" % [
+		str(_client._networked), str(_client._authority), _client._my_id,
+		int(_client.rules.local_id), str(_client.rules.local().display_name)])
 	print("client HUD: FAVOR=%s DUE=%s barE='%s'" % [
 		_client.hud.favor_value.text, _client.hud.due_value.text, _client.hud.bar_e.text_label.text])
 
@@ -102,9 +112,9 @@ func _run() -> void:
 		"clones": [_host._clones[0].global_position, _host._clones[1].global_position],
 		"mortals": {1: Vector2(700.0, 300.0), 2: Vector2(200.0, 500.0)},
 		"banner": "GO!",
-		"banner_color": GodArena.FAVOR_COLOR,
+		"banner_color": Arena.FAVOR_COLOR,
 		"event": "Mayari's light moves to the NW GOAL",
-		"event_color": GodArena.FAVOR_COLOR,
+		"event_color": Arena.FAVOR_COLOR,
 	}
 	_client._on_arena_state_received(tick)
 	await _frames(3)
@@ -129,6 +139,44 @@ func _run() -> void:
 	print("after choosing on the client: owned before=%d after=%d (host decides) - menu still open=%s" % [
 		owned_before, _client.rules.local().favors.size(), str(_client.due_menu.is_open())])
 	_client._toggle_due_menu()
+
+	print("=== THE HOST TELLS THE CLIENT ITS MORTAL WAS HIT ===")
+	# The host scores every hit, but a mortal is simulated where it is played: the
+	# host only reports the hit and the client shoves its own mortal (Network
+	# rpc_arena_hit -> Arena._on_arena_hit_received). Without this a joiner would
+	# feel nothing at all when Mayari catches it.
+	_client.player.global_position = Vector2(500.0, 480.0)
+	_client._on_arena_hit_received({"direction": Vector2.RIGHT, "stun": 1.3, "force": 560.0})
+	print("client hit report: knockback %s stun=%.2f (the client shoves its own mortal)" % [
+		str(_client.player._knockback), _client.player._stun])
+	if _client.player._knockback.length() <= 0.0 or _client.player._stun <= 0.0:
+		printerr("client_check: the client ignored the host's hit report")
+	# The FAVOR that hit took travels with the next snapshot, and the loss pops
+	# over the mortal's head on the client's own screen.
+	_host.rules.lose_favor(50, "Mayari's clone", 2)
+	_client._on_god_state_received(_host.rules.snapshot())
+	var loss_text := _popup_text(_client)
+	print("client mirrored loss -> popup '%s' | mirror FAVOR=%d" % [
+		loss_text, _client.rules.local().favor])
+	if not loss_text.begins_with("-"):
+		printerr("client_check: a mirrored FAVOR loss must pop over the mortal")
+
+	# Half Vision: the host reports WHO cast it, and the client's own screen is
+	# only darkened when somebody else did.
+	_client._on_arena_blind_received(2, 0.16, 1.5)
+	await _frames(2)
+	print("client cast Half Vision itself: darkness=%.2fs mask_visible=%s" % [
+		_client._blind_time, str(_client.vision_mask.visible)])
+	if _client._blind_time > 0.0 or _client.vision_mask.visible:
+		printerr("client_check: Half Vision blinded the mortal that cast it")
+	_client._on_arena_blind_received(1, 0.16, 1.5)
+	await _frames(2)
+	print("client hit by a rival's Half Vision: darkness=%.2fs radius=%.2f mask_visible=%s" % [
+		_client._blind_time, _client._blind_radius, str(_client.vision_mask.visible)])
+	if _client._blind_time <= 0.0 or not _client.vision_mask.visible:
+		printerr("client_check: a rival's Half Vision must blind this screen")
+	_client._blind_time = 0.0
+	await _frames(2)
 
 	print("=== HOST GRANTS IT AND THE MIRROR CATCHES UP ===")
 	_host.rules.grant_favor(_host.god.get_favor(&"half_vision"), 2)
@@ -164,6 +212,32 @@ func _run() -> void:
 	print("client results visible=%s body='%s'" % [
 		str(_client.hud.results_panel.visible), _client.hud.results_label.text.replace("\n", " | ")])
 
+	print("=== THE HOST OWNS THE NAME (lobby UPDATE NAME) ===")
+	# A rename has to stick on the machine that made it: my_name is what this
+	# machine's arena reads for the tag over the mortal, so the host's own rename
+	# has to update it - and a client has to take the name the host confirmed,
+	# not the one it last typed.
+	var network = get_root().get_node_or_null("Network")
+	if network == null:
+		printerr("client_check: the Network autoload is missing - cannot rename")
+	else:
+		network.set_my_name("HOSTNAME")
+		network.players[1] = "HOSTNAME"
+		network.player_data[1] = PlayerData.new("HOSTNAME")
+		network.request_name_change(1, "NEWNAME")
+		print("host renamed itself: my_name='%s' players[1]='%s' player_data='%s'" % [
+			network.my_name, str(network.players[1]), network.player_data[1].name])
+		if network.my_name != "NEWNAME" or str(network.players[1]) != "NEWNAME":
+			printerr("client_check: the host's own rename must become my_name")
+		network.my_name = "TYPED NAME"
+		network.rpc_update_player_list({1: "NEWNAME", 2: "OTHER"})
+		print("client took the confirmed name: my_name='%s' | host tag '%s' | client tag '%s'" % [
+			network.my_name, _host.player.name_tag.text, _client.player.name_tag.text])
+		if network.my_name != "NEWNAME":
+			printerr("client_check: a client must take the name the host confirmed")
+		network.players.clear()
+		network.my_name = ""
+
 	print("=== SCENES ===")
 	for path in ["res://scenes/Lobby.tscn", "res://scenes/MainMenu.tscn", "res://scenes/GodIntro.tscn"]:
 		var packed := load(path)
@@ -175,3 +249,12 @@ func _run() -> void:
 	print("lobby Details button: '%s' visible=%s" % [button.text, str(button.visible)])
 	print("--- DONE ---")
 	quit()
+
+
+# The text of the newest FAVOR popup over a mortal ('' when there is none).
+func _popup_text(arena) -> String:
+	var popups: Array = arena.popups_root.get_children()
+	if popups.is_empty():
+		return ""
+	var label: Label = popups[popups.size() - 1].get_node_or_null("Box/Label")
+	return label.text if label != null else ""

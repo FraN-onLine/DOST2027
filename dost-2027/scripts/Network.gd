@@ -40,6 +40,9 @@ signal god_skill_requested(peer_id, slot)
 signal god_grant_requested(peer_id, favor_id)
 signal arena_layout_received(layout)      # host -> clients: field / corners / clones
 signal arena_state_received(state)        # host -> clients: 10 Hz world tick
+signal arena_hit_received(hit)            # host -> the peer whose mortal was hit
+signal arena_blind_received(caster_id, radius, duration)  # host -> everyone but the caster
+signal player_name_changed(peer_id, name)  # anybody -> everybody: a mortal was renamed
 signal dialogue_released(dialogue_id)
 
 var host_name := "Host"
@@ -647,8 +650,20 @@ func _on_connection_failed() -> void:
 func broadcast_player_list() -> void:
 	print("Broadcasting player list: %s" % players)
 	emit_signal("player_list_updated", players)
+	_announce_names()
 	if multiplayer.get_multiplayer_peer():
 		rpc("rpc_update_player_list", players)
+
+
+# Names are shown live - above a mortal, on the HUD, on the results - so every
+# entry is announced whenever the list is (re)published. A UI that listens to
+# player_name_changed repaints the one name that changed instead of rebuilding
+# everything on every join or leave.
+func _announce_names() -> void:
+	for peer_id in players.keys():
+		var clean := str(players[peer_id]).strip_edges()
+		if not clean.is_empty():
+			emit_signal("player_name_changed", int(peer_id), clean)
 
 
 @rpc("any_peer", "reliable")
@@ -677,15 +692,30 @@ func request_name_change(peer_id: int, new_name: String) -> void:
 		_release_name(players[peer_id])
 	players[peer_id] = clean_name
 	_used_names[clean_name] = true
+	if player_data.has(peer_id) and player_data[peer_id] is PlayerData:
+		player_data[peer_id].name = clean_name
 	if peer_id == multiplayer.get_unique_id():
 		host_name = clean_name
+		# The host renamed ITSELF: my_name is this machine's own name (the arena
+		# reads it for the tag above the mortal), so it has to follow or the old
+		# name stays on screen for the whole game.
+		my_name = clean_name
 	broadcast_player_list()
 
 
 @rpc("any_peer", "reliable")
 func rpc_update_player_list(remote_players: Dictionary) -> void:
 	players = remote_players.duplicate()
+	# The host owns the names. This is where a client finally learns the name the
+	# host accepted for it - my_name is what this machine's arena reads for the
+	# tag above the mortal, so it must follow the host, not the last thing typed.
+	var my_id := multiplayer.get_unique_id()
+	if players.has(my_id):
+		var confirmed := str(players[my_id]).strip_edges()
+		if not confirmed.is_empty():
+			my_name = confirmed
 	emit_signal("player_list_updated", players)
+	_announce_names()
 	print("[Network] Received player list update: %s" % players)
 
 
@@ -989,3 +1019,44 @@ func report_mortal_position(position: Vector2) -> void:
 	if sender == 0:
 		return
 	mortal_positions[sender] = position
+
+
+# --- knockback: host -> the peer it just hit --------------------------------
+
+# The host scores every hit, but a mortal is simulated on the machine that plays
+# it: the host can only say "you were hit, from this direction" and let the owner
+# shove its own mortal (Arena.knock_mortal / Arena._on_arena_hit_received).
+func send_arena_hit(peer_id: int, hit: Dictionary) -> void:
+	if not has_multiplayer_peer():
+		return
+	if peer_id == multiplayer.get_unique_id():
+		return
+	rpc_id(peer_id, "rpc_arena_hit", hit)
+
+
+@rpc("any_peer", "reliable")
+func rpc_arena_hit(hit: Dictionary) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("arena_hit_received", hit)
+
+
+# --- blindness: host -> every other peer -------------------------------------
+
+# Mayari's "Half Vision" blinds everyone EXCEPT the mortal that cast it, and a
+# screen is only ever darkened on the machine that draws it. So the host sends
+# the cast out to every peer and each arena decides: if the caster is me, keep
+# my eyes open; otherwise close the mask in for the favor's duration.
+func send_arena_blind(caster_id: int, radius: float, duration: float) -> void:
+	if not has_multiplayer_peer():
+		return
+	if duration <= 0.0:
+		return
+	rpc("rpc_arena_blind", caster_id, radius, duration)
+
+
+@rpc("any_peer", "reliable")
+func rpc_arena_blind(caster_id: int, radius: float, duration: float) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("arena_blind_received", caster_id, radius, duration)

@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://bvf26dvy16r1m"]
+
+[ext_resource type="Script" uid="uid://dew12evtlg25p" path="res://scripts/gods/common/arena.gd" id="1_arena"]
+[ext_resource type="Script" uid="uid://di77qhj0fhgmc" path="res://scripts/gods/common/arena_field.gd" id="2_field"]
+[ext_resource type="PackedScene" uid="uid://caeyjvhbdf8ae" path="res://scenes/gods/common/Mortal.tscn" id="3_mortal"]
+[ext_resource type="Shader" uid="uid://y0uyfc41fh00" path="res://UI/GodsArena/vision_mask.gdshader" id="4_vision"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_strip"]
+size = Vector2(244, 654)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vision"]
+shader = ExtResource("4_vision")
+shader_parameter/radius = 0.16
+shader_parameter/center = Vector2(0.5, 0.5)
+shader_parameter/softness = 0.06
+shader_parameter/aspect = 1.7777778
+
+[node name="Arena" type="Node2D" unique_id=628936061]
+script = ExtResource("1_arena")
+
+[node name="Background" type="Sprite2D" parent="." unique_id=1786581936]
+
+[node name="GAME UI AREA" type="StaticBody2D" parent="." unique_id=71232805]
+metadata/_edit_lock_ = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GAME UI AREA" unique_id=1838773376]
+position = Vector2(112, 317)
+shape = SubResource("RectangleShape2D_strip")
+metadata/_edit_lock_ = true
+
+[node name="ArenaField" type="Node2D" parent="." unique_id=518833116]
+z_index = 1
+script = ExtResource("2_field")
+
+[node name="Ghosts" type="Node2D" parent="." unique_id=1337375854]
+z_index = 3
+
+[node name="Popups" type="Node2D" parent="." unique_id=2075017689]
+z_index = 5
+
+[node name="Player" parent="." unique_id=1489401219 instance=ExtResource("3_mortal")]
+z_index = 4
+position = Vector2(576, 470)
+
+[node name="VisionLayer" type="CanvasLayer" parent="." unique_id=1780669298]
+layer = 5
+
+[node name="VisionMask" type="ColorRect" parent="VisionLayer" unique_id=2121570625]
+visible = false
+material = SubResource("ShaderMaterial_vision")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="UILayer" type="CanvasLayer" parent="." unique_id=139203851]
+layer = 10

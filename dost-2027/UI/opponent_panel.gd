@@ -15,6 +15,12 @@ func setup(id: int, player_name: String, favor: int, due: int) -> void:
 	update_stats(favor, due)
 
 
+# The name is live - the lobby's UPDATE NAME can change it mid-game - so it is
+# repainted on its own instead of rebuilding the whole column.
+func set_name_text(player_name: String) -> void:
+	name_label.text = player_name
+
+
 func update_stats(favor: int, due: int) -> void:
 	favor_label.text = str(favor)
 	due_label.text = str(due)

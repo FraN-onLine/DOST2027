@@ -17,7 +17,7 @@ extends Node2D
 @export var zone_label := "ZONE"  # only ever used in the host's event log
 
 # Always Mayari's yellow - the god colour paints the field, not the zones.
-var color := GodArena.FAVOR_COLOR
+var color := Arena.FAVOR_COLOR
 var box_size := Vector2(175.0, 85.0)  # read back from the authored Fill
 var held := false
 var favor_enabled := false
@@ -28,7 +28,7 @@ var _pulse := 0.0
 
 
 func _ready() -> void:
-	color = GodArena.FAVOR_COLOR
+	color = Arena.FAVOR_COLOR
 	sync_authored_size()
 	_refresh_visual()
 

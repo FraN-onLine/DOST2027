@@ -13,9 +13,9 @@ extends Control
 # the screen, and a lobby name is clipped to its own panel with an ellipsis
 # instead of being allowed to widen it.
 #
-# Arena contract (scripts/gods/god_arena.gd): every arena scene is authored in
+# Arena contract (scripts/gods/common/arena.gd): every arena scene is authored in
 # screen space exactly as it is played - the scene fills the screen and keeps
-# the left GodArena.UI_STRIP_WIDTH pixels clear for the panels below. The shell
+# the left Arena.UI_STRIP_WIDTH pixels clear for the panels below. The shell
 # therefore just instantiates the arena: it never resizes, scales or re-centres
 # it, so every player sees the same authored layout.
 #
@@ -44,6 +44,11 @@ var other_player_panels := {}
 
 func _ready() -> void:
 	_build_hud()
+	# A name is live data: the lobby's UPDATE NAME can land at any time, and so can
+	# a join or a leave, so the panels follow the roster instead of being written
+	# once at start-up.
+	Network.player_list_updated.connect(_on_player_list_updated)
+	Network.player_name_changed.connect(_on_player_name_changed)
 	_build_trial_order()
 	_start_current_trial()
 
@@ -73,6 +78,24 @@ func _build_other_player_panels() -> void:
 	# OpponentPlaceholder is the panel authored in Game.tscn: it previews the
 	# layout while you are alone and steps aside for the first real rival.
 	opponent_placeholder.visible = other_player_panels.is_empty()
+
+
+func _on_player_list_updated(_players: Dictionary) -> void:
+	# The roster changed (a rival joined or left): rebuild the column, which also
+	# repaints every name in it.
+	_build_hud()
+
+
+func _on_player_name_changed(peer_id: int, name: String) -> void:
+	var clean := name.strip_edges()
+	if clean.is_empty():
+		return
+	if peer_id == multiplayer.get_unique_id():
+		own_name_label.text = clean
+		return
+	var panel = other_player_panels.get(peer_id)
+	if panel != null and is_instance_valid(panel):
+		panel.set_name_text(clean)
 
 
 func _build_trial_order() -> void:
@@ -132,7 +155,7 @@ func _on_arena_ready() -> void:
 	rules.due_changed.connect(_on_due_changed)
 	if arena.has_signal("trial_time_changed"):
 		arena.trial_time_changed.connect(_on_trial_time_changed)
-	# The clock starts at the arena's own round length (GodArena.trial_time) and
+	# The clock starts at the arena's own round length (Arena.trial_time) and
 	# the shell - not the arena - is what knows which trial this is and how many
 	# the run holds.
 	var round_length = arena.get("trial_time")
