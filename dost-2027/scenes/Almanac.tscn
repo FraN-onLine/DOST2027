@@ -4,6 +4,19 @@
 [ext_resource type="Texture2D" uid="uid://cgt4dp3y83y4y" path="res://Assets/title/poster.jpg" id="2_bcwl7"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
 
+[sub_resource type="SpriteFrames" id="SpriteFrames_qwc0f"]
+animations = [{
+"frames": [],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": 1,
+"name": &"new_animation",
+"speed": 5.0
+}]
+
 [node name="Almanac" type="Control" unique_id=563705249]
 layout_mode = 3
 anchors_preset = 15
@@ -169,3 +182,7 @@ visible = false
 position = Vector2(129.5, 323.49997)
 scale = Vector2(0.087666675, 0.13312498)
 texture = ExtResource("2_bcwl7")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1433183351]
+sprite_frames = SubResource("SpriteFrames_qwc0f")
+frame_progress = 0.366431
