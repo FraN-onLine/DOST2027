@@ -140,7 +140,7 @@ func _start_current_trial() -> void:
 	arena_instance.dialogue_prefix = "trial_%d" % (trial_index + 1)
 	$ArenaPanel.add_child(arena_instance)
 	arena = arena_instance
-	arena.tree_exited.connect(_on_arena_exited)
+	arena.tree_exited.connect(_on_arena_exited.bind(arena_instance))
 	arena.trial_complete.connect(_on_trial_complete)
 	call_deferred("_on_arena_ready")
 
@@ -228,9 +228,14 @@ func _on_due_changed(_player_id: int, _due: int) -> void:
 
 func _on_trial_complete() -> void:
 	if rules != null:
+		# Everything the mortal carries - FAVOR, God's Due and the favors - rides into the next trial.
 		run_snapshot = rules.snapshot()
 	trial_index += 1
 	if trial_index >= trial_order.size():
+		return
+	var next_god: God = trial_order[trial_index]
+	if next_god.arena_scene == "" or not next_god.implemented:
+		timer_label.text = "THE GODS ARE PLEASED"
 		return
 	if arena != null and is_instance_valid(arena):
 		arena.queue_free()
@@ -239,6 +244,7 @@ func _on_trial_complete() -> void:
 	_start_current_trial()
 
 
-func _on_arena_exited() -> void:
-	arena = null
-	rules = null
+func _on_arena_exited(exited_arena: Node) -> void:
+	if arena == exited_arena:
+		arena = null
+		rules = null

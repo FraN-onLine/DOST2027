@@ -1,0 +1,115 @@
+[gd_resource type="Resource" script_class="God" format=3]
+
+[ext_resource type="Script" path="res://scripts/gods/god_favor.gd" id="1_dp3kp"]
+[ext_resource type="Texture2D" path="res://icon.svg" id="2_e57f4"]
+[ext_resource type="Script" path="res://scripts/gods/god.gd" id="3_nxm4o"]
+
+[sub_resource type="Resource" id="Resource_c8kc2"]
+script = ExtResource("1_dp3kp")
+id = &"the_sun_god"
+god_id = &"apolaki"
+display_name = "The Sun God"
+description = "If an opponent loses FAVOR, a sun patch blocks their screen for 1.5s."
+color = Color(1, 0.85, 0.25, 1)
+icon = ExtResource("2_e57f4")
+params = {
+"patch_duration": 1.5
+}
+
+[sub_resource type="Resource" id="Resource_gj13w"]
+script = ExtResource("1_dp3kp")
+id = &"the_ruler"
+god_id = &"apolaki"
+display_name = "The Ruler"
+description = "If you lose FAVOR, a random opponent gets a sun patch on their screen for 1.5s."
+color = Color(1, 0.85, 0.25, 1)
+icon = ExtResource("2_e57f4")
+params = {
+"patch_duration": 1.5
+}
+
+[sub_resource type="Resource" id="Resource_q3nb1"]
+script = ExtResource("1_dp3kp")
+id = &"the_victor"
+god_id = &"apolaki"
+display_name = "The Victor"
+description = "At 5 sun patches on one opponent they lose 200 FAVOR - once per trial. You are immune to other mortals holding this favor."
+color = Color(1, 0.85, 0.25, 1)
+icon = ExtResource("2_e57f4")
+params = {
+"patch_threshold": 5,
+"penalty": 200
+}
+
+[sub_resource type="Resource" id="Resource_vs2ev"]
+script = ExtResource("1_dp3kp")
+id = &"the_great"
+god_id = &"apolaki"
+display_name = "The Great"
+description = "Gain 2 FAVOR per second for as long as any sun patch is shining."
+color = Color(1, 0.85, 0.25, 1)
+icon = ExtResource("2_e57f4")
+params = {
+"favor_per_sec": 2.0
+}
+
+[sub_resource type="Resource" id="Resource_mua1f"]
+script = ExtResource("1_dp3kp")
+id = &"siblings_compromise_sun"
+god_id = &"apolaki"
+display_name = "Sibling's Compromise"
+description = "E - sun patches every opponent for 5s and doubles any FAVOR they lose while it lasts."
+slot = 1
+kind = 1
+cooldown = 30.0
+duration = 5.0
+color = Color(1, 0.85, 0.25, 1)
+icon = ExtResource("2_e57f4")
+params = {
+"patch_duration": 5.0
+}
+
+[sub_resource type="Resource" id="Resource_0jkg1"]
+script = ExtResource("1_dp3kp")
+id = &"the_unmoving"
+god_id = &"apolaki"
+display_name = "The Unmoving"
+description = "Q - you cannot lose FAVOR in any way for 3s."
+slot = 2
+kind = 1
+cooldown = 25.0
+duration = 3.0
+color = Color(1, 0.85, 0.25, 1)
+icon = ExtResource("2_e57f4")
+params = {
+"loss_immunity": 3.0
+}
+
+[sub_resource type="Resource" id="Resource_3ahhg"]
+script = ExtResource("1_dp3kp")
+id = &"siblings_rivalry"
+god_id = &"apolaki"
+display_name = "Sibling's Rivalry"
+description = "Get 1000 FAVOR ahead of another mortal and Apolaki blots out part of their screen with sun patches for 5s (once per mortal, once per trial). Needs a Mayari favor in the match."
+duration = 5.0
+color = Color(1, 0.85, 0.25, 1)
+icon = ExtResource("2_e57f4")
+params = {
+"ahead_by": 1000,
+"requires_god": "mayari"
+}
+
+[resource]
+script = ExtResource("3_nxm4o")
+id = &"apolaki"
+display_name = "APOLAKI"
+epithet = "God of the Sun and War"
+color = Color(1, 0.85, 0.25, 1)
+game_name = "ARNIS"
+game_blurb = "Duel Apolaki one on one. Strike him while he is open, guard while he is not, and watch for his blind spots."
+arena_scene = "res://scenes/gods/apolaki/ApolakiArena.tscn"
+implemented = true
+favors = Array[ExtResource("1_dp3kp")]([SubResource("Resource_c8kc2"), SubResource("Resource_gj13w"), SubResource("Resource_q3nb1"), SubResource("Resource_vs2ev"), SubResource("Resource_mua1f"), SubResource("Resource_0jkg1"), SubResource("Resource_3ahhg")])
+intro_lines = Array[String](["Apolaki does not blink while the sun is up."])
+success_lines = Array[String](["You struck true. The sun saw it."])
+failure_lines = Array[String](["Not enough fire in you yet."])

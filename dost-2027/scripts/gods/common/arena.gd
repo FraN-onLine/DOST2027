@@ -149,6 +149,7 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @onready var player: ArenaMortal = $Player
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var vision_mask: ColorRect = $VisionLayer/VisionMask
+@onready var sun_patch_layer: CanvasLayer = get_node_or_null("Patches")
 
 var god: God
 var rules: GodMatch
@@ -171,6 +172,12 @@ var _free_grants := 0
 var _results: Dictionary = {}
 var _gain_pending: Dictionary = {}    # mortal id -> FAVOR gathered, not popped yet
 var _gain_timer := 0.0
+var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
+var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
+var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
+var _victor_claimed: Dictionary = {}  # owner id -> true (once per trial)
+var _rivalry_claimed: Dictionary = {} # owner id -> {victim id: true}
+var _sun_patch_rects: Array[TextureRect] = []
 
 # --- multiplayer ---
 var _net: Node = null
@@ -232,6 +239,7 @@ func _ready() -> void:
 	hud.bind(rules, god)
 	_connect_network()
 	_sync_ghosts()
+	_collect_sun_patch_rects()
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_start_intro()
 
@@ -396,6 +404,12 @@ func _start_trial() -> void:
 	_gain_timer = 0.0
 	set_mortal_invuln(_my_id, spawn_immunity)
 	_blind_time = 0.0
+	_sun_patches.clear()
+	_double_loss.clear()
+	_great_pending.clear()
+	_victor_claimed.clear()
+	_rivalry_claimed.clear()
+	_refresh_sun_patches()
 	player.set_lock(false)
 	rules.trial_active = true
 	_show_banner("GO!", god.color, 1.0)
@@ -448,6 +462,7 @@ func _tick_trial(delta: float) -> void:
 	trial_time_changed.emit(_trial_time)
 	hud.set_time_left(_trial_time)
 	_tick_invuln(delta)
+	_tick_sun_favors(delta)
 	arena_rules_tick(delta)
 	if _trial_time <= 0.0:
 		_end_trial()
@@ -526,7 +541,9 @@ func bank_favor(amount: int, reason: String, mortal_id := -1) -> int:
 func lose_favor(amount: int, reason: String, mortal_id := -1) -> int:
 	if rules == null or amount <= 0:
 		return 0
-	return rules.lose_favor(amount, reason, mortal_id)
+	var target_id := rules.local_id if mortal_id < 0 else mortal_id
+	var adjusted := amount * (2 if float(_double_loss.get(target_id, 0.0)) > 0.0 else 1)
+	return rules.lose_favor(adjusted, reason, target_id)
 
 
 # Mercy seconds: a mortal that was just hit cannot be hit again until they run
@@ -849,19 +866,145 @@ func _skill_feedback(favor: GodFavor) -> void:
 # player's cast. The host also tells the clients - a screen can only be darkened
 # on the machine that draws it.
 func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
-	if favor.id != &"half_vision":
+	if favor == null:
 		return
-	var radius := favor.param("vision_radius", 0.16)
-	var duration := maxf(0.0, favor.duration)
-	if caster_id == _my_id:
-		# The caster keeps both eyes: Half Vision blinds the OTHER mortals only.
-		_log("Half Vision - everyone else sees only a circle around them", favor.color)
-	else:
-		_blind_radius = radius
-		_blind_time = maxf(_blind_time, duration)
-		_log("Half Vision - you see only a circle around your mortal", favor.color)
-	if _authority and _networked and _net != null:
-		_net.send_arena_blind(caster_id, radius, duration)
+	if favor.id == &"half_vision":
+		var radius := favor.param("vision_radius", 0.16)
+		var duration := maxf(0.0, favor.duration)
+		if caster_id == _my_id:
+			_log("Half Vision - everyone else sees only a circle around them", favor.color)
+		else:
+			_blind_radius = radius
+			_blind_time = maxf(_blind_time, duration)
+			_log("Half Vision - you see only a circle around your mortal", favor.color)
+		if _authority and _networked and _net != null:
+			_net.send_arena_blind(caster_id, radius, duration)
+	elif favor.id == &"siblings_compromise_sun" and _authority:
+		var duration := maxf(0.0, favor.duration)
+		for mortal in rules.mortals.values():
+			if mortal.id == caster_id:
+				continue
+			_double_loss[mortal.id] = maxf(float(_double_loss.get(mortal.id, 0.0)), duration)
+			_add_sun_patches(mortal.id, 1, duration)
+		_publish_god_state()
+
+
+func _collect_sun_patch_rects() -> void:
+	_sun_patch_rects.clear()
+	if sun_patch_layer == null:
+		return
+	for child in sun_patch_layer.get_children():
+		if child is TextureRect:
+			_sun_patch_rects.append(child)
+	_refresh_sun_patches()
+
+
+func _refresh_sun_patches() -> void:
+	var timers: Array = _sun_patches.get(_my_id, [])
+	for index in range(_sun_patch_rects.size()):
+		_sun_patch_rects[index].visible = index < timers.size()
+
+
+func _favor_duration(mortal: GodMatch.Mortal, favor_id: StringName, fallback: float) -> float:
+	var favor: GodFavor = mortal.favor_by_id(favor_id)
+	return fallback if favor == null else maxf(0.0, favor.param("patch_duration", fallback))
+
+
+func _on_sun_favor_changed(player_id: int, delta: int) -> void:
+	if not _authority or delta >= 0:
+		return
+	var victim := rules.mortal(player_id)
+	if victim == null:
+		return
+	for owner in rules.mortals.values():
+		if owner.id != player_id and owner.has_favor(&"the_sun_god"):
+			_add_sun_patches(player_id, 1, _favor_duration(owner, &"the_sun_god", 1.5))
+	if victim.has_favor(&"the_ruler"):
+		var opponents: Array[int] = []
+		for other in rules.mortals.values():
+			if other.id != player_id:
+				opponents.append(other.id)
+		if not opponents.is_empty():
+			opponents.shuffle()
+			_add_sun_patches(opponents[0], 1, _favor_duration(victim, &"the_ruler", 1.5))
+
+
+func _add_sun_patches(mortal_id: int, count: int, duration: float) -> void:
+	if count <= 0 or duration <= 0.0:
+		return
+	var timers: Array = _sun_patches.get(mortal_id, [])
+	for index in range(count):
+		timers.append(duration)
+	_sun_patches[mortal_id] = timers
+	_refresh_sun_patches()
+	_check_victor_threshold(mortal_id)
+
+
+func _check_victor_threshold(victim_id: int) -> void:
+	var timers: Array = _sun_patches.get(victim_id, [])
+	var victim := rules.mortal(victim_id)
+	if victim == null or timers.size() < 5 or victim.has_favor(&"the_victor"):
+		return
+	for owner in rules.mortals.values():
+		if owner.id == victim_id or not owner.has_favor(&"the_victor") or _victor_claimed.has(owner.id):
+			continue
+		_victor_claimed[owner.id] = true
+		var victor: GodFavor = owner.favor_by_id(&"the_victor")
+		lose_favor(int(victor.param("penalty", 200.0)), "The Victor", victim_id)
+		_log("The Victor took FAVOR from %s" % victim.display_name, god.color)
+
+
+func _tick_sun_favors(delta: float) -> void:
+	if not _authority:
+		return
+	for mortal_id in _sun_patches.keys().duplicate():
+		var active: Array = []
+		for left in _sun_patches[mortal_id]:
+			var remaining := maxf(0.0, float(left) - delta)
+			if remaining > 0.0:
+				active.append(remaining)
+		if active.is_empty():
+			_sun_patches.erase(mortal_id)
+		else:
+			_sun_patches[mortal_id] = active
+	for mortal_id in _double_loss.keys().duplicate():
+		var remaining := maxf(0.0, float(_double_loss[mortal_id]) - delta)
+		if remaining <= 0.0:
+			_double_loss.erase(mortal_id)
+		else:
+			_double_loss[mortal_id] = remaining
+	_refresh_sun_patches()
+	_tick_the_great(delta)
+	_tick_siblings_rivalry()
+
+
+func _tick_the_great(delta: float) -> void:
+	if _sun_patches.is_empty():
+		return
+	for mortal in rules.mortals.values():
+		if not mortal.has_favor(&"the_great"):
+			continue
+		var favor: GodFavor = mortal.favor_by_id(&"the_great")
+		var pending: float = float(_great_pending.get(mortal.id, 0.0)) + favor.param("favor_per_sec", 2.0) * delta
+		while pending >= 1.0:
+			pending -= 1.0
+			bank_favor(1, "The Great", mortal.id)
+		_great_pending[mortal.id] = pending
+
+
+func _tick_siblings_rivalry() -> void:
+	for owner in rules.mortals.values():
+		if not owner.has_favor(&"siblings_rivalry"):
+			continue
+		var favor: GodFavor = owner.favor_by_id(&"siblings_rivalry")
+		var lead := int(favor.param("ahead_by", 1000.0))
+		var claims: Dictionary = _rivalry_claimed.get(owner.id, {})
+		for rival in rules.mortals.values():
+			if rival.id == owner.id or rival.favor + lead > owner.favor or claims.has(rival.id):
+				continue
+			claims[rival.id] = true
+			_rivalry_claimed[owner.id] = claims
+			_add_sun_patches(rival.id, 4, maxf(0.0, favor.duration))
 
 
 # Another mortal cast Half Vision: darken THIS screen (unless we are the caster).
@@ -1014,6 +1157,7 @@ func _publish_arena_tick() -> void:
 		"banner_color": hud.banner_label.get_theme_color("font_color"),
 		"event": hud.event_label.text,
 		"event_color": hud.event_label.get_theme_color("font_color"),
+		"sun_patches": _sun_patches.duplicate(true),
 	}
 	state.merge(arena_tick_fields(), true)
 	_net.publish_arena_state(state)
@@ -1046,6 +1190,8 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	_mortal_positions.clear()
 	for id in mortals.keys():
 		_mortal_positions[int(id)] = mortals[id]
+	_sun_patches = state.get("sun_patches", {}).duplicate(true)
+	_refresh_sun_patches()
 	arena_read_tick(state)
 
 	# Follow the host through the trial phases.
@@ -1122,6 +1268,7 @@ func _on_peer_left(peer_id: int) -> void:
 # --- MATCH SIGNALS ----------------------------------------------------------
 
 func _on_favor_changed(player_id: int, _total: int, delta: int, reason: String) -> void:
+	_on_sun_favor_changed(player_id, delta)
 	if delta == 0:
 		return
 	if player_id == rules.local_id:

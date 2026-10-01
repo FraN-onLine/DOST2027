@@ -1,0 +1,231 @@
+[gd_scene format=3 uid="uid://cs62vewy1g8c1"]
+
+[ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://by5jteym7ab2h" path="res://scripts/gods/apolaki/apolaki_arena.gd" id="2_arena"]
+[ext_resource type="PackedScene" uid="uid://d3dnsdaacfeqq" path="res://scenes/gods/apolaki/Apolaki.tscn" id="3_duelist"]
+[ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_x3nwb"]
+[ext_resource type="Texture2D" uid="uid://b6ugwucajnrhk" path="res://Assets/UI/pips-male-Sheet.png" id="4_sheet"]
+[ext_resource type="Texture2D" uid="uid://cbxhacid8hdcr" path="res://Assets/Gods/Apolaki/Sun-Patch.png" id="5_sun"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_strike"]
+atlas = ExtResource("4_sheet")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_overseer"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_strike")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="ApolakiArena" unique_id=437979526 instance=ExtResource("1_base")]
+script = ExtResource("2_arena")
+strike_open_favor = 35
+strike_neutral_favor = 10
+strike_guard_penalty = 25
+block_favor = 20
+hit_penalty = 30
+strike_cooldown = 0.45
+strike_reach_bonus = 26.0
+defend_window = 0.42
+defend_cooldown = 0.7
+patch_default_duration = 1.5
+rivalry_patches = 4
+rivalry_duration = 5.0
+god_id = &"apolaki"
+embedded = true
+dialogue_prefix = "apolaki"
+
+[node name="Background" parent="." index="0" unique_id=1786581936]
+position = Vector2(654.75, 274)
+scale = Vector2(6.5474997, 4.87)
+texture = ExtResource("3_x3nwb")
+
+[node name="Apolaki" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1246256867 instance=ExtResource("3_duelist")]
+position = Vector2(780, 420)
+
+[node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1955814452]
+position = Vector2(922, 194)
+scale = Vector2(5.953125, 6.21875)
+sprite_frames = SubResource("SpriteFrames_overseer")
+autoplay = "default"
+
+[node name="Player" parent="." index="5" unique_id=1489401219]
+position = Vector2(420, 470)
+
+[node name="Patches2" type="CanvasLayer" parent="." index="8" unique_id=1956909203]
+layer = 11
+
+[node name="DuelHud" type="CanvasLayer" parent="." index="9" unique_id=1284817974]
+layer = 11
+
+[node name="Hint" type="Label" parent="DuelHud" index="0" unique_id=269483598]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 300.0
+offset_top = -64.0
+offset_right = 900.0
+offset_bottom = -40.0
+theme_override_colors/font_color = Color(1, 0.9, 0.6, 0.85)
+theme_override_font_sizes/font_size = 12
+text = "LEFT MOUSE - STRIKE   |   RIGHT MOUSE - DEFEND   |   E / Q - FAVORS"
+horizontal_alignment = 1
+
+[node name="State" type="Label" parent="DuelHud" index="1" unique_id=470594257]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 300.0
+offset_top = -40.0
+offset_right = 900.0
+offset_bottom = -16.0
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 14
+text = "APOLAKI WATCHES"
+horizontal_alignment = 1
+
+[node name="Patch10" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="0" unique_id=1945053952]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 238.0
+offset_right = -725.0
+offset_bottom = -459.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch11" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="1" unique_id=104680551]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 493.0
+offset_top = 130.0
+offset_right = -470.0
+offset_bottom = -329.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch12" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="2" unique_id=1844020846]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 291.0
+offset_top = 240.0
+offset_right = -672.0
+offset_bottom = -219.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch13" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="3" unique_id=2077132518]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 746.0
+offset_top = 6.0
+offset_right = -217.0
+offset_bottom = -453.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch14" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="4" unique_id=485179229]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 875.0
+offset_top = 339.0
+offset_right = -88.0
+offset_bottom = -120.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch15" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="5" unique_id=138331982]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 693.0
+offset_top = 202.0
+offset_right = -270.0
+offset_bottom = -257.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch16" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="6" unique_id=554885625]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 467.0
+offset_top = 456.0
+offset_right = -496.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch17" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="7" unique_id=1098974111]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 230.0
+offset_top = 392.0
+offset_right = -733.0
+offset_bottom = -67.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch18" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="8" unique_id=824798248]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 504.0
+offset_top = 280.0
+offset_right = -459.0
+offset_bottom = -179.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[node name="Patch19" type="TextureRect" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="9" unique_id=1269162695]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 726.0
+offset_top = 454.0
+offset_right = -237.0
+offset_bottom = -5.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_sun")
+
+[editable path="ArenaField/Apolaki"]

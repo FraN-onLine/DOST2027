@@ -70,7 +70,7 @@ func _close() -> void:
 	finished.emit()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if not _active:
 		return
 	var viewport := get_viewport()

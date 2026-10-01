@@ -1,0 +1,102 @@
+[gd_resource type="Resource" script_class="God" format=3 uid="uid://du505xvxgjo36"]
+
+[ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_kov66"]
+[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_v7yr7"]
+[ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_nlsjc"]
+
+[sub_resource type="Resource" id="Resource_0nofr"]
+script = ExtResource("1_kov66")
+id = &"waning_moon"
+god_id = &"mayari"
+display_name = "Waning Moon"
+description = "Whenever FAVOR is lost in any way, you lose 50% less."
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("2_v7yr7")
+params = {
+"loss_mult": 0.5
+}
+
+[sub_resource type="Resource" id="Resource_ib605"]
+script = ExtResource("1_kov66")
+id = &"full_moon"
+god_id = &"mayari"
+display_name = "Full Moon"
+description = "Whenever FAVOR is gained, you gain 10% more."
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("2_v7yr7")
+params = {
+"gain_mult": 1.1
+}
+
+[sub_resource type="Resource" id="Resource_yboih"]
+script = ExtResource("1_kov66")
+id = &"blind_spot"
+god_id = &"mayari"
+display_name = "Blind Spot"
+description = "Once per trial: immediately gain +100 FAVOR."
+kind = 2
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("2_v7yr7")
+params = {
+"instant_favor": 100
+}
+
+[sub_resource type="Resource" id="Resource_su3vm"]
+script = ExtResource("1_kov66")
+id = &"favorable_outcome"
+god_id = &"mayari"
+display_name = "Favorable Outcome"
+description = "At the end of a trial, if you hold the highest FAVOR, gain an extra +200."
+kind = 3
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("2_v7yr7")
+params = {
+"bonus": 200
+}
+
+[sub_resource type="Resource" id="Resource_5h57l"]
+script = ExtResource("1_kov66")
+id = &"half_vision"
+god_id = &"mayari"
+display_name = "Half Vision"
+description = "E - blinds every other mortal for 2s, only a circle around them stays lit."
+slot = 1
+kind = 1
+cooldown = 25.0
+duration = 1.5
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("2_v7yr7")
+params = {
+"vision_radius": 0.16
+}
+
+[sub_resource type="Resource" id="Resource_t3u61"]
+script = ExtResource("1_kov66")
+id = &"siblings_compromise"
+god_id = &"mayari"
+display_name = "Sibling's Compromise"
+description = "Q - doubles the FAVOR you gain for the next 5s."
+slot = 2
+kind = 1
+cooldown = 30.0
+duration = 5.0
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("2_v7yr7")
+params = {
+"gain_mult_while_active": 2.0
+}
+
+[resource]
+script = ExtResource("3_nlsjc")
+id = &"mayari"
+display_name = "MAYARI"
+epithet = "Goddess of the Moon"
+color = Color(0.55, 0.85, 1, 1)
+game_name = "PATINTERO"
+game_blurb = "Four boxes sit on the field and Mayari lights one at a time. Stand in the lit box and hold it while her two clones walk the lines drawn for them - every so often one hunts the nearest mortal - and let one touch you and you pay for it."
+arena_scene = "res://scenes/gods/mayari/MayariArena.tscn"
+implemented = true
+favors = Array[ExtResource("1_kov66")]([SubResource("Resource_0nofr"), SubResource("Resource_ib605"), SubResource("Resource_yboih"), SubResource("Resource_su3vm"), SubResource("Resource_5h57l"), SubResource("Resource_t3u61")])
+intro_lines = Array[String](["Mayari watches you from the moon.", "Patintero was always a game of lines - mine are alive. Cross them, take my boxes and I will light your way.", "Do not make me send my clones twice."])
+success_lines = Array[String](["You moved like moonlight on water. The moon remembers this."])
+failure_lines = Array[String](["Hm. The night is long - try again before the moon sets."])

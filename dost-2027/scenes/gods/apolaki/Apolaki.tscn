@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://d3dnsdaacfeqq"]
+
+[ext_resource type="Script" uid="uid://c054b8tm7375x" path="res://scripts/gods/apolaki/apolaki_duelist.gd" id="1_duel"]
+[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
+
+[node name="Apolaki" type="Node2D" unique_id=1714060332]
+script = ExtResource("1_duel")
+
+[node name="Telegraph" type="Sprite2D" parent="." unique_id=1087025297]
+modulate = Color(1, 0.95, 0.6, 0.2)
+z_index = -1
+scale = Vector2(0.9, 0.9)
+texture = ExtResource("2_icon")
+
+[node name="Icon" type="Sprite2D" parent="." unique_id=1982347947]
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("2_icon")
+
+[node name="Name" type="Label" parent="." unique_id=668277825]
+offset_left = -60.0
+offset_top = -58.0
+offset_right = 60.0
+offset_bottom = -40.0
+theme_override_colors/font_color = Color(1, 1, 1, 0.75)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 10
+text = "APOLAKI"
+horizontal_alignment = 1

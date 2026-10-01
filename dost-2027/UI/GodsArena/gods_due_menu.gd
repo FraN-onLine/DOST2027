@@ -65,7 +65,7 @@ func _rebuild() -> void:
 	var candidates: Array[GodFavor] = []
 	if mortal != null:
 		for favor in _god.favors:
-			if not mortal.has_favor(favor.id):
+			if not mortal.has_favor(favor.id) and _match.is_favor_eligible(favor):
 				candidates.append(favor)
 	candidates.shuffle()
 

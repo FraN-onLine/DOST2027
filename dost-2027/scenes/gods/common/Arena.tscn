@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://di77qhj0fhgmc" path="res://scripts/gods/common/arena_field.gd" id="2_field"]
 [ext_resource type="PackedScene" uid="uid://caeyjvhbdf8ae" path="res://scenes/gods/common/Mortal.tscn" id="3_mortal"]
 [ext_resource type="Shader" uid="uid://y0uyfc41fh00" path="res://UI/GodsArena/vision_mask.gdshader" id="4_vision"]
+[ext_resource type="Texture2D" uid="uid://cbxhacid8hdcr" path="res://Assets/Gods/Apolaki/Sun-Patch.png" id="5_hxyp3"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_strip"]
 size = Vector2(244, 654)
@@ -58,3 +59,145 @@ color = Color(0, 0, 0, 1)
 
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=139203851]
 layer = 10
+
+[node name="Patches" type="CanvasLayer" parent="." unique_id=1582689626]
+layer = 11
+
+[node name="Patch0" type="TextureRect" parent="Patches" unique_id=1714864836]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 238.0
+offset_right = -725.0
+offset_bottom = -459.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch1" type="TextureRect" parent="Patches" unique_id=2098999696]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 493.0
+offset_top = 130.0
+offset_right = -470.0
+offset_bottom = -329.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch2" type="TextureRect" parent="Patches" unique_id=304840884]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 291.0
+offset_top = 240.0
+offset_right = -672.0
+offset_bottom = -219.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch3" type="TextureRect" parent="Patches" unique_id=896470299]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 746.0
+offset_top = 6.0
+offset_right = -217.0
+offset_bottom = -453.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch4" type="TextureRect" parent="Patches" unique_id=18741845]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 875.0
+offset_top = 339.0
+offset_right = -88.0
+offset_bottom = -120.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch5" type="TextureRect" parent="Patches" unique_id=1547023247]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 693.0
+offset_top = 202.0
+offset_right = -270.0
+offset_bottom = -257.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch6" type="TextureRect" parent="Patches" unique_id=2056264441]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 467.0
+offset_top = 456.0
+offset_right = -496.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch7" type="TextureRect" parent="Patches" unique_id=1727553184]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 230.0
+offset_top = 392.0
+offset_right = -733.0
+offset_bottom = -67.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch8" type="TextureRect" parent="Patches" unique_id=1404786128]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 504.0
+offset_top = 280.0
+offset_right = -459.0
+offset_bottom = -179.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")
+
+[node name="Patch9" type="TextureRect" parent="Patches" unique_id=1617309782]
+visible = false
+modulate = Color(1, 0.9, 0.45, 0.92)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 726.0
+offset_top = 454.0
+offset_right = -237.0
+offset_bottom = -5.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_hxyp3")

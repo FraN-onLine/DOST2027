@@ -20,6 +20,22 @@ func _initialize() -> void:
 		problems += _check_action(action)
 	for action in MOUSE_ACTIONS.keys():
 		problems += _check_action(action, MOUSE_ACTIONS[action])
+	var dialogue: Control = load("res://UI/GodsArena/god_dialogue.tscn").instantiate()
+	get_root().add_child(dialogue)
+	await process_frame
+	dialogue.show_lines([
+		{"speaker": "TEST", "color": Color.WHITE, "text": "FIRST"},
+		{"speaker": "TEST", "color": Color.WHITE, "text": "SECOND"},
+	])
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	dialogue._input(click)
+	if int(dialogue.get("_index")) != 1:
+		printerr("dialogue -> left click did not advance")
+		problems += 1
+	else:
+		print("dialogue -> left click advances")
 	print("input actions: %d problem(s)" % problems)
 	print("--- DONE ---")
 	quit()

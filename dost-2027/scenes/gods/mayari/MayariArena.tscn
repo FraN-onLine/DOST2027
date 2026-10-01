@@ -4,29 +4,37 @@
 [ext_resource type="Script" uid="uid://dpmo4rpwq4eip" path="res://scripts/gods/mayari/mayari_arena.gd" id="2_arena"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="PackedScene" uid="uid://dwhxsrh6kuqbg" path="res://scenes/gods/mayari/MayariGoal.tscn" id="4_goal"]
+[ext_resource type="Texture2D" uid="uid://du3e4xxsj2xtm" path="res://Assets/Gods/Tala/Tala-Overseer.png" id="4_qvw0k"]
 [ext_resource type="PackedScene" uid="uid://svxrl6j6aa6k" path="res://scenes/gods/mayari/MayariClone.tscn" id="5_clone"]
-[ext_resource type="Texture2D" uid="uid://b6ugwucajnrhk" path="res://Assets/UI/pips-male-Sheet.png" id="6_wlxev"]
+[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="7_icon"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_walk_a"]
-atlas = ExtResource("6_wlxev")
-region = Rect2(64, 0, 64, 64)
+[sub_resource type="AtlasTexture" id="AtlasTexture_wlxev"]
+atlas = ExtResource("4_qvw0k")
+region = Rect2(0, 0, 130, 99)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_walk_b"]
-atlas = ExtResource("6_wlxev")
-region = Rect2(0, 0, 64, 64)
+[sub_resource type="AtlasTexture" id="AtlasTexture_35pk3"]
+atlas = ExtResource("4_qvw0k")
+region = Rect2(130, 0, 130, 99)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vrftn"]
+atlas = ExtResource("4_qvw0k")
+region = Rect2(260, 0, 130, 99)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_overseer"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_walk_a")
+"texture": SubResource("AtlasTexture_wlxev")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_walk_b")
+"texture": SubResource("AtlasTexture_35pk3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vrftn")
 }],
-"loop": 1,
+"loop": 2,
 "name": &"default",
-"speed": 5.0
+"speed": 7.0
 }]
 
 [node name="MayariArena" unique_id=2127707221 instance=ExtResource("1_base")]
@@ -35,6 +43,11 @@ favor_rate = 82
 clone_penalty = 50
 starting_zone = 3
 goal_switch_interval = 12.0
+shock_radius = 130.0
+shock_expand_time = 0.45
+shock_cooldown = 1.2
+shock_stun = 0.22
+shock_force = 320.0
 embedded = true
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
@@ -63,11 +76,11 @@ width = 2.0
 default_color = Color(1, 1, 1, 0.08)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1907198770]
-position = Vector2(922, 194)
-scale = Vector2(5.953125, 6.21875)
+position = Vector2(935, 189)
+scale = Vector2(4.145794, 4.291193)
 sprite_frames = SubResource("SpriteFrames_overseer")
 autoplay = "default"
-frame_progress = 0.303435
+frame_progress = 0.740507
 
 [node name="Zones" type="Node2D" parent="." index="3" unique_id=57586642]
 z_index = 2
@@ -131,6 +144,44 @@ position = Vector2(-7.6293945e-06, 0)
 
 [node name="Player" parent="." index="7" unique_id=1489401219]
 position = Vector2(292, 533)
+
+[node name="Shocks" type="Node2D" parent="." index="10" unique_id=1265799116]
+z_index = 2
+
+[node name="AttackHud" type="CanvasLayer" parent="." index="11" unique_id=622389083]
+layer = 11
+
+[node name="Label" type="Label" parent="AttackHud" index="0" unique_id=1966288468]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 430.0
+offset_top = -74.0
+offset_right = 740.0
+offset_bottom = -52.0
+text = "ATTACK  READY"
+horizontal_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="AttackHud" index="1" unique_id=654105676]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 440.0
+offset_top = -48.0
+offset_right = 476.0
+offset_bottom = -12.0
+texture = ExtResource("7_icon")
+expand_mode = 1
+
+[node name="Bar" type="ProgressBar" parent="AttackHud" index="2" unique_id=1942084484]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 484.0
+offset_top = -44.0
+offset_right = 724.0
+offset_bottom = -18.0
+value = 100.0
 
 [editable path="Zones/NorthWestGoal"]
 [editable path="Zones/NorthEastGoal"]

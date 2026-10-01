@@ -1,34 +1,25 @@
 class_name PlayerData
 extends RefCounted
 
-# Player data/stats for the game.
+# Player data for the lobby: the name the host confirmed for a peer.
 # Server-authoritative: the server holds PlayerData instances in
-# Network.player_data. Clients receive synced copies via
-# Network.player_stats (plain Dictionary).
+# Network.player_data.
+#
+# Mortals in the God Games carry FAVOR, not hit points - the old hp / attack
+# stats and the client-side mirror that synced them (Network.player_stats) were
+# leftovers from an earlier plan and are gone. Everything a run tracks per
+# player lives in GodMatch.Mortal (favor, due, favors, cooldowns).
 
 var name: String = ""
-var hp: int = 100
-var attack: int = 10
 
 
-func _init(player_name: String = "", start_hp: int = 100, start_attack: int = 10) -> void:
+func _init(player_name: String = "") -> void:
 	name = player_name
-	hp = start_hp
-	attack = start_attack
 
 
 func to_dict() -> Dictionary:
-	return {
-		"name": name,
-		"hp": hp,
-		"attack": attack,
-	}
+	return {"name": name}
 
 
 static func from_dict(data: Dictionary) -> PlayerData:
-	var pd := PlayerData.new(
-		str(data.get("name", "")),
-		int(data.get("hp", 100)),
-		int(data.get("attack", 10))
-	)
-	return pd
+	return PlayerData.new(str(data.get("name", "")))

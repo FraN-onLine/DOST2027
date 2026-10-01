@@ -179,9 +179,22 @@ func top_player_id() -> int:
 
 # --- GOD'S DUE / FAVORS -----------------------------------------------------
 
+func is_favor_eligible(favor: GodFavor, player_id: int = -1) -> bool:
+	var m := _resolve(player_id)
+	if m == null or favor == null:
+		return false
+	var required_god := StringName(str(favor.params.get("requires_god", "")))
+	if required_god == &"":
+		return true
+	for owned in m.favors:
+		if owned.god_id == required_god:
+			return true
+	return false
+
+
 func can_grant(favor: GodFavor, player_id: int = -1) -> bool:
 	var m := _resolve(player_id)
-	if m == null or favor == null or m.has_favor(favor.id):
+	if m == null or favor == null or m.has_favor(favor.id) or not is_favor_eligible(favor, player_id):
 		return false
 	return m.due > 0
 
@@ -199,7 +212,7 @@ func grant_favor(favor: GodFavor, player_id: int = -1) -> bool:
 func bestow_favor(favor: GodFavor, player_id: int = -1) -> bool:
 	# A god handing a favor over directly - no voucher spent.
 	var m := _resolve(player_id)
-	if m == null or favor == null or m.has_favor(favor.id):
+	if m == null or favor == null or m.has_favor(favor.id) or not is_favor_eligible(favor, player_id):
 		return false
 	# E and Q are single slots. A newly chosen skill replaces the old skill
 	# while passive and end-of-trial favors remain owned for the whole run.
@@ -296,7 +309,7 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.claimed_milestones = entry.get("claimed", {}).duplicate()
 		var owned: Array[GodFavor] = []
 		for favor_id in entry.get("favors", []):
-			var favor: GodFavor = god.get_favor(StringName(favor_id)) if god != null else null
+			var favor: GodFavor = Gods.favor_by_id(StringName(favor_id))
 			if favor != null:
 				owned.append(favor)
 		m.favors = owned

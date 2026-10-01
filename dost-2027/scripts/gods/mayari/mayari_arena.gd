@@ -33,18 +33,33 @@ extends Arena
 @export_range(0, 3, 1) var starting_zone := 3  # the zone Mayari lights first
 @export var goal_switch_interval := 12.0   # seconds before the light moves on
 
+@export_category("Attack")
+@export var shock_radius := 130.0        # how far the attack's shockwave reaches
+@export var shock_expand_time := 0.45    # seconds the wave takes to reach full size
+@export var shock_cooldown := 1.2        # seconds between two attacks
+@export var shock_stun := 0.22           # control lost by a mortal the wave catches
+@export var shock_force := 320.0         # how hard the wave shoves them away
+
 # The round clock (1:30), the countdown, the mercy seconds, the popup colours and
 # every network rate are NOT declared here: they come from the shared arena base
 # (Arena.trial_time and friends), the one place they are edited.
 
+const SHOCK_SCENE := preload("res://scenes/gods/mayari/Shockwave.tscn")
+
 @onready var zones_root: Node2D = $Zones
 @onready var clones_root: Node2D = $Clones
+@onready var shocks_root: Node2D = $Shocks
+@onready var attack_bar: ProgressBar = get_node_or_null("AttackHud/Bar")
+@onready var attack_label: Label = get_node_or_null("AttackHud/Label")
+@onready var attack_icon: TextureRect = get_node_or_null("AttackHud/Icon")
 
 var _zones: Array = []
 var _clones: Array = []
 var _zone_pending: Dictionary = {}    # mortal id -> fractional FAVOR not banked
 var _active_goal_index := 3
 var _goal_switch_timer := 0.0
+var _shock_cd := 0.0
+var _shocks: Array = []               # the waves the host is growing
 
 
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
@@ -69,6 +84,7 @@ func arena_rules_tick(delta: float) -> void:
 	_feed_clones()
 	_check_goals(delta)
 	_check_clones()
+	_tick_shocks(delta)
 
 
 func arena_round_reset() -> void:
@@ -77,6 +93,12 @@ func arena_round_reset() -> void:
 	for clone in _clones:
 		if is_instance_valid(clone) and clone.self_moving:
 			clone.restart()
+	# No wave carries into the new round, and the attack is ready again.
+	_shocks.clear()
+	_shock_cd = 0.0
+	if shocks_root != null:
+		for wave in shocks_root.get_children():
+			wave.queue_free()
 
 
 func arena_layout_fields() -> Dictionary:
@@ -258,3 +280,121 @@ func _on_clone_hit(clone: MayariClone, mortal_id: int) -> void:
 	else:
 		_show_banner("FAVOR SHIELDED", god.color, 1.2)
 		_log("A clone caught you but your favor held", god.color)
+
+
+# --- ATTACK: THE SHOCKWAVE ---------------------------------------------------
+# The mortal's attack (the `attack` action - LEFT MOUSE) throws a small shockwave
+# out around itself. It starts really small and grows to its full size and area
+# over shock_expand_time, shoving every OTHER mortal it reaches a little way away
+# from the caster. It cannot be used again for shock_cooldown seconds.
+#
+# The wave is each player's own to start, but the shove it deals is the host's to
+# decide: a client asks the host (request_arena_shock), the host grows the real
+# area and reports the hit to whoever owns the mortal it caught, and the wave
+# itself is drawn on every screen.
+
+func _process(delta: float) -> void:
+	super._process(delta)
+	_tick_attack_ui(delta)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("attack") and _phase == Phase.PLAYING and not player.locked and not dialogue.is_active() and not due_menu.is_open():
+		_try_shockwave()
+		get_viewport().set_input_as_handled()
+		return
+	super._unhandled_input(event)
+
+
+func _try_shockwave() -> void:
+	# A dialogue, the God's Due menu or the countdown all keep the mortal still:
+	# the attack is the arena's during PLAYING only.
+	if _phase != Phase.PLAYING or player.locked:
+		return
+	if due_menu != null and due_menu.is_open():
+		return
+	if _shock_cd > 0.0:
+		_log("Shockwave recharging  (%.1fs)" % _shock_cd, god.color)
+		return
+	_shock_cd = shock_cooldown
+	var origin := player.global_position
+	_spawn_shockwave(origin)
+	if _authority:
+		_start_shock(origin, _my_id)
+		if _networked and _net != null:
+			_net.send_arena_shock(_my_id, origin)
+	elif _net != null and _net.has_multiplayer_peer():
+		_net.rpc_id(1, "request_arena_shock", origin)
+
+
+# Shove every mortal the growing ring has reached, and stop once it is full.
+func _tick_shocks(delta: float) -> void:
+	if _shocks.is_empty():
+		return
+	var speed := shock_radius / maxf(0.01, shock_expand_time)
+	var alive: Array = []
+	for shock in _shocks:
+		var radius := float(shock["radius"]) + speed * delta
+		shock["radius"] = radius
+		for entry in mortal_entries():
+			var mortal_id := int(entry["id"])
+			if mortal_id == int(shock["caster"]) or shock["hit"].has(mortal_id):
+				continue
+			if (entry["pos"] as Vector2).distance_to(shock["origin"] as Vector2) <= radius:
+				shock["hit"][mortal_id] = true
+				knock_mortal(mortal_id, shock["origin"], shock_stun, shock_force)
+		if radius < shock_radius:
+			alive.append(shock)
+	_shocks = alive
+
+
+# The host's copy of a wave: it grows the real area the attack covers.
+func _start_shock(origin: Vector2, caster_id: int) -> void:
+	_shocks.append({"origin": origin, "radius": 0.0, "caster": caster_id, "hit": {}})
+
+
+# The wave every screen draws. It uses the same size and timing as the rules.
+func _spawn_shockwave(origin: Vector2) -> void:
+	if shocks_root == null:
+		return
+	var wave: MayariShockwave = SHOCK_SCENE.instantiate()
+	shocks_root.add_child(wave)
+	wave.global_position = origin
+	wave.expand_time = shock_expand_time
+	wave.max_scale = shock_radius / maxf(0.01, wave.base_radius)
+
+
+func _tick_attack_ui(delta: float) -> void:
+	_shock_cd = maxf(0.0, _shock_cd - delta)
+	if attack_bar != null:
+		attack_bar.value = (1.0 - _shock_cd / maxf(0.01, shock_cooldown)) * 100.0
+		attack_bar.modulate = Color(1, 1, 1, 1) if _shock_cd <= 0.0 else Color(1, 1, 1, 0.5)
+	if attack_label != null:
+		attack_label.text = "ATTACK  READY" if _shock_cd <= 0.0 else "ATTACK  %.1fs" % _shock_cd
+	if attack_icon != null:
+		attack_icon.modulate = Color(1, 1, 1, 1) if _shock_cd <= 0.0 else Color(1, 1, 1, 0.45)
+
+
+# A client attacked: the host grows the real wave here and shares it.
+func _on_arena_shock_requested(caster_id: int, origin: Vector2) -> void:
+	_spawn_shockwave(origin)
+	_start_shock(origin, caster_id)
+	if _net != null:
+		_net.send_arena_shock(caster_id, origin)
+
+
+func _on_arena_shock_received(caster_id: int, origin: Vector2) -> void:
+	if caster_id == _my_id:
+		return
+	_spawn_shockwave(origin)
+
+
+# The shared plumbing is the base's; the shock signal is ours.
+func _connect_network() -> void:
+	super._connect_network()
+	if _net == null:
+		return
+	if _net.has_signal("arena_shock_received"):
+		_net.connect("arena_shock_received", _on_arena_shock_received)
+	if _authority and _net.has_signal("arena_shock_requested"):
+		_net.connect("arena_shock_requested", _on_arena_shock_requested)

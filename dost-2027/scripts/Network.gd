@@ -30,7 +30,6 @@ signal player_list_updated(players)
 signal game_started
 signal host_discovered(host_key, host_name, ip, port, lobby_id)
 signal host_lost(host_key, ip)
-signal player_stats_updated(player_stats)
 
 # --- God's Games (Bathala) ---
 signal god_games_started
@@ -38,10 +37,14 @@ signal god_state_received(state)          # host -> clients: absolute FAVOR snap
 signal god_favor_requested(peer_id, amount, reason)
 signal god_skill_requested(peer_id, slot)
 signal god_grant_requested(peer_id, favor_id)
+signal apolaki_score_requested(peer_id, score_id)
 signal arena_layout_received(layout)      # host -> clients: field / corners / clones
 signal arena_state_received(state)        # host -> clients: 10 Hz world tick
 signal arena_hit_received(hit)            # host -> the peer whose mortal was hit
 signal arena_blind_received(caster_id, radius, duration)  # host -> everyone but the caster
+
+signal arena_shock_requested(caster_id, origin)           # client -> host: I threw my attack
+signal arena_shock_received(caster_id, origin)            # host -> clients: draw this wave
 signal player_name_changed(peer_id, name)  # anybody -> everybody: a mortal was renamed
 signal dialogue_released(dialogue_id)
 
@@ -49,8 +52,7 @@ var host_name := "Host"
 var my_name := "" # The name the user chose before hosting/joining
 var lobby_id := "" # Short code used to join a specific host
 var players := {} # peer_id -> name
-var player_stats := {} # peer_id -> {hp: int, attack: int} (client-side synced copy)
-var player_data := {} # peer_id -> PlayerData (server-side authoritative)
+var player_data := {} # peer_id -> PlayerData (server-side authoritative name)
 var _used_names := {} # name -> true (server-side, to avoid duplicates)
 
 # --- Discovery state ---
@@ -149,7 +151,6 @@ func stop_host() -> void:
 		multiplayer.multiplayer_peer = null
 		peer = null
 		players.clear()
-		player_stats.clear()
 		player_data.clear()
 		_used_names.clear()
 		print("Server stopped")
@@ -209,7 +210,6 @@ func leave_host() -> void:
 		multiplayer.multiplayer_peer = null
 		peer = null
 		players.clear()
-		player_stats.clear()
 		player_data.clear()
 		print("Left host / disconnected")
 
@@ -741,14 +741,6 @@ func start_game() -> void:
 	stop_host_discovery()
 	_discovered_hosts.clear()
 
-	# Initialize stats for all players
-	for pid in players.keys():
-		var pid_int := int(pid)
-		if not player_data.has(pid_int):
-			player_data[pid_int] = PlayerData.new()
-
-	# Broadcast stats to all clients
-	_broadcast_player_stats()
 
 	# Change scene for everyone
 	rpc("rpc_change_scene", "res://scenes/Game.tscn")
@@ -762,82 +754,6 @@ func rpc_change_scene(scene_path: String) -> void:
 	if ResourceLoader.exists(scene_path):
 		get_tree().change_scene_to_file(scene_path)
 
-
-# ============================================
-# Player Stats (server-authoritative)
-# ============================================
-
-func get_player_stats(peer_id: int) -> Dictionary:
-	for pid in player_stats.keys():
-		if int(pid) == peer_id:
-			return player_stats[pid]
-	return PlayerData.new().to_dict()
-
-
-func update_player_stat(peer_id: int, stat_name: String, value: int) -> void:
-	# Server-authoritative stat update + real-time broadcast
-	if not multiplayer.is_server():
-		return
-	if stat_name not in ["hp", "attack"]:
-		push_warning("Invalid stat name: %s" % stat_name)
-		return
-	var pd: PlayerData = null
-	for pid in player_data.keys():
-		if int(pid) == peer_id:
-			pd = player_data[pid]
-			break
-	if pd == null:
-		pd = PlayerData.new()
-		player_data[peer_id] = pd
-	match stat_name:
-		"hp":
-			pd.hp = max(0, value)
-		"attack":
-			pd.attack = max(0, value)
-	_broadcast_player_stats()
-
-
-@rpc("any_peer", "reliable")
-func request_update_stat(peer_id: int, stat_name: String, value: int) -> void:
-	if not multiplayer.is_server():
-		return
-	var sender := multiplayer.get_remote_sender_id()
-	# Only allow players to modify their own stats
-	if sender != 0 and sender != peer_id:
-		push_warning("Player %d attempted to modify stats for %d" % [sender, peer_id])
-		return
-	update_player_stat(peer_id, stat_name, value)
-
-
-@rpc("any_peer", "reliable")
-func request_player_stats() -> void:
-	if not multiplayer.is_server():
-		return
-	var sender := multiplayer.get_remote_sender_id()
-	# Send current stats directly to the requesting peer
-	var serialized := {}
-	for pid in player_data.keys():
-		serialized[pid] = player_data[pid].to_dict()
-	if sender == 0:
-		# Local call (host)
-		player_stats = serialized.duplicate()
-		emit_signal("player_stats_updated", player_stats)
-	else:
-		rpc_id(sender, "rpc_broadcast_player_stats", serialized)
-
-
-@rpc("any_peer", "reliable")
-func rpc_broadcast_player_stats(remote_stats: Dictionary) -> void:
-	player_stats = remote_stats.duplicate()
-	emit_signal("player_stats_updated", player_stats)
-
-
-func _broadcast_player_stats() -> void:
-	var serialized := {}
-	for pid in player_data.keys():
-		serialized[pid] = player_data[pid].to_dict()
-	rpc("rpc_broadcast_player_stats", serialized)
-	call_deferred("rpc_broadcast_player_stats", serialized)
 
 
 # ============================================
@@ -938,6 +854,16 @@ func request_god_grant(favor_id: StringName) -> void:
 	if sender == 0:
 		return
 	emit_signal("god_grant_requested", sender, favor_id)
+
+
+@rpc("any_peer", "reliable")
+func request_apolaki_score(score_id: StringName) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("apolaki_score_requested", sender, score_id)
 
 
 # --- arena world sync -------------------------------------------------------
@@ -1060,3 +986,31 @@ func rpc_arena_blind(caster_id: int, radius: float, duration: float) -> void:
 	if multiplayer.is_server():
 		return
 	emit_signal("arena_blind_received", caster_id, radius, duration)
+
+# --- shockwave (Patintero): the mortal's attack ------------------------------
+# A mortal's attack (the `attack` action) throws a shockwave out around itself.
+# The wave is the caster's own to start, but the shove it deals to the OTHER
+# mortals is the host's to decide: a client asks the host, the host grows the
+# real area and tells every screen to draw it.
+
+@rpc("any_peer", "reliable")
+func request_arena_shock(origin: Vector2) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("arena_shock_requested", sender, origin)
+
+
+func send_arena_shock(caster_id: int, origin: Vector2) -> void:
+	if not has_multiplayer_peer():
+		return
+	rpc("rpc_arena_shock", caster_id, origin)
+
+
+@rpc("any_peer", "reliable")
+func rpc_arena_shock(caster_id: int, origin: Vector2) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("arena_shock_received", caster_id, origin)
