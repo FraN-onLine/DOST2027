@@ -76,8 +76,11 @@ func _run() -> void:
 	var origin: Vector2 = _arena.player.global_position
 	_arena._mortal_positions[2] = origin + Vector2(40.0, 0.0)
 
-	# First attack: the wave is born tiny, the cooldown is up, a visual spawned.
-	_arena._try_shockwave()
+	# First attack: route an actual left click through the arena input callback.
+	var attack_click := InputEventMouseButton.new()
+	attack_click.button_index = MOUSE_BUTTON_LEFT
+	attack_click.pressed = true
+	_arena._input(attack_click)
 	print("attack: waves=%d born_radius=%.1f cooldown=%.2f visuals=%d" % [
 		_arena._shocks.size(), float(_arena._shocks[0]["radius"]) if _arena._shocks.size() > 0 else -1.0,
 		_arena._shock_cd, _arena.shocks_root.get_child_count()])
@@ -99,10 +102,19 @@ func _run() -> void:
 
 	# The wave GROWS: the rival 40px away is only shoved once the ring reaches it.
 	var grew := false
-	var before := float(_arena._shocks[0]["radius"])
+	var shock: Dictionary = _arena._shocks[0]
+	var visual: MayariShockwave = shock["wave"]
+	var before := visual.reach()
+	var contact_distance: float = origin.distance_to(_arena._mortal_positions[2]) - _arena.player.radius
+	var previous_radius := before
+	var hit_radius := -1.0
 	for i in range(60):
+		previous_radius = float(shock["radius"])
 		_arena._tick_shocks(0.02)
-		if _arena._shocks.is_empty() or fake.hits.size() > 0:
+		if fake.hits.size() > 0:
+			hit_radius = float(shock["radius"])
+			break
+		if _arena._shocks.is_empty():
 			break
 	if fake.hits.size() > 0:
 		grew = true
@@ -110,9 +122,12 @@ func _run() -> void:
 		fake.hits.size(),
 		str(fake.hits[0]["hit"]["direction"]) if fake.hits.size() > 0 else "-",
 		str(_arena.shocks_root.get_child(0).scale) if _arena.shocks_root.get_child_count() > 0 else "-"])
-	if before > 0.0:
+	if not is_equal_approx(before, visual.base_radius * visual.start_scale):
 		problems += 1
 		printerr("shock_check: the wave must be born tiny and grow from there")
+	if not (previous_radius < contact_distance and hit_radius >= contact_distance):
+		problems += 1
+		printerr("shock_check: knockback must happen on the first animated frame of body contact")
 	if not grew:
 		printerr("shock_check: the growing wave never shoved the nearby rival")
 		problems += 1

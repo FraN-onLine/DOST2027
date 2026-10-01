@@ -27,6 +27,7 @@ signal player_joined(peer_id)
 signal player_left(peer_id)
 signal connected(success, reason)
 signal player_list_updated(players)
+signal player_god_icon_changed(peer_id, god_id)
 signal game_started
 signal host_discovered(host_key, host_name, ip, port, lobby_id)
 signal host_lost(host_key, ip)
@@ -38,10 +39,12 @@ signal god_favor_requested(peer_id, amount, reason)
 signal god_skill_requested(peer_id, slot)
 signal god_grant_requested(peer_id, favor_id)
 signal apolaki_score_requested(peer_id, score_id)
+signal tala_throw_requested(peer_id, direction, origin)
 signal arena_layout_received(layout)      # host -> clients: field / corners / clones
 signal arena_state_received(state)        # host -> clients: 10 Hz world tick
 signal arena_hit_received(hit)            # host -> the peer whose mortal was hit
 signal arena_blind_received(caster_id, radius, duration)  # host -> everyone but the caster
+signal arena_movement_override_received(caster_id, duration)
 
 signal arena_shock_requested(caster_id, origin)           # client -> host: I threw my attack
 signal arena_shock_received(caster_id, origin)            # host -> clients: draw this wave
@@ -53,6 +56,9 @@ var my_name := "" # The name the user chose before hosting/joining
 var lobby_id := "" # Short code used to join a specific host
 var players := {} # peer_id -> name
 var player_data := {} # peer_id -> PlayerData (server-side authoritative name)
+var player_icons := {} # peer_id -> god id (replicated roster icon)
+var my_god_icon_id: StringName = &"mayari"
+var trial_order_ids: Array[StringName] = []
 var _used_names := {} # name -> true (server-side, to avoid duplicates)
 
 # --- Discovery state ---
@@ -126,6 +132,7 @@ func start_host(port: int = DEFAULT_PORT) -> void:
 	host_name = name
 	_used_names[name] = true
 	player_data[host_id] = PlayerData.new(name)
+	player_icons[host_id] = my_god_icon_id
 
 	# Create a short, human-friendly lobby ID so friends can join directly
 	lobby_id = _generate_lobby_id()
@@ -152,6 +159,8 @@ func stop_host() -> void:
 		peer = null
 		players.clear()
 		player_data.clear()
+		player_icons.clear()
+		trial_order_ids.clear()
 		_used_names.clear()
 		print("Server stopped")
 		emit_signal("connected", false, "host_stopped")
@@ -211,6 +220,8 @@ func leave_host() -> void:
 		peer = null
 		players.clear()
 		player_data.clear()
+		player_icons.clear()
+		trial_order_ids.clear()
 		print("Left host / disconnected")
 
 
@@ -594,6 +605,7 @@ func _on_peer_connected(id: int) -> void:
 		# Assign a temporary name; the client will send their chosen name via RPC
 		players[id] = _assign_random_name()
 		player_data[id] = PlayerData.new()
+		player_icons[id] = &"mayari"
 		broadcast_player_list()
 	emit_signal("player_joined", id)
 
@@ -625,6 +637,7 @@ func _on_peer_disconnected(id: int) -> void:
 			players.erase(id)
 			if id in player_data:
 				player_data.erase(id)
+			player_icons.erase(id)
 			broadcast_player_list()
 	emit_signal("player_left", id)
 
@@ -650,9 +663,12 @@ func _on_connection_failed() -> void:
 func broadcast_player_list() -> void:
 	print("Broadcasting player list: %s" % players)
 	emit_signal("player_list_updated", players)
+	for peer_id in players.keys():
+		var god_id: StringName = StringName(str(player_icons.get(peer_id, &"mayari")))
+		emit_signal("player_god_icon_changed", int(peer_id), god_id)
 	_announce_names()
 	if multiplayer.get_multiplayer_peer():
-		rpc("rpc_update_player_list", players)
+		rpc("rpc_update_player_list", players, player_icons)
 
 
 # Names are shown live - above a mortal, on the HUD, on the results - so every
@@ -704,8 +720,12 @@ func request_name_change(peer_id: int, new_name: String) -> void:
 
 
 @rpc("any_peer", "reliable")
-func rpc_update_player_list(remote_players: Dictionary) -> void:
+func rpc_update_player_list(remote_players: Dictionary, remote_icons: Dictionary = {}) -> void:
 	players = remote_players.duplicate()
+	player_icons = remote_icons.duplicate()
+	for peer_id in players.keys():
+		if not player_icons.has(peer_id):
+			player_icons[peer_id] = &"mayari"
 	# The host owns the names. This is where a client finally learns the name the
 	# host accepted for it - my_name is what this machine's arena reads for the
 	# tag above the mortal, so it must follow the host, not the last thing typed.
@@ -714,7 +734,10 @@ func rpc_update_player_list(remote_players: Dictionary) -> void:
 		var confirmed := str(players[my_id]).strip_edges()
 		if not confirmed.is_empty():
 			my_name = confirmed
+	my_god_icon_id = StringName(str(player_icons.get(my_id, &"mayari")))
 	emit_signal("player_list_updated", players)
+	for peer_id in player_icons.keys():
+		emit_signal("player_god_icon_changed", int(peer_id), StringName(str(player_icons[peer_id])))
 	_announce_names()
 	print("[Network] Received player list update: %s" % players)
 
@@ -740,6 +763,9 @@ func start_game() -> void:
 	_game_in_progress = true
 	stop_host_discovery()
 	_discovered_hosts.clear()
+	trial_order_ids = _create_trial_order_ids()
+	if has_multiplayer_peer():
+		rpc("rpc_sync_trial_order", trial_order_ids)
 
 
 	# Change scene for everyone
@@ -753,6 +779,63 @@ func start_game() -> void:
 func rpc_change_scene(scene_path: String) -> void:
 	if ResourceLoader.exists(scene_path):
 		get_tree().change_scene_to_file(scene_path)
+
+
+@rpc("authority", "call_local", "reliable")
+func rpc_sync_trial_order(order: Array) -> void:
+	trial_order_ids.clear()
+	for god_id in order:
+		trial_order_ids.append(StringName(str(god_id)))
+
+
+func _create_trial_order_ids() -> Array[StringName]:
+	var playable: Array[God] = []
+	for god in Gods.all():
+		if god.implemented and god.arena_scene != "":
+			playable.append(god)
+	if playable.is_empty():
+		playable.append(Gods.mayari())
+	var pool: Array[God] = []
+	var order: Array[StringName] = []
+	var challenges := randi_range(Gods.CHALLENGE_MIN, Gods.CHALLENGE_MAX)
+	for index in range(challenges):
+		if pool.is_empty():
+			pool = playable.duplicate()
+			pool.shuffle()
+		order.append(pool.pop_front().id)
+	order.append(Gods.BATHALA)
+	return order
+
+
+@rpc("any_peer", "reliable")
+func request_player_god_icon(god_id: StringName) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	_set_player_god_icon(sender, god_id)
+
+
+func choose_player_god_icon(god_id: StringName) -> void:
+	if has_multiplayer_peer() and not multiplayer.is_server():
+		rpc_id(1, "request_player_god_icon", god_id)
+	else:
+		_set_player_god_icon(multiplayer.get_unique_id(), god_id)
+
+
+func _set_player_god_icon(peer_id: int, god_id: StringName) -> void:
+	var god := Gods.by_id(god_id)
+	if god == null or god.id != god_id or not players.has(peer_id):
+		return
+	player_icons[peer_id] = god_id
+	if peer_id == multiplayer.get_unique_id():
+		my_god_icon_id = god_id
+	if player_data.has(peer_id) and player_data[peer_id] is PlayerData:
+		player_data[peer_id].god_icon_id = god_id
+	emit_signal("player_god_icon_changed", peer_id, god_id)
+	if multiplayer.is_server():
+		broadcast_player_list()
 
 
 
@@ -784,6 +867,9 @@ func start_god_games(scene_path := "res://scenes/Game.tscn") -> void:
 	_game_in_progress = true
 	stop_host_discovery()
 	_discovered_hosts.clear()
+	trial_order_ids = _create_trial_order_ids()
+	if has_multiplayer_peer():
+		rpc("rpc_sync_trial_order", trial_order_ids)
 	god_state.clear()
 	mortal_positions.clear()
 	for pid in players.keys():
@@ -864,6 +950,16 @@ func request_apolaki_score(score_id: StringName) -> void:
 	if sender == 0:
 		return
 	emit_signal("apolaki_score_requested", sender, score_id)
+
+
+@rpc("any_peer", "reliable")
+func request_tala_throw(direction: Vector2, origin: Vector2) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("tala_throw_requested", sender, direction, origin)
 
 
 # --- arena world sync -------------------------------------------------------
@@ -986,6 +1082,19 @@ func rpc_arena_blind(caster_id: int, radius: float, duration: float) -> void:
 	if multiplayer.is_server():
 		return
 	emit_signal("arena_blind_received", caster_id, radius, duration)
+
+
+func send_arena_movement_override(caster_id: int, duration: float) -> void:
+	if not has_multiplayer_peer() or duration <= 0.0:
+		return
+	rpc("rpc_arena_movement_override", caster_id, duration)
+
+
+@rpc("any_peer", "reliable")
+func rpc_arena_movement_override(caster_id: int, duration: float) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("arena_movement_override_received", caster_id, duration)
 
 # --- shockwave (Patintero): the mortal's attack ------------------------------
 # A mortal's attack (the `attack` action) throws a shockwave out around itself.

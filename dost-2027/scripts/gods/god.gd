@@ -8,12 +8,15 @@ extends Resource
 @export var display_name: String = ""
 @export var epithet: String = ""
 @export var color: Color = Color.WHITE
+@export var icon: Texture2D
 @export var game_name: String = ""
 @export_multiline var game_blurb: String = ""
 @export var arena_scene: String = ""
 @export var implemented: bool = false
 @export var favors: Array[GodFavor] = []
 @export var intro_lines: Array[String] = []
+@export var trial_end_lines: Array[String] = []
+@export var transition_lines: Dictionary = {}
 @export var success_lines: Array[String] = []
 @export var failure_lines: Array[String] = []
 

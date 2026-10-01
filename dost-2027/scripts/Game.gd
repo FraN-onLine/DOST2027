@@ -26,6 +26,7 @@ extends Control
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
 
 @onready var own_name_label: Label = $TopLeft/VBoxContainer/NameLabel
+@onready var own_god_icon: TextureRect = $TopLeft/VBoxContainer/GodIcon
 @onready var favor_label: Label = $TopLeft/VBoxContainer/StatsRow/FavorBox/FavorValue
 @onready var due_label: Label = $TopLeft/VBoxContainer/StatsRow/DueBox/DueValue
 @onready var e_bar: ProgressBar = $TopLeft/VBoxContainer/EBar
@@ -33,6 +34,8 @@ const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
 @onready var other_players_vbox: VBoxContainer = $OtherPlayersPanel/Margin/VBox
 @onready var opponent_placeholder: Control = $OtherPlayersPanel/Margin/VBox/OpponentPlaceholder
 @onready var timer_label: Label = $TrialTimer
+@onready var finale_panel: PanelContainer = $FinalePanel
+@onready var finale_summary: Label = $FinalePanel/Margin/VBox/Summary
 
 var arena: Node = null
 var rules: GodMatch = null
@@ -49,6 +52,7 @@ func _ready() -> void:
 	# once at start-up.
 	Network.player_list_updated.connect(_on_player_list_updated)
 	Network.player_name_changed.connect(_on_player_name_changed)
+	Network.player_god_icon_changed.connect(_on_player_god_icon_changed)
 	_build_trial_order()
 	_start_current_trial()
 
@@ -56,6 +60,7 @@ func _ready() -> void:
 func _build_hud() -> void:
 	var my_id := multiplayer.get_unique_id()
 	own_name_label.text = str(Network.players.get(my_id, Network.my_name if Network.my_name != "" else "Mortal"))
+	_set_own_god_icon(Network.player_icons.get(my_id, Network.my_god_icon_id))
 	$TopLeft/VBoxContainer/StatsRow/FavorBox/FavorCaption.text = "FAVOR"
 	$TopLeft/VBoxContainer/StatsRow/DueBox/DueCaption.text = "DUE"
 	_build_other_player_panels()
@@ -74,10 +79,17 @@ func _build_other_player_panels() -> void:
 		var panel := OPPONENT_PANEL_SCENE.instantiate()
 		other_players_vbox.add_child(panel)
 		panel.setup(id, str(Network.players[peer_id]), 0, 0)
+		panel.set_god_icon(StringName(str(Network.player_icons.get(peer_id, &"mayari"))))
 		other_player_panels[id] = panel
 	# OpponentPlaceholder is the panel authored in Game.tscn: it previews the
 	# layout while you are alone and steps aside for the first real rival.
 	opponent_placeholder.visible = other_player_panels.is_empty()
+	_refresh_opponent_display()
+
+
+func _refresh_opponent_display() -> void:
+	var isolated_trial := arena != null and StringName(str(arena.get("god_id"))) == &"apolaki"
+	$OtherPlayersPanel.visible = not isolated_trial
 
 
 func _on_player_list_updated(_players: Dictionary) -> void:
@@ -98,7 +110,30 @@ func _on_player_name_changed(peer_id: int, name: String) -> void:
 		panel.set_name_text(clean)
 
 
+func _on_player_god_icon_changed(peer_id: int, god_id: StringName) -> void:
+	if peer_id == multiplayer.get_unique_id():
+		_set_own_god_icon(god_id)
+		return
+	var panel = other_player_panels.get(peer_id)
+	if panel != null and is_instance_valid(panel):
+		panel.set_god_icon(god_id)
+
+
+func _set_own_god_icon(god_id: StringName) -> void:
+	var god := Gods.by_id(god_id)
+	if god != null:
+		own_god_icon.texture = god.icon
+
+
 func _build_trial_order() -> void:
+	if not Network.trial_order_ids.is_empty():
+		trial_order.clear()
+		for god_id in Network.trial_order_ids:
+			var god := Gods.by_id(god_id)
+			if god != null and god.id == god_id:
+				trial_order.append(god)
+		if not trial_order.is_empty():
+			return
 	# 4 to 6 challenges drawn from the gods that ship an arena, in a random
 	# order, and then Bathala's final challenge - Bathala is always last.
 	var playable: Array[God] = []
@@ -126,7 +161,7 @@ func _start_current_trial() -> void:
 	# Every god of the trial order ships its own arena scene (res://scenes/gods/
 	# <god>/). Bathala has none yet, so it stays the marker that closes the run.
 	if not god.implemented or god.arena_scene == "":
-		timer_label.text = "THE GODS ARE PLEASED"
+		_show_finale()
 		return
 	var packed: PackedScene = load(god.arena_scene)
 	if packed == null:
@@ -138,6 +173,8 @@ func _start_current_trial() -> void:
 	# them and owns the rest of the screen exactly as it was authored.
 	arena_instance.embedded = true
 	arena_instance.dialogue_prefix = "trial_%d" % (trial_index + 1)
+	arena_instance.next_god_id = trial_order[trial_index + 1].id if trial_index + 1 < trial_order.size() else &""
+	arena_instance.final_trial = false
 	$ArenaPanel.add_child(arena_instance)
 	arena = arena_instance
 	arena.tree_exited.connect(_on_arena_exited.bind(arena_instance))
@@ -148,6 +185,7 @@ func _start_current_trial() -> void:
 func _on_arena_ready() -> void:
 	if arena == null or not is_instance_valid(arena):
 		return
+	_refresh_opponent_display()
 	rules = arena.rules
 	if rules == null:
 		return
@@ -210,9 +248,7 @@ func _update_skill_bar(bar: ProgressBar, slot: int, mortal: GodMatch.Mortal) -> 
 		bar.value = 0.0
 		bar.tooltip_text = "%s  --" % ("E" if slot == GodFavor.Slot.E else "Q")
 		return
-	var ratio := 1.0
-	if favor.cooldown > 0.0:
-		ratio = clampf(1.0 - mortal.cooldown_left(favor.id) / favor.cooldown, 0.0, 1.0)
+	var ratio := rules.skill_cooldown_ratio(slot, mortal.id)
 	bar.value = ratio * 100.0
 	bar.tooltip_text = "%s  %s" % [("E" if slot == GodFavor.Slot.E else "Q"), favor.display_name]
 	bar.modulate = favor.color
@@ -234,17 +270,44 @@ func _on_trial_complete() -> void:
 	if trial_index >= trial_order.size():
 		return
 	var next_god: God = trial_order[trial_index]
-	if next_god.arena_scene == "" or not next_god.implemented:
-		timer_label.text = "THE GODS ARE PLEASED"
-		return
 	if arena != null and is_instance_valid(arena):
 		arena.queue_free()
 	arena = null
 	rules = null
-	_start_current_trial()
+	if next_god.arena_scene == "" or not next_god.implemented:
+		_show_finale()
+	else:
+		_start_current_trial()
+
+
+func _show_finale() -> void:
+	$OtherPlayersPanel.visible = true
+	finale_panel.visible = true
+	timer_label.text = "FINAL JUDGMENT"
+	var ranked: Array[Dictionary] = []
+	for player_id in run_snapshot.keys():
+		var entry: Dictionary = run_snapshot[player_id].duplicate(true)
+		entry["id"] = int(player_id)
+		ranked.append(entry)
+	ranked.sort_custom(func(a: Dictionary, b: Dictionary): return int(a.get("favor", 0)) > int(b.get("favor", 0)))
+	var rows: Array[String] = []
+	for index in range(ranked.size()):
+		var entry: Dictionary = ranked[index]
+		rows.append("%d.  %s     %d FAVOR     %d DUE" % [index + 1, str(entry.get("name", "Mortal")), int(entry.get("favor", 0)), int(entry.get("due", 0))])
+	finale_summary.text = "\n".join(rows)
 
 
 func _on_arena_exited(exited_arena: Node) -> void:
 	if arena == exited_arena:
 		arena = null
 		rules = null
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not finale_panel.visible or not event.is_action_pressed("ui_cancel"):
+		return
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.set_input_as_handled()
+	var destination := "res://scenes/Lobby.tscn" if Network.has_multiplayer_peer() else "res://scenes/MainMenu.tscn"
+	get_tree().change_scene_to_file(destination)

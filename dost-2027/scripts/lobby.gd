@@ -3,6 +3,8 @@ extends Control
 @onready var player_list_vbox = $CenterContainer/VBoxContainer/PlayerListScroll/PlayerListVBox
 @onready var name_input = $CenterContainer/VBoxContainer/NameInput
 @onready var change_name_button = $CenterContainer/VBoxContainer/ChangeNameButton
+@onready var god_icon_option: OptionButton = $CenterContainer/VBoxContainer/GodIconRow/GodIconOption
+@onready var god_icon_preview: TextureRect = $CenterContainer/VBoxContainer/GodIconRow/GodIconPreview
 @onready var start_game_button = $CenterContainer/VBoxContainer/ButtonContainer/StartGameButton
 @onready var leave_button = $CenterContainer/VBoxContainer/ButtonContainer/LeaveButton
 @onready var status_label = $StatusLabel
@@ -17,11 +19,14 @@ func _ready():
 	leave_button.pressed.connect(_on_leave_pressed)
 	change_name_button.pressed.connect(_on_change_name_pressed)
 	name_input.text_submitted.connect(_on_name_submitted)
+	god_icon_option.item_selected.connect(_on_god_icon_selected)
 	
 	# Connect to network signals
 	Network.player_joined.connect(_on_player_joined)
 	Network.player_left.connect(_on_player_left)
 	Network.player_list_updated.connect(_on_player_list_updated)
+	Network.player_god_icon_changed.connect(_on_player_god_icon_changed)
+	_populate_god_icons()
 	
 	# Check if we're the host
 	is_host = multiplayer.is_server()
@@ -109,7 +114,15 @@ func _update_player_list():
 	# Add current players
 	for player_id in connected_players.keys():
 		var hbox = HBoxContainer.new()
-		hbox.custom_minimum_size = Vector2(0, 28)
+		hbox.custom_minimum_size = Vector2(0, 34)
+		var icon_rect := TextureRect.new()
+		icon_rect.custom_minimum_size = Vector2(28, 28)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var player_god := Gods.by_id(StringName(str(Network.player_icons.get(player_id, &"mayari"))))
+		if player_god != null:
+			icon_rect.texture = player_god.icon
+		hbox.add_child(icon_rect)
 		var label = Label.new()
 		label.text = str(connected_players[player_id])
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -130,3 +143,43 @@ func _update_player_list():
 	if is_host:
 		start_game_button.disabled = connected_players.size() < Network.MIN_PLAYERS_TO_START
 		status_label.text = "Players: " + str(connected_players.size()) + "/" + str(Network.MAX_PLAYERS)
+
+
+func _populate_god_icons() -> void:
+	god_icon_option.clear()
+	var selected_id := Network.my_god_icon_id
+	var selected_index := 0
+	for god in Gods.all():
+		if god.icon == null:
+			continue
+		var index := god_icon_option.item_count
+		god_icon_option.add_item(god.display_name)
+		god_icon_option.set_item_metadata(index, god.id)
+		if god.id == selected_id:
+			selected_index = index
+	if god_icon_option.item_count == 0:
+		return
+	god_icon_option.select(selected_index)
+	_show_god_icon(selected_id)
+
+
+func _on_god_icon_selected(index: int) -> void:
+	var god_id := StringName(str(god_icon_option.get_item_metadata(index)))
+	_show_god_icon(god_id)
+	Network.choose_player_god_icon(god_id)
+
+
+func _show_god_icon(god_id: StringName) -> void:
+	var god := Gods.by_id(god_id)
+	if god != null:
+		god_icon_preview.texture = god.icon
+
+
+func _on_player_god_icon_changed(peer_id: int, god_id: StringName) -> void:
+	if peer_id == multiplayer.get_unique_id():
+		_show_god_icon(god_id)
+		for index in range(god_icon_option.item_count):
+			if StringName(str(god_icon_option.get_item_metadata(index))) == god_id:
+				god_icon_option.select(index)
+				break
+	_update_player_list()

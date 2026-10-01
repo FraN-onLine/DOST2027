@@ -351,6 +351,21 @@ func is_skill_ready(slot: int, player_id: int = -1) -> bool:
 	return favor != null and m.cooldown_left(favor.id) <= 0.0
 
 
+func skill_cooldown(slot: int, player_id: int = -1) -> float:
+	var m := _resolve(player_id)
+	if m == null:
+		return 0.0
+	var favor := m.favor_in_slot(slot)
+	if favor == null:
+		return 0.0
+	var multiplier := 1.0
+	if slot == GodFavor.Slot.E and m.has_favor(&"the_bountiful_e"):
+		multiplier *= m.favor_by_id(&"the_bountiful_e").param("cooldown_multiplier", 0.9)
+	if slot == GodFavor.Slot.Q and m.has_favor(&"the_bountiful_q"):
+		multiplier *= m.favor_by_id(&"the_bountiful_q").param("cooldown_multiplier", 0.9)
+	return favor.cooldown * multiplier
+
+
 func skill_cooldown_ratio(slot: int, player_id: int = -1) -> float:
 	# 1.0 = ready to fire, 0.0 = just fired - the E / Q bars read this directly.
 	var m := _resolve(player_id)
@@ -359,9 +374,10 @@ func skill_cooldown_ratio(slot: int, player_id: int = -1) -> float:
 	var favor := m.favor_in_slot(slot)
 	if favor == null:
 		return 0.0
-	if favor.cooldown <= 0.0:
+	var cooldown := skill_cooldown(slot, player_id)
+	if cooldown <= 0.0:
 		return 1.0
-	return clampf(1.0 - m.cooldown_left(favor.id) / favor.cooldown, 0.0, 1.0)
+	return clampf(1.0 - m.cooldown_left(favor.id) / cooldown, 0.0, 1.0)
 
 
 func use_skill(slot: int, player_id: int = -1) -> GodFavor:
@@ -371,8 +387,9 @@ func use_skill(slot: int, player_id: int = -1) -> GodFavor:
 	var favor := m.favor_in_slot(slot)
 	if favor == null or m.cooldown_left(favor.id) > 0.0:
 		return null
-	if favor.cooldown > 0.0:
-		m.cooldowns[favor.id] = favor.cooldown
+	var cooldown := skill_cooldown(slot, player_id)
+	if cooldown > 0.0:
+		m.cooldowns[favor.id] = cooldown
 	if favor.duration > 0.0:
 		m.durations[favor.id] = favor.duration
 	var immunity := favor.param("loss_immunity", 0.0)

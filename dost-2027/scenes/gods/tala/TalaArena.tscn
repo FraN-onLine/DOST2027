@@ -1,0 +1,111 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/gods/tala/tala_arena.gd" id="2_tala"]
+[ext_resource type="Texture2D" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
+[ext_resource type="Texture2D" path="res://Assets/Gods/Tala/Tala-Guard.png" id="4_guard"]
+[ext_resource type="Texture2D" path="res://Assets/Gods/Tala/Cans.png" id="5_cans"]
+[ext_resource type="FontFile" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="6_font"]
+
+[node name="TalaArena" instance=ExtResource("1_base")]
+script = ExtResource("2_tala")
+god_id = &"tala"
+embedded = true
+dialogue_prefix = "tala"
+throw_speed = 720.0
+slipper_range = 850.0
+can_radius = 28.0
+tala_radius = 34.0
+tala_speed = 92.0
+can_favor = 300
+tala_penalty = 100
+
+[node name="Background" parent="." index="0"]
+position = Vector2(654.75, 274)
+scale = Vector2(6.5475, 4.87)
+texture = ExtResource("3_bg")
+
+[node name="Border" type="Line2D" parent="ArenaField"]
+points = PackedVector2Array(260, 210, 1120, 210, 1120, 610, 260, 610, 260, 210)
+width = 5.0
+default_color = Color(0.12, 0.3, 0.65, 0.8)
+
+[node name="ShootingZone" type="ColorRect" parent="ArenaField"]
+position = Vector2(270, 220)
+size = Vector2(185, 380)
+mouse_filter = 2
+color = Color(0.12, 0.28, 0.55, 0.16)
+
+[node name="ShootingLine" type="Line2D" parent="ArenaField"]
+points = PackedVector2Array(450, 222, 450, 598)
+width = 3.0
+default_color = Color(0.2, 0.52, 0.95, 0.85)
+
+[node name="Barrier" type="Line2D" parent="ArenaField"]
+points = PackedVector2Array(470, 220, 470, 600)
+width = 7.0
+default_color = Color(0.35, 0.55, 0.9, 0.45)
+
+[node name="TalaPath" type="Line2D" parent="ArenaField"]
+points = PackedVector2Array(835, 280, 835, 570)
+width = 2.0
+default_color = Color(0.2, 0.35, 0.65, 0.28)
+
+[node name="Cans" type="Node2D" parent="ArenaField"]
+
+[node name="Can0" type="Sprite2D" parent="ArenaField/Cans"]
+position = Vector2(985, 315)
+scale = Vector2(0.9, 0.9)
+texture = ExtResource("5_cans")
+
+[node name="Can1" type="Sprite2D" parent="ArenaField/Cans"]
+position = Vector2(985, 410)
+scale = Vector2(0.9, 0.9)
+texture = ExtResource("5_cans")
+
+[node name="Can2" type="Sprite2D" parent="ArenaField/Cans"]
+position = Vector2(985, 505)
+scale = Vector2(0.9, 0.9)
+texture = ExtResource("5_cans")
+
+[node name="Tala" type="Sprite2D" parent="ArenaField"]
+position = Vector2(835, 425)
+scale = Vector2(0.72, 0.72)
+texture = ExtResource("4_guard")
+
+[node name="Player" parent="." index="5"]
+position = Vector2(350, 420)
+
+[node name="Slippers" type="Node2D" parent="."]
+z_index = 6
+
+[node name="TalaHud" type="CanvasLayer" parent="."]
+layer = 11
+
+[node name="Status" type="Label" parent="TalaHud"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 480.0
+offset_top = -72.0
+offset_right = 880.0
+offset_bottom = -48.0
+theme_override_colors/font_color = Color(0.65, 0.82, 1, 1)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 14
+text = "THROW FROM THE LINE"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="TalaHud"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 480.0
+offset_top = -46.0
+offset_right = 880.0
+offset_bottom = -20.0
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 0.85)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 10
+text = "LEFT CLICK - THROW    WASD / ARROWS - MOVE    E / Q - FAVORS"
+horizontal_alignment = 1

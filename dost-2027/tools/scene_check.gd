@@ -10,6 +10,7 @@ const SCENES := [
 	"res://scenes/gods/mayari/MayariClone.tscn",
 	"res://scenes/gods/apolaki/ApolakiArena.tscn",
 	"res://scenes/gods/apolaki/Apolaki.tscn",
+	"res://scenes/gods/tala/TalaArena.tscn",
 	"res://scenes/gods/common/Mortal.tscn",
 	"res://UI/Popups/favor_popup.tscn",
 	"res://scenes/Game.tscn",

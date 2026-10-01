@@ -99,6 +99,33 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 13
 text = "UPDATE NAME"
 
+[node name="GodIconRow" type="HBoxContainer" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(420, 44)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GodIconLabel" type="Label" parent="CenterContainer/VBoxContainer/GodIconRow"]
+custom_minimum_size = Vector2(102, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 10
+text = "GOD ICON"
+vertical_alignment = 1
+
+[node name="GodIconOption" type="OptionButton" parent="CenterContainer/VBoxContainer/GodIconRow"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+
+[node name="GodIconPreview" type="TextureRect" parent="CenterContainer/VBoxContainer/GodIconRow"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
 [node name="ButtonContainer" type="HBoxContainer" parent="CenterContainer/VBoxContainer" unique_id=2037791789]
 layout_mode = 2
 theme_override_constants/separation = 10

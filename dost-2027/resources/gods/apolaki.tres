@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/gods/god_favor.gd" id="1_dp3kp"]
 [ext_resource type="Texture2D" path="res://icon.svg" id="2_e57f4"]
 [ext_resource type="Script" path="res://scripts/gods/god.gd" id="3_nxm4o"]
+[ext_resource type="Texture2D" path="res://Assets/Gods/Apolaki/Apolaki-Icon.png" id="4_icon"]
 
 [sub_resource type="Resource" id="Resource_c8kc2"]
 script = ExtResource("1_dp3kp")
@@ -105,11 +106,19 @@ id = &"apolaki"
 display_name = "APOLAKI"
 epithet = "God of the Sun and War"
 color = Color(1, 0.85, 0.25, 1)
+icon = ExtResource("4_icon")
 game_name = "ARNIS"
 game_blurb = "Duel Apolaki one on one. Strike him while he is open, guard while he is not, and watch for his blind spots."
 arena_scene = "res://scenes/gods/apolaki/ApolakiArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_dp3kp")]([SubResource("Resource_c8kc2"), SubResource("Resource_gj13w"), SubResource("Resource_q3nb1"), SubResource("Resource_vs2ev"), SubResource("Resource_mua1f"), SubResource("Resource_0jkg1"), SubResource("Resource_3ahhg")])
 intro_lines = Array[String](["Apolaki does not blink while the sun is up."])
+trial_end_lines = Array[String](["The duel is over. Your Favor carries on to the next game."])
+transition_lines = {
+"apolaki": ["Apolaki, another duel awaits."],
+"mayari": ["Mayari, the next arena is yours. Keep the mortals in your light."],
+"tala": ["Tala, take the field. Their next throw is yours to judge."],
+"bathala": ["Bathala, the trials are complete. The mortals await your judgment."]
+}
 success_lines = Array[String](["You struck true. The sun saw it."])
 failure_lines = Array[String](["Not enough fire in you yet."])

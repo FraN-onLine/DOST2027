@@ -298,12 +298,14 @@ func _process(delta: float) -> void:
 	_tick_attack_ui(delta)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("attack") and _phase == Phase.PLAYING and not player.locked and not dialogue.is_active() and not due_menu.is_open():
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _phase != Phase.PLAYING or player.locked or dialogue.is_active() or due_menu.is_open():
+			return
 		_try_shockwave()
-		get_viewport().set_input_as_handled()
-		return
-	super._unhandled_input(event)
+		var viewport := get_viewport()
+		if viewport != null:
+			viewport.set_input_as_handled()
 
 
 func _try_shockwave() -> void:
@@ -318,9 +320,9 @@ func _try_shockwave() -> void:
 		return
 	_shock_cd = shock_cooldown
 	var origin := player.global_position
-	_spawn_shockwave(origin)
+	var wave := _spawn_shockwave(origin)
 	if _authority:
-		_start_shock(origin, _my_id)
+		_start_shock(origin, _my_id, wave)
 		if _networked and _net != null:
 			_net.send_arena_shock(_my_id, origin)
 	elif _net != null and _net.has_multiplayer_peer():
@@ -331,37 +333,40 @@ func _try_shockwave() -> void:
 func _tick_shocks(delta: float) -> void:
 	if _shocks.is_empty():
 		return
-	var speed := shock_radius / maxf(0.01, shock_expand_time)
 	var alive: Array = []
 	for shock in _shocks:
-		var radius := float(shock["radius"]) + speed * delta
+		var wave: MayariShockwave = shock.get("wave")
+		var radius := wave.advance(delta) if is_instance_valid(wave) else float(shock["radius"])
 		shock["radius"] = radius
 		for entry in mortal_entries():
 			var mortal_id := int(entry["id"])
 			if mortal_id == int(shock["caster"]) or shock["hit"].has(mortal_id):
 				continue
-			if (entry["pos"] as Vector2).distance_to(shock["origin"] as Vector2) <= radius:
+			var contact_radius := maxf(0.0, (entry["pos"] as Vector2).distance_to(shock["origin"] as Vector2) - player.radius)
+			if contact_radius <= radius:
 				shock["hit"][mortal_id] = true
 				knock_mortal(mortal_id, shock["origin"], shock_stun, shock_force)
-		if radius < shock_radius:
+		if is_instance_valid(wave) and not wave.is_finished():
 			alive.append(shock)
 	_shocks = alive
 
 
 # The host's copy of a wave: it grows the real area the attack covers.
-func _start_shock(origin: Vector2, caster_id: int) -> void:
-	_shocks.append({"origin": origin, "radius": 0.0, "caster": caster_id, "hit": {}})
+func _start_shock(origin: Vector2, caster_id: int, wave: MayariShockwave) -> void:
+	wave.set_manual_animation(true)
+	_shocks.append({"origin": origin, "radius": wave.reach(), "caster": caster_id, "hit": {}, "wave": wave})
 
 
 # The wave every screen draws. It uses the same size and timing as the rules.
-func _spawn_shockwave(origin: Vector2) -> void:
+func _spawn_shockwave(origin: Vector2) -> MayariShockwave:
 	if shocks_root == null:
-		return
+		return null
 	var wave: MayariShockwave = SHOCK_SCENE.instantiate()
 	shocks_root.add_child(wave)
 	wave.global_position = origin
 	wave.expand_time = shock_expand_time
 	wave.max_scale = shock_radius / maxf(0.01, wave.base_radius)
+	return wave
 
 
 func _tick_attack_ui(delta: float) -> void:
@@ -377,8 +382,10 @@ func _tick_attack_ui(delta: float) -> void:
 
 # A client attacked: the host grows the real wave here and shares it.
 func _on_arena_shock_requested(caster_id: int, origin: Vector2) -> void:
-	_spawn_shockwave(origin)
-	_start_shock(origin, caster_id)
+	var wave := _spawn_shockwave(origin)
+	if wave == null:
+		return
+	_start_shock(origin, caster_id, wave)
 	if _net != null:
 		_net.send_arena_shock(caster_id, origin)
 

@@ -33,6 +33,11 @@ func _run() -> void:
 	_arena.player.set_lock(false)
 	_arena.rules.local().favor = 500
 	_arena.rules.ensure_mortal(2, "RIVAL").favor = 500
+	var rival_visual := Node2D.new()
+	_arena.ghosts_root.add_child(rival_visual)
+	_arena._ghosts[2] = rival_visual
+	_arena._sync_ghosts()
+	_check(_arena._ghosts.is_empty(), "Apolaki does not render other players")
 	_arena.duelist.global_position = _arena.player.global_position
 
 	_arena.duelist._enter(ApolakiDuelist.State.OPEN)

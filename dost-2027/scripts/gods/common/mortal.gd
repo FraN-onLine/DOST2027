@@ -18,6 +18,8 @@ var radius := 13.0
 
 var _stun := 0.0
 var _knockback := Vector2.ZERO
+var _forced_move_time := 0.0
+var _forced_move_direction := Vector2.ZERO
 var _bob := 0.0
 var _flash := 0.0
 var _floating_time := 0.0
@@ -37,6 +39,11 @@ func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:
 	_stun = maxf(_stun, stun_time)
 	_knockback = direction.normalized() * force
 	_flash = 0.35
+
+
+func force_movement(direction: Vector2, duration: float) -> void:
+	_forced_move_direction = direction.normalized()
+	_forced_move_time = maxf(_forced_move_time, duration)
 
 
 func set_lock(value: bool) -> void:
@@ -69,6 +76,9 @@ func _physics_process(delta: float) -> void:
 		_stun = maxf(0.0, _stun - delta)
 		velocity = _knockback
 		_knockback = _knockback.move_toward(Vector2.ZERO, 1400.0 * delta)
+	elif _forced_move_time > 0.0:
+		_forced_move_time = maxf(0.0, _forced_move_time - delta)
+		velocity = _forced_move_direction * move_speed
 	elif locked:
 		velocity = Vector2.ZERO
 	else:

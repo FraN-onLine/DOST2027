@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_8h3xf"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_1yni8"]
+[ext_resource type="Texture2D" path="res://icon.svg" id="3_icon"]
 
 [resource]
 script = ExtResource("2_1yni8")
@@ -9,6 +10,7 @@ id = &"bathala"
 display_name = "BATHALA"
 epithet = "Ang Laro ng mga diyos"
 color = Color(1, 0.95, 0.78, 1)
+icon = ExtResource("3_icon")
 game_name = "THE FINAL CHALLENGE"
 game_blurb = "Bathala judges the FAVOR you gathered from every god."
 intro_lines = Array[String](["Bathala took the dearest of the mortals, convince him that they are ought to be released by getting FAVOR from God's challenges.", "FAVOR is the total points among all the challenges.", "You and fellow mortals take on a series of 4 to 6 challenges, and then one final challenge.", "Each god puts a Filipino sport in an arena and awards whoever entertained them the most.", "Every 1000 FAVOR you reach hands you a God's Due to spend on their favors.", "Play well. The gods are watching."])

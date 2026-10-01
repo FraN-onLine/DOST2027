@@ -4,9 +4,9 @@ extends Node2D
 # The little shockwave a mortal's attack throws out around itself in the
 # patintero arena (MayariArena.gd spawns it, one per cast, on every screen).
 #
-# It is purely a VISUAL: the growing area that actually shoves the other mortals
-# is computed by the arena's rules, and this scene only grows and fades to match
-# it. Nothing here draws - the art lives in Shockwave.tscn:
+# The scene owns the expanding visual timeline. The authoritative arena advances
+# that same timeline while checking body contact, so knockback and the ring stay
+# in sync. Nothing here draws - the art lives in Shockwave.tscn:
 #
 #   Ring - a Line2D circle drawn at `base_radius`, scaled up as the wave grows.
 #   Icon - a Sprite2D carrying the Godot placeholder (res://icon.svg), the same
@@ -24,6 +24,8 @@ extends Node2D
 @onready var icon: Sprite2D = get_node_or_null("Icon")
 
 var _age := 0.0
+var _manual_animation := false
+var _finished := false
 
 
 func _ready() -> void:
@@ -32,6 +34,22 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if not _manual_animation:
+		advance(delta)
+
+
+func set_manual_animation(enabled: bool) -> void:
+	_manual_animation = enabled
+	set_process(not enabled)
+
+
+func is_finished() -> bool:
+	return _finished
+
+
+func advance(delta: float) -> float:
+	if _finished:
+		return reach()
 	_age += delta
 	var t := clampf(_age / maxf(0.01, expand_time), 0.0, 1.0)
 	# Ease out: the wave leaps out of the mortal and settles as it reaches full.
@@ -39,10 +57,12 @@ func _process(delta: float) -> void:
 	scale = Vector2.ONE * lerpf(start_scale, max_scale, eased)
 	modulate.a = 0.9 * (1.0 - t)
 	if t >= 1.0:
+		_finished = true
 		queue_free()
+	return reach()
 
 
 # How much of the field this wave covers, in world units - the arena uses the
 # same number for the shove it applies, so the hitbox and the art stay together.
 func reach() -> float:
-	return base_radius * max_scale
+	return base_radius * scale.x

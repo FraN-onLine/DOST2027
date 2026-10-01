@@ -19,6 +19,7 @@ const TEMP_ICON := "res://icon.svg"  # placeholder art for every god / favor
 
 const MAYARI := &"mayari"
 const APOLAKI := &"apolaki"
+const TALA := &"tala"
 const BATHALA := &"bathala"
 
 # The God Games' own name: the title screen and the finale read these, so the
@@ -118,6 +119,10 @@ static func mayari() -> God:
 
 static func apolaki() -> God:
 	return by_id(APOLAKI)
+
+
+static func tala() -> God:
+	return by_id(TALA)
 
 
 static func bathala() -> God:

@@ -49,6 +49,11 @@ func _run() -> void:
 	view.size = Vector2i(1152, 648)
 	view.disable_3d = true
 	get_root().add_child(view)
+	await _frames(2)
+	var order_network = get_root().get_node_or_null("Network")
+	if order_network != null:
+		var forced_order: Array[StringName] = [&"mayari", &"apolaki", &"tala", &"bathala"]
+		order_network.trial_order_ids = forced_order
 
 	_shell = load("res://scenes/Game.tscn").instantiate()
 	view.add_child(_shell)

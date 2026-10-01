@@ -75,6 +75,27 @@ func arena_round_reset() -> void:
 		duelist.restart()
 
 
+func nearby_movement_favors_enabled() -> bool:
+	return false
+
+
+func shares_mortal_positions() -> bool:
+	return false
+
+
+func _sync_ghosts() -> void:
+	# Every Apolaki fight is personal. Keep peer positions and scores in the
+	# shared rules state, but never draw another mortal in this arena.
+	for ghost in _ghosts.values():
+		if is_instance_valid(ghost):
+			ghost.queue_free()
+	_ghosts.clear()
+
+
+func _move_ghosts(_delta: float) -> void:
+	pass
+
+
 func _process(delta: float) -> void:
 	super._process(delta)
 	_strike_cd = maxf(0.0, _strike_cd - delta)

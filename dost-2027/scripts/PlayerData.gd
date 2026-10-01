@@ -11,6 +11,7 @@ extends RefCounted
 # player lives in GodMatch.Mortal (favor, due, favors, cooldowns).
 
 var name: String = ""
+var god_icon_id: StringName = &"mayari"
 
 
 func _init(player_name: String = "") -> void:
@@ -18,8 +19,10 @@ func _init(player_name: String = "") -> void:
 
 
 func to_dict() -> Dictionary:
-	return {"name": name}
+	return {"name": name, "god_icon_id": str(god_icon_id)}
 
 
 static func from_dict(data: Dictionary) -> PlayerData:
-	return PlayerData.new(str(data.get("name", "")))
+	var player := PlayerData.new(str(data.get("name", "")))
+	player.god_icon_id = StringName(str(data.get("god_icon_id", "mayari")))
+	return player

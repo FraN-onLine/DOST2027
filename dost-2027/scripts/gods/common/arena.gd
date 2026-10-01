@@ -96,6 +96,7 @@ const POPUP_LOSS_COLOR := Color(1.0, 0.55, 0.45)
 const POPUP_OFFSET := Vector2(0.0, -42.0)   # above the mortal's head
 
 const DIALOGUE_TIMEOUT := 20.0
+const GUIDANCE_RADIUS := 150.0
 
 enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 
@@ -105,6 +106,8 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 # draws the shared panels and the arena hides its duplicates.
 @export var embedded := false
 @export var dialogue_prefix := "mayari"
+@export var next_god_id: StringName = &""
+@export var final_trial := false
 
 @export_category("Shared Arena Rules")
 # The round every arena is played in - 1:30. This is the one clock shared by all
@@ -178,6 +181,10 @@ var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
 var _victor_claimed: Dictionary = {}  # owner id -> true (once per trial)
 var _rivalry_claimed: Dictionary = {} # owner id -> {victim id: true}
 var _sun_patch_rects: Array[TextureRect] = []
+var _base_move_speed := 215.0
+var _guidance_time := 0.0
+var _movement_override_caster := -1
+var _movement_override_time := 0.0
 
 # --- multiplayer ---
 var _net: Node = null
@@ -234,6 +241,7 @@ func _ready() -> void:
 	# The spawn is authored in the scene - remember it so every round starts from
 	# the drawn spot (never from arithmetic on a rect).
 	_start_position = player.global_position
+	_base_move_speed = player.move_speed
 	_read_field()
 	player.set_display_name(_mortal_name(), god.color)
 	hud.bind(rules, god)
@@ -347,6 +355,10 @@ func arena_read_tick(_state: Dictionary) -> void:
 	pass
 
 
+func shares_mortal_positions() -> bool:
+	return true
+
+
 # --- MULTIPLAYER: layout sync -----------------------------------------------
 
 func _publish_layout() -> void:
@@ -453,6 +465,7 @@ func _process(delta: float) -> void:
 	_flush_favor_popups(delta)
 	_apply_blindness(delta)
 	_move_ghosts(delta)
+	_update_movement_favors(delta)
 
 
 func _tick_trial(delta: float) -> void:
@@ -470,6 +483,8 @@ func _tick_trial(delta: float) -> void:
 
 func _client_tick(delta: float) -> void:
 	# Clients only report where their mortal is - the host keeps score.
+	if not shares_mortal_positions():
+		return
 	_net_tick -= delta
 	if _net_tick > 0.0:
 		return
@@ -727,11 +742,11 @@ func _continue_dialogue() -> void:
 			# ticks to walk it through the 3 - 2 - 1 and into the trial.
 			_phase = Phase.COUNTDOWN
 		return
-	hud.show_results(_results, "TRIAL COMPLETE")
-	if _free_grants > 0:
-		hud.set_results_hint("F - CLAIM YOUR FREE FAVOR      SPACE - PLAY AGAIN      ESC - LEAVE")
-	else:
-		hud.set_results_hint("SPACE - PLAY AGAIN      ESC - LEAVE")
+	if embedded and not final_trial:
+		trial_complete.emit()
+		return
+	hud.show_results(_results, "THE GODS HAVE SPOKEN" if embedded else "TRIAL COMPLETE")
+	hud.set_results_hint("SPACE - FINISH RUN      ESC - LEAVE" if embedded else "SPACE - PLAY AGAIN      ESC - LEAVE")
 
 
 func _end_trial() -> void:
@@ -771,33 +786,23 @@ func _results_from_mirror() -> Dictionary:
 func _show_closing_lines() -> void:
 	var mine := local_favor()
 	var lines: Array = []
-	var success := mine >= success_favor
-	lines.append_array(_speech(god, god.success_lines if success else god.failure_lines))
+	if final_trial:
+		var success := mine >= success_favor
+		lines.append_array(_speech(god, god.success_lines if success else god.failure_lines))
+	else:
+		lines.append_array(_speech(god, god.trial_end_lines))
+		if god.trial_end_lines.is_empty():
+			lines.append({"speaker": god.display_name, "color": god.color, "text": "The trial is complete. Your Favor carries onward."})
 
-	# God to the succeeding God, then the succeeding God to you.
-	var next_god := Gods.next_god(god.id)
+	var next_god := Gods.by_id(next_god_id) if next_god_id != &"" else Gods.next_god(god.id)
 	_free_grants = 0
 	if next_god != null:
-		lines.append({
-			"speaker": god.display_name, "color": god.color,
-			"text": "%s, take the field." % next_god.display_name,
-		})
-		lines.append({
-			"speaker": next_god.display_name, "color": next_god.color,
-			"text": _opening_line(next_god),
-		})
-		lines.append({
-			"speaker": next_god.display_name, "color": next_god.color,
-			"text": "You gathered %d FAVOR in %s's game. %s" % [mine, god.display_name, _due_note()],
-		})
-		var mortal := rules.local()
-		if mortal != null and mortal.due <= 0:
-			# A god intervening between trials - a free favor.
-			_free_grants = 1
-			lines.append({
-				"speaker": next_god.display_name, "color": next_god.color,
-				"text": "You hold no God's Due. Take one favor of mine - press F.",
-			})
+		var transition: Array = god.transition_lines.get(str(next_god.id), [])
+		if transition.is_empty():
+			transition = ["%s, the field is yours." % next_god.display_name]
+		lines.append_array(_speech(god, transition))
+		if next_god.arena_scene == "":
+			lines.append_array(_speech(next_god, next_god.intro_lines))
 	dialogue.show_lines(lines, TEMP_ICON)
 
 
@@ -833,7 +838,7 @@ func _use_skill(slot: int) -> void:
 			return
 		var mortal := rules.local()
 		if mortal != null:
-			mortal.cooldowns[bound.id] = bound.cooldown
+			mortal.cooldowns[bound.id] = rules.skill_cooldown(slot)
 		if _net != null and _net.has_multiplayer_peer():
 			_net.rpc_id(1, "request_god_skill", slot)
 		_skill_feedback(bound)
@@ -887,6 +892,67 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_double_loss[mortal.id] = maxf(float(_double_loss.get(mortal.id, 0.0)), duration)
 			_add_sun_patches(mortal.id, 1, duration)
 		_publish_god_state()
+	elif favor.id == &"let_us_light_your_way":
+		var duration := maxf(0.0, favor.duration)
+		_start_movement_override(caster_id, duration)
+		if _authority and _networked and _net != null:
+			_net.send_arena_movement_override(caster_id, duration)
+	elif favor.id == &"unswerved_unbothered":
+		var mortal := rules.mortal(caster_id)
+		if mortal == null:
+			return
+		_sun_patches.erase(caster_id)
+		if caster_id == _my_id:
+			_blind_time = 0.0
+			_refresh_sun_patches()
+		if _authority:
+			_publish_god_state()
+
+
+func _start_movement_override(caster_id: int, duration: float) -> void:
+	_movement_override_caster = caster_id
+	_movement_override_time = maxf(_movement_override_time, duration)
+
+
+func _on_movement_override_received(caster_id: int, duration: float) -> void:
+	if caster_id == _my_id or duration <= 0.0:
+		return
+	_start_movement_override(caster_id, duration)
+
+
+func nearby_movement_favors_enabled() -> bool:
+	return true
+
+
+func _update_movement_favors(delta: float) -> void:
+	var mortal := rules.local()
+	if mortal == null:
+		return
+	var speed := _base_move_speed
+	if mortal.has_favor(&"the_shining"):
+		speed *= 1.1
+	if mortal.has_favor(&"the_guidance") and nearby_movement_favors_enabled():
+		var nearby := false
+		for entry in mortal_entries():
+			if int(entry["id"]) != _my_id and player.global_position.distance_to(entry["pos"]) <= GUIDANCE_RADIUS:
+				nearby = true
+				break
+		if nearby:
+			_guidance_time = 1.0
+		else:
+			_guidance_time = maxf(0.0, _guidance_time - delta)
+		if _guidance_time > 0.0:
+			speed *= 1.5
+	else:
+		_guidance_time = 0.0
+	player.move_speed = speed
+
+	if _movement_override_time > 0.0:
+		_movement_override_time = maxf(0.0, _movement_override_time - delta)
+		if _movement_override_caster != _my_id:
+			var target := mortal_position(_movement_override_caster)
+			if target != Vector2.INF:
+				player.force_movement(target - player.global_position, 0.08)
 
 
 func _collect_sun_patch_rects() -> void:
@@ -914,7 +980,7 @@ func _on_sun_favor_changed(player_id: int, delta: int) -> void:
 	if not _authority or delta >= 0:
 		return
 	var victim := rules.mortal(player_id)
-	if victim == null:
+	if victim == null or victim.duration_left(&"unswerved_unbothered") > 0.0:
 		return
 	for owner in rules.mortals.values():
 		if owner.id != player_id and owner.has_favor(&"the_sun_god"):
@@ -931,6 +997,9 @@ func _on_sun_favor_changed(player_id: int, delta: int) -> void:
 
 func _add_sun_patches(mortal_id: int, count: int, duration: float) -> void:
 	if count <= 0 or duration <= 0.0:
+		return
+	var mortal := rules.mortal(mortal_id)
+	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		return
 	var timers: Array = _sun_patches.get(mortal_id, [])
 	for index in range(count):
@@ -1011,6 +1080,9 @@ func _tick_siblings_rivalry() -> void:
 func _on_arena_blind_received(caster_id: int, radius: float, duration: float) -> void:
 	if _authority or caster_id == _my_id or duration <= 0.0:
 		return
+	var mortal := rules.local()
+	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
+		return
 	_blind_radius = radius
 	_blind_time = maxf(_blind_time, duration)
 	_log("Half Vision - you see only a circle around your mortal", god.color)
@@ -1071,6 +1143,8 @@ func _connect_network() -> void:
 		_net.connect("arena_hit_received", _on_arena_hit_received)
 	if _net.has_signal("arena_blind_received"):
 		_net.connect("arena_blind_received", _on_arena_blind_received)
+	if _net.has_signal("arena_movement_override_received"):
+		_net.connect("arena_movement_override_received", _on_movement_override_received)
 	_net.player_left.connect(_on_peer_left)
 	if _net.has_signal("dialogue_released"):
 		_net.connect("dialogue_released", _on_dialogue_released)
@@ -1144,15 +1218,16 @@ func _publish_god_state() -> void:
 func _publish_arena_tick() -> void:
 	if _net == null or not _authority:
 		return
-	_mortal_positions[_my_id] = player.global_position
-	var reported: Dictionary = _net.mortal_positions
-	for id in reported.keys():
-		_mortal_positions[int(id)] = reported[id]
+	if shares_mortal_positions():
+		_mortal_positions[_my_id] = player.global_position
+		var reported: Dictionary = _net.mortal_positions
+		for id in reported.keys():
+			_mortal_positions[int(id)] = reported[id]
 	# Everything every arena broadcasts, plus whatever the god's own arena adds.
 	var state := {
 		"phase": int(_phase),
 		"trial_time": _trial_time,
-		"mortals": _mortal_positions.duplicate(),
+		"mortals": _mortal_positions.duplicate() if shares_mortal_positions() else {},
 		"banner": hud.banner_label.text if hud.banner_label.visible else "",
 		"banner_color": hud.banner_label.get_theme_color("font_color"),
 		"event": hud.event_label.text,
@@ -1191,6 +1266,10 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	for id in mortals.keys():
 		_mortal_positions[int(id)] = mortals[id]
 	_sun_patches = state.get("sun_patches", {}).duplicate(true)
+	var local_mortal := rules.local()
+	if local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0:
+		_sun_patches.erase(_my_id)
+		_blind_time = 0.0
 	_refresh_sun_patches()
 	arena_read_tick(state)
 
@@ -1315,6 +1394,11 @@ func _apply_vision_mask() -> void:
 
 
 func _apply_blindness(delta: float) -> void:
+	var mortal := rules.local() if rules != null else null
+	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
+		_blind_time = 0.0
+		_sun_patches.erase(_my_id)
+		_refresh_sun_patches()
 	_blind_time = maxf(0.0, _blind_time - delta)
 	var active := _blind_time > 0.0
 	if vision_mask.visible != active:
