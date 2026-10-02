@@ -87,6 +87,20 @@ params = {
 "gain_mult_while_active": 2.0
 }
 
+[sub_resource type="Resource" id="Resource_moon1"]
+script = ExtResource("1_kov66")
+id = &"siblings_rivalry_moon"
+god_id = &"mayari"
+display_name = "Sibling's Rivalry"
+description = "Fall 1000 FAVOR behind another mortal and Mayari blocks part of their screen for 5s (once per mortal, once per trial). Only offered while you hold an Apolaki favor."
+duration = 5.0
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("2_v7yr7")
+params = {
+"behind_by": 1000,
+"requires_god": "apolaki"
+}
+
 [resource]
 script = ExtResource("3_nlsjc")
 id = &"mayari"
@@ -98,14 +112,14 @@ game_name = "PATINTERO"
 game_blurb = "Four boxes sit on the field and Mayari lights one at a time. Stand in the lit box and hold it while her two clones walk the lines drawn for them - every so often one hunts the nearest mortal - and let one touch you and you pay for it."
 arena_scene = "res://scenes/gods/mayari/MayariArena.tscn"
 implemented = true
-favors = Array[ExtResource("1_kov66")]([SubResource("Resource_0nofr"), SubResource("Resource_ib605"), SubResource("Resource_yboih"), SubResource("Resource_su3vm"), SubResource("Resource_5h57l"), SubResource("Resource_t3u61")])
-	intro_lines = Array[String](["Mayari watches you from the moon.", "Patintero was always a game of lines - mine are alive. Cross them, take my boxes and I will light your way.", "Do not make me send my clones twice."])
-	trial_end_lines = Array[String](["The moonlight fades from the field. Your Favor travels with you."])
-	transition_lines = {
-		"apolaki": ["Apolaki, the mortals are ready for your duel."],
-		"mayari": ["The moon rises again. Let the next trial begin."],
-		"tala": ["Tala, the players come to your cans. Watch their aim."],
-		"bathala": ["Bathala, the trials are complete. The mortals await your judgment."]
-	}
+favors = Array[ExtResource("1_kov66")]([SubResource("Resource_0nofr"), SubResource("Resource_ib605"), SubResource("Resource_yboih"), SubResource("Resource_su3vm"), SubResource("Resource_5h57l"), SubResource("Resource_t3u61"), SubResource("Resource_moon1")])
+intro_lines = Array[String](["Mayari watches you from the moon.", "Patintero was always a game of lines - mine are alive. Cross them, take my boxes and I will light your way.", "Do not make me send my clones twice."])
+trial_end_lines = Array[String](["The moonlight fades from the field. Your Favor travels with you."])
 success_lines = Array[String](["You moved like moonlight on water. The moon remembers this."])
 failure_lines = Array[String](["Hm. The night is long - try again before the moon sets."])
+transition_lines = {
+"apolaki": ["Apolaki, the mortals are ready for your duel."],
+"bathala": ["Bathala, the trials are complete. The mortals await your judgment."],
+"mayari": ["The moon rises again. Let the next trial begin."],
+"tala": ["Tala, the players come to your cans. Watch their aim."]
+}

@@ -183,7 +183,7 @@ func is_favor_eligible(favor: GodFavor, player_id: int = -1) -> bool:
 	var m := _resolve(player_id)
 	if m == null or favor == null:
 		return false
-	var required_god := StringName(str(favor.params.get("requires_god", "")))
+	var required_god := favor.requires_god_id()
 	if required_god == &"":
 		return true
 	for owned in m.favors:

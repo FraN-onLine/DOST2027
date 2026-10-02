@@ -1,109 +1,213 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene format=3 uid="uid://btwgotyre64ej"]
 
-[ext_resource type="PackedScene" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scripts/gods/tala/tala_arena.gd" id="2_tala"]
-[ext_resource type="Texture2D" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
-[ext_resource type="Texture2D" path="res://Assets/Gods/Tala/Tala-Guard.png" id="4_guard"]
-[ext_resource type="Texture2D" path="res://Assets/Gods/Tala/Cans.png" id="5_cans"]
-[ext_resource type="FontFile" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="6_font"]
+[ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://cknynasdvc8bu" path="res://scripts/gods/tala/tala_arena.gd" id="2_tala"]
+[ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
+[ext_resource type="Texture2D" uid="uid://dkonkmxjrraxg" path="res://Assets/Gods/Tala/Tala-Guard.png" id="4_guard"]
+[ext_resource type="Texture2D" uid="uid://beidyhoq1ofro" path="res://Assets/Gods/Tala/Cans.png" id="5_cans"]
+[ext_resource type="Texture2D" uid="uid://du3e4xxsj2xtm" path="res://Assets/Gods/Tala/Tala-Overseer.png" id="6_28pec"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="6_font"]
 
-[node name="TalaArena" instance=ExtResource("1_base")]
+[sub_resource type="AtlasTexture" id="AtlasTexture_8urks"]
+atlas = ExtResource("6_28pec")
+region = Rect2(0, 0, 130, 99)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yq6ct"]
+atlas = ExtResource("6_28pec")
+region = Rect2(130, 0, 130, 99)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cgjks"]
+atlas = ExtResource("6_28pec")
+region = Rect2(260, 0, 130, 99)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_wpc2v"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8urks")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yq6ct")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cgjks")
+}],
+"loop": 2,
+"name": &"default",
+"speed": 8.0
+}]
+
+[node name="TalaArena" unique_id=894391301 instance=ExtResource("1_base")]
 script = ExtResource("2_tala")
-god_id = &"tala"
-embedded = true
-dialogue_prefix = "tala"
 throw_speed = 720.0
 slipper_range = 850.0
 can_radius = 28.0
 tala_radius = 34.0
 tala_speed = 92.0
+tala_min_y = 285.0
+tala_max_y = 565.0
+can_repair_time = 3.0
 can_favor = 300
 tala_penalty = 100
+god_id = &"tala"
+embedded = true
+dialogue_prefix = "tala"
 
-[node name="Background" parent="." index="0"]
+[node name="Background" parent="." index="0" unique_id=1786581936]
 position = Vector2(654.75, 274)
 scale = Vector2(6.5475, 4.87)
 texture = ExtResource("3_bg")
 
-[node name="Border" type="Line2D" parent="ArenaField"]
+[node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1341635847]
+position = Vector2(0, 205.5)
+scale = Vector2(1, 0.6658537)
 points = PackedVector2Array(260, 210, 1120, 210, 1120, 610, 260, 610, 260, 210)
 width = 5.0
 default_color = Color(0.12, 0.3, 0.65, 0.8)
 
-[node name="ShootingZone" type="ColorRect" parent="ArenaField"]
-position = Vector2(270, 220)
-size = Vector2(185, 380)
+[node name="ShootingZone" type="ColorRect" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1541174897]
+offset_left = 270.0
+offset_top = 344.0
+offset_right = 455.0
+offset_bottom = 600.0
 mouse_filter = 2
 color = Color(0.12, 0.28, 0.55, 0.16)
 
-[node name="ShootingLine" type="Line2D" parent="ArenaField"]
-points = PackedVector2Array(450, 222, 450, 598)
+[node name="ShootingLine" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=1103604214]
+points = PackedVector2Array(450, 348, 450, 598)
 width = 3.0
 default_color = Color(0.2, 0.52, 0.95, 0.85)
 
-[node name="Barrier" type="Line2D" parent="ArenaField"]
+[node name="Barrier" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1556991775]
+position = Vector2(-3.0517578e-05, 201.8198)
+scale = Vector2(1, 0.6675127)
 points = PackedVector2Array(470, 220, 470, 600)
 width = 7.0
 default_color = Color(0.35, 0.55, 0.9, 0.45)
 
-[node name="TalaPath" type="Line2D" parent="ArenaField"]
+[node name="TalaPath" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="4" unique_id=5406449]
+position = Vector2(-207.22446, 107.93193)
+scale = Vector2(1.2499695, 0.8707485)
 points = PackedVector2Array(835, 280, 835, 570)
 width = 2.0
 default_color = Color(0.2, 0.35, 0.65, 0.28)
 
-[node name="Cans" type="Node2D" parent="ArenaField"]
+[node name="Cans" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="5" unique_id=497978850]
 
-[node name="Can0" type="Sprite2D" parent="ArenaField/Cans"]
-position = Vector2(985, 315)
+[node name="Can0" type="Sprite2D" parent="ArenaField/Cans" index="0" unique_id=1476082999]
+position = Vector2(985, 567)
 scale = Vector2(0.9, 0.9)
 texture = ExtResource("5_cans")
 
-[node name="Can1" type="Sprite2D" parent="ArenaField/Cans"]
+[node name="Can1" type="Sprite2D" parent="ArenaField/Cans" index="1" unique_id=487573914]
 position = Vector2(985, 410)
 scale = Vector2(0.9, 0.9)
 texture = ExtResource("5_cans")
 
-[node name="Can2" type="Sprite2D" parent="ArenaField/Cans"]
+[node name="Can2" type="Sprite2D" parent="ArenaField/Cans" index="2" unique_id=1115544505]
 position = Vector2(985, 505)
 scale = Vector2(0.9, 0.9)
 texture = ExtResource("5_cans")
 
-[node name="Tala" type="Sprite2D" parent="ArenaField"]
+[node name="Tala" type="Sprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="6" unique_id=280902070]
 position = Vector2(835, 425)
 scale = Vector2(0.72, 0.72)
 texture = ExtResource("4_guard")
 
-[node name="Player" parent="." index="5"]
+[node name="OverSeerGod" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="7" unique_id=287992503]
+position = Vector2(983.99994, 185)
+scale = Vector2(3.0846155, 3.2171717)
+sprite_frames = SubResource("SpriteFrames_wpc2v")
+autoplay = "default"
+frame_progress = 0.9160066
+
+[node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(350, 420)
 
-[node name="Slippers" type="Node2D" parent="."]
+[node name="Patch1" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="0" unique_id=1945053952]
+offset_left = 493.0
+offset_top = 130.0
+offset_right = -470.0
+offset_bottom = -329.0
+
+[node name="Patch2" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="1" unique_id=1521876345]
+offset_left = 291.0
+offset_top = 240.0
+offset_right = -672.0
+offset_bottom = -219.0
+
+[node name="Patch3" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="2" unique_id=1844020846]
+offset_left = 746.0
+offset_top = 6.0
+offset_right = -217.0
+offset_bottom = -453.0
+
+[node name="Patch4" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="3" unique_id=2077132518]
+offset_left = 875.0
+offset_top = 339.0
+offset_right = -88.0
+offset_bottom = -120.0
+
+[node name="Patch5" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="4" unique_id=485179229]
+offset_left = 693.0
+offset_top = 202.0
+offset_right = -270.0
+offset_bottom = -257.0
+
+[node name="Patch6" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="5" unique_id=138331982]
+offset_left = 467.0
+offset_top = 456.0
+offset_right = -496.0
+offset_bottom = -3.0
+
+[node name="Patch7" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="6" unique_id=554885625]
+offset_left = 230.0
+offset_top = 392.0
+offset_right = -733.0
+offset_bottom = -67.0
+
+[node name="Patch8" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="7" unique_id=1098974111]
+offset_left = 504.0
+offset_top = 280.0
+offset_right = -459.0
+offset_bottom = -179.0
+
+[node name="Patch9" parent="Patches" parent_id_path=PackedInt32Array(1582689626) index="8" unique_id=824798248]
+offset_left = 726.0
+offset_top = 454.0
+offset_right = -237.0
+offset_bottom = -5.0
+
+[node name="Slippers" type="Node2D" parent="." index="9" unique_id=1663118273]
 z_index = 6
 
-[node name="TalaHud" type="CanvasLayer" parent="."]
+[node name="TalaHud" type="CanvasLayer" parent="." index="10" unique_id=985875143]
 layer = 11
 
-[node name="Status" type="Label" parent="TalaHud"]
+[node name="Status" type="Label" parent="TalaHud" index="0" unique_id=1709965248]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 480.0
-offset_top = -72.0
-offset_right = 880.0
-offset_bottom = -48.0
+offset_left = 132.0
+offset_top = -29.0
+offset_right = 532.0
+offset_bottom = -4.0
+grow_vertical = 0
 theme_override_colors/font_color = Color(0.65, 0.82, 1, 1)
 theme_override_fonts/font = ExtResource("6_font")
 theme_override_font_sizes/font_size = 14
 text = "THROW FROM THE LINE"
 horizontal_alignment = 1
 
-[node name="Hint" type="Label" parent="TalaHud"]
+[node name="Hint" type="Label" parent="TalaHud" index="1" unique_id=1700730853]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 480.0
-offset_top = -46.0
-offset_right = 880.0
-offset_bottom = -20.0
+offset_left = 407.0
+offset_top = -27.0
+offset_right = 807.0
+offset_bottom = -1.0
+grow_vertical = 0
 theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 0.85)
 theme_override_fonts/font = ExtResource("6_font")
 theme_override_font_sizes/font_size = 10

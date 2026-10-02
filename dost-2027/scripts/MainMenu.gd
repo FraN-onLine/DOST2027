@@ -10,6 +10,7 @@ extends Control
 @onready var prologue_label: Label = $TitlePanel/Margin/TitleVBox/PrologueLabel
 @onready var host_button = $CenterContainer/VBoxContainer/HostButton
 @onready var join_button = $CenterContainer/VBoxContainer/JoinButton
+@onready var almanac_button = $CenterContainer/VBoxContainer/AlmanacButton
 @onready var quit_button = $CenterContainer/VBoxContainer/QuitButton
 @onready var status_label = $StatusLabel
 
@@ -17,6 +18,7 @@ func _ready():
 	# Connect button signals
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
+	almanac_button.pressed.connect(_on_almanac_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
 	
 	# Connect to network signals
@@ -43,6 +45,11 @@ func _on_host_pressed():
 func _on_join_pressed():
 	# Switch to join scene which auto-discovers hosts on LAN
 	get_tree().change_scene_to_file("res://scenes/JoinGame.tscn")
+
+# The Almanac lists every Favor of every god - its own BACK button brings the
+# player straight back here.
+func _on_almanac_pressed():
+	get_tree().change_scene_to_file("res://scenes/Almanac.tscn")
 
 func _on_quit_pressed():
 	get_tree().quit()

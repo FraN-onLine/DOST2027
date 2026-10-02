@@ -1,17 +1,17 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://dffwgptwgyajf"]
 
-[ext_resource type="Script" path="res://scripts/gods/mayari/shockwave.gd" id="1_shock"]
+[ext_resource type="Script" uid="uid://c8ns7p148iqbe" path="res://scripts/gods/mayari/shockwave.gd" id="1_shock"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
 
-[node name="Shockwave" type="Node2D"]
+[node name="Shockwave" type="Node2D" unique_id=1760482314]
 script = ExtResource("1_shock")
 
-[node name="Ring" type="Line2D" parent="."]
+[node name="Ring" type="Line2D" parent="." unique_id=1369690800]
 points = PackedVector2Array(100, 0, 92.39, 38.27, 70.71, 70.71, 38.27, 92.39, 0, 100, -38.27, 92.39, -70.71, 70.71, -92.39, 38.27, -100, 0, -92.39, -38.27, -70.71, -70.71, -38.27, -92.39, 0, -100, 38.27, -92.39, 70.71, -70.71, 92.39, -38.27, 100, 0)
 width = 6.0
 default_color = Color(1, 0.95, 0.7, 0.85)
 
-[node name="Icon" type="Sprite2D" parent="."]
+[node name="Icon" type="Sprite2D" parent="." unique_id=883014796]
+modulate = Color(1, 0.9, 0.5, 0.7)
 scale = Vector2(0.16, 0.16)
 texture = ExtResource("2_icon")
-modulate = Color(1, 0.9, 0.5, 0.7)

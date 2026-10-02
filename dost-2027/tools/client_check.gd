@@ -245,8 +245,8 @@ func _run() -> void:
 	var lobby = load("res://scenes/Lobby.tscn").instantiate()
 	_view.add_child(lobby)
 	await _frames(2)
-	var button = lobby.get_node("CenterContainer/VBoxContainer/ButtonContainer/DetailsButton")
-	print("lobby Details button: '%s' visible=%s" % [button.text, str(button.visible)])
+	var button = lobby.get_node("CenterContainer/VBoxContainer/ButtonContainer/OptionsButton")
+	print("lobby Options button: '%s' visible=%s" % [button.text, str(button.visible)])
 	print("--- DONE ---")
 	quit()
 

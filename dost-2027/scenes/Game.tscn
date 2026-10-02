@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dwlvkcj7rkeke" path="res://scripts/Game.gd" id="1_game"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+[ext_resource type="Texture2D" uid="uid://qhwimvi6gul2" path="res://Assets/Gods/Tala/Tala-Icon.png" id="3_78awf"]
 [ext_resource type="PackedScene" uid="uid://c8if6nvl5ehs" path="res://UI/opponentpanels.tscn" id="3_opponent"]
 
 [node name="Game" type="Control" unique_id=1698441976]
@@ -43,10 +44,11 @@ horizontal_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="GodIcon" type="TextureRect" parent="TopLeft/VBoxContainer"]
+[node name="GodIcon" type="TextureRect" parent="TopLeft/VBoxContainer" unique_id=250674016]
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 size_flags_horizontal = 4
+texture = ExtResource("3_78awf")
 expand_mode = 1
 stretch_mode = 5
 
@@ -158,10 +160,10 @@ theme_override_font_sizes/font_size = 20
 text = "1:30"
 horizontal_alignment = 1
 
-[node name="FinalePanel" type="PanelContainer" parent="."]
+[node name="FinalePanel" type="PanelContainer" parent="." unique_id=653460438]
 visible = false
 z_index = 30
-anchors_preset = 8
+layout_mode = 0
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
@@ -173,18 +175,18 @@ offset_bottom = 230.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Margin" type="MarginContainer" parent="FinalePanel"]
+[node name="Margin" type="MarginContainer" parent="FinalePanel" unique_id=910827972]
 layout_mode = 2
 theme_override_constants/margin_left = 22
 theme_override_constants/margin_top = 18
 theme_override_constants/margin_right = 22
 theme_override_constants/margin_bottom = 18
 
-[node name="VBox" type="VBoxContainer" parent="FinalePanel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="FinalePanel/Margin" unique_id=1675082158]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="Title" type="Label" parent="FinalePanel/Margin/VBox"]
+[node name="Title" type="Label" parent="FinalePanel/Margin/VBox" unique_id=1023301553]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.9, 0.55, 1)
 theme_override_fonts/font = ExtResource("2_font")
@@ -192,17 +194,16 @@ theme_override_font_sizes/font_size = 24
 text = "BATHALA'S JUDGMENT"
 horizontal_alignment = 1
 
-[node name="Summary" type="Label" parent="FinalePanel/Margin/VBox"]
+[node name="Summary" type="Label" parent="FinalePanel/Margin/VBox" unique_id=948407781]
 custom_minimum_size = Vector2(620, 260)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.92, 1, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 15
-text = ""
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Hint" type="Label" parent="FinalePanel/Margin/VBox"]
+[node name="Hint" type="Label" parent="FinalePanel/Margin/VBox" unique_id=512967822]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.72, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_font")

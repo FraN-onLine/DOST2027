@@ -76,6 +76,12 @@ func in_reach(point: Vector2) -> bool:
 	return global_position.distance_to(point) <= reach
 
 
+# A strike reaches a little past his own reach, so the mortal who closes the
+# distance is rewarded with the chance to land on his blind spot.
+func in_reach_with_bonus(point: Vector2, bonus: float) -> bool:
+	return global_position.distance_to(point) <= reach + bonus
+
+
 # Hit while open or just watching: he is knocked back a step and spends a moment
 # recovering, so a clean strike cannot be chained into another one.
 func flinch() -> void:

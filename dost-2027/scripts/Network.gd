@@ -21,6 +21,8 @@ const RANDOM_NAMES := [
 	"BrrBrrPataLin",
 	"KingJames",
 	"HackerMacoy",
+	"LoiPogi",
+	""
 ]
 
 signal player_joined(peer_id)
@@ -28,6 +30,7 @@ signal player_left(peer_id)
 signal connected(success, reason)
 signal player_list_updated(players)
 signal player_god_icon_changed(peer_id, god_id)
+signal trial_order_changed(ids)
 signal game_started
 signal host_discovered(host_key, host_name, ip, port, lobby_id)
 signal host_lost(host_key, ip)
@@ -38,7 +41,7 @@ signal god_state_received(state)          # host -> clients: absolute FAVOR snap
 signal god_favor_requested(peer_id, amount, reason)
 signal god_skill_requested(peer_id, slot)
 signal god_grant_requested(peer_id, favor_id)
-signal apolaki_score_requested(peer_id, score_id)
+signal arena_score_requested(peer_id, amount, reason)  # client -> host: score my mortal
 signal tala_throw_requested(peer_id, direction, origin)
 signal arena_layout_received(layout)      # host -> clients: field / corners / clones
 signal arena_state_received(state)        # host -> clients: 10 Hz world tick
@@ -59,6 +62,8 @@ var player_data := {} # peer_id -> PlayerData (server-side authoritative name)
 var player_icons := {} # peer_id -> god id (replicated roster icon)
 var my_god_icon_id: StringName = &"mayari"
 var trial_order_ids: Array[StringName] = []
+var trial_order_custom: Array[StringName] = []  # host's chosen order; empty = random
+var announced_trial_order: Array[StringName] = []  # plan already handed out for a run that has not started yet
 var _used_names := {} # name -> true (server-side, to avoid duplicates)
 
 # --- Discovery state ---
@@ -122,6 +127,10 @@ func start_host(port: int = DEFAULT_PORT) -> void:
 	multiplayer.multiplayer_peer = peer
 	_current_port = port
 	_game_in_progress = false
+	# A fresh lobby starts with nothing settled: this session's runs get their
+	# order from the host's own choice, and never from a previous session's.
+	trial_order_ids.clear()
+	announced_trial_order.clear()
 
 	# Use the name the user entered (or a random one if empty)
 	var host_id := multiplayer.get_unique_id()
@@ -161,6 +170,8 @@ func stop_host() -> void:
 		player_data.clear()
 		player_icons.clear()
 		trial_order_ids.clear()
+		announced_trial_order.clear()
+		trial_order_custom.clear()
 		_used_names.clear()
 		print("Server stopped")
 		emit_signal("connected", false, "host_stopped")
@@ -222,6 +233,8 @@ func leave_host() -> void:
 		player_data.clear()
 		player_icons.clear()
 		trial_order_ids.clear()
+		announced_trial_order.clear()
+		trial_order_custom.clear()
 		print("Left host / disconnected")
 
 
@@ -607,6 +620,11 @@ func _on_peer_connected(id: int) -> void:
 		player_data[id] = PlayerData.new()
 		player_icons[id] = &"mayari"
 		broadcast_player_list()
+		# The order the run will play is the host's to set: hand the newcomer the
+		# current choice (custom order or "random") so every lobby shows the same
+		# thing, whoever joined first and whoever joined last.
+		if has_multiplayer_peer():
+			rpc_id(id, "rpc_sync_custom_trial_order", trial_order_custom.duplicate())
 	emit_signal("player_joined", id)
 
 
@@ -763,10 +781,12 @@ func start_game() -> void:
 	_game_in_progress = true
 	stop_host_discovery()
 	_discovered_hosts.clear()
-	trial_order_ids = _create_trial_order_ids()
+	# The host may have picked the order in the lobby; with no custom order the run
+	# is drawn at random - unless a plan was already announced to a peer, which is
+	# the one every screen has to play.
+	_settle_trial_order()
 	if has_multiplayer_peer():
-		rpc("rpc_sync_trial_order", trial_order_ids)
-
+		rpc("rpc_sync_trial_order", trial_order_ids.duplicate())
 
 	# Change scene for everyone
 	rpc("rpc_change_scene", "res://scenes/Game.tscn")
@@ -783,9 +803,94 @@ func rpc_change_scene(scene_path: String) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func rpc_sync_trial_order(order: Array) -> void:
+	# A GDScript array is a REFERENCE: with call_local the host hands this very
+	# field to this very handler, so the list is copied BEFORE the field is
+	# cleared - otherwise the host would erase the order it is announcing.
+	var incoming: Array = order.duplicate()
 	trial_order_ids.clear()
-	for god_id in order:
+	for god_id in incoming:
 		trial_order_ids.append(StringName(str(god_id)))
+	# Whoever is waiting for the run's order (the game shell of a client that
+	# loaded before the sync landed) starts the moment it arrives.
+	emit_signal("trial_order_changed", trial_order_ids.duplicate())
+
+
+# A client that never received the run's order must not invent one: the host
+# owns it. Asking costs one round trip and keeps every player walking the same
+# sequence of gods.
+@rpc("any_peer", "reliable")
+func request_trial_order() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0 or sender == multiplayer.get_unique_id():
+		return
+	# Whatever has already been settled is the answer - the run in progress, or
+	# the plan announced for the run that has not started. Only a host that has
+	# promised nobody anything yet draws one.
+	var plan: Array[StringName] = trial_order_ids
+	if plan.is_empty():
+		plan = announced_trial_order
+	if plan.is_empty():
+		plan = planned_trial_order()
+		announced_trial_order = plan.duplicate()
+	rpc_id(sender, "rpc_sync_trial_order", plan.duplicate())
+
+
+# The order the run is about to play: the plan already announced to a peer if
+# there is one (a client that asked before the host pressed START must play the
+# very order it was promised), a fresh draw otherwise. The announcement is
+# consumed here, so the NEXT run draws fresh again.
+func _settle_trial_order() -> Array[StringName]:
+	if not announced_trial_order.is_empty():
+		trial_order_ids = announced_trial_order.duplicate()
+		announced_trial_order.clear()
+	else:
+		trial_order_ids = planned_trial_order()
+	return trial_order_ids
+
+
+# --- the host's own trial order ---------------------------------------------
+# The run's order of gods is the host's to set from the lobby: leave it empty for
+# a random order (the default), or name the gods in the order they must be faced.
+# Bathala always closes, so it is never part of the custom list.
+func set_custom_trial_order(order: Array) -> void:
+	if not multiplayer.is_server():
+		return
+	trial_order_custom.clear()
+	for god_id in order:
+		var god := Gods.by_id(StringName(str(god_id)))
+		if god != null and god.id != Gods.BATHALA and god.implemented and god.arena_scene != "":
+			trial_order_custom.append(god.id)
+	if has_multiplayer_peer():
+		rpc("rpc_sync_custom_trial_order", trial_order_custom.duplicate())
+	emit_signal("trial_order_changed", trial_order_custom.duplicate())
+
+
+@rpc("authority", "call_local", "reliable")
+func rpc_sync_custom_trial_order(order: Array) -> void:
+	# The host calls this on ITSELF as well (call_local), and an array is a
+	# reference: copy the list before clearing the field or the host would wipe
+	# the very order it just chose - the CUSTOM tick box would snap back to RANDOM.
+	var incoming: Array = order.duplicate()
+	trial_order_custom.clear()
+	for god_id in incoming:
+		trial_order_custom.append(StringName(str(god_id)))
+	emit_signal("trial_order_changed", trial_order_custom.duplicate())
+
+
+func clear_custom_trial_order() -> void:
+	set_custom_trial_order([])
+
+
+# What the run will actually play: the host's order when one was chosen, the
+# random draw otherwise.
+func planned_trial_order() -> Array[StringName]:
+	if not trial_order_custom.is_empty():
+		var out := trial_order_custom.duplicate()
+		out.append(Gods.BATHALA)
+		return out
+	return _create_trial_order_ids()
 
 
 func _create_trial_order_ids() -> Array[StringName]:
@@ -867,9 +972,12 @@ func start_god_games(scene_path := "res://scenes/Game.tscn") -> void:
 	_game_in_progress = true
 	stop_host_discovery()
 	_discovered_hosts.clear()
-	trial_order_ids = _create_trial_order_ids()
+	# The host may have picked the order in the lobby; with no custom order the run
+	# is drawn at random - unless a plan was already announced to a peer, which is
+	# the one every screen has to play.
+	_settle_trial_order()
 	if has_multiplayer_peer():
-		rpc("rpc_sync_trial_order", trial_order_ids)
+		rpc("rpc_sync_trial_order", trial_order_ids.duplicate())
 	god_state.clear()
 	mortal_positions.clear()
 	for pid in players.keys():
@@ -1123,3 +1231,18 @@ func rpc_arena_shock(caster_id: int, origin: Vector2) -> void:
 	if multiplayer.is_server():
 		return
 	emit_signal("arena_shock_received", caster_id, origin)
+
+
+# --- arena score: a client's own game scored something for its mortal ---------
+# Some of the games are played privately (Arnis: one duelist per mortal), so the
+# peer that plays the duel is the one that knows what just happened - but FAVOR
+# stays the host's to decide. The peer asks, the host applies it, and the next
+# FAVOR snapshot brings the number back like every other change.
+@rpc("any_peer", "reliable")
+func request_arena_score(amount: int, reason: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("arena_score_requested", sender, amount, reason)

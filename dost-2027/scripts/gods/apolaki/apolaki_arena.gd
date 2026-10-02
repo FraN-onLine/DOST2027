@@ -5,24 +5,30 @@ extends Arena
 #
 # EVERYTHING SHARED LIVES IN THE BASE (scripts/gods/common/arena.gd): the clock,
 # the countdown, the mortal, the dialogues, the God's Due menu, the popups and
-# the network plumbing. This file is only what makes the game Apolaki's:
+# the network plumbing. This file is only what makes the game Apolaki's.
 #
-#   * A one-on-one duel. Every player fights their OWN Apolaki on their own
-#     screen (the Apolaki node, scripts/gods/apolaki/apolaki_duelist.gd) - he
-#     walks, guards and lunges at that player alone. His position never travels;
-#     what travels is FAVOR and the favors themselves.
-#   * ATTACK (LEFT MOUSE) - strike. Land it while Apolaki is OPEN (his blind
-#     spot) for the most FAVOR; a strike while he only watches pays a little;
-#     strike into his GUARD and you lose FAVOR.
-#   * DEFEND (RIGHT MOUSE) - guard. Block his lunge inside the window and you
-#     gain FAVOR; take the hit and you lose FAVOR and are shoved back.
-#   * SUN PATCHES - the favors blot part of a mortal's own screen. The host owns
-#     the authoritative patch list and mirrors it with every arena tick, so each
-#     player only ever sees the patches that fell on themselves.
+# A PRIVATE DUEL
+#   This is the one arena where the mortals are NOT in the same room. Each player
+#   duels their OWN Apolaki on their OWN screen (Apolaki.tscn, driven by
+#   apolaki_duelist.gd): he walks, guards and lunges at that player alone. His
+#   position is never sent anywhere - what travels between mortals is FAVOR, the
+#   favors they hold and the effects those favors play out (separate_players).
 #
-# The arena owns no art: ApolakiArena.tscn holds the sky, the board, its border,
-# the duelist and the ten authored patch quads. This script only runs the
-# rules - it never draws and never re-lays-out the scene.
+# THE DUEL
+#   ATTACK (LEFT MOUSE) - strike. Land it while Apolaki is OPEN (his blind spot)
+#   for the most FAVOR; a strike while he only watches pays a little; strike into
+#   his GUARD and you pay for it.
+#   DEFEND (RIGHT MOUSE) - guard. Block his lunge inside the window and you gain
+#   FAVOR; take the hit and you lose FAVOR and are shoved back.
+#
+# SUN PATCHES
+#   The Apolaki favors blot part of a mortal's own screen. The host owns the
+#   authoritative patch list and mirrors it with every arena tick, so each player
+#   only ever sees the patches that fell on themselves.
+#
+# The arena owns no art: ApolakiArena.tscn holds the sky, the board, the border
+# and the duelist (the patch quads are the shared layer in Arena.tscn). This
+# script only runs the rules.
 
 @export_category("Arnis")
 @export var strike_open_favor := 35       # a clean strike on his blind spot
@@ -32,114 +38,117 @@ extends Arena
 @export var hit_penalty := 30             # a lunge that got through
 @export var strike_cooldown := 0.45       # seconds between two strikes
 @export var strike_reach_bonus := 26.0    # a strike lands this past his reach
-@export var defend_window := 0.7          # long enough to cover the full windup
+@export var defend_window := 0.42         # how long a guard holds
 @export var defend_cooldown := 0.7        # seconds before another guard
 
 @onready var duelist: ApolakiDuelist = get_node_or_null("ArenaField/Apolaki")
-@onready var duel_state_label: Label = get_node_or_null("DuelHud/State")
+@onready var state_label: Label = get_node_or_null("DuelHud/State")
 
 var _strike_cd := 0.0
-var _defend_time := 0.0
+var _defend_time := 0.0    # seconds of guard left (our own, personal)
 var _defend_cd := 0.0
-var _duelist_spawned := false
 
 
 func _ready() -> void:
 	super._ready()
 	if duelist != null:
 		duelist.lunge.connect(_on_duelist_lunge)
-		duelist.state_changed.connect(_on_duelist_state_changed)
-		if not _duelist_spawned:
-			var spawn_rng := RandomNumberGenerator.new()
-			spawn_rng.seed = int(_my_id) * 7919 + 5
-			var offset := Vector2(spawn_rng.randf_range(-55.0, 55.0), spawn_rng.randf_range(-35.0, 35.0))
-			var spawn := (duelist.global_position + offset).clamp(_field.position + Vector2(30.0, 30.0), _field.end - Vector2(30.0, 30.0))
-			duelist.set_duel_spawn(spawn)
-			duelist.bounds = _field.grow(-28.0)
-			_duelist_spawned = true
 
 
-func collect_units() -> void:
-	# One Apolaki per screen, the same authored node on every peer (his position
-	# never travels).
-	if duelist != null:
-		duelist.color = god.color
-		duelist.target = player.global_position
+# --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
 
-
-func arena_round_reset() -> void:
-	_strike_cd = 0.0
-	_defend_cd = 0.0
-	_defend_time = 0.0
-	if duelist != null:
-		duelist.restart()
-
-
-func nearby_movement_favors_enabled() -> bool:
-	return false
+# The mortals play this one alone: no rival is drawn and no position travels.
+func separate_players() -> bool:
+	return true
 
 
 func shares_mortal_positions() -> bool:
 	return false
 
 
-func _sync_ghosts() -> void:
-	# Every Apolaki fight is personal. Keep peer positions and scores in the
-	# shared rules state, but never draw another mortal in this arena.
-	for ghost in _ghosts.values():
-		if is_instance_valid(ghost):
-			ghost.queue_free()
-	_ghosts.clear()
+# The Guidance reads "another mortal is nearby" - there is no other mortal on
+# this field, so the favor simply never lights up here (it says as much itself).
+func nearby_movement_favors_enabled() -> bool:
+	return false
 
 
-func _move_ghosts(_delta: float) -> void:
+func collect_units() -> void:
+	# One Apolaki per screen - the same authored node on every peer. He is told
+	# where the mortal is every frame (arena_rules_tick); nothing about him is
+	# ever put on the wire.
+	if duelist == null:
+		return
+	duelist.color = god.color
+	duelist.target = player.global_position
+
+
+func arena_round_reset() -> void:
+	_strike_cd = 0.0
+	_defend_time = 0.0
+	_defend_cd = 0.0
+	if duelist != null:
+		duelist.restart()
+
+
+func arena_rules_tick(_delta: float) -> void:
+	# The duel is PRIVATE and therefore personal clockwork, not host scoring: it
+	# all runs in _process below, on every peer. Kept so the base's hook has an
+	# explicit (empty) answer here.
 	pass
 
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	# Every peer runs its OWN Apolaki, so his stalking, the strike cooldown and
+	# the guard window all tick here, on every screen - not just the host's. The
+	# FAVOR they pay is still the host's to decide (score_favor).
 	_strike_cd = maxf(0.0, _strike_cd - delta)
 	_defend_cd = maxf(0.0, _defend_cd - delta)
 	_defend_time = maxf(0.0, _defend_time - delta)
-	if duelist != null:
-		duelist.target = player.global_position
-		duelist.frozen = _phase != Phase.PLAYING or (due_menu != null and due_menu.is_open())
-	_update_duel_state()
+	if duelist == null:
+		return
+	duelist.frozen = _phase != Phase.PLAYING
+	duelist.target = player.global_position
+	_refresh_state_label()
 
+
+# --- INPUT -------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and not event.double_click:
-		var mouse := event as InputEventMouseButton
-		if mouse.button_index == MOUSE_BUTTON_LEFT or mouse.button_index == MOUSE_BUTTON_RIGHT:
-			if _phase != Phase.PLAYING or player.locked or dialogue.is_active() or due_menu.is_open():
-				return
-			if mouse.button_index == MOUSE_BUTTON_LEFT:
-				_try_strike()
-			else:
-				_try_defend()
-			get_viewport().set_input_as_handled()
-			return
 	super._unhandled_input(event)
+	# The duel's own two buttons are the arena's during PLAYING only - a dialogue,
+	# the God's Due menu or the countdown all keep the mortal still.
+	if _phase != Phase.PLAYING or player.locked:
+		return
+	if dialogue.is_active() or due_menu.is_open():
+		return
+	if event.is_action_pressed("attack"):
+		_try_strike()
+	elif event.is_action_pressed("defend"):
+		_try_defend()
 
 
 func _try_strike() -> void:
-	if _strike_cd > 0.0 or duelist == null:
+	if _strike_cd > 0.0:
+		_log("Strike recharging  (%.1fs)" % _strike_cd, god.color)
+		return
+	if duelist == null:
 		return
 	_strike_cd = strike_cooldown
-	if duelist.global_position.distance_to(player.global_position) > duelist.reach + strike_reach_bonus:
-		_log("Your strike falls short", god.color)
-		return
-	if duelist.is_guarding():
-		_submit_score(&"strike_guard")
-		_log("Apolaki turned your strike aside", god.color)
+	if not duelist.in_reach_with_bonus(player.global_position, strike_reach_bonus):
+		_log("Out of reach - close the distance", Color(0.8, 0.8, 0.85))
 		return
 	if duelist.is_open():
-		_submit_score(&"strike_open")
-		_log("You found Apolaki's blind spot", god.color)
+		score_favor(strike_open_favor, "%s - blind spot" % god.display_name)
+		duelist.flinch()
+		_log("Clean strike! +%d FAVOR" % strike_open_favor, Color(0.7, 1, 0.8))
+	elif duelist.is_guarding():
+		score_favor(-strike_guard_penalty, "%s's guard" % god.display_name)
+		_log("You struck his guard: -%d FAVOR" % strike_guard_penalty, Color(1, 0.5, 0.45))
 	else:
-		_submit_score(&"strike_neutral")
-		_log("You landed a strike", god.color)
-	duelist.flinch()
+		score_favor(strike_neutral_favor, god.display_name)
+		duelist.flinch()
+		_log("Strike landed: +%d FAVOR" % strike_neutral_favor, Color(0.7, 1, 0.8))
 
 
 func _try_defend() -> void:
@@ -147,72 +156,33 @@ func _try_defend() -> void:
 		return
 	_defend_cd = defend_cooldown
 	_defend_time = defend_window
-	_log("You brace for Apolaki's strike", god.color)
 
 
+# Apolaki lunged at US. Inside our guard window and inside his reach the lunge is
+# blocked; anything else and it lands.
 func _on_duelist_lunge() -> void:
-	if _phase != Phase.PLAYING:
+	if _phase != Phase.PLAYING or player.locked or duelist == null:
 		return
-	if _defend_time > 0.0:
-		_defend_time = 0.0
-		_submit_score(&"block")
-		_log("You blocked Apolaki's strike", god.color)
-	else:
-		_submit_score(&"hit")
-		knock_mortal(_my_id, duelist.global_position)
-		_log("Apolaki struck you", Color(1.0, 0.55, 0.4))
-
-
-func _submit_score(score_id: StringName) -> void:
-	if _authority:
-		_resolve_score(_my_id, score_id)
-		_publish_god_state()
-	elif _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_apolaki_score", score_id)
-
-
-func _on_apolaki_score_requested(peer_id: int, score_id: StringName) -> void:
-	if not _authority or _phase != Phase.PLAYING or rules.mortal(peer_id) == null:
+	if _defend_time > 0.0 and duelist.in_reach(player.global_position):
+		score_favor(block_favor, "Blocked %s's lunge" % god.display_name)
+		_log("Blocked! +%d FAVOR" % block_favor, Color(0.7, 1, 0.8))
 		return
-	_resolve_score(peer_id, score_id)
-	_publish_god_state()
-
-
-func _resolve_score(mortal_id: int, score_id: StringName) -> void:
-	match score_id:
-		&"strike_open":
-			bank_favor(strike_open_favor, "striking Apolaki's blind spot", mortal_id)
-		&"strike_neutral":
-			bank_favor(strike_neutral_favor, "striking Apolaki", mortal_id)
-		&"strike_guard":
-			lose_favor(strike_guard_penalty, "striking Apolaki's guard", mortal_id)
-		&"block":
-			bank_favor(block_favor, "blocking Apolaki", mortal_id)
-		&"hit":
-			lose_favor(hit_penalty, "Apolaki's strike", mortal_id)
-
-
-func _connect_network() -> void:
-	super._connect_network()
-	if _net != null and _authority and _net.has_signal("apolaki_score_requested"):
-		_net.apolaki_score_requested.connect(_on_apolaki_score_requested)
-
-
-func _on_duelist_state_changed(_state: int) -> void:
-	_update_duel_state()
-
-
-func _update_duel_state() -> void:
-	if duel_state_label == null or duelist == null:
+	if is_mortal_invulnerable(_my_id):
 		return
-	var state_text := "WATCHES"
-	match duelist.state:
-		ApolakiDuelist.State.OPEN:
-			state_text = "BLIND SPOT - STRIKE NOW"
-		ApolakiDuelist.State.GUARD:
-			state_text = "APOLAKI IS GUARDING"
-		ApolakiDuelist.State.WINDUP:
-			state_text = "APOLAKI IS WINDING UP"
-		ApolakiDuelist.State.STRIKE:
-			state_text = "APOLAKI STRIKES"
-	duel_state_label.text = state_text
+	score_favor(-hit_penalty, "%s's lunge" % god.display_name)
+	set_mortal_invuln(_my_id, invuln_time)
+	knock_mortal(_my_id, duelist.global_position)
+	_log("His lunge landed: -%d FAVOR" % hit_penalty, Color(1, 0.5, 0.45))
+
+
+func _refresh_state_label() -> void:
+	if state_label == null or duelist == null:
+		return
+	var text := "APOLAKI WATCHES"
+	if duelist.is_open():
+		text = "APOLAKI IS OPEN - STRIKE!"
+	elif duelist.is_guarding():
+		text = "APOLAKI GUARDS - DO NOT STRIKE"
+	elif _defend_time > 0.0:
+		text = "YOU GUARD"
+	state_label.text = text

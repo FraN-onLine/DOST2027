@@ -8,6 +8,11 @@ signal favor_chosen(favor: GodFavor, free_grants_left: int)
 
 const MAX_ROWS := 3
 
+# Every favor shows a little image beside its name. No favour has real art yet,
+# so this is the Godot placeholder - the same one every god and favor falls back
+# on (Gods.TEMP_ICON).
+const PLACEHOLDER_ICON := preload("res://icon.svg")
+
 @onready var title_label: Label = $SidePanel/Margin/VBox/TitleLabel
 @onready var due_label: Label = $SidePanel/Margin/VBox/DueLabel
 @onready var rows: VBoxContainer = $SidePanel/Margin/VBox/Rows
@@ -117,10 +122,23 @@ func _make_row(number: int, favor: GodFavor, due: int) -> PanelContainer:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 3)
 
+	# The name row: the favor's icon, then the number and the name beside it.
+	var head_row := HBoxContainer.new()
+	head_row.add_theme_constant_override("separation", 6)
+	var icon := TextureRect.new()
+	icon.texture = favor.icon if favor.icon != null else PLACEHOLDER_ICON
+	icon.custom_minimum_size = Vector2(22, 22)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.modulate = favor.color
+	head_row.add_child(icon)
+
 	var head := Label.new()
 	head.text = "%d.  %s   [%s]" % [number, favor.display_name.to_upper(), favor.slot_name()]
 	head.add_theme_font_size_override("font_size", 12)
 	head.add_theme_color_override("font_color", favor.color)
+	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head_row.add_child(head)
 
 	var desc := Label.new()
 	desc.text = favor.description
@@ -143,7 +161,7 @@ func _make_row(number: int, favor: GodFavor, due: int) -> PanelContainer:
 	cost.add_theme_font_size_override("font_size", 10)
 	cost.add_theme_color_override("font_color", Color(0.55, 0.9, 0.6) if affordable else Color(0.85, 0.45, 0.4))
 
-	box.add_child(head)
+	box.add_child(head_row)
 	box.add_child(desc)
 	box.add_child(cost)
 	margin.add_child(box)

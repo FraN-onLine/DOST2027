@@ -108,6 +108,9 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var dialogue_prefix := "mayari"
 @export var next_god_id: StringName = &""
 @export var final_trial := false
+# Set by the shell: false the first time a god hosts, so the arena knows to speak
+# its full intro rather than the short "take your place again" line.
+@export var first_visit := true
 
 @export_category("Shared Arena Rules")
 # The round every arena is played in - 1:30. This is the one clock shared by all
@@ -179,7 +182,7 @@ var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
 var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
 var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
 var _victor_claimed: Dictionary = {}  # owner id -> true (once per trial)
-var _rivalry_claimed: Dictionary = {} # owner id -> {victim id: true}
+var _rivalry_claimed: Dictionary = {} # owner id -> {favor id -> {victim id: true}}
 var _sun_patch_rects: Array[TextureRect] = []
 var _base_move_speed := 215.0
 var _guidance_time := 0.0
@@ -359,6 +362,14 @@ func shares_mortal_positions() -> bool:
 	return true
 
 
+# True for a game the gods play with everyone in their OWN copy of the arena
+# (Arnis: one duelist per mortal, one mortal per screen): no rival is drawn on
+# anybody's field and no position travels - only FAVOR and the favors do. The
+# base reads this to keep the field clear and to skip every ghost.
+func separate_players() -> bool:
+	return false
+
+
 # --- MULTIPLAYER: layout sync -----------------------------------------------
 
 func _publish_layout() -> void:
@@ -387,7 +398,19 @@ func _apply_layout(layout: Dictionary) -> void:
 func _start_intro() -> void:
 	_phase = Phase.INTRO
 	player.set_lock(true)
-	dialogue.show_lines(_speech(god, god.intro_lines), TEMP_ICON)
+	# A god introduces itself in full the FIRST time it hosts a trial. When the
+	# run comes back around (or when the shell hands the field over), only the
+	# short "take your place" line is needed - the hand-over itself was already
+	# spoken by the god that just closed.
+	var lines := _speech(god, god.intro_lines) if first_visit else _speech(god, [opening_call()])
+	dialogue.show_lines(lines, TEMP_ICON)
+
+
+# The one line a god says when it calls a trial it has already introduced.
+func opening_call() -> String:
+	if not god.intro_lines.is_empty():
+		return "Take your place. %s watches again." % god.display_name
+	return "%s calls the next trial." % god.display_name
 
 
 func _start_countdown() -> void:
@@ -559,6 +582,33 @@ func lose_favor(amount: int, reason: String, mortal_id := -1) -> int:
 	var target_id := rules.local_id if mortal_id < 0 else mortal_id
 	var adjusted := amount * (2 if float(_double_loss.get(target_id, 0.0)) > 0.0 else 1)
 	return rules.lose_favor(adjusted, reason, target_id)
+
+
+# The arena's one way to say "this mortal just earned (or lost) FAVOR", for the
+# games a peer resolves on its own: a private duel (Arnis) or a slipper that
+# landed (Tumbang Preso). Only the host ever changes a mortal's FAVOR, so a
+# client asks it and the next snapshot brings the number back.
+func score_favor(amount: int, reason: String) -> void:
+	if amount == 0:
+		return
+	if _authority:
+		if amount > 0:
+			bank_favor(amount, reason, _my_id)
+		else:
+			lose_favor(-amount, reason, _my_id)
+		_publish_god_state()
+		return
+	if _net != null and _net.has_multiplayer_peer():
+		_net.rpc_id(1, "request_arena_score", amount, reason)
+
+
+func _on_arena_score_requested(peer_id: int, amount: int, reason: String) -> void:
+	if not _authority:
+		return
+	if amount > 0:
+		bank_favor(amount, reason, peer_id)
+	else:
+		lose_favor(-amount, reason, peer_id)
 
 
 # Mercy seconds: a mortal that was just hit cannot be hit again until they run
@@ -784,9 +834,11 @@ func _results_from_mirror() -> Dictionary:
 
 
 func _show_closing_lines() -> void:
-	var mine := local_favor()
 	var lines: Array = []
 	if final_trial:
+		# Only Bathala's closing trial judges the run - a god's own trial never
+		# declares a winner, it just hands the field on.
+		var mine := local_favor()
 		var success := mine >= success_favor
 		lines.append_array(_speech(god, god.success_lines if success else god.failure_lines))
 	else:
@@ -794,18 +846,17 @@ func _show_closing_lines() -> void:
 		if god.trial_end_lines.is_empty():
 			lines.append({"speaker": god.display_name, "color": god.color, "text": "The trial is complete. Your Favor carries onward."})
 
-	var next_god := Gods.by_id(next_god_id) if next_god_id != &"" else Gods.next_god(god.id)
+	# The hand-over: what THIS god says about the god that follows it. Every
+	# combination lives in the god's own transition_lines, keyed by the next
+	# god's id, so nothing here needs to know who can follow whom.
+	var next_god: God = Gods.by_id(next_god_id) if next_god_id != &"" else Gods.next_god(god.id)
 	_free_grants = 0
 	if next_god != null:
-		var transition: Array = god.transition_lines.get(str(next_god.id), [])
-		if transition.is_empty():
-			transition = ["%s, the field is yours." % next_god.display_name]
-		lines.append_array(_speech(god, transition))
-		if next_god.arena_scene == "":
-			lines.append_array(_speech(next_god, next_god.intro_lines))
+		lines.append_array(_speech(god, god.transition_to(next_god.id, next_god.display_name)))
 	dialogue.show_lines(lines, TEMP_ICON)
 
 
+# Kept for the older "a god with no arena introduces itself" path.
 func _opening_line(god_ref: God) -> String:
 	if not god_ref.intro_lines.is_empty():
 		return str(god_ref.intro_lines[0])
@@ -1061,19 +1112,37 @@ func _tick_the_great(delta: float) -> void:
 		_great_pending[mortal.id] = pending
 
 
+# Sibling's Rivalry, both halves. The number is the same in both, only the
+# direction changes: APOLAKI's fires when the owner pulls that far AHEAD of a
+# rival (the sun blots the rival's screen out), MAYARI's when the owner falls
+# that far BEHIND one (the moon takes their light instead). Either way it is the
+# RIVAL's screen that goes dark, once per rival and once per trial.
 func _tick_siblings_rivalry() -> void:
 	for owner in rules.mortals.values():
-		if not owner.has_favor(&"siblings_rivalry"):
+		_rivalry_blind_rivals(owner, &"siblings_rivalry", "ahead_by", false)
+		_rivalry_blind_rivals(owner, &"siblings_rivalry_moon", "behind_by", true)
+
+
+func _rivalry_blind_rivals(owner: GodMatch.Mortal, favor_id: StringName, threshold_key: String, owner_is_behind: bool) -> void:
+	if not owner.has_favor(favor_id):
+		return
+	var favor: GodFavor = owner.favor_by_id(favor_id)
+	if favor == null:
+		return
+	var lead := int(favor.param(threshold_key, 1000.0))
+	var per_favor: Dictionary = _rivalry_claimed.get(owner.id, {})
+	var claims: Dictionary = per_favor.get(favor_id, {})
+	for rival in rules.mortals.values():
+		if rival.id == owner.id or claims.has(rival.id):
 			continue
-		var favor: GodFavor = owner.favor_by_id(&"siblings_rivalry")
-		var lead := int(favor.param("ahead_by", 1000.0))
-		var claims: Dictionary = _rivalry_claimed.get(owner.id, {})
-		for rival in rules.mortals.values():
-			if rival.id == owner.id or rival.favor + lead > owner.favor or claims.has(rival.id):
-				continue
-			claims[rival.id] = true
-			_rivalry_claimed[owner.id] = claims
-			_add_sun_patches(rival.id, 4, maxf(0.0, favor.duration))
+		var gap: int = rival.favor - owner.favor
+		var reached: bool = (gap <= -lead) if not owner_is_behind else (gap >= lead)
+		if not reached:
+			continue
+		claims[rival.id] = true
+		per_favor[favor_id] = claims
+		_rivalry_claimed[owner.id] = per_favor
+		_add_sun_patches(rival.id, 4, maxf(0.0, favor.duration))
 
 
 # Another mortal cast Half Vision: darken THIS screen (unless we are the caster).
@@ -1152,6 +1221,8 @@ func _connect_network() -> void:
 		_net.god_favor_requested.connect(_on_god_favor_requested)
 		_net.god_skill_requested.connect(_on_god_skill_requested)
 		_net.god_grant_requested.connect(_on_god_grant_requested)
+		if _net.has_signal("arena_score_requested"):
+			_net.connect("arena_score_requested", _on_arena_score_requested)
 	else:
 		_net.rpc_id(1, "request_god_state")
 
@@ -1180,7 +1251,7 @@ func _on_player_name_changed(peer_id: int, name: String) -> void:
 
 
 func _sync_ghosts() -> void:
-	if _net == null or not _networked:
+	if _net == null or not _networked or separate_players():
 		return
 	var names: Dictionary = _net.players
 	for pid in names.keys():

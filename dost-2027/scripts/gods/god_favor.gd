@@ -36,5 +36,9 @@ func is_skill() -> bool:
 	return slot == Slot.E or slot == Slot.Q
 
 
+func requires_god_id() -> StringName:
+	return StringName(str(params.get("requires_god", "")))
+
+
 func param(key: String, fallback: float) -> float:
 	return float(params.get(key, fallback))

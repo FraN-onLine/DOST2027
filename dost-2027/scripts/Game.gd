@@ -43,6 +43,7 @@ var trial_order: Array[God] = []
 var trial_index := 0
 var run_snapshot := {}
 var other_player_panels := {}
+var _visited_gods: Dictionary = {}   # god id -> true (its intro is spoken once)
 
 
 func _ready() -> void:
@@ -53,8 +54,24 @@ func _ready() -> void:
 	Network.player_list_updated.connect(_on_player_list_updated)
 	Network.player_name_changed.connect(_on_player_name_changed)
 	Network.player_god_icon_changed.connect(_on_player_god_icon_changed)
-	_build_trial_order()
-	_start_current_trial()
+	if _build_trial_order():
+		_start_current_trial()
+	else:
+		# A client never draws its own run: until the host answers, there is no
+		# trial to open. Every player walks the same sequence of gods.
+		timer_label.text = "WAITING FOR HOST"
+		Network.trial_order_changed.connect(_on_host_trial_order_received, CONNECT_ONE_SHOT)
+		Network.rpc_id(1, "request_trial_order")
+
+
+func _on_host_trial_order_received(_ids: Array) -> void:
+	if _build_trial_order():
+		_start_current_trial()
+		return
+	# Something else about the order changed (the run itself has not arrived
+	# yet): keep waiting - never improvise a run a client would not share.
+	Network.trial_order_changed.connect(_on_host_trial_order_received, CONNECT_ONE_SHOT)
+	Network.rpc_id(1, "request_trial_order")
 
 
 func _build_hud() -> void:
@@ -88,7 +105,11 @@ func _build_other_player_panels() -> void:
 
 
 func _refresh_opponent_display() -> void:
-	var isolated_trial := arena != null and StringName(str(arena.get("god_id"))) == &"apolaki"
+	# A game the gods have everyone play on their own field (Arnis) has no rivals
+	# to show: the column is hidden and the arena draws nobody but you.
+	var isolated_trial := false
+	if arena != null and arena.has_method("separate_players"):
+		isolated_trial = bool(arena.call("separate_players"))
 	$OtherPlayersPanel.visible = not isolated_trial
 
 
@@ -125,15 +146,27 @@ func _set_own_god_icon(god_id: StringName) -> void:
 		own_god_icon.texture = god.icon
 
 
-func _build_trial_order() -> void:
+# The run's order comes from exactly one place: the host (Network.start_game
+# hands it to every peer before the shell loads). Returns false when a networked
+# client is still waiting for it - such a client must never draw one of its own,
+# or the players would end up in different gods.
+func _build_trial_order() -> bool:
+	trial_order.clear()
 	if not Network.trial_order_ids.is_empty():
-		trial_order.clear()
 		for god_id in Network.trial_order_ids:
 			var god := Gods.by_id(god_id)
 			if god != null and god.id == god_id:
 				trial_order.append(god)
 		if not trial_order.is_empty():
-			return
+			return true
+		# The ids are known but none of them playable: close the run instead of
+		# falling back to a private random draw that no other player would share.
+		trial_order.append(Gods.bathala())
+		return true
+	# A client asks the host for the order; the host (or an offline run, where
+	# there is no host to ask) draws its own.
+	if Network.has_multiplayer_peer() and not multiplayer.is_server():
+		return false
 	# 4 to 6 challenges drawn from the gods that ship an arena, in a random
 	# order, and then Bathala's final challenge - Bathala is always last.
 	var playable: Array[God] = []
@@ -143,7 +176,6 @@ func _build_trial_order() -> void:
 	if playable.is_empty():
 		playable.append(Gods.mayari())
 	var challenges := randi_range(Gods.CHALLENGE_MIN, Gods.CHALLENGE_MAX)
-	trial_order.clear()
 	var pool: Array[God] = []
 	for index in range(challenges):
 		# A god can come back - the order and the appearances are random - but
@@ -153,6 +185,7 @@ func _build_trial_order() -> void:
 			pool.shuffle()
 		trial_order.append(pool.pop_front())
 	trial_order.append(Gods.bathala())
+	return true
 
 
 func _start_current_trial() -> void:
@@ -172,6 +205,10 @@ func _start_current_trial() -> void:
 	# The shell draws the shared panels; the arena keeps its left strip empty for
 	# them and owns the rest of the screen exactly as it was authored.
 	arena_instance.embedded = true
+	# A god speaks its full intro only the first time it hosts in this run; after
+	# that the arena knows to use its short "take your place" line.
+	arena_instance.first_visit = not _visited_gods.has(god.id)
+	_visited_gods[god.id] = true
 	arena_instance.dialogue_prefix = "trial_%d" % (trial_index + 1)
 	arena_instance.next_god_id = trial_order[trial_index + 1].id if trial_index + 1 < trial_order.size() else &""
 	arena_instance.final_trial = false
