@@ -97,6 +97,9 @@ const POPUP_OFFSET := Vector2(0.0, -42.0)   # above the mortal's head
 
 const DIALOGUE_TIMEOUT := 20.0
 const GUIDANCE_RADIUS := 150.0
+# How long a favor blot the host hands us stays up when the favor's own
+# patch_duration is not carried across the wire (the favors themselves say 1.5s).
+const FAVOR_PATCH_TIME := 1.5
 
 enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 
@@ -195,6 +198,12 @@ var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
 var _victor_claimed: Dictionary = {}  # owner id -> true (once per trial)
 var _rivalry_claimed: Dictionary = {} # owner id -> {favor id -> {victim id: true}}
 var _sun_patch_rects: Array[TextureRect] = []
+# The blots covering THIS screen right now. Each one owns a single rect of the
+# shared patch layer that it claimed at random out of the free ones, and it
+# takes itself back down when its OWN clock runs out - so a new blot never lands
+# on top of one already showing, and the blot that arrived first is not the
+# first to go. Entries: {index:int, left:float, favor:bool}.
+var _sun_patch_slots: Array[Dictionary] = []
 var _base_move_speed := 215.0
 var _guidance_time := 0.0
 var _movement_override_caster := -1
@@ -455,6 +464,7 @@ func _start_trial() -> void:
 	set_mortal_invuln(_my_id, spawn_immunity)
 	_blind_time = 0.0
 	_sun_patches.clear()
+	clear_sun_patches()
 	_double_loss.clear()
 	_great_pending.clear()
 	_victor_claimed.clear()
@@ -507,6 +517,7 @@ func _process(delta: float) -> void:
 	if _authority and _networked and _phase != Phase.INTRO:
 		_publish_net_tick(delta)
 	_flush_favor_popups(delta)
+	_tick_sun_patch_slots(delta)
 	_apply_blindness(delta)
 	_move_ghosts(delta)
 	_update_movement_favors(delta)
@@ -1062,10 +1073,111 @@ func _collect_sun_patch_rects() -> void:
 	_refresh_sun_patches()
 
 
-func _refresh_sun_patches() -> void:
-	var timers: Array = _sun_patches.get(_my_id, [])
+# --- THE BLOTS ON THIS SCREEN --------------------------------------------------
+# A blot is not a slot in a list: it is a rect that happened to be free when it
+# arrived, plus a clock of its own. That is what makes them independent - they do
+# not fill rect 0, 1, 2 and then empty from the front, they scatter over the
+# free rects and each one goes down when its own time is up.
+
+# Show one sun patch for `seconds`. It claims a rect at random out of the free
+# ones (a rect already showing is never reused) and returns false when every
+# rect is busy.
+func show_sun_patch(seconds: float, from_favor := false) -> bool:
+	if seconds <= 0.0 or _sun_patch_rects.is_empty():
+		return false
+	var index := _claim_sun_patch_rect()
+	if index < 0:
+		return false
+	_sun_patch_slots.append({"index": index, "left": seconds, "favor": from_favor})
+	_sun_patch_rects[index].visible = true
+	return true
+
+
+func active_sun_patches() -> int:
+	return _sun_patch_slots.size()
+
+
+# How long the nth blot on this screen has left (0.0 when there is none).
+func sun_patch_time_left(slot: int) -> float:
+	if slot < 0 or slot >= _sun_patch_slots.size():
+		return 0.0
+	return float(_sun_patch_slots[slot]["left"])
+
+
+# Which rect the nth blot is using (-1 when there is none).
+func sun_patch_rect_at(slot: int) -> int:
+	if slot < 0 or slot >= _sun_patch_slots.size():
+		return -1
+	return int(_sun_patch_slots[slot]["index"])
+
+
+func clear_sun_patches() -> void:
+	for rect in _sun_patch_rects:
+		rect.visible = false
+	_sun_patch_slots.clear()
+
+
+# Every blot runs its own clock, on every machine: what is drawn on this screen
+# belongs to this screen, whichever player decided that it should be here.
+func _tick_sun_patch_slots(delta: float) -> void:
+	if _sun_patch_slots.is_empty():
+		return
+	var at := _sun_patch_slots.size() - 1
+	while at >= 0:
+		var slot: Dictionary = _sun_patch_slots[at]
+		var left := float(slot["left"]) - delta
+		if left <= 0.0:
+			_release_sun_patch_slot(at)
+		else:
+			slot["left"] = left
+		at -= 1
+
+
+# Any rect that is free right now.
+func _claim_sun_patch_rect() -> int:
+	var taken := {}
+	for slot in _sun_patch_slots:
+		taken[int(slot["index"])] = true
+	var free: Array[int] = []
 	for index in range(_sun_patch_rects.size()):
-		_sun_patch_rects[index].visible = index < timers.size()
+		if not taken.has(index):
+			free.append(index)
+	if free.is_empty():
+		return -1
+	return free[randi() % free.size()]
+
+
+func _release_sun_patch_slot(at: int) -> void:
+	var index := int(_sun_patch_slots[at]["index"])
+	_sun_patch_slots.remove_at(at)
+	if index < _sun_patch_rects.size():
+		_sun_patch_rects[index].visible = false
+
+
+# The favor blots are the host's data, so this mirrors how many of them are aimed
+# at us into blots of our own: a rise claims a free rect at random, a fall gives
+# back the newest one (that is the one the host just erased), and every other
+# blot on screen is left strictly alone.
+func _refresh_sun_patches() -> void:
+	var favor_count := (_sun_patches.get(_my_id, []) as Array).size()
+	var held := 0
+	for slot in _sun_patch_slots:
+		if bool(slot.get("favor", false)):
+			held += 1
+	while held < favor_count:
+		if not show_sun_patch(FAVOR_PATCH_TIME, true):
+			break
+		held += 1
+	while held > favor_count:
+		var at := -1
+		for index in range(_sun_patch_slots.size() - 1, -1, -1):
+			if bool(_sun_patch_slots[index].get("favor", false)):
+				at = index
+				break
+		if at < 0:
+			break
+		_release_sun_patch_slot(at)
+		held -= 1
 
 
 func _favor_duration(mortal: GodMatch.Mortal, favor_id: StringName, fallback: float) -> float:
@@ -1102,6 +1214,12 @@ func _add_sun_patches(mortal_id: int, count: int, duration: float) -> void:
 	for index in range(count):
 		timers.append(duration)
 	_sun_patches[mortal_id] = timers
+	# A blot aimed at US is drawn here, right now: it claims a rect at random out
+	# of the free ones and comes down on its own clock. Blots aimed at somebody
+	# else stay host-side data and travel in the arena tick.
+	if mortal_id == _my_id:
+		for index in range(count):
+			show_sun_patch(duration, true)
 	_refresh_sun_patches()
 	_check_victor_threshold(mortal_id)
 

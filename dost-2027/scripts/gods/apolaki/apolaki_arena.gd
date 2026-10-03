@@ -67,7 +67,6 @@ var _defend_cd := 0.0
 var _swinging := false      # a strike clip is running
 var _swing_resolved := false # this swing has already landed its one hit
 var _guarding := false      # a guard clip is running
-var _hit_patches: Array[float] = []  # blots his landed swing leaves on THIS screen
 
 
 func _ready() -> void:
@@ -109,8 +108,7 @@ func arena_round_reset() -> void:
 	_swinging = false
 	_swing_resolved = false
 	_guarding = false
-	_hit_patches.clear()
-	_refresh_sun_patches()
+	clear_sun_patches()
 	player.play_animation(IDLE_ANIM)
 	if duelist != null:
 		duelist.restart()
@@ -134,7 +132,6 @@ func _process(delta: float) -> void:
 	# sprite is on decides when the strike lands, and a finished clip returns the
 	# mortal to its idle. Runs on every screen, like the rest of the duel.
 	_tick_actions()
-	_tick_hit_patches(delta)
 	_refresh_bars()
 	if duelist == null:
 		return
@@ -272,44 +269,15 @@ func _on_duelist_attack_landed() -> void:
 
 
 # --- THE SUN PATCHES HIS SWING LEAVES ------------------------------------------
-# His landed swing blots part of THIS screen. It is deliberately local
-# clockwork: the duel is private, so the patch is never published and nobody
-# else's screen changes. The base's favor-driven patches belong to the host and
-# tick on the host only, so this keeps its own list instead of borrowing that
-# one - otherwise a client's blot would never expire.
+# His landed swing blots part of THIS screen. The blots themselves are the
+# shared ones (Arena.show_sun_patch), so a blot he drops and a blot another
+# player's favor drops behave the same way: each claims a rect at random out of
+# the free ones and takes itself back down on its own clock. Nothing is
+# published - the duel is private, so nobody else's screen changes.
 
 func _drop_hit_patch() -> void:
-	if hit_patch_count <= 0 or hit_patch_time <= 0.0:
-		return
 	for _index in range(hit_patch_count):
-		_hit_patches.append(hit_patch_time)
-	_refresh_sun_patches()
-
-
-func _tick_hit_patches(delta: float) -> void:
-	if _hit_patches.is_empty():
-		return
-	var active: Array[float] = []
-	for left in _hit_patches:
-		var remaining := maxf(0.0, left - delta)
-		if remaining > 0.0:
-			active.append(remaining)
-	var expired := active.size() != _hit_patches.size()
-	# Write the burnt-down timers back EVERY frame: only the count is drawn, but
-	# if the numbers were not stored the blot would never actually run out.
-	_hit_patches = active
-	if expired:
-		_refresh_sun_patches()
-
-
-# The shared patch view (the favor blots the host owns) with the swing's blots
-# drawn on top of it: a hit can never be erased by a favor expiring, and a favor
-# can never hide the hit that just landed.
-func _refresh_sun_patches() -> void:
-	var shared: Array = _sun_patches.get(_my_id, [])
-	var total := mini(shared.size() + _hit_patches.size(), _sun_patch_rects.size())
-	for index in range(_sun_patch_rects.size()):
-		_sun_patch_rects[index].visible = index < total
+		show_sun_patch(hit_patch_time)
 
 
 func _refresh_state_label() -> void:

@@ -106,19 +106,19 @@ func _run() -> void:
 	_arena.rules.local().favor = 500
 	_arena._on_duelist_attack_landed()
 	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "his swing costs 80 while the mortal is IDLE")
-	_check((_arena._hit_patches as Array).size() == _arena.hit_patch_count, "a landed swing blots one sun patch on your screen")
-	_check(is_equal_approx(float((_arena._hit_patches as Array)[0]), _arena.hit_patch_time), "the blot starts at hit_patch_time (3s)")
+	_check(_arena.active_sun_patches() == _arena.hit_patch_count, "a landed swing blots one sun patch on your screen")
+	_check(is_equal_approx(_arena.sun_patch_time_left(0), _arena.hit_patch_time), "the blot starts at hit_patch_time (3s)")
 	# It has to burn down over REAL frames, not merely vanish on one big tick:
 	# the game loop calls this sixty times a second, so a timer that is never
 	# stored back would sit at 3.0 forever.
-	_arena._tick_hit_patches(_arena.hit_patch_time * 0.5)
-	_check((_arena._hit_patches as Array).size() == 1, "the blot is still up half way through its 3 seconds")
-	_check(float((_arena._hit_patches as Array)[0]) < _arena.hit_patch_time, "the blot timer burns down every frame")
+	_arena._tick_sun_patch_slots(_arena.hit_patch_time * 0.5)
+	_check(_arena.active_sun_patches() == 1, "the blot is still up half way through its 3 seconds")
+	_check(_arena.sun_patch_time_left(0) < _arena.hit_patch_time, "the blot timer burns down every frame")
 	var elapsed := _arena.hit_patch_time * 0.5   # the half-way tick above counts too
-	while elapsed < _arena.hit_patch_time + 0.5 and not (_arena._hit_patches as Array).is_empty():
-		_arena._tick_hit_patches(1.0 / 60.0)
+	while elapsed < _arena.hit_patch_time + 0.5 and _arena.active_sun_patches() > 0:
+		_arena._tick_sun_patch_slots(1.0 / 60.0)
 		elapsed += 1.0 / 60.0
-	_check((_arena._hit_patches as Array).is_empty(), "the blot clears after 3 seconds of real frames")
+	_check(_arena.active_sun_patches() == 0, "the blot clears after 3 seconds of real frames")
 	_check(elapsed >= _arena.hit_patch_time, "and it lasted the whole 3 seconds")
 
 	_arena._invuln.clear()
@@ -127,7 +127,7 @@ func _run() -> void:
 	_arena._on_duelist_attack_landed()
 	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "being mid-swing does not save you")
 	_arena._swinging = false
-	_arena._tick_hit_patches(_arena.hit_patch_time + 0.05)
+	_arena.clear_sun_patches()
 
 	_arena._invuln.clear()
 	_arena._guarding = true
@@ -136,9 +136,45 @@ func _run() -> void:
 	_arena._on_duelist_attack_landed()
 	_check(_arena.rules.local().favor == 500 + _arena.block_favor, "DEFENDING his swing gains 100")
 	_check(_arena.player._knockback == Vector2.ZERO, "a defended swing does not shove the mortal")
-	_check((_arena._hit_patches as Array).is_empty(), "a defended swing leaves no sun patch")
+	_check(_arena.active_sun_patches() == 0, "a defended swing leaves no sun patch")
 	_arena._guarding = false
 	_arena._invuln.clear()
+
+	# --- THE BLOTS THEMSELVES ----------------------------------------------------
+	# Every blot - the one his swing drops and the ones another player's favors
+	# drop - claims a rect at random out of the free ones, and each one comes down
+	# on its own clock.
+	_arena.clear_sun_patches()
+	var rect_count := _arena._sun_patch_rects.size()
+	for _index in range(3):
+		_arena.show_sun_patch(5.0)
+	_check(_arena.active_sun_patches() == 3, "three blots can be on screen at once")
+	var used := {}
+	for slot in range(_arena.active_sun_patches()):
+		used[_arena.sun_patch_rect_at(slot)] = true
+	_check(used.size() == 3, "each blot claimed a rect of its own (none overwritten)")
+	# Two blots with two different lives: the short one must take itself down while
+	# the long one is still up. A last-in-first-out fill would have killed the
+	# wrong one - the newest - and left the stale blot sitting there.
+	_arena.clear_sun_patches()
+	_arena.show_sun_patch(0.5)
+	_arena.show_sun_patch(3.0)
+	_arena._tick_sun_patch_slots(0.6)
+	_check(_arena.active_sun_patches() == 1, "the short blot came down while the long one stayed up")
+	_arena._tick_sun_patch_slots(2.5)
+	_check(_arena.active_sun_patches() == 0, "the long blot came down on its own time")
+	# Every rect can hold a blot at once, and one more is refused rather than
+	# landing on top of a blot that is already showing.
+	_arena.clear_sun_patches()
+	for _index in range(rect_count):
+		_arena.show_sun_patch(5.0)
+	_check(_arena.active_sun_patches() == rect_count, "every rect holds its own blot")
+	_check(not _arena.show_sun_patch(5.0), "a blot is refused while every rect is busy")
+	_arena.clear_sun_patches()
+	# A blot aimed at us by another player's favor goes through the same allocator.
+	_arena._add_sun_patches(_arena._my_id, 1, 1.5)
+	_check(_arena.active_sun_patches() == 1, "another player's favor blot is drawn the same way")
+	_arena.clear_sun_patches()
 
 	# --- HIS AREA AND HIS WINDOW -----------------------------------------------
 	# Count the signal only: hold the arena in RESULTS so its own scoring
