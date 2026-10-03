@@ -10,16 +10,24 @@ extends Arena
 # A PRIVATE DUEL
 #   This is the one arena where the mortals are NOT in the same room. Each player
 #   duels their OWN Apolaki on their OWN screen (Apolaki.tscn, driven by
-#   apolaki_duelist.gd): he walks, guards and lunges at that player alone. His
-#   position is never sent anywhere - what travels between mortals is FAVOR, the
-#   favors they hold and the effects those favors play out (separate_players).
+#   apolaki_duelist.gd). His position is never sent anywhere - what travels
+#   between mortals is FAVOR, the favors they hold and the effects those favors
+#   play out (separate_players).
 #
-# THE DUEL
-#   ATTACK (LEFT MOUSE) - strike. Land it while Apolaki is OPEN (his blind spot)
-#   for the most FAVOR; a strike while he only watches pays a little; strike into
-#   his GUARD and you pay for it.
-#   DEFEND (RIGHT MOUSE) - guard. Block his lunge inside the window and you gain
-#   FAVOR; take the hit and you lose FAVOR and are shoved back.
+# THE DUEL - three states each, and every outcome falls out of them
+#   Apolaki is IDLE (he just chases you), ATTACKING, or DEFENDING. The mortal is
+#   IDLE, ATTACKing, or DEFENDING. That is the whole game.
+#   ATTACK (LEFT MOUSE) - the mortal plays its "hit-arnis" clip; the strike lands
+#   on frames strike_hit_open_frame..strike_hit_close_frame of it, once per swing:
+#   hitting him while he is IDLE or ATTACKING pays strike_favor, hitting his
+#   DEFEND costs strike_defend_penalty. Nothing else - all three states covered.
+#   DEFEND (RIGHT MOUSE) - the mortal plays its "defend-arnis" clip.
+#   HIS SWING (ApolakiDuelist.attack_landed) only reaches a mortal standing
+#   inside his area, and only while its frames are live. A mortal who is IDLE or
+#   ATTACKing then loses hit_penalty (shoved back, with a sun patch blotting
+#   their own screen for hit_patch_time seconds); one who is DEFENDING gains
+#   block_favor instead.
+#   Both buttons run on their own cooldown, drawn as the two bars on the duel HUD.
 #
 # SUN PATCHES
 #   The Apolaki favors blot part of a mortal's own screen. The host owns the
@@ -31,28 +39,41 @@ extends Arena
 # script only runs the rules.
 
 @export_category("Arnis")
-@export var strike_open_favor := 35       # a clean strike on his blind spot
-@export var strike_neutral_favor := 10    # a strike while he only watches
-@export var strike_guard_penalty := 25    # striking into his guard
-@export var block_favor := 20             # a blocked lunge
-@export var hit_penalty := 30             # a lunge that got through
-@export var strike_cooldown := 0.45       # seconds between two strikes
-@export var strike_reach_bonus := 26.0    # a strike lands this past his reach
-@export var defend_window := 0.42         # how long a guard holds
-@export var defend_cooldown := 0.7        # seconds before another guard
+@export var strike_favor := 200          # hitting him while he IDLES or ATTACKS
+@export var strike_defend_penalty := 100 # hitting him while he DEFENDS
+@export var block_favor := 100           # a DEFENDING mortal beats his swing
+@export var hit_penalty := 80            # an idle / attacking mortal takes his swing
+@export var strike_cooldown := 2.0       # seconds between two strikes
+@export var strike_hit_open_frame := 3   # the mortal's swing lands from this frame
+@export var strike_hit_close_frame := 5  # ...through this one (hit-arnis)
+@export var strike_reach_bonus := 26.0   # a strike lands this past his reach
+@export var defend_cooldown := 2.0       # seconds before another guard
+@export var hit_patch_count := 1         # blots his landed swing leaves on screen
+@export var hit_patch_time := 3.0        # seconds each blot stays
 
 @onready var duelist: ApolakiDuelist = get_node_or_null("ArenaField/Apolaki")
 @onready var state_label: Label = get_node_or_null("DuelHud/State")
+@onready var strike_bar: PanelContainer = get_node_or_null("DuelHud/Bars/StrikeBar")
+@onready var defend_bar: PanelContainer = get_node_or_null("DuelHud/Bars/DefendBar")
+
+# The mortal's own clips (authored in Mortal.tscn). The swing lands on one of its
+# frames and both clips hand the mortal back to its idle once they run out.
+const IDLE_ANIM := &"default"
+const STRIKE_ANIM := &"hit-arnis"
+const DEFEND_ANIM := &"defend-arnis"
 
 var _strike_cd := 0.0
-var _defend_time := 0.0    # seconds of guard left (our own, personal)
 var _defend_cd := 0.0
+var _swinging := false      # a strike clip is running
+var _swing_resolved := false # this swing has already landed its one hit
+var _guarding := false      # a guard clip is running
+var _hit_patches: Array[float] = []  # blots his landed swing leaves on THIS screen
 
 
 func _ready() -> void:
 	super._ready()
 	if duelist != null:
-		duelist.lunge.connect(_on_duelist_lunge)
+		duelist.attack_landed.connect(_on_duelist_attack_landed)
 
 
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
@@ -84,8 +105,13 @@ func collect_units() -> void:
 
 func arena_round_reset() -> void:
 	_strike_cd = 0.0
-	_defend_time = 0.0
 	_defend_cd = 0.0
+	_swinging = false
+	_swing_resolved = false
+	_guarding = false
+	_hit_patches.clear()
+	_refresh_sun_patches()
+	player.play_animation(IDLE_ANIM)
 	if duelist != null:
 		duelist.restart()
 
@@ -99,12 +125,17 @@ func arena_rules_tick(_delta: float) -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
-	# Every peer runs its OWN Apolaki, so his stalking, the strike cooldown and
-	# the guard window all tick here, on every screen - not just the host's. The
-	# FAVOR they pay is still the host's to decide (score_favor).
+	# Every peer runs its OWN Apolaki, so his states, his walk and both cooldowns
+	# all tick here, on every screen - not just the host's. The FAVOR they pay is
+	# still the host's to decide (score_favor).
 	_strike_cd = maxf(0.0, _strike_cd - delta)
 	_defend_cd = maxf(0.0, _defend_cd - delta)
-	_defend_time = maxf(0.0, _defend_time - delta)
+	# The swing and the guard are driven by the mortal's own clips: the frame the
+	# sprite is on decides when the strike lands, and a finished clip returns the
+	# mortal to its idle. Runs on every screen, like the rest of the duel.
+	_tick_actions()
+	_tick_hit_patches(delta)
+	_refresh_bars()
 	if duelist == null:
 		return
 	duelist.frozen = _phase != Phase.PLAYING
@@ -115,19 +146,36 @@ func _process(delta: float) -> void:
 # --- INPUT -------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	# The duel's two mouse buttons are read in _input() below. The shell draws a
+	# full-screen Control over the arena, and a GUI mouse event never reaches
+	# _unhandled_input - so this stays only for the base's keyboard shortcuts
+	# (E/Q favors, the God's Due menu, ESC, R).
 	super._unhandled_input(event)
-	# The duel's own two buttons are the arena's during PLAYING only - a dialogue,
-	# the God's Due menu or the countdown all keep the mortal still.
-	if _phase != Phase.PLAYING or player.locked:
+
+
+func _input(event: InputEvent) -> void:
+	# ATTACK / DEFEND are mouse buttons, so they have to be caught before the GUI
+	# consumes them (Mayari and Tala read their attack the same way). Only during
+	# PLAYING: a dialogue, the God's Due menu or the countdown keep the mortal
+	# still.
+	if not (event is InputEventMouseButton) or not event.pressed:
 		return
-	if dialogue.is_active() or due_menu.is_open():
+	if _phase != Phase.PLAYING or player.locked or dialogue.is_active() or due_menu.is_open():
 		return
 	if event.is_action_pressed("attack"):
 		_try_strike()
 	elif event.is_action_pressed("defend"):
 		_try_defend()
+	else:
+		return
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.set_input_as_handled()
 
 
+# Pressing attack starts the swing. The strike itself does not resolve here: it
+# waits for the clip to reach its hit frames (_tick_actions watches the frame),
+# so the swing reads as a swing and the hit lands where the art says it should.
 func _try_strike() -> void:
 	if _strike_cd > 0.0:
 		_log("Strike recharging  (%.1fs)" % _strike_cd, god.color)
@@ -135,54 +183,170 @@ func _try_strike() -> void:
 	if duelist == null:
 		return
 	_strike_cd = strike_cooldown
+	_swinging = true
+	_swing_resolved = false
+	_guarding = false
+	player.play_animation(STRIKE_ANIM)
+
+
+# The strike's hit window: "the hit opens at frame 3 and closes at frame 5" of
+# the hit-arnis clip (strike_hit_open_frame / strike_hit_close_frame).
+func _strike_frame_in_window(frame: int) -> bool:
+	return frame >= strike_hit_open_frame and frame <= strike_hit_close_frame
+
+
+# One frame of the two action clips. The swing resolves exactly once, on the
+# first frame inside its window; either clip hands the mortal back to its idle
+# once it has played out.
+func _tick_actions() -> void:
+	if _swinging:
+		if not _swing_resolved and _strike_frame_in_window(player.animation_frame()):
+			_swing_resolved = true
+			_resolve_strike()
+		if not player.is_animation_playing(STRIKE_ANIM):
+			_swinging = false
+			player.play_animation(IDLE_ANIM)
+	elif _guarding:
+		if not player.is_animation_playing(DEFEND_ANIM):
+			_guarding = false
+			player.play_animation(IDLE_ANIM)
+
+
+# The mortal's own three states. They are exactly what its clips are running:
+# a strike clip means ATTACKING, a guard clip means DEFENDING, nothing running
+# means IDLE. His swing reads these two.
+func _player_is_attacking() -> bool:
+	return _swinging
+
+
+func _player_is_defending() -> bool:
+	return _guarding
+
+
+# The moment the mortal's swing connects. Two outcomes, and they cover all three
+# of his states: a hit pays while he is IDLE or ATTACKING and costs on his
+# DEFEND. It only reaches him at all inside his reach plus the bonus.
+func _resolve_strike() -> void:
+	if duelist == null:
+		return
 	if not duelist.in_reach_with_bonus(player.global_position, strike_reach_bonus):
 		_log("Out of reach - close the distance", Color(0.8, 0.8, 0.85))
 		return
-	if duelist.is_open():
-		score_favor(strike_open_favor, "%s - blind spot" % god.display_name)
-		duelist.flinch()
-		_log("Clean strike! +%d FAVOR" % strike_open_favor, Color(0.7, 1, 0.8))
-	elif duelist.is_guarding():
-		score_favor(-strike_guard_penalty, "%s's guard" % god.display_name)
-		_log("You struck his guard: -%d FAVOR" % strike_guard_penalty, Color(1, 0.5, 0.45))
+	if duelist.is_defending():
+		score_favor(-strike_defend_penalty, "%s's guard" % god.display_name)
+		_log("You struck his guard: -%d FAVOR" % strike_defend_penalty, Color(1, 0.5, 0.45))
 	else:
-		score_favor(strike_neutral_favor, god.display_name)
-		duelist.flinch()
-		_log("Strike landed: +%d FAVOR" % strike_neutral_favor, Color(0.7, 1, 0.8))
+		score_favor(strike_favor, god.display_name)
+		_log("Strike landed: +%d FAVOR" % strike_favor, Color(0.7, 1, 0.8))
 
 
+# Pressing defend plays the guard clip. That clip RUNNING is the mortal's
+# defending state, and it is what turns his swing into FAVOR.
 func _try_defend() -> void:
 	if _defend_cd > 0.0:
 		return
 	_defend_cd = defend_cooldown
-	_defend_time = defend_window
+	_guarding = true
+	_swinging = false
+	player.play_animation(DEFEND_ANIM)
 
 
-# Apolaki lunged at US. Inside our guard window and inside his reach the lunge is
-# blocked; anything else and it lands.
-func _on_duelist_lunge() -> void:
-	if _phase != Phase.PLAYING or player.locked or duelist == null:
+# HIS SWING CONNECTED inside his area. The duelist already checked the distance
+# and the frame window, so this only reads what the mortal was doing when it
+# arrived: DEFENDING gains, and being IDLE or mid-swing both pay.
+func _on_duelist_attack_landed() -> void:
+	if _phase != Phase.PLAYING or player.locked:
 		return
-	if _defend_time > 0.0 and duelist.in_reach(player.global_position):
-		score_favor(block_favor, "Blocked %s's lunge" % god.display_name)
+	if _player_is_defending():
+		score_favor(block_favor, "Blocked %s's swing" % god.display_name)
 		_log("Blocked! +%d FAVOR" % block_favor, Color(0.7, 1, 0.8))
 		return
 	if is_mortal_invulnerable(_my_id):
 		return
-	score_favor(-hit_penalty, "%s's lunge" % god.display_name)
+	score_favor(-hit_penalty, "%s's swing" % god.display_name)
 	set_mortal_invuln(_my_id, invuln_time)
-	knock_mortal(_my_id, duelist.global_position)
-	_log("His lunge landed: -%d FAVOR" % hit_penalty, Color(1, 0.5, 0.45))
+	if duelist != null:
+		knock_mortal(_my_id, duelist.global_position)
+	_drop_hit_patch()
+	_log("His swing landed: -%d FAVOR" % hit_penalty, Color(1, 0.5, 0.45))
+
+
+# --- THE SUN PATCHES HIS SWING LEAVES ------------------------------------------
+# His landed swing blots part of THIS screen. It is deliberately local
+# clockwork: the duel is private, so the patch is never published and nobody
+# else's screen changes. The base's favor-driven patches belong to the host and
+# tick on the host only, so this keeps its own list instead of borrowing that
+# one - otherwise a client's blot would never expire.
+
+func _drop_hit_patch() -> void:
+	if hit_patch_count <= 0 or hit_patch_time <= 0.0:
+		return
+	for _index in range(hit_patch_count):
+		_hit_patches.append(hit_patch_time)
+	_refresh_sun_patches()
+
+
+func _tick_hit_patches(delta: float) -> void:
+	if _hit_patches.is_empty():
+		return
+	var active: Array[float] = []
+	for left in _hit_patches:
+		var remaining := maxf(0.0, left - delta)
+		if remaining > 0.0:
+			active.append(remaining)
+	var expired := active.size() != _hit_patches.size()
+	# Write the burnt-down timers back EVERY frame: only the count is drawn, but
+	# if the numbers were not stored the blot would never actually run out.
+	_hit_patches = active
+	if expired:
+		_refresh_sun_patches()
+
+
+# The shared patch view (the favor blots the host owns) with the swing's blots
+# drawn on top of it: a hit can never be erased by a favor expiring, and a favor
+# can never hide the hit that just landed.
+func _refresh_sun_patches() -> void:
+	var shared: Array = _sun_patches.get(_my_id, [])
+	var total := mini(shared.size() + _hit_patches.size(), _sun_patch_rects.size())
+	for index in range(_sun_patch_rects.size()):
+		_sun_patch_rects[index].visible = index < total
 
 
 func _refresh_state_label() -> void:
 	if state_label == null or duelist == null:
 		return
-	var text := "APOLAKI WATCHES"
-	if duelist.is_open():
-		text = "APOLAKI IS OPEN - STRIKE!"
-	elif duelist.is_guarding():
-		text = "APOLAKI GUARDS - DO NOT STRIKE"
-	elif _defend_time > 0.0:
+	var text := "APOLAKI CHASES YOU"
+	if _player_is_attacking():
+		text = "YOU STRIKE"
+	elif _player_is_defending():
 		text = "YOU GUARD"
+	elif duelist.is_attacking():
+		text = "APOLAKI SWINGS - GUARD!"
+	elif duelist.is_defending():
+		text = "APOLAKI GUARDS - DO NOT STRIKE"
 	state_label.text = text
+
+
+# The two duel bars: the swing and the guard, each refilling over its own
+# cooldown so the mortal can see when the next strike or block is ready.
+func _refresh_bars() -> void:
+	_fill_bar(strike_bar, "LEFT MOUSE  STRIKE", _strike_cd, strike_cooldown, Color(1.0, 0.85, 0.35))
+	_fill_bar(defend_bar, "RIGHT MOUSE  DEFEND", _defend_cd, defend_cooldown, Color(0.55, 0.8, 1.0))
+
+
+func _fill_bar(bar: PanelContainer, caption: String, cooldown: float, total: float, tint: Color) -> void:
+	if bar == null:
+		return
+	var fill: ColorRect = bar.get_node_or_null("Body/Fill")
+	var label: Label = bar.get_node_or_null("Body/Text")
+	var ratio := 1.0 if total <= 0.0 else clampf(1.0 - cooldown / total, 0.0, 1.0)
+	if fill != null:
+		fill.anchor_right = ratio
+		fill.color = Color(tint.r, tint.g, tint.b, 0.78)
+	if label != null:
+		if cooldown <= 0.0:
+			label.text = "%s  READY" % caption
+			label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+		else:
+			label.text = "%s  %.1fs" % [caption, cooldown]
+			label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))

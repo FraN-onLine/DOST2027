@@ -5,6 +5,12 @@ extends SceneTree
 
 var _arena: ApolakiArena
 var _problems := 0
+var _landed := 0
+
+
+# Counts ApolakiDuelist.attack_landed without going through the arena's scoring.
+func _on_attack_landed() -> void:
+	_landed += 1
 
 
 func _initialize() -> void:
@@ -40,21 +46,129 @@ func _run() -> void:
 	_check(_arena._ghosts.is_empty(), "Apolaki does not render other players")
 	_arena.duelist.global_position = _arena.player.global_position
 
-	_arena.duelist._enter(ApolakiDuelist.State.OPEN)
-	_arena._try_strike()
-	_check(_arena.rules.local().favor == 535, "open strike gains 35 FAVOR")
+	# --- THE MORAL'S STRIKE: frames 3..5 of hit-arnis --------------------------
+	_check(_arena._strike_frame_in_window(3), "the mortal's strike is live on frame 3 (opens)")
+	_check(_arena._strike_frame_in_window(5), "the mortal's strike is live on frame 5 (closes)")
+	_check(not _arena._strike_frame_in_window(2), "the mortal's strike is not live before frame 3")
+	_check(not _arena._strike_frame_in_window(6), "the mortal's strike is not live after frame 5")
+
+	# The mouse path matters: the shell draws a full-screen Control over the
+	# arena, so ATTACK is read in _input - a left click that never reaches
+	# _unhandled_input still has to start the swing.
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
 	_arena._strike_cd = 0.0
+	_arena._swinging = false
+	_arena._input(click)
+	_check(_arena._swinging, "a left click starts the swing (the _input path)")
+	_arena._swinging = false
+	_arena._strike_cd = 0.0
+
+	# --- THE BALANCE, SPELLED OUT ----------------------------------------------
+	_check(_arena.strike_favor == 200, "hitting him while he IDLES or ATTACKS is worth 200 FAVOR")
+	_check(_arena.strike_defend_penalty == 100, "hitting his DEFEND costs 100 FAVOR")
+	_check(_arena.block_favor == 100, "DEFENDING his swing is worth 100 FAVOR")
+	_check(_arena.hit_penalty == 80, "taking his swing while idle or mid-swing costs 80 FAVOR")
+
+	# --- MORTAL -> APOLAKI: all three of his states -----------------------------
+	_arena.duelist.global_position = _arena.player.global_position
+
+	_arena.duelist._enter(ApolakiDuelist.State.IDLE)
 	_arena.rules.local().favor = 500
-	_arena.duelist._enter(ApolakiDuelist.State.GUARD)
 	_arena._try_strike()
-	_check(_arena.rules.local().favor == 475, "guarded strike loses 25 FAVOR")
-	_arena._defend_time = 0.2
+	_arena._resolve_strike()
+	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he IDLES pays 200")
+	_arena._strike_cd = 0.0
+	_arena._swinging = false
+
+	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.rules.local().favor = 500
+	_arena._try_strike()
+	_arena._resolve_strike()
+	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he ATTACKS pays the same 200")
+	_arena._strike_cd = 0.0
+	_arena._swinging = false
+
+	_arena.duelist._enter(ApolakiDuelist.State.DEFEND)
+	_arena.rules.local().favor = 500
+	_arena._try_strike()
+	_arena._resolve_strike()
+	_check(_arena.rules.local().favor == 500 - _arena.strike_defend_penalty, "striking his DEFEND costs 100")
+	_arena._strike_cd = 0.0
+	_arena._swinging = false
+
+	# --- HIS SWING -> THE MORTAL: all three of the mortal's states --------------
+	# Idle and mid-swing both pay; only DEFENDING turns it into FAVOR.
+	_arena._guarding = false
+	_arena._swinging = false
+	_arena._invuln.clear()
+	_arena.rules.local().favor = 500
+	_arena._on_duelist_attack_landed()
+	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "his swing costs 80 while the mortal is IDLE")
+	_check((_arena._hit_patches as Array).size() == _arena.hit_patch_count, "a landed swing blots one sun patch on your screen")
+	_check(is_equal_approx(float((_arena._hit_patches as Array)[0]), _arena.hit_patch_time), "the blot starts at hit_patch_time (3s)")
+	# It has to burn down over REAL frames, not merely vanish on one big tick:
+	# the game loop calls this sixty times a second, so a timer that is never
+	# stored back would sit at 3.0 forever.
+	_arena._tick_hit_patches(_arena.hit_patch_time * 0.5)
+	_check((_arena._hit_patches as Array).size() == 1, "the blot is still up half way through its 3 seconds")
+	_check(float((_arena._hit_patches as Array)[0]) < _arena.hit_patch_time, "the blot timer burns down every frame")
+	var elapsed := _arena.hit_patch_time * 0.5   # the half-way tick above counts too
+	while elapsed < _arena.hit_patch_time + 0.5 and not (_arena._hit_patches as Array).is_empty():
+		_arena._tick_hit_patches(1.0 / 60.0)
+		elapsed += 1.0 / 60.0
+	_check((_arena._hit_patches as Array).is_empty(), "the blot clears after 3 seconds of real frames")
+	_check(elapsed >= _arena.hit_patch_time, "and it lasted the whole 3 seconds")
+
+	_arena._invuln.clear()
+	_arena._swinging = true
+	_arena.rules.local().favor = 500
+	_arena._on_duelist_attack_landed()
+	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "being mid-swing does not save you")
+	_arena._swinging = false
+	_arena._tick_hit_patches(_arena.hit_patch_time + 0.05)
+
+	_arena._invuln.clear()
+	_arena._guarding = true
 	_arena.player._knockback = Vector2.ZERO
-	_arena._on_duelist_lunge()
-	_check(_arena.rules.local().favor == 495, "well-timed defense gains 20 FAVOR")
-	_check(_arena.player._knockback == Vector2.ZERO, "a successful defense prevents knockback")
-	_arena._on_duelist_lunge()
-	_check(_arena.rules.local().favor == 465, "unblocked lunge loses 30 FAVOR")
+	_arena.rules.local().favor = 500
+	_arena._on_duelist_attack_landed()
+	_check(_arena.rules.local().favor == 500 + _arena.block_favor, "DEFENDING his swing gains 100")
+	_check(_arena.player._knockback == Vector2.ZERO, "a defended swing does not shove the mortal")
+	_check((_arena._hit_patches as Array).is_empty(), "a defended swing leaves no sun patch")
+	_arena._guarding = false
+	_arena._invuln.clear()
+
+	# --- HIS AREA AND HIS WINDOW -----------------------------------------------
+	# Count the signal only: hold the arena in RESULTS so its own scoring
+	# handler no-ops and this measures the duelist on its own.
+	_landed = 0
+	_arena.duelist.attack_landed.connect(_on_attack_landed)
+	_arena._phase = Arena.Phase.RESULTS
+	_arena.duelist.target = _arena.player.global_position
+	_arena.duelist.global_position = _arena.player.global_position + Vector2(600.0, 0.0)
+	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist.icon.frame = 3
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 0, "his swing misses while the mortal stands outside his area")
+	_arena.duelist.global_position = _arena.player.global_position
+	# The window itself: 1 is too early, 3 is live, 6 is too late.
+	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist.icon.frame = 1
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 0, "his swing is not live before frame 2")
+	_arena.duelist.icon.frame = 3
+	_arena.duelist._tick_attack_window()
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 1, "his swing connects once per swing inside his area")
+	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist.icon.frame = 6
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 1, "his swing is closed after frame 5")
+	_check(_arena.duelist.attack_hit_open_frame == 2 and _arena.duelist.attack_hit_close_frame == 5,
+		"his swing is live on frames 2..5")
+	_arena._phase = Arena.Phase.PLAYING
 
 	var rivalry: GodFavor = _arena.god.get_favor(&"siblings_rivalry")
 	_check(not _arena.rules.is_favor_eligible(rivalry), "Sibling's Rivalry is locked without a Mayari favor")

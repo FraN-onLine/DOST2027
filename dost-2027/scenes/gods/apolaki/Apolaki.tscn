@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://d3dnsdaacfeqq"]
 
 [ext_resource type="Script" uid="uid://c054b8tm7375x" path="res://scripts/gods/apolaki/apolaki_duelist.gd" id="1_duel"]
-[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
 [ext_resource type="Texture2D" uid="uid://dehaj28kx0n0n" path="res://Assets/Gods/Apolaki/Apolaki-Sheet.png" id="3_nm4fq"]
 
@@ -38,6 +37,24 @@ animations = [{
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_hcabe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hcabe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hcabe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hcabe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hcabe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hcabe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hcabe")
 }],
 "loop": 0,
 "name": &"hit",
@@ -49,12 +66,6 @@ radius = 39.56008
 
 [node name="Apolaki" type="Node2D" unique_id=1714060332]
 script = ExtResource("1_duel")
-
-[node name="Telegraph" type="Sprite2D" parent="." unique_id=1087025297]
-modulate = Color(1, 0.95, 0.6, 0.2)
-z_index = -1
-scale = Vector2(0.9, 0.9)
-texture = ExtResource("2_icon")
 
 [node name="Icon" type="AnimatedSprite2D" parent="." unique_id=281248019]
 position = Vector2(-1.9073486e-06, -1)

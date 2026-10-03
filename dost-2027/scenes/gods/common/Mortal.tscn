@@ -17,6 +17,26 @@ region = Rect2(64, 0, 64, 64)
 atlas = ExtResource("3_af5nn")
 region = Rect2(128, 0, 64, 64)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_d10"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(640, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d11"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(704, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d12"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(768, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d13"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(832, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d14"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(896, 0, 64, 64)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_c8rod"]
 atlas = ExtResource("3_af5nn")
 region = Rect2(192, 0, 64, 64)
@@ -61,10 +81,25 @@ animations = [{
 "name": &"default",
 "speed": 6.0
 }, {
-"frames": [],
-"loop": 1,
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d10")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d11")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d12")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d13")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d14")
+}],
+"loop": 0,
 "name": &"defend-arnis",
-"speed": 5.0
+"speed": 8.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -94,7 +129,10 @@ animations = [{
 }]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_mortal"]
-radius = 29.068884
+radius = 38.052597
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_af5nn"]
+radius = 24.0
 
 [node name="Mortal" type="CharacterBody2D" unique_id=680107735]
 motion_mode = 1
@@ -108,8 +146,7 @@ scale = Vector2(0.34, 0.34)
 texture = ExtResource("2_icon")
 
 [node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=348660814]
-position = Vector2(1.9073486e-06, -10)
-scale = Vector2(0.7975, 0.76625)
+position = Vector2(0, -11)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
 animation = &"hit-arnis"
 autoplay = "default"
@@ -121,16 +158,18 @@ position = Vector2(0, -7)
 
 [node name="Collision" type="CollisionShape2D" parent="Arnis-Damage-Area" unique_id=542910038]
 shape = SubResource("CircleShape2D_mortal")
+metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1298435770]
 position = Vector2(0, -7)
-shape = SubResource("CircleShape2D_mortal")
+shape = SubResource("CircleShape2D_af5nn")
+metadata/_edit_lock_ = true
 
 [node name="NameTag" type="Label" parent="." unique_id=345467521]
-offset_left = -60.0
-offset_top = -42.0
-offset_right = 60.0
-offset_bottom = -26.0
+offset_left = -55.0
+offset_top = -51.0
+offset_right = 65.0
+offset_bottom = -33.0
 theme_override_colors/font_color = Color(1, 0.95, 0.8, 0.85)
 theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 10

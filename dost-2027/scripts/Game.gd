@@ -105,12 +105,11 @@ func _build_other_player_panels() -> void:
 
 
 func _refresh_opponent_display() -> void:
-	# A game the gods have everyone play on their own field (Arnis) has no rivals
-	# to show: the column is hidden and the arena draws nobody but you.
-	var isolated_trial := false
-	if arena != null and arena.has_method("separate_players"):
-		isolated_trial = bool(arena.call("separate_players"))
-	$OtherPlayersPanel.visible = not isolated_trial
+	# The column stays on screen in every trial. A game the gods have everyone
+	# play on their own field (Arnis) puts no rival ON the board - Apolaki is
+	# local to each player - but the roster is still who else is in the run, so
+	# it is always shown.
+	$OtherPlayersPanel.visible = true
 
 
 func _on_player_list_updated(_players: Dictionary) -> void:
