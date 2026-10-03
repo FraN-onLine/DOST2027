@@ -30,6 +30,31 @@ func _run() -> void:
 	_arena.player.global_position = Vector2(350, 420)
 	_arena._update_local_bounds()
 
+	# --- Tala walks the route drawn for her in the scene ------------------------
+	# The path is read from ArenaField/TalaPath in world space, so moving or
+	# reshaping that Line2D in the editor moves Tala with it.
+	_check(_arena._tala_knots.size() >= 2 and _arena._tala_length > 0.0,
+		"Tala reads the TalaPath drawn in the scene")
+	var route_start: Vector2 = _arena.tala.global_position
+	_check(_gap_to_route(route_start) <= 1.0, "Tala stands on her route at the start of the round")
+	for step in range(30):
+		_arena._move_tala(1.0 / 60.0)
+	_check(_gap_to_route(_arena.tala.global_position) <= 1.0, "Tala stays on her route while she walks")
+	_check(_arena.tala.global_position.distance_to(route_start) > 10.0,
+		"Tala actually walks it (%.1f px in half a second)" % _arena.tala.global_position.distance_to(route_start))
+	_arena._tala_distance = _arena._tala_length
+	_arena._move_tala(0.0)
+	var last_knot: Vector2 = _arena._tala_knots[_arena._tala_knots.size() - 1]
+	_check(_arena.tala.global_position.distance_to(last_knot) <= 1.0, "the end of the route is the end of the path")
+	_arena._move_tala(1.0 / 60.0)
+	_check(_arena._tala_dir == -1.0, "Tala turns round at the end of the route")
+	_arena._tala_distance = 0.0
+	_arena._place_tala()
+	_check(_arena.arena_tick_fields().has("tala_distance"),
+		"the host tells clients how far along the route Tala is")
+	_arena.arena_read_tick({"tala_distance": _arena._tala_length * 0.5, "tala_direction": 1.0})
+	_check(_gap_to_route(_arena.tala.global_position) <= 1.0, "a client puts Tala on the same route")
+
 	for can in _arena._cans:
 		can.visible = false
 	_arena._cans[1].visible = true
@@ -130,3 +155,19 @@ func _check(condition: bool, label: String) -> void:
 	else:
 		printerr("FAIL: %s" % label)
 		_problems += 1
+
+
+# How far a point sits from the route Tala walks (0.0 = standing on it).
+func _gap_to_route(point: Vector2) -> float:
+	var knots: PackedVector2Array = _arena._tala_knots
+	if knots.size() < 2:
+		return INF
+	var gap := INF
+	for index in range(1, knots.size()):
+		var a := knots[index - 1]
+		var b := knots[index]
+		var segment := b - a
+		var length_squared := segment.length_squared()
+		var t := 0.0 if length_squared <= 0.0001 else clampf((point - a).dot(segment) / length_squared, 0.0, 1.0)
+		gap = minf(gap, point.distance_to(a + segment * t))
+	return gap

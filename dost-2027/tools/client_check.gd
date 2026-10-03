@@ -238,6 +238,29 @@ func _run() -> void:
 		network.players.clear()
 		network.my_name = ""
 
+	print("=== THE FAST POSITION STREAM ===")
+	# Mortal positions ride their own message (a few Vector2s, position_tick_rate
+	# times a second) instead of waiting for the fat world tick.
+	_client._mortal_positions.clear()
+	_client._on_mortal_positions_received({7: Vector2(520, 400)})
+	_expect(_client._mortal_positions.get(7) == Vector2(520, 400), "the position stream moves a mortal")
+	_client._on_mortal_positions_received({8: Vector2(600, 400)})
+	_expect(_client._mortal_positions.has(7) and _client._mortal_positions.has(8),
+		"a partial position update never wipes the rest of the roster")
+
+	var ghost := Node2D.new()
+	_client.ghosts_root.add_child(ghost)
+	ghost.global_position = Vector2(100, 100)
+	_client._ghosts[9] = ghost
+	_client._mortal_positions[9] = Vector2(110, 100)
+	_client._move_ghosts(1.0 / 60.0)
+	_expect(ghost.global_position.x > 100.0 and ghost.global_position.x < 110.0,
+		"a ghost glides towards a nearby position (%.1f px)" % ghost.global_position.x)
+	_client._mortal_positions[9] = Vector2(600, 400)
+	_client._move_ghosts(1.0 / 60.0)
+	_expect(ghost.global_position == Vector2(600, 400),
+		"a knockback-sized jump puts the ghost where it belongs instead of gliding it")
+
 	print("=== SCENES ===")
 	for path in ["res://scenes/Lobby.tscn", "res://scenes/MainMenu.tscn", "res://scenes/GodIntro.tscn"]:
 		var packed := load(path)
@@ -258,3 +281,11 @@ func _popup_text(arena) -> String:
 		return ""
 	var label: Label = popups[popups.size() - 1].get_node_or_null("Box/Label")
 	return label.text if label != null else ""
+
+
+# One pass/fail line, the way the rest of this probe reports.
+func _expect(condition: bool, label: String) -> void:
+	if condition:
+		print("PASS: %s" % label)
+	else:
+		printerr("FAIL: %s" % label)

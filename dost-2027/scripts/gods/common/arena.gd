@@ -134,6 +134,17 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var net_tick_rate := 10.0    # world state broadcasts per second
 @export var net_state_rate := 5.0    # FAVOR snapshots per second
 @export var layout_repeat := 2.0     # seconds between layout re-broadcasts
+# Mortal positions ride their own stream: it is a tiny message and it is what the
+# ghosts chase, so it runs far faster than the world tick above. A move of more
+# than position_jump pixels (a knockback, a respawn) is sent right away instead
+# of waiting for the next beat - a dropped packet must never be the reason a
+# rival looks teleported, or is scored against in the wrong place.
+@export var position_tick_rate := 20.0
+@export var position_jump := 140.0
+# How hard a ghost chases the position it was last given, and how far it may be
+# behind before it is put where it belongs instead of gliding there.
+@export var ghost_smoothing := 14.0
+@export var ghost_snap_distance := 160.0
 
 @export_category("FAVOR Popups")
 @export var popups_enabled := true
@@ -198,6 +209,10 @@ var _mortal_positions: Dictionary = {}  # peer id -> Vector2
 var _ghosts: Dictionary = {}            # peer id -> ghost mortal
 var _net_tick := 0.0
 var _state_tick := 0.0
+var _position_tick := 0.0
+var _position_publish := 0.0
+var _last_reported_position := Vector2.INF
+var _last_published_position := Vector2.INF
 var _layout_age := 0.0
 var _last_banner := ""
 var _last_event := ""
@@ -444,6 +459,12 @@ func _start_trial() -> void:
 	_great_pending.clear()
 	_victor_claimed.clear()
 	_rivalry_claimed.clear()
+	# Everyone is back at the start: the first position of the round is a jump,
+	# so it goes out at once instead of after a beat of the stale spawn point.
+	_last_reported_position = Vector2.INF
+	_last_published_position = Vector2.INF
+	_position_tick = 0.0
+	_position_publish = 0.0
 	_refresh_sun_patches()
 	player.set_lock(false)
 	rules.trial_active = true
@@ -506,14 +527,18 @@ func _tick_trial(delta: float) -> void:
 
 func _client_tick(delta: float) -> void:
 	# Clients only report where their mortal is - the host keeps score.
-	if not shares_mortal_positions():
+	if not shares_mortal_positions() or _net == null or not _net.has_multiplayer_peer():
 		return
-	_net_tick -= delta
-	if _net_tick > 0.0:
+	_position_tick -= delta
+	var here := player.global_position
+	# A knockback or a respawn must not wait for the next beat: a jump is sent
+	# straight away, so a lost packet can never stretch a shove into a teleport.
+	var jumped := _last_reported_position == Vector2.INF or here.distance_to(_last_reported_position) >= position_jump
+	if _position_tick > 0.0 and not jumped:
 		return
-	_net_tick = 1.0 / net_tick_rate
-	if _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "report_mortal_position", player.global_position)
+	_position_tick = 1.0 / maxf(1.0, position_tick_rate)
+	_last_reported_position = here
+	_net.rpc_id(1, "report_mortal_position", here)
 
 
 func _tick_invuln(delta: float) -> void:
@@ -532,10 +557,31 @@ func _publish_net_tick(delta: float) -> void:
 	if _net_tick <= 0.0:
 		_net_tick = 1.0 / net_tick_rate
 		_publish_arena_tick()
+	_publish_positions(delta)
 	_state_tick -= delta
 	if _state_tick <= 0.0:
 		_state_tick = 1.0 / net_state_rate
 		_publish_god_state()
+
+
+# The fast position stream: the host collects what every client reported and
+# sends the whole roster back on its own, much quicker than the world tick. This
+# is what keeps a rival's ghost - and the host's own scoring - on the mark.
+func _publish_positions(delta: float) -> void:
+	if _net == null or not _authority or not shares_mortal_positions():
+		return
+	_position_publish -= delta
+	var here := player.global_position
+	var jumped := _last_published_position == Vector2.INF or here.distance_to(_last_published_position) >= position_jump
+	if _position_publish > 0.0 and not jumped:
+		return
+	_position_publish = 1.0 / maxf(1.0, position_tick_rate)
+	_last_published_position = here
+	_mortal_positions[_my_id] = here
+	var reported: Dictionary = _net.mortal_positions
+	for id in reported.keys():
+		_mortal_positions[int(id)] = reported[id]
+	_net.publish_mortal_positions(_mortal_positions)
 
 
 # --- MORTALS / SCORING ------------------------------------------------------
@@ -1208,6 +1254,8 @@ func _connect_network() -> void:
 	_net.god_state_received.connect(_on_god_state_received)
 	_net.arena_state_received.connect(_on_arena_state_received)
 	_net.arena_layout_received.connect(_on_arena_layout_received)
+	if _net.has_signal("mortal_positions_received"):
+		_net.connect("mortal_positions_received", _on_mortal_positions_received)
 	if _net.has_signal("arena_hit_received"):
 		_net.connect("arena_hit_received", _on_arena_hit_received)
 	if _net.has_signal("arena_blind_received"):
@@ -1272,12 +1320,19 @@ func _sync_ghosts() -> void:
 
 func _move_ghosts(delta: float) -> void:
 	# Remote mortals glide towards whatever position the host last reported.
-	var weight := clampf(delta * 12.0, 0.0, 1.0)
+	var weight := clampf(delta * ghost_smoothing, 0.0, 1.0)
 	for id in _ghosts.keys():
 		var ghost: Node2D = _ghosts[id]
 		if not is_instance_valid(ghost) or not _mortal_positions.has(int(id)):
 			continue
-		ghost.global_position = ghost.global_position.lerp(_mortal_positions[int(id)], weight)
+		var target: Vector2 = _mortal_positions[int(id)]
+		# A knockback or a respawn is a jump, not a walk: gliding it across the
+		# field would look like the rival is swimming through the arena, so a
+		# long way behind is simply put where it belongs.
+		if ghost.global_position.distance_to(target) >= ghost_snap_distance:
+			ghost.global_position = target
+			continue
+		ghost.global_position = ghost.global_position.lerp(target, weight)
 
 
 func _publish_god_state() -> void:
@@ -1320,6 +1375,15 @@ func _on_arena_state_received(state: Dictionary) -> void:
 	if _authority:
 		return
 	_apply_arena_tick(state)
+
+
+# The fast position stream, merged into what we know: a message that only
+# carries some of the roster must never wipe the rest of it.
+func _on_mortal_positions_received(positions: Dictionary) -> void:
+	if _authority:
+		return
+	for id in positions.keys():
+		_mortal_positions[int(id)] = positions[id]
 
 
 func _apply_arena_tick(state: Dictionary) -> void:

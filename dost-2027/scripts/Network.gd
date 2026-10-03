@@ -45,6 +45,7 @@ signal arena_score_requested(peer_id, amount, reason)  # client -> host: score m
 signal tala_throw_requested(peer_id, direction, origin)
 signal arena_layout_received(layout)      # host -> clients: field / corners / clones
 signal arena_state_received(state)        # host -> clients: 10 Hz world tick
+signal mortal_positions_received(positions)  # host -> clients: the fast position stream
 signal arena_hit_received(hit)            # host -> the peer whose mortal was hit
 signal arena_blind_received(caster_id, radius, duration)  # host -> everyone but the caster
 signal arena_movement_override_received(caster_id, duration)
@@ -1149,6 +1150,24 @@ func report_mortal_position(position: Vector2) -> void:
 	if sender == 0:
 		return
 	mortal_positions[sender] = position
+
+
+# --- mortal positions: host -> clients ----------------------------------------
+# The world tick is a fat message (FAVOR, sliders, the god's own state) and it
+# only goes out at net_tick_rate, so a rival's ghost used to sit still between
+# ticks and the host used to score against a stale position. Positions get their
+# own small stream instead: a handful of Vector2s, several times a second.
+func publish_mortal_positions(positions: Dictionary) -> void:
+	if not has_multiplayer_peer():
+		return
+	rpc("rpc_mortal_positions", positions.duplicate())
+
+
+@rpc("authority", "unreliable_ordered")
+func rpc_mortal_positions(positions: Dictionary) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("mortal_positions_received", positions)
 
 
 # --- knockback: host -> the peer it just hit --------------------------------

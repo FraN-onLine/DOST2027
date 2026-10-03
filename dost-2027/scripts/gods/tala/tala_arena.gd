@@ -14,6 +14,7 @@ extends Arena
 @export var tala_penalty := 100
 
 @onready var tala: Sprite2D = get_node_or_null("ArenaField/Tala")
+@onready var tala_path: Line2D = get_node_or_null("ArenaField/TalaPath")
 @onready var cans_root: Node2D = get_node_or_null("ArenaField/Cans")
 @onready var barrier: Line2D = get_node_or_null("ArenaField/Barrier")
 @onready var slippers_root: Node2D = get_node_or_null("Slippers")
@@ -29,6 +30,11 @@ var _can_repair: Dictionary = {}
 var _shoot_x := 465.0
 var _tala_dir := 1.0
 var _local_mode := "ready"
+# Tala walks the Line2D drawn for her in the scene (ArenaField/TalaPath), the
+# way Mayari's clones walk theirs: the path IS the route, wherever it is drawn.
+var _tala_knots := PackedVector2Array()  # the path's points, in world space
+var _tala_length := 0.0                  # how long that route is
+var _tala_distance := 0.0                # how far along it Tala stands
 
 
 func _ready() -> void:
@@ -53,11 +59,48 @@ func collect_units() -> void:
 				_cans.append(child)
 	if barrier != null and barrier.points.size() > 0:
 		_shoot_x = barrier.to_global(barrier.points[0]).x
+	_read_tala_path()
 	for index in range(_cans.size()):
 		_can_repair.get_or_add(index, 0.0)
 	if _authority and rules != null:
 		for id in rules.mortals.keys():
 			_modes.get_or_add(int(id), "ready")
+
+
+# The route is read from the scene, in world space, exactly once per round: the
+# Line2D may be moved, scaled or have its points edited in the editor and Tala
+# still walks where the designer drew her.
+func _read_tala_path() -> void:
+	_tala_knots = PackedVector2Array()
+	_tala_length = 0.0
+	if tala_path != null and tala_path.points.size() >= 2:
+		for point in tala_path.points:
+			_tala_knots.append(tala_path.to_global(point))
+		for index in range(1, _tala_knots.size()):
+			_tala_length += _tala_knots[index].distance_to(_tala_knots[index - 1])
+	_tala_distance = clampf(_tala_distance, 0.0, _tala_length)
+	_place_tala()
+
+
+# The world point a given distance along the route sits on.
+func _point_on_tala_path(distance: float) -> Vector2:
+	if _tala_knots.size() < 2:
+		return tala.global_position if tala != null else Vector2.ZERO
+	var left := clampf(distance, 0.0, _tala_length)
+	for index in range(1, _tala_knots.size()):
+		var segment: float = _tala_knots[index].distance_to(_tala_knots[index - 1])
+		if left > segment or index == _tala_knots.size() - 1:
+			return _tala_knots[index - 1].lerp(_tala_knots[index], 0.0 if segment <= 0.0 else clampf(left / segment, 0.0, 1.0))
+		left -= segment
+	return _tala_knots[_tala_knots.size() - 1]
+
+
+func _place_tala() -> void:
+	if tala == null or _tala_knots.size() < 2:
+		return
+	# global_position, not `position = to_local(...)`: the sprite's own offset
+	# would feed back into the conversion and walk her off the screen.
+	tala.global_position = _point_on_tala_path(_tala_distance)
 
 
 func arena_rules_tick(delta: float) -> void:
@@ -74,8 +117,10 @@ func arena_round_reset() -> void:
 	_modes.clear()
 	_can_repair.clear()
 	_tala_dir = 1.0
-	if tala != null:
+	_tala_distance = 0.0
+	if tala != null and _tala_knots.size() < 2:
 		tala.position.y = (tala_min_y + tala_max_y) * 0.5
+	_place_tala()
 	for id in rules.mortals.keys():
 		_modes[int(id)] = "ready"
 	for can in _cans:
@@ -152,6 +197,19 @@ func _start_throw(mortal_id: int, direction: Vector2, start_position := Vector2.
 
 func _move_tala(delta: float) -> void:
 	if tala == null:
+		return
+	# With a route drawn for her she walks that route, turning round at both of
+	# its ends. Without one (an arena that has no TalaPath) she still paces the
+	# authored min/max band, as before.
+	if _tala_knots.size() >= 2 and _tala_length > 0.0:
+		_tala_distance += _tala_dir * tala_speed * delta
+		if _tala_distance >= _tala_length:
+			_tala_distance = _tala_length
+			_tala_dir = -1.0
+		elif _tala_distance <= 0.0:
+			_tala_distance = 0.0
+			_tala_dir = 1.0
+		_place_tala()
 		return
 	tala.position.y += _tala_dir * tala_speed * delta
 	if tala.position.y >= tala_max_y:
@@ -299,7 +357,8 @@ func arena_tick_fields() -> Dictionary:
 	for index in range(_cans.size()):
 		can_repairs[index] = float(_can_repair.get(index, 0.0))
 	return {
-		"tala_y": tala.position.y if tala != null else 0.0,
+		"tala_y": tala.global_position.y if tala != null else 0.0,
+		"tala_distance": _tala_distance,
 		"tala_direction": _tala_dir,
 		"slippers": _slippers.duplicate(true),
 		"modes": _modes.duplicate(true),
@@ -308,9 +367,14 @@ func arena_tick_fields() -> Dictionary:
 
 
 func arena_read_tick(state: Dictionary) -> void:
-	if tala != null:
-		tala.position.y = float(state.get("tala_y", tala.position.y))
+	# Tala is placed by how far along her route the host says she is, so every
+	# screen walks the very path the designer drew.
 	_tala_dir = float(state.get("tala_direction", _tala_dir))
+	if state.has("tala_distance"):
+		_tala_distance = clampf(float(state.get("tala_distance", _tala_distance)), 0.0, _tala_length)
+		_place_tala()
+	elif tala != null:
+		tala.position.y = float(state.get("tala_y", tala.position.y))
 	_slippers = state.get("slippers", {}).duplicate(true)
 	_modes = state.get("modes", {}).duplicate(true)
 	_can_repair = state.get("can_repairs", {}).duplicate(true)

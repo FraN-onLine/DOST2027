@@ -1,0 +1,30 @@
+Godot Engine v4.7.stable.official.5b4e0cb0f - https://godotengine.org
+
+Broadcasting player list: { 1: "HOSTPEER" }
+[Network] Host discovery broadcasting started (name: HOSTPEER, listen port: 12346)
+========================================
+Server started on port 24681
+Host name: HOSTPEER
+Lobby ID: VESB
+Broadcasting presence on LAN (port 12346)...
+========================================
+HOST: waiting for the client
+Peer connected: 633401929
+Broadcasting player list: { 1: "HOSTPEER", 633401929: "" }
+HOST: leave the wait (players=2 frames=109)
+PASS: the client joined
+HOST: custom after set = [&"tala"]
+Broadcasting player list: { 1: "HOSTPEER", 633401929: "CLIENTPEER" }
+Broadcasting player list: { 1: "HOSTPEER", 633401929: "CLIENTPEER" }
+HOST: custom at start = [&"tala"] | ids = []
+Broadcasting player list: { 1: "HOSTPEER", 633401929: "CLIENTPEER" }
+[Network] Starting game with 2 players
+Peer disconnected: 633401929
+Broadcasting player list: { 1: "HOSTPEER" }
+PASS: the host lands in the run
+HOST ORDER: tala, bathala
+PASS: the host plays the order it planned
+PASS: the host opens on its first god
+PASS: the host still holds the plan the client asked for
+shared order (host): 0 problem(s)
+--- DONE ---

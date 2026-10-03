@@ -1,0 +1,26 @@
+Godot Engine v4.7.stable.official.5b4e0cb0f - https://godotengine.org
+
+========================================
+Attempting to connect to 127.0.0.1:24681
+========================================
+Connection succeeded
+Peer connected: 1
+PASS: the client joined the host
+[Network] Received player list update: { 1: "HOSTPEER", 633401929: "" }
+[Network] Received player list update: { 1: "HOSTPEER", 633401929: "CLIENTPEER" }
+[Network] Received player list update: { 1: "HOSTPEER", 633401929: "CLIENTPEER" }
+PASS: the joined peer is a client, not a host
+PASS: the host answers a request with the plan it will play
+CLIENT: after request ids=[&"tala", &"bathala"] custom=[&"tala"]
+[Network] Received player list update: { 1: "HOSTPEER", 633401929: "CLIENTPEER" }
+CLIENT: drop the plan (scene=Lobby)
+CLIENT: ids changed at frame 181 -> [] (scene=none)
+CLIENT: keep the plan (scene=Game)
+CLIENT: ids changed at frame 232 -> [&"tala", &"bathala"] (scene=Game)
+CLIENT: ids when the run opened = [&"tala", &"bathala"]
+PASS: the client lands in the run
+CLIENT ORDER: tala, bathala
+PASS: the blind client still enters the host's order
+PASS: the client opens on the host's first god
+shared order (client): 0 problem(s)
+--- DONE ---
