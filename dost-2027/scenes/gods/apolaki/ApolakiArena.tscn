@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://d3dnsdaacfeqq" path="res://scenes/gods/apolaki/Apolaki.tscn" id="3_duelist"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="4_bg"]
 [ext_resource type="Texture2D" uid="uid://b6ugwucajnrhk" path="res://Assets/UI/pips-male-Sheet.png" id="5_sheet"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="6_x3nwb"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_strike"]
 atlas = ExtResource("5_sheet")
@@ -21,17 +22,31 @@ animations = [{
 "speed": 5.0
 }]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_duelbar"]
+bg_color = Color(0.09, 0.11, 0.18, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.28, 0.32, 0.44, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
 [node name="ApolakiArena" unique_id=437979526 instance=ExtResource("1_base")]
 script = ExtResource("2_arena")
-strike_open_favor = 35
-strike_neutral_favor = 10
-strike_guard_penalty = 25
-block_favor = 20
-hit_penalty = 30
-strike_cooldown = 0.45
+strike_favor = 200
+strike_defend_penalty = 100
+block_favor = 100
+hit_penalty = 80
+strike_cooldown = 2.0
+strike_hit_open_frame = 3
+strike_hit_close_frame = 5
 strike_reach_bonus = 26.0
-defend_window = 0.42
-defend_cooldown = 0.7
+defend_cooldown = 2.0
+hit_patch_count = 1
+hit_patch_time = 3.0
 god_id = &"apolaki"
 embedded = true
 dialogue_prefix = "apolaki"
@@ -40,46 +55,116 @@ dialogue_prefix = "apolaki"
 position = Vector2(654.75, 274)
 scale = Vector2(6.5474997, 4.87)
 texture = ExtResource("4_bg")
+metadata/_edit_lock_ = true
 
 [node name="Apolaki" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1246256867 instance=ExtResource("3_duelist")]
 position = Vector2(780, 420)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1955814452]
-position = Vector2(922, 194)
-scale = Vector2(5.953125, 6.21875)
+position = Vector2(919.75, 188.5)
+scale = Vector2(5.9140635, 5.078125)
 sprite_frames = SubResource("SpriteFrames_overseer")
 autoplay = "default"
 
-[node name="Player" parent="." index="5" unique_id=1489401219]
+[node name="Border" type="Line2D" parent="." index="3" unique_id=2116842975]
+position = Vector2(193.45038, 178.20657)
+scale = Vector2(0.8759542, 0.79619557)
+points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
+width = 4.0
+default_color = Color(0.54901963, 0.8509804, 1, 0)
+
+[node name="Player" parent="." index="6" unique_id=1489401219]
 position = Vector2(420, 470)
 
-[node name="DuelHud" type="CanvasLayer" parent="." index="9" unique_id=1284817974]
+[node name="DuelHud" type="CanvasLayer" parent="." index="10" unique_id=1284817974]
 layer = 12
 
-[node name="Hint" type="Label" parent="DuelHud" index="0" unique_id=269483598]
+[node name="State" type="Label" parent="DuelHud" index="0" unique_id=470594257]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 300.0
-offset_top = -64.0
-offset_right = 900.0
-offset_bottom = -40.0
-theme_override_colors/font_color = Color(1, 0.9, 0.6, 0.85)
-theme_override_font_sizes/font_size = 12
-text = "LEFT MOUSE - STRIKE   |   RIGHT MOUSE - DEFEND   |   E / Q - FAVORS"
-horizontal_alignment = 1
-
-[node name="State" type="Label" parent="DuelHud" index="1" unique_id=470594257]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 300.0
-offset_top = -40.0
-offset_right = 900.0
-offset_bottom = -16.0
+offset_left = 242.0
+offset_top = -129.0
+offset_right = 455.0
+offset_bottom = -105.0
+grow_vertical = 0
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_fonts/font = ExtResource("6_x3nwb")
 theme_override_font_sizes/font_size = 14
 text = "APOLAKI WATCHES"
+
+[node name="Bars" type="VBoxContainer" parent="DuelHud" index="1" unique_id=1232068069]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -336.0
+offset_top = -100.0
+offset_right = -118.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 16
+
+[node name="StrikeBar" type="PanelContainer" parent="DuelHud/Bars" index="0" unique_id=2064542693]
+custom_minimum_size = Vector2(168, 34)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_duelbar")
+
+[node name="Body" type="Control" parent="DuelHud/Bars/StrikeBar" index="0" unique_id=498527308]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Fill" type="ColorRect" parent="DuelHud/Bars/StrikeBar/Body" index="0" unique_id=945048768]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+grow_vertical = 2
+color = Color(1, 0.85, 0.35, 0.78)
+
+[node name="Text" type="Label" parent="DuelHud/Bars/StrikeBar/Body" index="1" unique_id=1957920347]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("6_x3nwb")
+theme_override_font_sizes/font_size = 11
+text = "LEFT MOUSE  STRIKE  READY"
 horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DefendBar" type="PanelContainer" parent="DuelHud/Bars" index="1" unique_id=481221735]
+custom_minimum_size = Vector2(168, 34)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_duelbar")
+
+[node name="Body" type="Control" parent="DuelHud/Bars/DefendBar" index="0" unique_id=1348698528]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Fill" type="ColorRect" parent="DuelHud/Bars/DefendBar/Body" index="0" unique_id=1976807661]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+grow_vertical = 2
+color = Color(0.55, 0.8, 1, 0.78)
+
+[node name="Text" type="Label" parent="DuelHud/Bars/DefendBar/Body" index="1" unique_id=925351435]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("6_x3nwb")
+theme_override_font_sizes/font_size = 11
+text = "RIGHT MOUSE  DEFEND  READY"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [editable path="ArenaField/Apolaki"]

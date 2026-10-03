@@ -22,7 +22,6 @@ const RANDOM_NAMES := [
 	"KingJames",
 	"HackerMacoy",
 	"LoiPogi",
-	""
 ]
 
 signal player_joined(peer_id)
@@ -282,6 +281,9 @@ func _assign_random_name() -> String:
 	# Pick a random name that isn't already in use
 	var available := []
 	for candidate in RANDOM_NAMES:
+		# A blank entry would hand out a nameless mortal - never a valid pick.
+		if str(candidate).strip_edges().is_empty():
+			continue
 		if not _used_names.has(candidate):
 			available.append(candidate)
 	if available.is_empty():

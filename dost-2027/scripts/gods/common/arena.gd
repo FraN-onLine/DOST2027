@@ -1299,7 +1299,15 @@ func _on_player_name_changed(peer_id: int, name: String) -> void:
 
 
 func _sync_ghosts() -> void:
-	if _net == null or not _networked or separate_players():
+	if separate_players():
+		# A private game draws no rivals anywhere: drop anything that slipped in
+		# (the field must stay clear on every screen).
+		for id in _ghosts.keys().duplicate():
+			if is_instance_valid(_ghosts[id]):
+				_ghosts[id].queue_free()
+			_ghosts.erase(id)
+		return
+	if _net == null or not _networked:
 		return
 	var names: Dictionary = _net.players
 	for pid in names.keys():

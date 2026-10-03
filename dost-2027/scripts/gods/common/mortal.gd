@@ -7,7 +7,10 @@ extends CharacterBody2D
 # interrupts them.
 #
 # Every visual lives in Mortal.tscn (Sprite, Glow, NameTag, FloatingStatus) -
-# this script never draws and never builds nodes on the fly.
+# this script never draws and never builds nodes on the fly. Sprite is an
+# AnimatedSprite2D and carries the authored clips (the idle walk, plus the arnis
+# strike and guard): an arena plays them and reads the running frame back, so the
+# body holds the art while the arena keeps the rules.
 
 @export var move_speed := 215.0
 
@@ -25,7 +28,7 @@ var _flash := 0.0
 var _floating_time := 0.0
 var _floating_velocity := Vector2.ZERO
 
-@onready var sprite: Sprite2D = $Sprite
+@onready var sprite: AnimatedSprite2D = $Sprite
 @onready var glow: Sprite2D = $Glow
 @onready var name_tag: Label = $NameTag
 @onready var floating_text: Label = $FloatingStatus
@@ -69,6 +72,46 @@ func show_floating_text(text: String, tint := Color.WHITE, duration := 2.2) -> v
 	floating_text.visible = true
 	_floating_time = duration
 	_floating_velocity = Vector2(0.0, -18.0)
+
+
+# --- ANIMATION ---------------------------------------------------------------
+# The clips an arena can play (authored on Sprite in Mortal.tscn). The mortal
+# only plays them and reports back the running clip and its frame, so a game can
+# open a strike's hit window on one frame and close it on another without the
+# body ever knowing the rules.
+
+const ANIM_IDLE := &"default"
+
+# Play an authored clip. An unknown name is ignored, so a mortal in an arena
+# that never strikes simply keeps its idle.
+func play_animation(anim: StringName) -> void:
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	if not sprite.sprite_frames.has_animation(anim):
+		return
+	if sprite.animation == anim and sprite.is_playing():
+		return
+	sprite.play(anim)
+
+
+func current_animation() -> StringName:
+	return sprite.animation if sprite != null else &""
+
+
+# The frame the clip is showing right now (-1 when there is no sprite).
+func animation_frame() -> int:
+	return sprite.frame if sprite != null else -1
+
+
+# True while `anim` (or any clip, when it is left empty) is still running. A
+# one-shot clip reports false once it has played out, which is how an arena
+# knows to hand the mortal back to its idle.
+func is_animation_playing(anim: StringName = &"") -> bool:
+	if sprite == null:
+		return false
+	if anim != &"" and sprite.animation != anim:
+		return false
+	return sprite.is_playing()
 
 
 func _physics_process(delta: float) -> void:
