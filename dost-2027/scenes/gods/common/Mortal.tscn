@@ -2,11 +2,99 @@
 
 [ext_resource type="Script" uid="uid://mbsvj8vbhmue" path="res://scripts/gods/common/mortal.gd" id="1_mortal"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
-[ext_resource type="Texture2D" uid="uid://djvl64idx1iwg" path="res://Assets/Player/player.png" id="3_af5nn"]
+[ext_resource type="Texture2D" uid="uid://cphb53fo1gfxn" path="res://Assets/Player/Lamang-Sheet.png" id="3_af5nn"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_8j8bf"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6r6jq"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fxuyk"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c8rod"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nxx0t"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cfrcs"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wwxri"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_acmbj"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gcmq5"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(512, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ubkc8"]
+atlas = ExtResource("3_af5nn")
+region = Rect2(576, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8j8bf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6r6jq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fxuyk")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 6.0
+}, {
+"frames": [],
+"loop": 1,
+"name": &"defend-arnis",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c8rod")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nxx0t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cfrcs")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wwxri")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_acmbj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gcmq5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ubkc8")
+}],
+"loop": 0,
+"name": &"hit-arnis",
+"speed": 8.0
+}]
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_mortal"]
-radius = 13.0
+radius = 29.068884
 
 [node name="Mortal" type="CharacterBody2D" unique_id=680107735]
 motion_mode = 1
@@ -19,12 +107,23 @@ z_index = -1
 scale = Vector2(0.34, 0.34)
 texture = ExtResource("2_icon")
 
-[node name="Sprite" type="Sprite2D" parent="." unique_id=1860989939]
+[node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=348660814]
 position = Vector2(1.9073486e-06, -10)
 scale = Vector2(0.7975, 0.76625)
-texture = ExtResource("3_af5nn")
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"hit-arnis"
+autoplay = "default"
+frame = 6
+frame_progress = 1.0
+
+[node name="Arnis-Damage-Area" type="Area2D" parent="." unique_id=757709739]
+position = Vector2(0, -7)
+
+[node name="Collision" type="CollisionShape2D" parent="Arnis-Damage-Area" unique_id=542910038]
+shape = SubResource("CircleShape2D_mortal")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1298435770]
+position = Vector2(0, -7)
 shape = SubResource("CircleShape2D_mortal")
 
 [node name="NameTag" type="Label" parent="." unique_id=345467521]

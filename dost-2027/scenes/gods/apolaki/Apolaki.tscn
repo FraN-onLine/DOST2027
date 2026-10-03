@@ -3,7 +3,49 @@
 [ext_resource type="Script" uid="uid://c054b8tm7375x" path="res://scripts/gods/apolaki/apolaki_duelist.gd" id="1_duel"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
-[ext_resource type="Texture2D" uid="uid://dlf51behe325t" path="res://Assets/Gods/Apolaki/Apolaki-Icon.png" id="3_nm4fq"]
+[ext_resource type="Texture2D" uid="uid://dehaj28kx0n0n" path="res://Assets/Gods/Apolaki/Apolaki-Sheet.png" id="3_nm4fq"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yqmxj"]
+atlas = ExtResource("3_nm4fq")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4n8w7"]
+atlas = ExtResource("3_nm4fq")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hcabe"]
+atlas = ExtResource("3_nm4fq")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yqmxj")
+}],
+"loop": 0,
+"name": &"default",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4n8w7")
+}],
+"loop": 0,
+"name": &"defend",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hcabe")
+}],
+"loop": 0,
+"name": &"hit",
+"speed": 5.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_g4v7s"]
+radius = 39.56008
 
 [node name="Apolaki" type="Node2D" unique_id=1714060332]
 script = ExtResource("1_duel")
@@ -14,9 +56,12 @@ z_index = -1
 scale = Vector2(0.9, 0.9)
 texture = ExtResource("2_icon")
 
-[node name="Icon" type="Sprite2D" parent="." unique_id=1982347947]
-scale = Vector2(0.42, 0.42)
-texture = ExtResource("3_nm4fq")
+[node name="Icon" type="AnimatedSprite2D" parent="." unique_id=281248019]
+position = Vector2(-1.9073486e-06, -1)
+scale = Vector2(1.3003124, 1.23)
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"hit"
+autoplay = "default"
 
 [node name="Name" type="Label" parent="." unique_id=668277825]
 offset_left = -60.0
@@ -28,3 +73,8 @@ theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 10
 text = "APOLAKI"
 horizontal_alignment = 1
+
+[node name="Arnis-Hit" type="Area2D" parent="." unique_id=799705596]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Arnis-Hit" unique_id=1912917137]
+shape = SubResource("CircleShape2D_g4v7s")
