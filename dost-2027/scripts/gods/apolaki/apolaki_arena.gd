@@ -43,11 +43,11 @@ extends Arena
 @export var strike_defend_penalty := 100 # hitting him while he DEFENDS
 @export var block_favor := 100           # a DEFENDING mortal beats his swing
 @export var hit_penalty := 80            # an idle / attacking mortal takes his swing
-@export var strike_cooldown := 2.0       # seconds between two strikes
+@export var strike_cooldown := 1.0       # seconds between two strikes
 @export var strike_hit_open_frame := 3   # the mortal's swing lands from this frame
 @export var strike_hit_close_frame := 5  # ...through this one (hit-arnis)
 @export var strike_reach_bonus := 26.0   # a strike lands this past his reach
-@export var defend_cooldown := 2.0       # seconds before another guard
+@export var defend_cooldown := 1.0      # seconds before another guard
 @export var hit_patch_count := 1         # blots his landed swing leaves on screen
 @export var hit_patch_time := 3.0        # seconds each blot stays
 
