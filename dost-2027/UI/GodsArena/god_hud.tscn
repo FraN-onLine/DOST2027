@@ -162,41 +162,6 @@ theme_override_font_sizes/font_size = 10
 text = "TRIAL 1 OF 5"
 horizontal_alignment = 1
 
-[node name="LeaderPanel" type="PanelContainer" parent="."]
-visible = false
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -216.0
-offset_top = 12.0
-offset_right = -16.0
-grow_horizontal = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
-
-[node name="Margin" type="MarginContainer" parent="LeaderPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="VBox" type="VBoxContainer" parent="LeaderPanel/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="LeaderTitle" type="Label" parent="LeaderPanel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 10
-text = "OTHER MORTALS"
-horizontal_alignment = 1
-
-[node name="RivalList" type="VBoxContainer" parent="LeaderPanel/Margin/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
 [node name="EventLabel" type="Label" parent="."]
 layout_mode = 1
 anchors_preset = 12

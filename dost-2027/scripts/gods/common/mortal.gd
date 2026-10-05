@@ -11,6 +11,14 @@ extends CharacterBody2D
 # AnimatedSprite2D and carries the authored clips (the idle walk, plus the arnis
 # strike and guard): an arena plays them and reads the running frame back, so the
 # body holds the art while the arena keeps the rules.
+#
+# FACING: the authored art faces right, so a move to the left mirrors the sprite
+# (AnimatedSprite2D.flip_h) and slides the attack area + standing collision to
+# the mirror side of the mortal (their authored x offsets are multiplied by
+# `facing`). The facing is read from whatever is actually moving the mortal this
+# frame - player input, a forced move, a knockback, or, for a remote ghost the
+# arena glides towards its last reported position, the distance travelled - so
+# every ArenaMortal (the local player and every ghost) turns to face its motion.
 
 @export var move_speed := 215.0
 
@@ -18,6 +26,9 @@ var locked := false
 var bounds := Rect2()
 var ring_color := Color(1, 0.95, 0.8)
 var radius := 13.0
+
+# Which way the mortal faces: 1 = right (the way the art is drawn), -1 = left.
+var facing := 1
 
 var _stun := 0.0
 var _knockback := Vector2.ZERO
@@ -28,10 +39,27 @@ var _flash := 0.0
 var _floating_time := 0.0
 var _floating_velocity := Vector2.ZERO
 
+# Where the combat pieces sit in the authored scene; the facing mirrors their x
+# offsets (and their scale, so a non-symmetric shape would mirror too).
+var _area_offset_x := 0.0
+var _collision_offset_x := 0.0
+var _last_position := Vector2.ZERO
+
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var glow: Sprite2D = $Glow
 @onready var name_tag: Label = $NameTag
 @onready var floating_text: Label = $FloatingStatus
+@onready var damage_area: Area2D = get_node("Arnis-Damage-Area")
+@onready var body_collision: CollisionShape2D = $CollisionShape2D
+
+
+func _ready() -> void:
+	# Read the authored offsets back and mirror them from the very first frame,
+	# so a scene that places the strike area off-centre keeps working flipped.
+	_area_offset_x = damage_area.position.x if damage_area != null else 0.0
+	_collision_offset_x = body_collision.position.x if body_collision != null else 0.0
+	_last_position = global_position
+	_apply_facing()
 
 
 func is_stunned() -> bool:
@@ -114,6 +142,39 @@ func is_animation_playing(anim: StringName = &"") -> bool:
 	return sprite.is_playing()
 
 
+# --- FACING ----------------------------------------------------------------
+# The art faces right. Whoever is actually moving the mortal decides the facing:
+# an input-driven player has a live velocity; a ghost the arena glides towards
+# its last reported position has none - so use the distance travelled when the
+# velocity has nothing to say. Facing only changes on real motion; a mortal that
+# is standing (or shoved straight up/down/into a wall) keeps its last direction.
+func _update_facing() -> void:
+	var moved := global_position - _last_position
+	_last_position = global_position
+	var basis := velocity if absf(velocity.x) > 4.0 else moved
+	if absf(basis.x) < 4.0:
+		return
+	var new_facing := 1 if basis.x > 0.0 else -1
+	if new_facing == facing:
+		return
+	facing = new_facing
+	_apply_facing()
+
+
+# Mirror every side-specific piece of the mortal to the current facing: the
+# sprite texture, the attack area's offset and scale (so a non-symmetric shape
+# truly mirrors) and the standing collision's offset and scale.
+func _apply_facing() -> void:
+	if sprite != null:
+		sprite.flip_h = facing < 0
+	if damage_area != null:
+		damage_area.position.x = _area_offset_x * facing
+		damage_area.scale.x = facing
+	if body_collision != null:
+		body_collision.position.x = _collision_offset_x * facing
+		body_collision.scale.x = facing
+
+
 func _physics_process(delta: float) -> void:
 	if _stun > 0.0:
 		_stun = maxf(0.0, _stun - delta)
@@ -131,6 +192,8 @@ func _physics_process(delta: float) -> void:
 	if bounds.size != Vector2.ZERO:
 		global_position.x = clampf(global_position.x, bounds.position.x + radius, bounds.end.x - radius)
 		global_position.y = clampf(global_position.y, bounds.position.y + radius, bounds.end.y - radius)
+
+	_update_facing()
 
 	_bob += delta
 	if sprite != null:
