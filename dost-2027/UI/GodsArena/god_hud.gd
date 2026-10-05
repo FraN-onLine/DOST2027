@@ -3,8 +3,8 @@ extends Control
 # Arena HUD.
 # Top-left: the two stats - FAVOR and the GOD'S DUE voucher count - with the two
 # favor bars (E on the left, Q on the right) directly underneath them.
-# Also carries the trial clock, the rival mortals, the event line, the banner
-# and the end-of-trial results panel.
+# Also carries the trial clock, the event line, the banner and the end-of-trial
+# results panel.
 
 const COLOR_TIME_OK := Color(1, 1, 1, 1)
 const COLOR_TIME_LOW := Color(1, 0.4, 0.35, 1)
@@ -17,8 +17,6 @@ const COLOR_TIME_LOW := Color(1, 0.4, 0.35, 1)
 @onready var bar_q: PanelContainer = $StatsPanel/Margin/VBox/SkillRow/SkillBarQ
 @onready var time_label: Label = $TrialPanel/Margin/VBox/TimeLabel
 @onready var trial_label: Label = $TrialPanel/Margin/VBox/TrialLabel
-@onready var leader_panel: PanelContainer = $LeaderPanel
-@onready var rival_list: VBoxContainer = $LeaderPanel/Margin/VBox/RivalList
 @onready var event_label: Label = $EventLabel
 @onready var banner_label: Label = $BannerLabel
 @onready var results_panel: PanelContainer = $ResultsPanel
@@ -29,7 +27,6 @@ const COLOR_TIME_LOW := Color(1, 0.4, 0.35, 1)
 var _match: GodMatch = null
 var _god: God = null
 var _bar_favor: Dictionary = {}
-var _rival_rows: Dictionary = {}
 var _banner_time := 0.0
 
 
@@ -38,7 +35,6 @@ func _ready() -> void:
 	bar_q.setup("Q")
 	results_panel.visible = false
 	banner_label.visible = false
-	leader_panel.visible = false
 	event_label.text = ""
 
 
@@ -50,7 +46,6 @@ func bind(match_ref: GodMatch, god_ref: God) -> void:
 		god_label.add_theme_color_override("font_color", _god.color)
 		game_label.text = _god.game_name
 		game_label.add_theme_color_override("font_color", Color(_god.color.r, _god.color.g, _god.color.b, 0.75))
-	_build_rivals()
 	log_event("The trial begins.", _god.color if _god != null else Color.WHITE)
 
 
@@ -95,26 +90,6 @@ func set_results_hint(text: String) -> void:
 	results_hint.text = text
 
 
-func _build_rivals() -> void:
-	for child in rival_list.get_children():
-		rival_list.remove_child(child)
-		child.queue_free()
-	_rival_rows.clear()
-	if _match == null:
-		leader_panel.visible = false
-		return
-	for id in _match.mortals.keys():
-		var mortal := _match.mortal(id)
-		if mortal == null or mortal.is_local:
-			continue
-		var label := Label.new()
-		label.add_theme_font_size_override("font_size", 12)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		rival_list.add_child(label)
-		_rival_rows[mortal.id] = label
-	leader_panel.visible = not _rival_rows.is_empty()
-
-
 func _process(delta: float) -> void:
 	if _banner_time > 0.0:
 		_banner_time = maxf(0.0, _banner_time - delta)
@@ -127,10 +102,6 @@ func _process(delta: float) -> void:
 		return
 	favor_value.text = str(mortal.favor)
 	due_value.text = str(mortal.due)
-	for id in _rival_rows.keys():
-		var rival := _match.mortal(id)
-		if rival != null:
-			_rival_rows[id].text = "%s   %d" % [rival.display_name, rival.favor]
 	_sync_bar(bar_e, GodFavor.Slot.E)
 	_sync_bar(bar_q, GodFavor.Slot.Q)
 

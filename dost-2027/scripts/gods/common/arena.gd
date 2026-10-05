@@ -252,7 +252,6 @@ func _ready() -> void:
 	ui_layer.add_child(hud)
 	if embedded:
 		hud.get_node("StatsPanel").visible = false
-		hud.get_node("LeaderPanel").visible = false
 		hud.get_node("TrialPanel").visible = false
 		hud.get_node("EventLabel").visible = false
 		hud.get_node("BannerLabel").visible = false
