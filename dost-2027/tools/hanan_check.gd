@@ -199,6 +199,19 @@ func _run() -> void:
 			"level %d keeps the box on the gauge" % level)
 		_arena._leave_vault()
 
+	# --- the trial ends mid-vault: what it earned is banked --------------------------------
+	_arena._level = 1
+	_arena._enter_run()
+	_arena.begin_vault()
+	_arena.rules.local().favor = 500
+	_arena._pending_gain = 37.6
+	_arena._end_trial()
+	_check(_arena.rules.local().favor == 537, "ending the trial mid-vault banks the pending FAVOR (%d)" % _arena.rules.local().favor)
+	var result: Dictionary = _arena._results.get(_arena._my_id, {})
+	_check(int(result.get("favor", 0)) == 537, "...before the results are written, so it shows in this trial's standings")
+	_arena._tick_hanan(DT)
+	_check(_arena._vault_state == HananArena.Vault.RUN, "the vault is put away once the round is over")
+
 	print("Hanan arena checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
 	quit(1 if _problems > 0 else 0)
