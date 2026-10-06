@@ -1,0 +1,206 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/lobby_options.gd" id="1_opts"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.07, 0.09, 0.15, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.34, 0.38, 0.5, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="Theme" id="Theme_opts"]
+default_font = ExtResource("2_font")
+default_font_size = 11
+
+[node name="LobbyOptions" type="PanelContainer"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -272.0
+offset_right = 300.0
+offset_bottom = 272.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_opts")
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+script = ExtResource("1_opts")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 16
+text = "LOBBY OPTIONS"
+horizontal_alignment = 1
+
+[node name="Body" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="TrialsRow" type="HBoxContainer" parent="Margin/VBox/Body"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Caption" type="Label" parent="Margin/VBox/Body/TrialsRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
+text = "TRIALS (+ BATHALA)"
+vertical_alignment = 1
+
+[node name="Minus" type="Button" parent="Margin/VBox/Body/TrialsRow"]
+custom_minimum_size = Vector2(32, 28)
+layout_mode = 2
+text = "-"
+
+[node name="Value" type="Label" parent="Margin/VBox/Body/TrialsRow"]
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "4"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Plus" type="Button" parent="Margin/VBox/Body/TrialsRow"]
+custom_minimum_size = Vector2(32, 28)
+layout_mode = 2
+text = "+"
+
+[node name="RunLine" type="Label" parent="Margin/VBox/Body"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 10
+text = "Random  ->  BATHALA"
+autowrap_mode = 3
+
+[node name="OrderRow" type="HBoxContainer" parent="Margin/VBox/Body"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Caption" type="Label" parent="Margin/VBox/Body/OrderRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
+text = "TRIAL ORDER"
+vertical_alignment = 1
+
+[node name="RandomBox" type="CheckBox" parent="Margin/VBox/Body/OrderRow"]
+layout_mode = 2
+tooltip_text = "The gods are drawn when START is pressed."
+text = "RANDOM"
+
+[node name="CustomBox" type="CheckBox" parent="Margin/VBox/Body/OrderRow"]
+layout_mode = 2
+tooltip_text = "Choose the god of every trial."
+text = "CUSTOM"
+
+[node name="OrderScroll" type="ScrollContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="OrderList" type="VBoxContainer" parent="Margin/VBox/Body/OrderScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="Warning" type="Label" parent="Margin/VBox/Body"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 3
+
+[node name="TimeRow" type="HBoxContainer" parent="Margin/VBox/Body"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Caption" type="Label" parent="Margin/VBox/Body/TimeRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
+text = "TRIAL LENGTH"
+vertical_alignment = 1
+
+[node name="TimeOption" type="OptionButton" parent="Margin/VBox/Body/TimeRow"]
+custom_minimum_size = Vector2(200, 28)
+layout_mode = 2
+
+[node name="DueRow" type="HBoxContainer" parent="Margin/VBox/Body"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Caption" type="Label" parent="Margin/VBox/Body/DueRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
+text = "GOD'S DUE EVERY"
+vertical_alignment = 1
+
+[node name="DueOption" type="OptionButton" parent="Margin/VBox/Body/DueRow"]
+custom_minimum_size = Vector2(200, 28)
+layout_mode = 2
+
+[node name="IntroRow" type="HBoxContainer" parent="Margin/VBox/Body"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Caption" type="Label" parent="Margin/VBox/Body/IntroRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
+text = "GOD INTROS"
+vertical_alignment = 1
+
+[node name="IntroOption" type="OptionButton" parent="Margin/VBox/Body/IntroRow"]
+custom_minimum_size = Vector2(200, 28)
+layout_mode = 2
+
+[node name="HostNote" type="Label" parent="Margin/VBox/Body"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.65, 0.75, 1)
+theme_override_font_sizes/font_size = 10
+text = "Only the host can change these."
+horizontal_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ResetButton" type="Button" parent="Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(160, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "RESET"
+
+[node name="DoneButton" type="Button" parent="Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(160, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "DONE"

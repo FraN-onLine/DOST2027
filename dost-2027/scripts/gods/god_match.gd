@@ -18,7 +18,7 @@ signal notice(text: String)
 # turns this into a banner / event line in the favor's colour.
 signal favor_fired(player_id: int, favor: GodFavor, text: String)
 
-const MILESTONE_STEP := 1000  # every 1000 FAVOR hands out one God's Due
+const MILESTONE_STEP := 1000  # default: every 1000 FAVOR hands out one God's Due
 const LOCAL_ID := 1
 const LOSS_HISTORY_SECONDS := 10.0  # longest look-back any favor may ask for (Bagong Umaga)
 
@@ -64,6 +64,9 @@ var mortals: Dictionary = {}  # player id -> Mortal
 var local_id: int = LOCAL_ID
 var simulate_rivals: bool = false
 var trial_active: bool = false
+# FAVOR per God's Due for this run. The lobby can change it (RunSettings.due_step);
+# a standalone arena keeps the default.
+var milestone_step: int = MILESTONE_STEP
 var _clock := 0.0  # seconds since the match began - stamps the loss history
 
 
@@ -166,13 +169,13 @@ func _apply(m: Mortal, delta: int, reason: String) -> void:
 
 func _check_milestones(m: Mortal) -> void:
 	# A God's Due is only ever awarded on the FIRST pass of a milestone.
-	var reached := int(floor(float(m.favor) / float(MILESTONE_STEP)))
+	var reached := int(floor(float(m.favor) / float(maxi(1, milestone_step))))
 	for index in range(1, reached + 1):
 		if m.claimed_milestones.has(index):
 			continue
 		m.claimed_milestones[index] = true
 		m.due += 1
-		due_earned.emit(m.id, m.due, index * MILESTONE_STEP)
+		due_earned.emit(m.id, m.due, index * milestone_step)
 		due_changed.emit(m.id, m.due)
 
 
