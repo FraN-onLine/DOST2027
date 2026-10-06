@@ -116,6 +116,7 @@ favors = Array[ExtResource("1_dp3kp")]([SubResource("Resource_c8kc2"), SubResour
 intro_lines = Array[String](["Apolaki does not blink while the sun is up."])
 trial_end_lines = Array[String](["The duel is over. Your Favor carries on to the next game."])
 transition_lines = {
+"hanan": ["Hanan, the field is yours. See if they can leap as well as they fight."],
 "apolaki": ["Apolaki, another duel awaits."],
 "mayari": ["Mayari, the next arena is yours. Keep the mortals in your light."],
 "tala": ["Tala, take the field. Their next throw is yours to judge."],

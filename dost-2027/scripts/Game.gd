@@ -324,12 +324,18 @@ func _show_finale() -> void:
 	for player_id in run_snapshot.keys():
 		var entry: Dictionary = run_snapshot[player_id].duplicate(true)
 		entry["id"] = int(player_id)
+		# The Three Sisters pays out as the final trial begins - before the
+		# standings are worked out, so it shows in them.
+		entry["sisters"] = GodMatch.three_sisters_bonus(entry.get("favors", []))
+		entry["favor"] = int(entry.get("favor", 0)) + int(entry["sisters"])
 		ranked.append(entry)
 	ranked.sort_custom(func(a: Dictionary, b: Dictionary): return int(a.get("favor", 0)) > int(b.get("favor", 0)))
 	var rows: Array[String] = []
 	for index in range(ranked.size()):
 		var entry: Dictionary = ranked[index]
-		rows.append("%d.  %s     %d FAVOR     %d DUE" % [index + 1, str(entry.get("name", "Mortal")), int(entry.get("favor", 0)), int(entry.get("due", 0))])
+		var sisters := int(entry.get("sisters", 0))
+		var note := "   (+%d The Three Sisters)" % sisters if sisters > 0 else ""
+		rows.append("%d.  %s     %d FAVOR     %d DUE%s" % [index + 1, str(entry.get("name", "Mortal")), int(entry.get("favor", 0)), int(entry.get("due", 0)), note])
 	finale_summary.text = "\n".join(rows)
 
 
