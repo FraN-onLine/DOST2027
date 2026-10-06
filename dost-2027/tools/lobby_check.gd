@@ -22,13 +22,29 @@ func _mouse(at: Vector2, pressed: bool) -> InputEventMouseButton:
 	return event
 
 
+# Under --headless there is no framebuffer and get_image() returns null: skip the
+# picture with a note instead of crashing, so the rest of the probe still runs and
+# the script reaches quit() instead of hanging.
+func _shot(key: String) -> void:
+	var image: Image = null
+	if DisplayServer.get_name() != "headless":
+		image = root.get_texture().get_image()
+	if image == null:
+		print("skipped shot_%s.png (no screen to capture - run without --headless for pictures)" % key)
+		return
+	image.save_png("res://shot_%s.png" % key)
+	print("saved shot_%s.png" % key)
+
+
 func _run() -> void:
 	await _frames(10)
+	# Only the screens the game actually opens. The two old scenes in
+	# UI/Server and Lobby handlers/ (Multiplayersetup.tscn, hosting.tscn) are
+	# unused leftovers: they attach scripts/hosting.gd without the nodes it reads,
+	# so instancing them only produced script errors.
 	var shots := {
 		"lobby": "res://scenes/Lobby.tscn",
 		"mainmenu": "res://scenes/MainMenu.tscn",
-		"multiplayersetup": "res://UI/Server and Lobby handlers/Multiplayersetup.tscn",
-		"hosting": "res://UI/Server and Lobby handlers/hosting.tscn",
 		"scenes_hosting": "res://scenes/Hosting.tscn",
 		"joingame": "res://scenes/JoinGame.tscn",
 	}
@@ -39,9 +55,7 @@ func _run() -> void:
 		var scene: Node = load(shots[key]).instantiate()
 		root.add_child(scene)
 		await _frames(20)
-		var image := root.get_texture().get_image()
-		image.save_png("res://shot_%s.png" % key)
-		print("saved shot_%s.png" % key)
+		_shot(key)
 		scene.queue_free()
 		await _frames(5)
 
@@ -73,9 +87,8 @@ func _run() -> void:
 	await _frames(4)
 	options._on_move_pressed(1, -1)
 	await _frames(8)
-	root.get_texture().get_image().save_png("res://shot_lobby_options.png")
-	print("saved shot_lobby_options.png | plan='%s' | rows=%d" % [
-		options.run_line.text, options.order_list.get_child_count()])
+	_shot("lobby_options")
+	print("lobby options | plan='%s' | rows=%d" % [options.run_line.text, options.order_list.get_child_count()])
 	lobby.queue_free()
 	await _frames(5)
 	await _frames(2)

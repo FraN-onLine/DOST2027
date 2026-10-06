@@ -33,6 +33,14 @@ class FakeNet:
 		pass
 	func release_dialogue(_id: String) -> void:
 		pass
+	# The rest of what Arena calls on the host's Network (scripts/Network.gd),
+	# so no host path can hit a missing method while this check runs.
+	func publish_mortal_positions(_positions: Dictionary) -> void:
+		pass
+	func send_arena_blind(_caster_id: int, _radius: float, _duration: float) -> void:
+		pass
+	func send_arena_movement_override(_caster_id: int, _duration: float) -> void:
+		pass
 
 
 func _initialize() -> void:
