@@ -163,27 +163,12 @@ func _build_trial_order() -> bool:
 		trial_order.append(Gods.bathala())
 		return true
 	# A client asks the host for the order; the host (or an offline run, where
-	# there is no host to ask) draws its own.
+	# there is no host to ask) draws its own - with the same draw the lobby uses
+	# (RunSettings), so the two can never drift apart.
 	if Network.has_multiplayer_peer() and not multiplayer.is_server():
 		return false
-	# 4 to 6 challenges drawn from the gods that ship an arena, in a random
-	# order, and then Bathala's final challenge - Bathala is always last.
-	var playable: Array[God] = []
-	for god in Gods.all():
-		if god.implemented and god.arena_scene != "":
-			playable.append(god)
-	if playable.is_empty():
-		playable.append(Gods.mayari())
-	var challenges := randi_range(Gods.CHALLENGE_MIN, Gods.CHALLENGE_MAX)
-	var pool: Array[God] = []
-	for index in range(challenges):
-		# A god can come back - the order and the appearances are random - but
-		# never twice before everyone else has had their turn.
-		if pool.is_empty():
-			pool = playable.duplicate()
-			pool.shuffle()
-		trial_order.append(pool.pop_front())
-	trial_order.append(Gods.bathala())
+	for god_id in RunSettings.defaults().planned_order():
+		trial_order.append(Gods.by_id(god_id))
 	return true
 
 
@@ -204,9 +189,16 @@ func _start_current_trial() -> void:
 	# The shell draws the shared panels; the arena keeps its left strip empty for
 	# them and owns the rest of the screen exactly as it was authored.
 	arena_instance.embedded = true
-	# A god speaks its full intro only the first time it hosts in this run; after
-	# that the arena knows to use its short "take your place" line.
-	arena_instance.first_visit = not _visited_gods.has(god.id)
+	# The lobby's run settings, synced to every peer with the order: the round
+	# length and the God's Due step are set before the arena enters the tree (its
+	# _ready builds the GodMatch from them). Bathala's finale has no arena, so it
+	# is never touched.
+	var settings: RunSettings = Network.run_settings
+	arena_instance.trial_time = settings.trial_time
+	arena_instance.due_step = settings.due_step
+	# A god speaks its full intro only the first time it hosts in this run (FULL),
+	# or never (SHORT); either way the dialogue handshake still runs.
+	arena_instance.first_visit = settings.intro_mode == RunSettings.INTRO_FULL and not _visited_gods.has(god.id)
 	_visited_gods[god.id] = true
 	arena_instance.dialogue_prefix = "trial_%d" % (trial_index + 1)
 	arena_instance.next_god_id = trial_order[trial_index + 1].id if trial_index + 1 < trial_order.size() else &""
@@ -324,12 +316,18 @@ func _show_finale() -> void:
 	for player_id in run_snapshot.keys():
 		var entry: Dictionary = run_snapshot[player_id].duplicate(true)
 		entry["id"] = int(player_id)
+		# The Three Sisters pays out as the final trial begins - before the
+		# standings are worked out, so it shows in them.
+		entry["sisters"] = GodMatch.three_sisters_bonus(entry.get("favors", []))
+		entry["favor"] = int(entry.get("favor", 0)) + int(entry["sisters"])
 		ranked.append(entry)
 	ranked.sort_custom(func(a: Dictionary, b: Dictionary): return int(a.get("favor", 0)) > int(b.get("favor", 0)))
 	var rows: Array[String] = []
 	for index in range(ranked.size()):
 		var entry: Dictionary = ranked[index]
-		rows.append("%d.  %s     %d FAVOR     %d DUE" % [index + 1, str(entry.get("name", "Mortal")), int(entry.get("favor", 0)), int(entry.get("due", 0))])
+		var sisters := int(entry.get("sisters", 0))
+		var note := "   (+%d The Three Sisters)" % sisters if sisters > 0 else ""
+		rows.append("%d.  %s     %d FAVOR     %d DUE%s" % [index + 1, str(entry.get("name", "Mortal")), int(entry.get("favor", 0)), int(entry.get("due", 0)), note])
 	finale_summary.text = "\n".join(rows)
 
 

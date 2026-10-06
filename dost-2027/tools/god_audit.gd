@@ -10,6 +10,7 @@ const ARENAS := [
 	"res://scenes/gods/mayari/MayariArena.tscn",
 	"res://scenes/gods/apolaki/ApolakiArena.tscn",
 	"res://scenes/gods/tala/TalaArena.tscn",
+	"res://scenes/gods/hanan/HananArena.tscn",
 ]
 
 
@@ -97,16 +98,16 @@ func _run() -> void:
 		printerr("god_audit: the Network autoload is missing")
 		problems += 1
 	else:
-		network.set_custom_trial_order([&"tala", &"apolaki", &"mayari"])
+		network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["tala", "apolaki", "mayari"]})
 	var planned: Array = network.planned_trial_order() if network != null else []
 	print("  custom order: %s" % str(planned))
 	if planned.size() != 4 or StringName(str(planned[3])) != Gods.BATHALA:
 		printerr("god_audit: the custom trial order did not close with Bathala")
 		problems += 1
 	if network != null:
-		network.clear_custom_trial_order()
+		network.set_run_settings(RunSettings.defaults().to_dict())
 		planned = network.planned_trial_order()
-	if planned.size() < Gods.CHALLENGE_MIN:
+	if planned.size() < Gods.TRIALS_MIN + 1:
 		printerr("god_audit: the random trial order is too short")
 		problems += 1
 	print("  random order: %s" % str(planned))

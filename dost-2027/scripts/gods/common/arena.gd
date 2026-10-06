@@ -114,6 +114,9 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 # Set by the shell: false the first time a god hosts, so the arena knows to speak
 # its full intro rather than the short "take your place again" line.
 @export var first_visit := true
+# FAVOR per God's Due, handed to this arena's GodMatch. The shell sets it from the
+# lobby's run settings; a standalone arena keeps the default.
+@export var due_step := GodMatch.MILESTONE_STEP
 
 @export_category("Shared Arena Rules")
 # The round every arena is played in - 1:30. This is the one clock shared by all
@@ -192,8 +195,12 @@ var _free_grants := 0
 var _results: Dictionary = {}
 var _gain_pending: Dictionary = {}    # mortal id -> FAVOR gathered, not popped yet
 var _gain_timer := 0.0
+var _vision_fade := 1.0               # blindness mask fade-in (see Settings.reduce_flashing)
 var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
 var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
+# Who started each of those, so Hanan's Break of Day can end ONE caster's effects:
+var _double_loss_source: Dictionary = {}  # victim id -> caster id of its doubled loss
+var _sun_patch_sources: Dictionary = {}   # mortal id -> Array[int], caster id per _sun_patches timer (-1 = none)
 var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
 var _victor_claimed: Dictionary = {}  # owner id -> true (once per trial)
 var _rivalry_claimed: Dictionary = {} # owner id -> {favor id -> {victim id: true}}
@@ -239,6 +246,7 @@ func _ready() -> void:
 
 	rules = GodMatch.new()
 	rules.name = "GodMatch"
+	rules.milestone_step = due_step
 	add_child(rules)
 	if _networked:
 		rules.setup_peers(god, _peer_names(), _my_id, false)
@@ -247,6 +255,7 @@ func _ready() -> void:
 	rules.favor_changed.connect(_on_favor_changed)
 	rules.due_earned.connect(_on_due_earned)
 	rules.notice.connect(_on_notice)
+	rules.favor_fired.connect(_on_favor_fired)
 
 	hud = HUD_SCENE.instantiate()
 	ui_layer.add_child(hud)
@@ -463,8 +472,10 @@ func _start_trial() -> void:
 	set_mortal_invuln(_my_id, spawn_immunity)
 	_blind_time = 0.0
 	_sun_patches.clear()
+	_sun_patch_sources.clear()
 	clear_sun_patches()
 	_double_loss.clear()
+	_double_loss_source.clear()
 	_great_pending.clear()
 	_victor_claimed.clear()
 	_rivalry_claimed.clear()
@@ -477,6 +488,8 @@ func _start_trial() -> void:
 	_refresh_sun_patches()
 	player.set_lock(false)
 	rules.trial_active = true
+	if _authority:
+		rules.begin_trial()  # First Light pays whoever starts the trial in last place
 	_show_banner("GO!", god.color, 1.0)
 	hud.set_time_left(_trial_time)
 
@@ -987,7 +1000,7 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_log("Half Vision - everyone else sees only a circle around them", favor.color)
 		else:
 			_blind_radius = radius
-			_blind_time = maxf(_blind_time, duration)
+			_blind_time = maxf(_blind_time, _morning_cap(duration))
 			_log("Half Vision - you see only a circle around your mortal", favor.color)
 		if _authority and _networked and _net != null:
 			_net.send_arena_blind(caster_id, radius, duration)
@@ -997,18 +1010,31 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			if mortal.id == caster_id:
 				continue
 			_double_loss[mortal.id] = maxf(float(_double_loss.get(mortal.id, 0.0)), duration)
-			_add_sun_patches(mortal.id, 1, duration)
+			_double_loss_source[mortal.id] = caster_id
+			_add_sun_patches(mortal.id, 1, duration, caster_id)
 		_publish_god_state()
 	elif favor.id == &"let_us_light_your_way":
 		var duration := maxf(0.0, favor.duration)
 		_start_movement_override(caster_id, duration)
 		if _authority and _networked and _net != null:
 			_net.send_arena_movement_override(caster_id, duration)
+	elif favor.id == &"bagong_umaga" and _authority:
+		var restored := rules.restore_recent_losses(caster_id, favor.param("lookback", 5.0))
+		_log("Bagong Umaga - %s gets back %d FAVOR" % [mortal_label(caster_id), restored], favor.color)
+		_publish_god_state()
+	elif favor.id == &"break_of_day" and _authority:
+		var target_id := rules.break_of_day(caster_id)
+		if target_id >= 0:
+			_end_arena_effects_of(target_id)
+			_log("Break of Day - %s's favors fade and their skills start over" % mortal_label(target_id), favor.color)
+		else:
+			_log("Break of Day - no other mortal to reach", favor.color)
+		_publish_god_state()
 	elif favor.id == &"unswerved_unbothered":
 		var mortal := rules.mortal(caster_id)
 		if mortal == null:
 			return
-		_sun_patches.erase(caster_id)
+		_erase_sun_patches(caster_id)
 		if caster_id == _my_id:
 			_blind_time = 0.0
 			_refresh_sun_patches()
@@ -1016,15 +1042,57 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_publish_god_state()
 
 
+# A duration of 0 means "stop now" (Break of Day ending the caster's pull).
 func _start_movement_override(caster_id: int, duration: float) -> void:
+	if duration <= 0.0:
+		if caster_id == _movement_override_caster:
+			_movement_override_time = 0.0
+		return
 	_movement_override_caster = caster_id
 	_movement_override_time = maxf(_movement_override_time, duration)
 
 
 func _on_movement_override_received(caster_id: int, duration: float) -> void:
-	if caster_id == _my_id or duration <= 0.0:
+	if caster_id == _my_id:
 		return
 	_start_movement_override(caster_id, duration)
+
+
+# Host: Break of Day just hit `caster_id`. GodMatch already ended their favor
+# durations; these are the effects of their casts that live in the arena instead
+# - the doubled loss and the sun patches of Apolaki's Sibling's Compromise, and
+# Tala's Let Us Light Your Way pulling everyone towards them - so end those too,
+# and only those (other casters' patches stay).
+func _end_arena_effects_of(caster_id: int) -> void:
+	for victim_id in _double_loss_source.keys().duplicate():
+		if int(_double_loss_source[victim_id]) == caster_id:
+			_double_loss.erase(victim_id)
+			_double_loss_source.erase(victim_id)
+	for mortal_id in _sun_patches.keys().duplicate():
+		var sources: Array = _sun_patch_sources.get(mortal_id, [])
+		var timers: Array = _sun_patches[mortal_id]
+		var kept_timers: Array = []
+		var kept_sources: Array = []
+		for index in range(timers.size()):
+			var source: int = int(sources[index]) if index < sources.size() else -1
+			if source != caster_id:
+				kept_timers.append(timers[index])
+				kept_sources.append(source)
+		if kept_timers.is_empty():
+			_erase_sun_patches(mortal_id)
+		else:
+			_sun_patches[mortal_id] = kept_timers
+			_sun_patch_sources[mortal_id] = kept_sources
+	_refresh_sun_patches()
+	if caster_id == _movement_override_caster and _movement_override_time > 0.0:
+		_start_movement_override(caster_id, 0.0)
+		if _networked and _net != null:
+			_net.send_arena_movement_override(caster_id, 0.0)
+
+
+func _erase_sun_patches(mortal_id: int) -> void:
+	_sun_patches.erase(mortal_id)
+	_sun_patch_sources.erase(mortal_id)
 
 
 func nearby_movement_favors_enabled() -> bool:
@@ -1089,7 +1157,33 @@ func show_sun_patch(seconds: float, from_favor := false) -> bool:
 		return false
 	_sun_patch_slots.append({"index": index, "left": seconds, "favor": from_favor})
 	_sun_patch_rects[index].visible = true
+	_fade_in_patch(_sun_patch_rects[index])
 	return true
+
+
+# Player comfort options live in the Settings autoload. They are looked up by
+# path, not by name, so scripts that load an arena before the autoloads exist
+# (the tools/ checks) still compile.
+func reduce_flashing() -> bool:
+	var settings := get_node_or_null("/root/Settings")
+	return settings != null and bool(settings.call("reduce_flashing"))
+
+
+func screen_shake_allowed() -> bool:
+	var settings := get_node_or_null("/root/Settings")
+	return settings == null or bool(settings.call("screen_shake_enabled"))
+
+
+# With "reduce flashing" on a patch fades in over 0.3s; it covers the same area
+# for the same time either way.
+func _fade_in_patch(rect: TextureRect) -> void:
+	if not rect.has_meta("base_alpha"):
+		rect.set_meta("base_alpha", rect.modulate.a)
+	var alpha: float = rect.get_meta("base_alpha")
+	rect.modulate.a = alpha
+	if reduce_flashing():
+		rect.modulate.a = 0.0
+		create_tween().tween_property(rect, "modulate:a", alpha, 0.3)
 
 
 func active_sun_patches() -> int:
@@ -1203,16 +1297,23 @@ func _on_sun_favor_changed(player_id: int, delta: int) -> void:
 			_add_sun_patches(opponents[0], 1, _favor_duration(victim, &"the_ruler", 1.5))
 
 
-func _add_sun_patches(mortal_id: int, count: int, duration: float) -> void:
+func _add_sun_patches(mortal_id: int, count: int, duration: float, source := -1) -> void:
 	if count <= 0 or duration <= 0.0:
 		return
 	var mortal := rules.mortal(mortal_id)
 	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		return
 	var timers: Array = _sun_patches.get(mortal_id, [])
+	var sources: Array = _sun_patch_sources.get(mortal_id, [])
+	sources.resize(timers.size())  # an entry the host made without a source reads as -1
+	for index in range(sources.size()):
+		if sources[index] == null:
+			sources[index] = -1
 	for index in range(count):
 		timers.append(duration)
+		sources.append(source)
 	_sun_patches[mortal_id] = timers
+	_sun_patch_sources[mortal_id] = sources
 	# A blot aimed at US is drawn here, right now: it claims a rect at random out
 	# of the free ones and comes down on its own clock. Blots aimed at somebody
 	# else stay host-side data and travel in the arena tick.
@@ -1242,18 +1343,24 @@ func _tick_sun_favors(delta: float) -> void:
 		return
 	for mortal_id in _sun_patches.keys().duplicate():
 		var active: Array = []
-		for left in _sun_patches[mortal_id]:
-			var remaining := maxf(0.0, float(left) - delta)
+		var active_sources: Array = []
+		var sources: Array = _sun_patch_sources.get(mortal_id, [])
+		var timers: Array = _sun_patches[mortal_id]
+		for index in range(timers.size()):
+			var remaining := maxf(0.0, float(timers[index]) - delta)
 			if remaining > 0.0:
 				active.append(remaining)
+				active_sources.append(int(sources[index]) if index < sources.size() else -1)
 		if active.is_empty():
-			_sun_patches.erase(mortal_id)
+			_erase_sun_patches(mortal_id)
 		else:
 			_sun_patches[mortal_id] = active
+			_sun_patch_sources[mortal_id] = active_sources
 	for mortal_id in _double_loss.keys().duplicate():
 		var remaining := maxf(0.0, float(_double_loss[mortal_id]) - delta)
 		if remaining <= 0.0:
 			_double_loss.erase(mortal_id)
+			_double_loss_source.erase(mortal_id)
 		else:
 			_double_loss[mortal_id] = remaining
 	_refresh_sun_patches()
@@ -1305,7 +1412,10 @@ func _rivalry_blind_rivals(owner: GodMatch.Mortal, favor_id: StringName, thresho
 		claims[rival.id] = true
 		per_favor[favor_id] = claims
 		_rivalry_claimed[owner.id] = per_favor
-		_add_sun_patches(rival.id, 4, maxf(0.0, favor.duration))
+		var block_time := maxf(0.0, favor.duration)
+		if favor.god_id == Gods.MAYARI:
+			block_time = _morning_cap_for(rival, block_time)
+		_add_sun_patches(rival.id, 4, block_time)
 
 
 # Another mortal cast Half Vision: darken THIS screen (unless we are the caster).
@@ -1316,8 +1426,34 @@ func _on_arena_blind_received(caster_id: int, radius: float, duration: float) ->
 	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		return
 	_blind_radius = radius
-	_blind_time = maxf(_blind_time, duration)
+	_blind_time = maxf(_blind_time, _morning_cap(duration))
 	_log("Half Vision - you see only a circle around your mortal", god.color)
+
+
+# Morning Chases the Night: a Mayari vision block on a holder lasts at most
+# blind_cap seconds, and every block cut short pays bonus FAVOR. These two answer
+# for the mortal on THIS screen (the +bonus is asked of the host through
+# score_favor) or for any mortal the host names.
+func _morning_cap(seconds: float) -> float:
+	var capped := _morning_cap_for(rules.local(), seconds, false)
+	var perk: GodFavor = rules.local().favor_by_id(&"morning_chases_the_night") if rules.local() != null else null
+	if perk != null and capped < seconds:
+		score_favor(int(perk.param("bonus", 50.0)), perk.display_name)
+	return capped
+
+
+# Host side: the capped length of a block aimed at `target`, paying the bonus
+# straight into their FAVOR when the cap really shortened it.
+func _morning_cap_for(target: GodMatch.Mortal, seconds: float, pay := true) -> float:
+	var perk: GodFavor = target.favor_by_id(&"morning_chases_the_night") if target != null else null
+	if perk == null:
+		return seconds
+	var cap := perk.param("blind_cap", 0.5)
+	if seconds <= cap:
+		return seconds
+	if _authority and pay:
+		bank_favor(int(perk.param("bonus", 50.0)), perk.display_name, target.id)
+	return cap
 
 
 func _toggle_due_menu() -> void:
@@ -1528,7 +1664,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	_sun_patches = state.get("sun_patches", {}).duplicate(true)
 	var local_mortal := rules.local()
 	if local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0:
-		_sun_patches.erase(_my_id)
+		_erase_sun_patches(_my_id)
 		_blind_time = 0.0
 	_refresh_sun_patches()
 	arena_read_tick(state)
@@ -1637,6 +1773,14 @@ func _on_due_earned(player_id: int, _due: int, milestone: int) -> void:
 	_log("You reached %d FAVOR - one God's Due is yours (press F to spend it)" % milestone, Color(1, 0.9, 0.45))
 
 
+# A favor of Hanan's fired on the host: say so, in the favor's colour. Banners are
+# for our own mortal; the event line is mirrored to every client by the arena tick.
+func _on_favor_fired(player_id: int, favor: GodFavor, text: String) -> void:
+	_log(text, favor.color)
+	if player_id == _my_id:
+		_show_banner(favor.display_name.to_upper(), favor.color, 1.4)
+
+
 func _on_notice(text: String) -> void:
 	_log(text, Color(0.85, 0.85, 0.9))
 
@@ -1657,17 +1801,20 @@ func _apply_blindness(delta: float) -> void:
 	var mortal := rules.local() if rules != null else null
 	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		_blind_time = 0.0
-		_sun_patches.erase(_my_id)
+		_erase_sun_patches(_my_id)
 		_refresh_sun_patches()
 	_blind_time = maxf(0.0, _blind_time - delta)
 	var active := _blind_time > 0.0
 	if vision_mask.visible != active:
 		vision_mask.visible = active
+		_vision_fade = 0.0 if reduce_flashing() else 1.0  # same coverage, just not a pop
 	if not active:
 		return
 	var material := vision_mask.material as ShaderMaterial
 	if material == null:
 		return
+	_vision_fade = minf(1.0, _vision_fade + delta / 0.3)
+	material.set_shader_parameter("fade", _vision_fade)
 	var view := vision_mask.size
 	var mortal_pos := player.global_position
 	material.set_shader_parameter("center", Vector2(mortal_pos.x / maxf(1.0, view.x), mortal_pos.y / maxf(1.0, view.y)))

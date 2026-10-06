@@ -94,6 +94,7 @@ favors = Array[ExtResource("1_favor")]([SubResource("Favor_bountiful_e"), SubRes
 intro_lines = Array[String](["Tala watches the tin cans beneath the stars.", "Throw your slipper past me and strike a can. If I catch it, go fetch it from my side.", "Bring your slipper back to the line before you throw again."])
 trial_end_lines = Array[String](["The cans settle. Keep the Favor you earned; the next game is ready."])
 transition_lines = {
+"hanan": ["Hanan, the morning is yours. I will watch their leap from the stars."],
 "apolaki": ["Apolaki, the players are coming to your arena.", "I will watch the next throw from the stars."],
 "mayari": ["Mayari, the field belongs to you now.", "I will keep watch from above."],
 "tala": ["The next round begins. The cans are set again."],

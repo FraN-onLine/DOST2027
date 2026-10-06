@@ -196,17 +196,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not (event is InputEventKey):
 		return
-	var key_event := event as InputEventKey
-	if not key_event.pressed or key_event.echo:
-		return
 	var index := -1
-	match key_event.keycode:
-		KEY_1, KEY_KP_1:
-			index = 0
-		KEY_2, KEY_KP_2:
-			index = 1
-		KEY_3, KEY_KP_3:
-			index = 2
+	for choice in range(3):
+		if event.is_action_pressed("due_choice_%d" % (choice + 1)):
+			index = choice
 	if index >= 0:
 		var viewport := get_viewport()
 		if viewport != null:

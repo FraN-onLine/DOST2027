@@ -1,0 +1,190 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Options.gd" id="1_opts"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+
+[sub_resource type="StyleBoxFlat" id="panel"]
+bg_color = Color(0.03, 0.04, 0.08, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.6, 0.72, 0.35)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="btn_n"]
+bg_color = Color(0.15, 0.17, 0.25, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0.32, 0.4, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 8
+content_margin_right = 8
+
+[sub_resource type="StyleBoxFlat" id="btn_h"]
+bg_color = Color(0.2, 0.22, 0.32, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.42, 0.5, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 8
+content_margin_right = 8
+
+[sub_resource type="StyleBoxFlat" id="btn_p"]
+bg_color = Color(0.1, 0.12, 0.2, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.27, 0.35, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 8
+content_margin_right = 8
+
+[sub_resource type="StyleBoxFlat" id="btn_f"]
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.9, 0.85, 0.3, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="Theme" id="theme"]
+default_font = ExtResource("2_font")
+default_font_size = 14
+Button/colors/font_color = Color(0.7, 0.72, 0.8, 1)
+Button/colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
+Button/colors/font_focus_color = Color(0.85, 0.87, 0.95, 1)
+Button/colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
+Button/styles/normal = SubResource("btn_n")
+Button/styles/hover = SubResource("btn_h")
+Button/styles/pressed = SubResource("btn_p")
+Button/styles/focus = SubResource("btn_f")
+OptionButton/styles/normal = SubResource("btn_n")
+OptionButton/styles/hover = SubResource("btn_h")
+OptionButton/styles/pressed = SubResource("btn_p")
+OptionButton/styles/focus = SubResource("btn_f")
+
+[node name="Options" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("theme")
+script = ExtResource("1_opts")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.05, 0.1, 1)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 90.0
+offset_top = 24.0
+offset_right = -90.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("panel")
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.78, 1)
+theme_override_font_sizes/font_size = 28
+text = "OPTIONS"
+horizontal_alignment = 1
+
+[node name="Tabs" type="TabContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+current_tab = 0
+
+[node name="Audio" type="VBoxContainer" parent="Panel/Margin/VBox/Tabs"]
+layout_mode = 2
+theme_override_constants/separation = 12
+metadata/_tab_index = 0
+
+[node name="Video" type="VBoxContainer" parent="Panel/Margin/VBox/Tabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+metadata/_tab_index = 1
+
+[node name="Controls" type="ScrollContainer" parent="Panel/Margin/VBox/Tabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+metadata/_tab_index = 2
+
+[node name="List" type="VBoxContainer" parent="Panel/Margin/VBox/Tabs/Controls"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Gameplay" type="VBoxContainer" parent="Panel/Margin/VBox/Tabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+metadata/_tab_index = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ResetButton" type="Button" parent="Panel/Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(200, 40)
+layout_mode = 2
+text = "RESET TAB"
+
+[node name="BackButton" type="Button" parent="Panel/Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(200, 40)
+layout_mode = 2
+text = "BACK"
+
+[node name="ConfirmDialog" type="ConfirmationDialog" parent="."]
+title = "Keep these settings?"
+size = Vector2i(420, 120)
+ok_button_text = "KEEP"
+cancel_button_text = "REVERT"

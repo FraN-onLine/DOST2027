@@ -14,9 +14,13 @@ signal favor_granted(player_id: int, favor: GodFavor)
 signal skill_used(player_id: int, favor: GodFavor)
 signal skill_recharged(player_id: int, favor: GodFavor)
 signal notice(text: String)
+# A favor just did something other than sit there (Hanan's favors): the arena
+# turns this into a banner / event line in the favor's colour.
+signal favor_fired(player_id: int, favor: GodFavor, text: String)
 
-const MILESTONE_STEP := 1000  # every 1000 FAVOR hands out one God's Due
+const MILESTONE_STEP := 1000  # default: every 1000 FAVOR hands out one God's Due
 const LOCAL_ID := 1
+const LOSS_HISTORY_SECONDS := 10.0  # longest look-back any favor may ask for (Bagong Umaga)
 
 
 class Mortal:
@@ -31,6 +35,7 @@ class Mortal:
 	var cooldowns: Dictionary = {}  # favor id -> seconds left
 	var durations: Dictionary = {}  # favor id -> seconds left (timed effect)
 	var loss_immunity: float = 0.0
+	var loss_history: Array = []  # [time, amount] of FAVOR actually lost, newest last
 
 	func favor_by_id(favor_id: StringName) -> GodFavor:
 		for favor in favors:
@@ -59,6 +64,10 @@ var mortals: Dictionary = {}  # player id -> Mortal
 var local_id: int = LOCAL_ID
 var simulate_rivals: bool = false
 var trial_active: bool = false
+# FAVOR per God's Due for this run. The lobby can change it (RunSettings.due_step);
+# a standalone arena keeps the default.
+var milestone_step: int = MILESTONE_STEP
+var _clock := 0.0  # seconds since the match began - stamps the loss history
 
 
 func setup(match_god: God, local_name: String, rival_names: Array = [], simulate := false) -> void:
@@ -146,6 +155,9 @@ func lose_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 	if lost <= 0:
 		return 0
 	_apply(m, -lost, reason)
+	m.loss_history.append([_clock, lost])
+	while not m.loss_history.is_empty() and _clock - float(m.loss_history[0][0]) > LOSS_HISTORY_SECONDS:
+		m.loss_history.pop_front()
 	return lost
 
 
@@ -157,13 +169,13 @@ func _apply(m: Mortal, delta: int, reason: String) -> void:
 
 func _check_milestones(m: Mortal) -> void:
 	# A God's Due is only ever awarded on the FIRST pass of a milestone.
-	var reached := int(floor(float(m.favor) / float(MILESTONE_STEP)))
+	var reached := int(floor(float(m.favor) / float(maxi(1, milestone_step))))
 	for index in range(1, reached + 1):
 		if m.claimed_milestones.has(index):
 			continue
 		m.claimed_milestones[index] = true
 		m.due += 1
-		due_earned.emit(m.id, m.due, index * MILESTONE_STEP)
+		due_earned.emit(m.id, m.due, index * milestone_step)
 		due_changed.emit(m.id, m.due)
 
 
@@ -184,10 +196,11 @@ func is_favor_eligible(favor: GodFavor, player_id: int = -1) -> bool:
 	if m == null or favor == null:
 		return false
 	var required_god := favor.requires_god_id()
-	if required_god == &"":
+	var any_of := favor.requires_any_god_ids()
+	if required_god == &"" and any_of.is_empty():
 		return true
 	for owned in m.favors:
-		if owned.god_id == required_god:
+		if (required_god != &"" and owned.god_id == required_god) or any_of.has(owned.god_id):
 			return true
 	return false
 
@@ -230,7 +243,112 @@ func bestow_favor(favor: GodFavor, player_id: int = -1) -> bool:
 		var instant := int(favor.param("instant_favor", 0.0))
 		if instant != 0:
 			add_favor(instant, favor.display_name, m.id)
+		_fire_instant_effect(m, favor)
 	return true
+
+
+# --- HANAN'S FAVORS ---------------------------------------------------------
+# Rules that live here (not in an arena) because they only read and change the
+# match: the host runs them, the clients mirror the result through snapshots.
+
+func _fire_instant_effect(holder: Mortal, favor: GodFavor) -> void:
+	match favor.id:
+		&"the_dawn":
+			var cut := int(favor.param("due_reduction", 1.0))
+			for m in mortals.values():
+				var before: int = m.due
+				m.due = maxi(0, m.due - cut)
+				if m.due != before:
+					due_changed.emit(m.id, m.due)
+			favor_fired.emit(holder.id, favor, "The Dawn - every mortal's God's Due drops by %d" % cut)
+		&"even_playing_field":
+			var target := _highest_other(holder.id)
+			if target == null:
+				return
+			var lowest := target.favor
+			for m in mortals.values():
+				lowest = mini(lowest, m.favor)
+			var amount := int(float(target.favor - lowest) * favor.param("gap_fraction", 0.5))
+			var lost := lose_favor(amount, favor.display_name, target.id)
+			favor_fired.emit(holder.id, favor, "An Even Playing Field - %s loses %d FAVOR" % [target.display_name, lost])
+
+
+# The mortal with the most FAVOR other than `excluded_id` (ties: random).
+func _highest_other(excluded_id: int) -> Mortal:
+	var best: Array[Mortal] = []
+	for m in mortals.values():
+		if m.id == excluded_id:
+			continue
+		if best.is_empty() or m.favor > best[0].favor:
+			best = [m]
+		elif m.favor == best[0].favor:
+			best.append(m)
+	return null if best.is_empty() else best[randi() % best.size()]
+
+
+# Host, at the start of every trial: First Light pays the mortals in last place.
+func begin_trial() -> void:
+	var lowest := 1 << 60
+	var highest := -1
+	for m in mortals.values():
+		lowest = mini(lowest, m.favor)
+		highest = maxi(highest, m.favor)
+	if lowest == highest:
+		return  # everybody is tied - nobody is last
+	for m in mortals.values():
+		var light: GodFavor = m.favor_by_id(&"first_light")
+		if light != null and m.favor == lowest:
+			var bonus := int(light.param("last_place_bonus", 150.0))
+			add_favor(bonus, light.display_name, m.id)
+			favor_fired.emit(m.id, light, "First Light - %s gains %d FAVOR for being last" % [m.display_name, bonus])
+
+
+# Bagong Umaga: give back what the mortal really lost in the last `lookback`
+# seconds. Written straight to the total so Full Moon cannot inflate it.
+func restore_recent_losses(player_id: int, lookback: float) -> int:
+	var m := _resolve(player_id)
+	if m == null:
+		return 0
+	var total := 0
+	for entry in m.loss_history:
+		if _clock - float(entry[0]) <= lookback:
+			total += int(entry[1])
+	m.loss_history.clear()
+	if total > 0:
+		_apply(m, total, "Bagong Umaga")
+	return total
+
+
+# Break of Day: the best other mortal (the leader, or second place when the caster
+# leads; ties random) loses every running favor effect and has E and Q start over
+# at a full cooldown. Returns that mortal's id, or -1 when nobody else is playing.
+func break_of_day(caster_id: int) -> int:
+	var target := _highest_other(caster_id)
+	if target == null:
+		return -1
+	target.durations.clear()
+	target.loss_immunity = 0.0
+	for slot in [GodFavor.Slot.E, GodFavor.Slot.Q]:
+		var skill := target.favor_in_slot(slot)
+		if skill != null and skill.cooldown > 0.0:
+			target.cooldowns[skill.id] = skill_cooldown(slot, target.id)
+	return target.id
+
+
+# The Three Sisters: +per_sister for each of Mayari and Tala the mortal holds a
+# favor from. Works on a run snapshot, so the finale can show it in the standings.
+static func three_sisters_bonus(favor_ids: Array) -> int:
+	var perk: GodFavor = Gods.favor_by_id(&"the_three_sisters")
+	if perk == null or not favor_ids.has(str(perk.id)):
+		return 0
+	var sisters := 0
+	for sister in [Gods.MAYARI, Gods.TALA]:
+		for id in favor_ids:
+			var owned: GodFavor = Gods.favor_by_id(StringName(str(id)))
+			if owned != null and owned.god_id == sister:
+				sisters += 1
+				break
+	return sisters * int(perk.param("per_sister", 150.0))
 
 
 func set_local_id(id: int) -> void:
@@ -402,6 +520,7 @@ func use_skill(slot: int, player_id: int = -1) -> GodFavor:
 # --- TICK / TRIAL END -------------------------------------------------------
 
 func _process(delta: float) -> void:
+	_clock += delta
 	if mortals.is_empty():
 		return
 	for m in mortals.values():

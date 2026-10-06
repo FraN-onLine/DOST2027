@@ -60,6 +60,13 @@ func _run() -> void:
 	current_scene = lobby
 	await _frames(3)
 	_check(not network.is_game_host(), "the joined peer is a client, not a host")
+	# The host made its setup before we joined: it must have been handed to us.
+	var setup: RunSettings = network.run_settings
+	_check(setup.trials == 3 and setup.order_mode == RunSettings.ORDER_CUSTOM and setup.trial_time == 120.0
+		and setup.due_step == 750, "a late joiner is handed the host's setup (%s)" % str(setup.to_dict()))
+	# ...and cannot change it.
+	network.set_run_setting("trials", 9)
+	_check(network.run_settings.trials == 3, "a client cannot change the setup")
 
 	# 1) No plan? Ask for it - never draw one.
 	network.rpc_id(1, "request_trial_order")
@@ -67,8 +74,8 @@ func _run() -> void:
 	while network.trial_order_ids.is_empty() and guard < WAIT_FRAMES:
 		await process_frame
 		guard += 1
-	_check(network.trial_order_ids == [&"tala", &"bathala"], "the host answers a request with the plan it will play")
-	_say("CLIENT: after request ids=%s custom=%s" % [str(network.trial_order_ids), str(network.trial_order_custom)])
+	_check(network.trial_order_ids == [&"tala", &"mayari", &"tala", &"bathala"], "the host answers a request with the plan it will play")
+	_say("CLIENT: after request ids=%s setup=%s" % [str(network.trial_order_ids), str(network.run_settings.to_dict())])
 
 	# 2) Throw that plan away the moment the run announces it, so the shell that
 	#    loads next starts blind - exactly like a client whose sync was lost.
@@ -97,8 +104,10 @@ func _run() -> void:
 	if _in_run():
 		var ids: Array = _ids(current_scene.trial_order)
 		_say("CLIENT ORDER: %s" % ", ".join(ids))
-		_check(ids == ["tala", "bathala"], "the blind client still enters the host's order")
+		_check(ids == ["tala", "mayari", "tala", "bathala"], "the blind client still enters the host's order")
 		_check(_god_of(current_scene) == "tala", "the client opens on the host's first god")
+		_check(current_scene.arena.trial_time == 120.0 and current_scene.arena.rules.milestone_step == 750,
+			"the client's arena runs the host's trial length and God's Due step")
 	_finish()
 
 

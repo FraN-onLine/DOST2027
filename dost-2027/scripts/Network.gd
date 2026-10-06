@@ -30,6 +30,7 @@ signal connected(success, reason)
 signal player_list_updated(players)
 signal player_god_icon_changed(peer_id, god_id)
 signal trial_order_changed(ids)
+signal run_settings_changed(settings)  # the host's run setup (RunSettings.to_dict()) changed
 signal game_started
 signal host_discovered(host_key, host_name, ip, port, lobby_id)
 signal host_lost(host_key, ip)
@@ -62,7 +63,8 @@ var player_data := {} # peer_id -> PlayerData (server-side authoritative name)
 var player_icons := {} # peer_id -> god id (replicated roster icon)
 var my_god_icon_id: StringName = &"mayari"
 var trial_order_ids: Array[StringName] = []
-var trial_order_custom: Array[StringName] = []  # host's chosen order; empty = random
+var run_settings: RunSettings = RunSettings.defaults()  # host's run setup, mirrored on every peer
+var lobby_settings_path := "user://lobby_settings.cfg"  # where the host's last setup is remembered
 var announced_trial_order: Array[StringName] = []  # plan already handed out for a run that has not started yet
 var _used_names := {} # name -> true (server-side, to avoid duplicates)
 
@@ -131,6 +133,8 @@ func start_host(port: int = DEFAULT_PORT) -> void:
 	# order from the host's own choice, and never from a previous session's.
 	trial_order_ids.clear()
 	announced_trial_order.clear()
+	# ...but the SETUP is remembered: the next lobby opens with the host's last one.
+	load_host_settings()
 
 	# Use the name the user entered (or a random one if empty)
 	var host_id := multiplayer.get_unique_id()
@@ -171,7 +175,7 @@ func stop_host() -> void:
 		player_icons.clear()
 		trial_order_ids.clear()
 		announced_trial_order.clear()
-		trial_order_custom.clear()
+		run_settings = RunSettings.defaults()
 		_used_names.clear()
 		print("Server stopped")
 		emit_signal("connected", false, "host_stopped")
@@ -234,7 +238,7 @@ func leave_host() -> void:
 		player_icons.clear()
 		trial_order_ids.clear()
 		announced_trial_order.clear()
-		trial_order_custom.clear()
+		run_settings = RunSettings.defaults()
 		print("Left host / disconnected")
 
 
@@ -623,11 +627,10 @@ func _on_peer_connected(id: int) -> void:
 		player_data[id] = PlayerData.new()
 		player_icons[id] = &"mayari"
 		broadcast_player_list()
-		# The order the run will play is the host's to set: hand the newcomer the
-		# current choice (custom order or "random") so every lobby shows the same
-		# thing, whoever joined first and whoever joined last.
+		# The run setup is the host's: hand the newcomer the current one so every
+		# lobby shows the same thing, whoever joined first and whoever joined last.
 		if has_multiplayer_peer():
-			rpc_id(id, "rpc_sync_custom_trial_order", trial_order_custom.duplicate())
+			rpc_id(id, "rpc_sync_run_settings", run_settings.to_dict())
 	emit_signal("player_joined", id)
 
 
@@ -777,6 +780,12 @@ func start_game() -> void:
 	if players.size() > MAX_PLAYERS:
 		push_warning("Too many players to start (currently %d)" % players.size())
 		return
+	# A setup that breaks the rules (a god twice in a row in a CUSTOM order) never
+	# starts: the lobby disables START for it, and this is the last line of defence.
+	var problems := run_settings.validate(false)
+	if not problems.is_empty():
+		push_warning("Cannot start the run: %s" % "; ".join(problems))
+		return
 	print("[Network] Starting game with %d players" % players.size())
 
 	# A game session has started - stop advertising this lobby on the LAN so
@@ -789,6 +798,9 @@ func start_game() -> void:
 	# the one every screen has to play.
 	_settle_trial_order()
 	if has_multiplayer_peer():
+		# The settings travel WITH the order, so every peer's Game.gd applies the
+		# same trial length, God's Due step and intro mode.
+		rpc("rpc_sync_run_settings", run_settings.to_dict())
 		rpc("rpc_sync_trial_order", trial_order_ids.duplicate())
 
 	# Change scene for everyone
@@ -853,64 +865,72 @@ func _settle_trial_order() -> Array[StringName]:
 	return trial_order_ids
 
 
-# --- the host's own trial order ---------------------------------------------
-# The run's order of gods is the host's to set from the lobby: leave it empty for
-# a random order (the default), or name the gods in the order they must be faced.
-# Bathala always closes, so it is never part of the custom list.
-func set_custom_trial_order(order: Array) -> void:
-	if not multiplayer.is_server():
+# --- the host's run setup ---------------------------------------------------
+# Number of trials, RANDOM or CUSTOM order, trial length, God's Due step and intro
+# mode all live in one RunSettings (scripts/RunSettings.gd). Only the host edits
+# it; every change goes through set_run_settings() and reaches every peer in one
+# RPC, so a client's lobby always shows what is about to be played.
+func set_run_settings(data: Dictionary) -> void:
+	if has_multiplayer_peer() and not multiplayer.is_server():
 		return
-	trial_order_custom.clear()
-	for god_id in order:
-		var god := Gods.by_id(StringName(str(god_id)))
-		if god != null and god.id != Gods.BATHALA and god.implemented and god.arena_scene != "":
-			trial_order_custom.append(god.id)
+	var settings := RunSettings.from_dict(data)
+	# Repeats are left in place on purpose: the lobby shows them as a warning and
+	# keeps START disabled until the host fixes the order.
+	settings.validate(false)
+	run_settings = settings
 	if has_multiplayer_peer():
-		rpc("rpc_sync_custom_trial_order", trial_order_custom.duplicate())
-	emit_signal("trial_order_changed", trial_order_custom.duplicate())
+		save_host_settings()
+		rpc("rpc_sync_run_settings", run_settings.to_dict())
+	else:
+		emit_signal("run_settings_changed", run_settings.to_dict())
+
+
+# One field at a time (what each lobby control changes).
+func set_run_setting(key: String, value) -> void:
+	var data := run_settings.to_dict()
+	data[key] = value
+	set_run_settings(data)
 
 
 @rpc("authority", "call_local", "reliable")
-func rpc_sync_custom_trial_order(order: Array) -> void:
-	# The host calls this on ITSELF as well (call_local), and an array is a
-	# reference: copy the list before clearing the field or the host would wipe
-	# the very order it just chose - the CUSTOM tick box would snap back to RANDOM.
-	var incoming: Array = order.duplicate()
-	trial_order_custom.clear()
-	for god_id in incoming:
-		trial_order_custom.append(StringName(str(god_id)))
-	emit_signal("trial_order_changed", trial_order_custom.duplicate())
+func rpc_sync_run_settings(data: Dictionary) -> void:
+	# The host calls this on ITSELF as well (call_local), and a Dictionary is a
+	# reference: copy it before building from it, or the host could clear the very
+	# setup it is announcing.
+	var incoming: Dictionary = data.duplicate(true)
+	var settings := RunSettings.from_dict(incoming)
+	settings.validate(false)
+	run_settings = settings
+	emit_signal("run_settings_changed", run_settings.to_dict())
 
 
-func clear_custom_trial_order() -> void:
-	set_custom_trial_order([])
+# The host's last setup, so the next lobby opens the same way. Validated on load:
+# a hand-edited or outdated file can never produce an illegal run.
+func save_host_settings() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("run", "settings", run_settings.to_dict())
+	cfg.save(lobby_settings_path)
 
 
-# What the run will actually play: the host's order when one was chosen, the
-# random draw otherwise.
+func load_host_settings() -> void:
+	var cfg := ConfigFile.new()
+	var data = {}
+	if cfg.load(lobby_settings_path) == OK:
+		data = cfg.get_value("run", "settings", {})
+	var settings := RunSettings.from_dict(data if data is Dictionary else {})
+	settings.validate()
+	run_settings = settings
+	emit_signal("run_settings_changed", run_settings.to_dict())
+
+
+# What the run will actually play: `trials` gods (the host's custom order, or a
+# fresh random draw), then Bathala.
 func planned_trial_order() -> Array[StringName]:
-	if not trial_order_custom.is_empty():
-		var out := trial_order_custom.duplicate()
-		out.append(Gods.BATHALA)
-		return out
-	return _create_trial_order_ids()
+	return run_settings.planned_order()
 
 
 func _create_trial_order_ids() -> Array[StringName]:
-	var playable: Array[God] = []
-	for god in Gods.all():
-		if god.implemented and god.arena_scene != "":
-			playable.append(god)
-	if playable.is_empty():
-		playable.append(Gods.mayari())
-	var pool: Array[God] = []
-	var order: Array[StringName] = []
-	var challenges := randi_range(Gods.CHALLENGE_MIN, Gods.CHALLENGE_MAX)
-	for index in range(challenges):
-		if pool.is_empty():
-			pool = playable.duplicate()
-			pool.shuffle()
-		order.append(pool.pop_front().id)
+	var order := RunSettings.draw_order(run_settings.trials)
 	order.append(Gods.BATHALA)
 	return order
 
@@ -980,6 +1000,7 @@ func start_god_games(scene_path := "res://scenes/Game.tscn") -> void:
 	# the one every screen has to play.
 	_settle_trial_order()
 	if has_multiplayer_peer():
+		rpc("rpc_sync_run_settings", run_settings.to_dict())
 		rpc("rpc_sync_trial_order", trial_order_ids.duplicate())
 	god_state.clear()
 	mortal_positions.clear()
@@ -1213,8 +1234,9 @@ func rpc_arena_blind(caster_id: int, radius: float, duration: float) -> void:
 	emit_signal("arena_blind_received", caster_id, radius, duration)
 
 
+# A duration of 0 cancels a running override (Hanan's Break of Day ends it).
 func send_arena_movement_override(caster_id: int, duration: float) -> void:
-	if not has_multiplayer_peer() or duration <= 0.0:
+	if not has_multiplayer_peer() or duration < 0.0:
 		return
 	rpc("rpc_arena_movement_override", caster_id, duration)
 

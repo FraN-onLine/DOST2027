@@ -40,5 +40,14 @@ func requires_god_id() -> StringName:
 	return StringName(str(params.get("requires_god", "")))
 
 
+# "requires_any_god": ["mayari", "tala"] - offered while the mortal holds a favor
+# of at least one of them (empty = no such rule).
+func requires_any_god_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for id in params.get("requires_any_god", []):
+		ids.append(StringName(str(id)))
+	return ids
+
+
 func param(key: String, fallback: float) -> float:
 	return float(params.get(key, fallback))

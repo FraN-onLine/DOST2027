@@ -14,6 +14,7 @@ extends SceneTree
 const PORT := 24681
 const PORT_FILE := "user://shared_order_host.txt"
 const RESULT_FILE := "user://shared_order_host_result.txt"
+const SETTINGS_FILE := "user://lobby_settings_shared_check.cfg"
 const WAIT_FRAMES := 1800
 
 var _problems := 0
@@ -33,7 +34,16 @@ func _run() -> void:
 	await _frames(5)
 	var network: Node = root.get_node("Network")
 	network.set_my_name("HOSTPEER")
+	# The host remembers its setup on disk: keep the check's setup out of the
+	# player's own user://lobby_settings.cfg.
+	network.lobby_settings_path = SETTINGS_FILE
 	network.start_host(PORT)
+	# The lobby's plan, set BEFORE the client joins: a late joiner must still be
+	# handed it. A CUSTOM order, so a private random draw on the client would be
+	# impossible to mistake for it.
+	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["tala", "mayari", "tala"],
+		"trial_time": 120.0, "due_step": 750})
+	_say("HOST: setup after set = %s" % str(network.run_settings.to_dict()))
 	var file := FileAccess.open(PORT_FILE, FileAccess.WRITE)
 	if file == null:
 		printerr("shared_order_host: cannot write %s" % PORT_FILE)
@@ -55,13 +65,9 @@ func _run() -> void:
 		return _finish()
 	_say("PASS: the client joined")
 
-	# The lobby's plan. A CUSTOM order, so a private random draw on the client
-	# would be impossible to mistake for it.
-	network.set_custom_trial_order([&"tala"])
-	_say("HOST: custom after set = %s" % str(network.trial_order_custom))
 	# A beat before starting, so the client can ask for the plan first.
 	await _frames(180)
-	_say("HOST: custom at start = %s | ids = %s" % [str(network.trial_order_custom), str(network.trial_order_ids)])
+	_say("HOST: setup at start = %s | ids = %s" % [str(network.run_settings.to_dict()), str(network.trial_order_ids)])
 
 	var lobby: Control = load("res://scenes/Lobby.tscn").instantiate()
 	root.add_child(lobby)
@@ -81,9 +87,9 @@ func _run() -> void:
 	if _in_run():
 		var ids: Array = _ids(current_scene.trial_order)
 		_say("HOST ORDER: %s" % ", ".join(ids))
-		_check(ids == ["tala", "bathala"], "the host plays the order it planned")
+		_check(ids == ["tala", "mayari", "tala", "bathala"], "the host plays the order it planned")
 		_check(_god_of(current_scene) == "tala", "the host opens on its first god")
-	_check(network.trial_order_ids == [&"tala", &"bathala"], "the host still holds the plan the client asked for")
+	_check(network.trial_order_ids == [&"tala", &"mayari", &"tala", &"bathala"], "the host still holds the plan the client asked for")
 	_finish()
 
 
@@ -127,6 +133,7 @@ func _say(line: String) -> void:
 
 func _finish() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PORT_FILE))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_FILE))
 	_say("shared order (host): %d problem(s)" % _problems)
 	_say("--- DONE ---")
 	quit(1 if _problems > 0 else 0)
