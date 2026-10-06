@@ -114,6 +114,9 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 # Set by the shell: false the first time a god hosts, so the arena knows to speak
 # its full intro rather than the short "take your place again" line.
 @export var first_visit := true
+# FAVOR per God's Due, handed to this arena's GodMatch. The shell sets it from the
+# lobby's run settings; a standalone arena keeps the default.
+@export var due_step := GodMatch.MILESTONE_STEP
 
 @export_category("Shared Arena Rules")
 # The round every arena is played in - 1:30. This is the one clock shared by all
@@ -240,6 +243,7 @@ func _ready() -> void:
 
 	rules = GodMatch.new()
 	rules.name = "GodMatch"
+	rules.milestone_step = due_step
 	add_child(rules)
 	if _networked:
 		rules.setup_peers(god, _peer_names(), _my_id, false)

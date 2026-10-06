@@ -30,9 +30,12 @@ const GAME_SUBTITLE := "Ang Laro ng mga diyos"
 const GAME_ALT_NAME := "Bathala: the God Games"
 const GAME_PROLOGUE := "Bathala took the dearest of the mortals, convince him that they are ought to be released by getting FAVOR from God's challenges."
 
-# How many challenges a run holds, plus Bathala's final challenge.
-const CHALLENGE_MIN := 4
-const CHALLENGE_MAX := 6
+# How many trials a run holds - Bathala's finale always comes on top and is never
+# counted. The host picks the number in the lobby (RunSettings.trials); more
+# trials than playable gods simply means the gods come round again.
+const TRIALS_MIN := 3
+const TRIALS_MAX := 9
+const TRIALS_DEFAULT := 4
 
 static var _gods: Dictionary = {}    # god id -> God
 static var _favors: Dictionary = {}  # favor id -> GodFavor (across every god)
