@@ -1,3 +1,6 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# A local editor tool (Godot AI / MCP) - never part of the game
+addons/godot_ai/
