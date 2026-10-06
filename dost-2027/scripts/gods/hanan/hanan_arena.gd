@@ -128,6 +128,15 @@ func arena_round_reset() -> void:
 	_set_callout("", Color.WHITE, 0.0)
 
 
+# The round ends while a vault is still paying: bank it BEFORE the base settles
+# the trial (rules.end_trial() writes the results), so it shows in this trial's
+# standings and not only in the next one.
+func _end_trial() -> void:
+	if _vault_state == Vault.VAULT:
+		_bank()
+	super._end_trial()
+
+
 # --- THE LEVEL TABLE ---------------------------------------------------------
 
 func level_name() -> String:
@@ -154,6 +163,8 @@ func _tick_hanan(delta: float) -> void:
 	if _phase != Phase.PLAYING:
 		_holding = false
 		if _vault_state != Vault.RUN:
+			if _vault_state == Vault.VAULT:
+				_bank()  # what the vault earned so far is the mortal's, round over or not
 			_leave_vault()
 			_enter_run(false)
 		return
