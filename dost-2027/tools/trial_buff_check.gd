@@ -48,6 +48,8 @@ func _run() -> void:
 	var passive: GodFavor
 	var skill: GodFavor
 	for favor in god.favors:
+		if not rules.is_favor_eligible(favor):
+			continue  # e.g. a rivalry favor that asks for another god's favor first
 		if passive == null and favor.slot == GodFavor.Slot.PASSIVE and favor.kind == GodFavor.Kind.PASSIVE:
 			passive = favor
 		if skill == null and favor.slot == GodFavor.Slot.E:

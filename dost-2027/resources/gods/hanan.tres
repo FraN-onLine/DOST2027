@@ -1,0 +1,116 @@
+[gd_resource type="Resource" script_class="God" format=3]
+
+[ext_resource type="Script" path="res://scripts/gods/god_favor.gd" id="1_favor"]
+[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Script" path="res://scripts/gods/god.gd" id="3_god"]
+
+[sub_resource type="Resource" id="Favor_the_dawn"]
+script = ExtResource("1_favor")
+id = &"the_dawn"
+god_id = &"hanan"
+display_name = "The Dawn"
+description = "Every mortal's God's Due drops by 1 (never below 0)."
+slot = 0
+kind = 2
+color = Color(1, 0.62, 0.55, 1)
+icon = ExtResource("2_icon")
+params = {"due_reduction": 1}
+
+[sub_resource type="Resource" id="Favor_even_playing_field"]
+script = ExtResource("1_favor")
+id = &"even_playing_field"
+god_id = &"hanan"
+display_name = "An Even Playing Field"
+description = "The mortal with the most FAVOR besides you loses half the gap between their FAVOR and the lowest mortal's."
+slot = 0
+kind = 2
+color = Color(1, 0.62, 0.55, 1)
+icon = ExtResource("2_icon")
+params = {"gap_fraction": 0.5}
+
+[sub_resource type="Resource" id="Favor_first_light"]
+script = ExtResource("1_favor")
+id = &"first_light"
+god_id = &"hanan"
+display_name = "First Light"
+description = "At the start of each trial, you gain 150 FAVOR if you are in last place."
+slot = 0
+kind = 0
+color = Color(1, 0.62, 0.55, 1)
+icon = ExtResource("2_icon")
+params = {"last_place_bonus": 150}
+
+[sub_resource type="Resource" id="Favor_bagong_umaga"]
+script = ExtResource("1_favor")
+id = &"bagong_umaga"
+god_id = &"hanan"
+display_name = "Bagong Umaga"
+description = "Q - win back all the FAVOR you lost in the last 5s. Cooldown: 35s."
+slot = 2
+kind = 1
+cooldown = 35.0
+color = Color(1, 0.62, 0.55, 1)
+icon = ExtResource("2_icon")
+params = {"lookback": 5.0}
+
+[sub_resource type="Resource" id="Favor_break_of_day"]
+script = ExtResource("1_favor")
+id = &"break_of_day"
+god_id = &"hanan"
+display_name = "Break of Day"
+description = "E - the leading mortal (second place if you lead) loses every active favor effect and their E and Q start over on a full cooldown. Cooldown: 30s."
+slot = 1
+kind = 1
+cooldown = 30.0
+color = Color(1, 0.62, 0.55, 1)
+icon = ExtResource("2_icon")
+params = {}
+
+[sub_resource type="Resource" id="Favor_morning_chases_the_night"]
+script = ExtResource("1_favor")
+id = &"morning_chases_the_night"
+god_id = &"hanan"
+display_name = "Morning Chases the Night"
+description = "Mayari's vision blocks on you last at most 0.5s, and each one cut short gives +50 FAVOR. Only offered while you hold a Mayari favor."
+slot = 0
+kind = 0
+color = Color(1, 0.62, 0.55, 1)
+icon = ExtResource("2_icon")
+params = {"blind_cap": 0.5, "bonus": 50, "requires_god": "mayari"}
+
+[sub_resource type="Resource" id="Favor_the_three_sisters"]
+script = ExtResource("1_favor")
+id = &"the_three_sisters"
+god_id = &"hanan"
+display_name = "The Three Sisters"
+description = "When Bathala's final trial begins, gain 150 FAVOR for each sister (Mayari, Tala) you hold a favor from. Only offered while you hold a Mayari or Tala favor."
+slot = 0
+kind = 0
+color = Color(1, 0.62, 0.55, 1)
+icon = ExtResource("2_icon")
+params = {"per_sister": 150, "requires_any_god": ["mayari", "tala"]}
+
+[resource]
+script = ExtResource("3_god")
+id = &"hanan"
+display_name = "HANAN"
+epithet = "Goddess of the Morning"
+color = Color(1, 0.62, 0.55, 1)
+icon = ExtResource("2_icon")
+game_name = "LUKSONG BAKA"
+game_blurb = "Run up to Hanan's Baka and hold left click to leap - release and you fall. Keep your jump inside the glowing box while it drifts, and every clean vault feeds your combo. Slip out of it and you trip."
+arena_scene = "res://scenes/gods/hanan/HananArena.tscn"
+implemented = true
+favors = Array[ExtResource("1_favor")]([SubResource("Favor_the_dawn"), SubResource("Favor_even_playing_field"), SubResource("Favor_first_light"), SubResource("Favor_bagong_umaga"), SubResource("Favor_break_of_day"), SubResource("Favor_morning_chases_the_night"), SubResource("Favor_the_three_sisters")])
+intro_lines = Array[String](["Hanan greets you with the first light of morning.", "Luksong Baka is a leap, not a race. Hold to rise, let go to fall, and keep the Baka beneath you.", "Trip, and the dawn will still come for you."])
+trial_end_lines = Array[String](["The Baka rests and the morning moves on. Rise again with the Favor you earned."])
+transition_lines = {
+"mayari": ["Mayari, my sister, the night is yours. Be gentle with them - they are trying."],
+"apolaki": ["Apolaki, brother, the sun is high. Let them stand in it a little."],
+"tala": ["Tala, my sister, the stars are yours. Teach them to aim true."],
+"bathala": ["Father, the mortals have leapt as far as they can. Their Favor is yours to judge, and I am on their side."],
+"hanan": ["Another morning, another Baka. Rise with me again."],
+"*": ["The morning is done. Go well, mortals."]
+}
+success_lines = Array[String](["You leapt like the morning itself. Father should be proud."])
+failure_lines = Array[String](["You tripped, but every dawn gets another try."])

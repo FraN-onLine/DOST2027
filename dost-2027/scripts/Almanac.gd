@@ -138,6 +138,13 @@ func _condition_text(god: God, favor: GodFavor) -> String:
 		var other := Gods.by_id(required)
 		var other_name := other.display_name if other != null else str(required).to_upper()
 		parts.append("CONDITION: only offered while you already hold a %s favor" % other_name)
+	var any_of := favor.requires_any_god_ids()
+	if not any_of.is_empty():
+		var names: Array[String] = []
+		for id in any_of:
+			var other := Gods.by_id(id)
+			names.append(other.display_name if other != null else str(id).to_upper())
+		parts.append("CONDITION: only offered while you already hold a favor of %s" % " or ".join(names))
 	if favor.is_skill():
 		parts.append("binds to %s" % favor.slot_name())
 	if favor.cooldown > 0.0:

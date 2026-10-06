@@ -248,6 +248,7 @@ func _ready() -> void:
 	rules.favor_changed.connect(_on_favor_changed)
 	rules.due_earned.connect(_on_due_earned)
 	rules.notice.connect(_on_notice)
+	rules.favor_fired.connect(_on_favor_fired)
 
 	hud = HUD_SCENE.instantiate()
 	ui_layer.add_child(hud)
@@ -478,6 +479,8 @@ func _start_trial() -> void:
 	_refresh_sun_patches()
 	player.set_lock(false)
 	rules.trial_active = true
+	if _authority:
+		rules.begin_trial()  # First Light pays whoever starts the trial in last place
 	_show_banner("GO!", god.color, 1.0)
 	hud.set_time_left(_trial_time)
 
@@ -988,7 +991,7 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_log("Half Vision - everyone else sees only a circle around them", favor.color)
 		else:
 			_blind_radius = radius
-			_blind_time = maxf(_blind_time, duration)
+			_blind_time = maxf(_blind_time, _morning_cap(duration))
 			_log("Half Vision - you see only a circle around your mortal", favor.color)
 		if _authority and _networked and _net != null:
 			_net.send_arena_blind(caster_id, radius, duration)
@@ -1005,6 +1008,17 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 		_start_movement_override(caster_id, duration)
 		if _authority and _networked and _net != null:
 			_net.send_arena_movement_override(caster_id, duration)
+	elif favor.id == &"bagong_umaga" and _authority:
+		var restored := rules.restore_recent_losses(caster_id, favor.param("lookback", 5.0))
+		_log("Bagong Umaga - %s gets back %d FAVOR" % [mortal_label(caster_id), restored], favor.color)
+		_publish_god_state()
+	elif favor.id == &"break_of_day" and _authority:
+		var target_id := rules.break_of_day(caster_id)
+		if target_id >= 0:
+			_log("Break of Day - %s's favors fade and their skills start over" % mortal_label(target_id), favor.color)
+		else:
+			_log("Break of Day - no other mortal to reach", favor.color)
+		_publish_god_state()
 	elif favor.id == &"unswerved_unbothered":
 		var mortal := rules.mortal(caster_id)
 		if mortal == null:
@@ -1094,6 +1108,19 @@ func show_sun_patch(seconds: float, from_favor := false) -> bool:
 	return true
 
 
+# Player comfort options live in the Settings autoload. They are looked up by
+# path, not by name, so scripts that load an arena before the autoloads exist
+# (the tools/ checks) still compile.
+func reduce_flashing() -> bool:
+	var settings := get_node_or_null("/root/Settings")
+	return settings != null and bool(settings.call("reduce_flashing"))
+
+
+func screen_shake_allowed() -> bool:
+	var settings := get_node_or_null("/root/Settings")
+	return settings == null or bool(settings.call("screen_shake_enabled"))
+
+
 # With "reduce flashing" on a patch fades in over 0.3s; it covers the same area
 # for the same time either way.
 func _fade_in_patch(rect: TextureRect) -> void:
@@ -1101,7 +1128,7 @@ func _fade_in_patch(rect: TextureRect) -> void:
 		rect.set_meta("base_alpha", rect.modulate.a)
 	var alpha: float = rect.get_meta("base_alpha")
 	rect.modulate.a = alpha
-	if Settings.reduce_flashing():
+	if reduce_flashing():
 		rect.modulate.a = 0.0
 		create_tween().tween_property(rect, "modulate:a", alpha, 0.3)
 
@@ -1319,7 +1346,10 @@ func _rivalry_blind_rivals(owner: GodMatch.Mortal, favor_id: StringName, thresho
 		claims[rival.id] = true
 		per_favor[favor_id] = claims
 		_rivalry_claimed[owner.id] = per_favor
-		_add_sun_patches(rival.id, 4, maxf(0.0, favor.duration))
+		var block_time := maxf(0.0, favor.duration)
+		if favor.god_id == Gods.MAYARI:
+			block_time = _morning_cap_for(rival, block_time)
+		_add_sun_patches(rival.id, 4, block_time)
 
 
 # Another mortal cast Half Vision: darken THIS screen (unless we are the caster).
@@ -1330,8 +1360,34 @@ func _on_arena_blind_received(caster_id: int, radius: float, duration: float) ->
 	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		return
 	_blind_radius = radius
-	_blind_time = maxf(_blind_time, duration)
+	_blind_time = maxf(_blind_time, _morning_cap(duration))
 	_log("Half Vision - you see only a circle around your mortal", god.color)
+
+
+# Morning Chases the Night: a Mayari vision block on a holder lasts at most
+# blind_cap seconds, and every block cut short pays bonus FAVOR. These two answer
+# for the mortal on THIS screen (the +bonus is asked of the host through
+# score_favor) or for any mortal the host names.
+func _morning_cap(seconds: float) -> float:
+	var capped := _morning_cap_for(rules.local(), seconds, false)
+	var perk: GodFavor = rules.local().favor_by_id(&"morning_chases_the_night") if rules.local() != null else null
+	if perk != null and capped < seconds:
+		score_favor(int(perk.param("bonus", 50.0)), perk.display_name)
+	return capped
+
+
+# Host side: the capped length of a block aimed at `target`, paying the bonus
+# straight into their FAVOR when the cap really shortened it.
+func _morning_cap_for(target: GodMatch.Mortal, seconds: float, pay := true) -> float:
+	var perk: GodFavor = target.favor_by_id(&"morning_chases_the_night") if target != null else null
+	if perk == null:
+		return seconds
+	var cap := perk.param("blind_cap", 0.5)
+	if seconds <= cap:
+		return seconds
+	if _authority and pay:
+		bank_favor(int(perk.param("bonus", 50.0)), perk.display_name, target.id)
+	return cap
 
 
 func _toggle_due_menu() -> void:
@@ -1651,6 +1707,14 @@ func _on_due_earned(player_id: int, _due: int, milestone: int) -> void:
 	_log("You reached %d FAVOR - one God's Due is yours (press F to spend it)" % milestone, Color(1, 0.9, 0.45))
 
 
+# A favor of Hanan's fired on the host: say so, in the favor's colour. Banners are
+# for our own mortal; the event line is mirrored to every client by the arena tick.
+func _on_favor_fired(player_id: int, favor: GodFavor, text: String) -> void:
+	_log(text, favor.color)
+	if player_id == _my_id:
+		_show_banner(favor.display_name.to_upper(), favor.color, 1.4)
+
+
 func _on_notice(text: String) -> void:
 	_log(text, Color(0.85, 0.85, 0.9))
 
@@ -1677,7 +1741,7 @@ func _apply_blindness(delta: float) -> void:
 	var active := _blind_time > 0.0
 	if vision_mask.visible != active:
 		vision_mask.visible = active
-		_vision_fade = 0.0 if Settings.reduce_flashing() else 1.0  # same coverage, just not a pop
+		_vision_fade = 0.0 if reduce_flashing() else 1.0  # same coverage, just not a pop
 	if not active:
 		return
 	var material := vision_mask.material as ShaderMaterial

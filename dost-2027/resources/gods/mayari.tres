@@ -118,6 +118,7 @@ trial_end_lines = Array[String](["The moonlight fades from the field. Your Favor
 success_lines = Array[String](["You moved like moonlight on water. The moon remembers this."])
 failure_lines = Array[String](["Hm. The night is long - try again before the moon sets."])
 transition_lines = {
+"hanan": ["Hanan, sister of the morning, the mortals are yours. Do not let them leap too lightly."],
 "apolaki": ["Apolaki, the mortals are ready for your duel."],
 "bathala": ["Bathala, the trials are complete. The mortals await your judgment."],
 "mayari": ["The moon rises again. Let the next trial begin."],
