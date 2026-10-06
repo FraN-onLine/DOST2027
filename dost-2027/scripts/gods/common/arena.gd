@@ -192,6 +192,7 @@ var _free_grants := 0
 var _results: Dictionary = {}
 var _gain_pending: Dictionary = {}    # mortal id -> FAVOR gathered, not popped yet
 var _gain_timer := 0.0
+var _vision_fade := 1.0               # blindness mask fade-in (see Settings.reduce_flashing)
 var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
 var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
 var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
@@ -1089,7 +1090,20 @@ func show_sun_patch(seconds: float, from_favor := false) -> bool:
 		return false
 	_sun_patch_slots.append({"index": index, "left": seconds, "favor": from_favor})
 	_sun_patch_rects[index].visible = true
+	_fade_in_patch(_sun_patch_rects[index])
 	return true
+
+
+# With "reduce flashing" on a patch fades in over 0.3s; it covers the same area
+# for the same time either way.
+func _fade_in_patch(rect: TextureRect) -> void:
+	if not rect.has_meta("base_alpha"):
+		rect.set_meta("base_alpha", rect.modulate.a)
+	var alpha: float = rect.get_meta("base_alpha")
+	rect.modulate.a = alpha
+	if Settings.reduce_flashing():
+		rect.modulate.a = 0.0
+		create_tween().tween_property(rect, "modulate:a", alpha, 0.3)
 
 
 func active_sun_patches() -> int:
@@ -1663,11 +1677,14 @@ func _apply_blindness(delta: float) -> void:
 	var active := _blind_time > 0.0
 	if vision_mask.visible != active:
 		vision_mask.visible = active
+		_vision_fade = 0.0 if Settings.reduce_flashing() else 1.0  # same coverage, just not a pop
 	if not active:
 		return
 	var material := vision_mask.material as ShaderMaterial
 	if material == null:
 		return
+	_vision_fade = minf(1.0, _vision_fade + delta / 0.3)
+	material.set_shader_parameter("fade", _vision_fade)
 	var view := vision_mask.size
 	var mortal_pos := player.global_position
 	material.set_shader_parameter("center", Vector2(mortal_pos.x / maxf(1.0, view.x), mortal_pos.y / maxf(1.0, view.y)))

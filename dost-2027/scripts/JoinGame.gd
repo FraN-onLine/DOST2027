@@ -27,8 +27,8 @@ func _ready():
 	Network.connected.connect(_on_network_connected)
 	
 	# Pre-fill with a random name suggestion
-	name_input.text = Network.RANDOM_NAMES[randi() % Network.RANDOM_NAMES.size()]
-	
+	name_input.text = Settings.suggested_name()
+
 	refresh_button.disabled = true
 	status_label.text = "Scanning for hosts on LAN..."
 	
