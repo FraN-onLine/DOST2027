@@ -60,12 +60,17 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @export var drift_speeds := PackedFloat32Array([0.14, 0.18, 0.38, 0.30, 0.50])
 @export var burst_multiplier := 3.2        # level 4: how much faster the box moves in a burst
 @export var shake_pixels := 5.0            # level 5+: how hard the screen shakes
+@export var bar_offset := Vector2(36.0, 0.0)  # where the bar hangs, from the mortal's feet
 
 @onready var baka: Node2D = get_node_or_null("ArenaField/Baka")
+# The labels sit high (HananHud, above everything) so they always stay readable.
+# The bar sits LOW (BarLayer, below Mayari's VisionLayer and Apolaki's Patches):
+# a blackout or a sun patch must hide it like it hides any other trial's field.
 @onready var hud_layer: CanvasLayer = get_node_or_null("HananHud")
-@onready var bar: Control = get_node_or_null("HananHud/Bar")
-@onready var box: ColorRect = get_node_or_null("HananHud/Bar/Box")
-@onready var indicator: ColorRect = get_node_or_null("HananHud/Bar/Indicator")
+@onready var bar_layer: CanvasLayer = get_node_or_null("BarLayer")
+@onready var bar: Control = get_node_or_null("BarLayer/Bar")
+@onready var box: ColorRect = get_node_or_null("BarLayer/Bar/Box")
+@onready var indicator: ColorRect = get_node_or_null("BarLayer/Bar/Indicator")
 @onready var status_label: Label = get_node_or_null("HananHud/Status")
 @onready var callout_label: Label = get_node_or_null("HananHud/Callout")
 @onready var hint_label: Label = get_node_or_null("HananHud/Hint")
@@ -356,6 +361,8 @@ func _refresh_hud(delta: float) -> void:
 	var in_vault := _vault_state == Vault.VAULT
 	if bar != null:
 		bar.visible = in_vault
+		if in_vault:
+			_place_bar()
 		if in_vault and box != null and indicator != null:
 			var track := bar.size.y
 			box.size.y = current_box_size() * track
@@ -376,4 +383,18 @@ func _refresh_hud(delta: float) -> void:
 		shake = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_pixels
 	if hud_layer != null:
 		hud_layer.offset = shake
+	if bar_layer != null:
+		bar_layer.offset = shake
 	field_root.position = shake
+
+
+# The bar hangs beside the mortal (on the ground they jumped from, so it does not
+# ride up and down with the jump), kept on screen and clear of the UI strip. Under
+# Half Vision only the lit circle round the mortal shows - and part of the bar
+# with it, the same way a blinded player still sees the field near them.
+func _place_bar() -> void:
+	var anchor := player.get_global_transform_with_canvas().origin
+	anchor.y += _ground_y - player.global_position.y
+	var view := get_viewport_rect().size
+	var top_left := anchor + bar_offset - Vector2(0.0, bar.size.y * 0.5)
+	bar.position = top_left.clamp(Vector2(UI_STRIP_WIDTH, 0.0), (view - bar.size).max(Vector2(UI_STRIP_WIDTH, 0.0)))

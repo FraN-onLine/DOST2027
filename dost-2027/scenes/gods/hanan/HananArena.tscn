@@ -48,7 +48,10 @@ position = Vector2(330, 470)
 [node name="HananHud" type="CanvasLayer" parent="."]
 layer = 12
 
-[node name="Bar" type="Control" parent="HananHud"]
+[node name="BarLayer" type="CanvasLayer" parent="."]
+layer = 4
+
+[node name="Bar" type="Control" parent="BarLayer"]
 visible = false
 layout_mode = 3
 anchors_preset = 0
@@ -57,7 +60,7 @@ offset_top = 130.0
 offset_right = 1090.0
 offset_bottom = 510.0
 
-[node name="Track" type="ColorRect" parent="HananHud/Bar"]
+[node name="Track" type="ColorRect" parent="BarLayer/Bar"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -67,7 +70,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.09, 0.11, 0.18, 0.85)
 
-[node name="Box" type="ColorRect" parent="HananHud/Bar"]
+[node name="Box" type="ColorRect" parent="BarLayer/Bar"]
 layout_mode = 0
 anchor_right = 1.0
 offset_top = 120.0
@@ -75,7 +78,7 @@ offset_bottom = 220.0
 mouse_filter = 2
 color = Color(0.7, 1, 0.8, 0.55)
 
-[node name="Indicator" type="ColorRect" parent="HananHud/Bar"]
+[node name="Indicator" type="ColorRect" parent="BarLayer/Bar"]
 layout_mode = 0
 anchor_right = 1.0
 offset_left = -6.0
