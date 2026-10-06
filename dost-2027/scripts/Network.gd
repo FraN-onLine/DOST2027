@@ -1234,8 +1234,9 @@ func rpc_arena_blind(caster_id: int, radius: float, duration: float) -> void:
 	emit_signal("arena_blind_received", caster_id, radius, duration)
 
 
+# A duration of 0 cancels a running override (Hanan's Break of Day ends it).
 func send_arena_movement_override(caster_id: int, duration: float) -> void:
-	if not has_multiplayer_peer() or duration <= 0.0:
+	if not has_multiplayer_peer() or duration < 0.0:
 		return
 	rpc("rpc_arena_movement_override", caster_id, duration)
 

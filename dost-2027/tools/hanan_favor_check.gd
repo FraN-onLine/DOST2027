@@ -161,6 +161,29 @@ func _run() -> void:
 	_rules.mortals.erase(2)
 	_rules.mortals.erase(3)
 	_check(_rules.break_of_day(1) == -1, "alone, Break of Day has nobody to reach")
+	# Break of Day also ends the effects of the target's casts that live in the
+	# arena: Apolaki's Sibling's Compromise (doubled loss + a sun patch on every
+	# other mortal) and Tala's Let Us Light Your Way (everyone pulled to them).
+	_setup(500, 2000, 100)
+	_arena._double_loss.clear()
+	_arena._double_loss_source.clear()
+	_arena._sun_patches.clear()
+	_arena._sun_patch_sources.clear()
+	_arena._apply_skill_effect(Gods.favor_by_id(&"siblings_compromise_sun"), 2)
+	_arena._apply_skill_effect(Gods.favor_by_id(&"let_us_light_your_way"), 2)
+	_arena._add_sun_patches(3, 1, 5.0)  # a patch somebody else put there
+	_check(_arena._double_loss.has(1) and _arena._double_loss.has(3), "(Compromise doubles the losses of mortals 1 and 3)")
+	_check(_patch_count(1) == 1 and _patch_count(3) == 2, "(...and puts a patch on each of them)")
+	_check(_arena._movement_override_caster == 2 and _arena._movement_override_time > 0.0, "(Light Your Way pulls everyone to mortal 2)")
+	_arena._apply_skill_effect(day, 1)
+	_check(not _arena._double_loss.has(1) and not _arena._double_loss.has(3), "Break of Day ends the doubled loss on their victims")
+	_check(_patch_count(1) == 0 and _patch_count(3) == 1, "it removes the patches they added, and only those")
+	_check(_arena.active_sun_patches() == 0, "the patch on our own screen comes down")
+	_check(_arena._movement_override_time == 0.0, "it ends their Light Your Way pull")
+	_arena._start_movement_override(5, 1.0)
+	_arena._on_movement_override_received(5, 0.0)
+	_check(_arena._movement_override_time == 0.0, "a 0-second override from the host means stop now")
+
 	# a client has to accept the cooldown going UP
 	_setup(500, 2000, 100)
 	_give_skills(2)
@@ -214,6 +237,10 @@ func _run() -> void:
 	print("Hanan favor checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
 	quit(1 if _problems > 0 else 0)
+
+
+func _patch_count(player_id: int) -> int:
+	return (_arena._sun_patches.get(player_id, []) as Array).size()
 
 
 func _favor(id: String) -> GodFavor:
