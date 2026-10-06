@@ -201,7 +201,8 @@ func _physics_process(delta: float) -> void:
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
 	if glow != null:
-		var glow_alpha := 0.25 if _flash <= 0.0 else 0.7
+		var hit_alpha := 0.35 if Settings.reduce_flashing() else 0.7  # steady tint instead of a bright flash
+		var glow_alpha := 0.25 if _flash <= 0.0 else hit_alpha
 		glow.modulate = Color(ring_color.r, ring_color.g, ring_color.b, glow_alpha)
 	if floating_text != null and floating_text.visible:
 		_floating_time = maxf(0.0, _floating_time - delta)

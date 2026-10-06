@@ -235,6 +235,21 @@ theme_override_styles/hover = SubResource("5")
 theme_override_styles/focus = SubResource("4")
 text = "ALMANAC"
 
+[node name="OptionsButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(260, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
+theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
+theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
+theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("4")
+theme_override_styles/pressed = SubResource("6")
+theme_override_styles/hover = SubResource("5")
+theme_override_styles/focus = SubResource("4")
+text = "OPTIONS"
+
 [node name="QuitButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=868927048]
 custom_minimum_size = Vector2(260, 44)
 layout_mode = 2

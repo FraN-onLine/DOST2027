@@ -18,7 +18,7 @@ func _ready():
 	name_input.grab_focus()
 	
 	# Pre-fill with a random name suggestion
-	name_input.text = Network.RANDOM_NAMES[randi() % Network.RANDOM_NAMES.size()]
+	name_input.text = Settings.suggested_name()
 	
 	status_label.text = "You'll get a random name - change it if you want"
 

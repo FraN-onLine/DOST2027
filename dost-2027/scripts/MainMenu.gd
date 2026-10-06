@@ -11,7 +11,8 @@ extends Control
 @onready var host_button = $CenterContainer/VBoxContainer/HostButton
 @onready var join_button = $CenterContainer/VBoxContainer/JoinButton
 @onready var almanac_button = $CenterContainer/VBoxContainer/AlmanacButton
-@onready var quit_button = $CenterContainer/VBoxContainer/QuitButton
+@onready var options_button = $CenterContainer/VBoxContainer/OptionsButton
+@onready var quit_button =$CenterContainer/VBoxContainer/QuitButton
 @onready var status_label = $StatusLabel
 
 func _ready():
@@ -19,6 +20,7 @@ func _ready():
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
 	almanac_button.pressed.connect(_on_almanac_pressed)
+	options_button.pressed.connect(_on_options_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
 	
 	# Connect to network signals
@@ -50,6 +52,9 @@ func _on_join_pressed():
 # player straight back here.
 func _on_almanac_pressed():
 	get_tree().change_scene_to_file("res://scenes/Almanac.tscn")
+
+func _on_options_pressed():
+	get_tree().change_scene_to_file("res://scenes/Options.tscn")
 
 func _on_quit_pressed():
 	get_tree().quit()
