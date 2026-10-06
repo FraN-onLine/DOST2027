@@ -38,6 +38,30 @@ func _run() -> void:
 	_arena.rules.local().favor = 500
 	_check(_arena.separate_players(), "Luksong Baka is a personal trial")
 
+	# --- screen blocks cover the bar, the labels stay readable ------------------------
+	var vision: CanvasLayer = _arena.get_node("VisionLayer")
+	var patches: CanvasLayer = _arena.get_node("Patches")
+	var bar_layer: CanvasLayer = _arena.get_node_or_null("BarLayer")
+	var label_layer: CanvasLayer = _arena.get_node_or_null("HananHud")
+	_check(bar_layer != null and _arena.bar.get_parent() == bar_layer, "the balance bar lives on its own layer")
+	_check(bar_layer != null and bar_layer.layer < vision.layer and bar_layer.layer < patches.layer,
+		"the bar is drawn below Mayari's blackout (%d) and Apolaki's sun patches (%d)" % [vision.layer, patches.layer])
+	_check(label_layer != null and label_layer.layer > vision.layer and label_layer.layer > patches.layer
+		and _arena.status_label.get_parent() == label_layer and _arena.callout_label.get_parent() == label_layer
+		and _arena.hint_label.get_parent() == label_layer, "the status, callout and hint labels are drawn above them")
+	_arena.begin_vault()
+	_arena._refresh_hud(0.0)
+	var feet: Vector2 = _arena.player.get_global_transform_with_canvas().origin
+	var bar_box: Rect2 = Rect2(_arena.bar.position, _arena.bar.size)
+	_check(bar_box.grow(_arena.bar_offset.length() + 1.0).has_point(feet), "the bar hangs right beside the mortal (%s, mortal at %s)" % [str(bar_box), str(feet)])
+	_check(bar_box.position.x >= Arena.UI_STRIP_WIDTH and bar_box.end.x <= 1152.0 and bar_box.position.y >= 0.0 and bar_box.end.y <= 648.0,
+		"the bar stays on screen and clear of the UI strip")
+	_arena.player.global_position.x = 1140.0
+	_arena._refresh_hud(0.0)
+	_check(_arena.bar.position.x + _arena.bar.size.x <= 1152.0, "near the right edge the bar is clamped onto the screen")
+	_arena._leave_vault()
+	_arena._enter_run()
+
 	# --- the bar: hold rises, release falls ---------------------------------------
 	_arena.begin_vault()
 	_arena._ind_pos = 0.3
