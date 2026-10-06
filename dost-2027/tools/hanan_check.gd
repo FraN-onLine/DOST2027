@@ -199,6 +199,30 @@ func _run() -> void:
 			"level %d keeps the box on the gauge" % level)
 		_arena._leave_vault()
 
+	# --- the art is drop-in --------------------------------------------------------------
+	var has_baka_art := ResourceLoader.exists("res://Assets/Gods/Hanan/Baka.png")
+	_check(_arena.baka_body.visible != has_baka_art and _arena.baka_sprite.visible == has_baka_art,
+		"the Baka shows its art when Baka.png exists, the rectangle otherwise")
+	_check(_arena.overseer.visible == ResourceLoader.exists("res://Assets/Gods/Hanan/Hanan-Overseer.png"),
+		"the overseer shows only when Hanan-Overseer.png exists")
+	_check(_arena.get_node_or_null("ArenaField/Baka/Name") != null, "the Baka keeps its Name label")
+	_arena._use_baka_art(null)
+	_arena._level = 1
+	_arena._show_baka_height()
+	var low: float = _arena.baka.scale.y
+	_arena._level = 4
+	_arena._show_baka_height()
+	_check(_arena.baka.scale.y > low, "without art the rectangle grows taller each level")
+	var strip := ImageTexture.create_from_image(Image.create(500, 100, false, Image.FORMAT_RGBA8))
+	_arena._use_baka_art(strip)
+	_check(_arena.baka_sprite.visible and not _arena.baka_body.visible and _arena.baka_sprite.hframes == 5,
+		"a 5-frame Baka.png strip replaces the rectangle")
+	_check(_arena.baka_sprite.frame == 3 and _arena.baka.scale.y == 1.0, "the strip shows the frame of the level instead of stretching")
+	var single := ImageTexture.create_from_image(Image.create(80, 70, false, Image.FORMAT_RGBA8))
+	_arena._use_baka_art(single)
+	_check(_arena.baka_sprite.hframes == 1 and _arena.baka.scale.y > low, "a single Baka.png is stretched taller like the rectangle")
+	_arena._apply_art()
+
 	# --- the trial ends mid-vault: what it earned is banked --------------------------------
 	_arena._level = 1
 	_arena._enter_run()

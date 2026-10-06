@@ -25,22 +25,29 @@ default_color = Color(1, 0.62, 0.55, 0)
 [node name="Baka" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1"]
 position = Vector2(900, 470)
 
-[node name="Body" type="ColorRect" parent="ArenaField/Baka" index="0"]
+[node name="Sprite" type="Sprite2D" parent="ArenaField/Baka" index="0"]
+visible = false
+
+[node name="Body" type="ColorRect" parent="ArenaField/Baka" index="1"]
 offset_left = -40.0
 offset_top = -70.0
 offset_right = 40.0
 color = Color(0.45, 0.3, 0.2, 1)
 
-[node name="Name" type="Label" parent="ArenaField/Baka/Body" index="0"]
-layout_mode = 0
-offset_left = 14.0
-offset_top = 24.0
-offset_right = 66.0
-offset_bottom = 46.0
+[node name="Name" type="Label" parent="ArenaField/Baka" index="2"]
+offset_left = -26.0
+offset_top = -46.0
+offset_right = 26.0
+offset_bottom = -24.0
 theme_override_fonts/font = ExtResource("4_font")
 theme_override_font_sizes/font_size = 11
 text = "BAKA"
 horizontal_alignment = 1
+
+[node name="Overseer" type="Sprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2"]
+visible = false
+position = Vector2(984, 185)
+scale = Vector2(3, 3)
 
 [node name="Player" parent="." index="6" unique_id=1489401219]
 position = Vector2(330, 470)

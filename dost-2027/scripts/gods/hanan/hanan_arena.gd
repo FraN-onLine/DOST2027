@@ -32,6 +32,11 @@ extends Arena
 enum Vault { RUN, VAULT, STUMBLE }
 
 const LEVEL_NAMES := ["LOW BAKA", "SITTING BAKA", "STANDING BAKA", "HIGH BAKA", "OVER THE MOON"]
+# Hanan's art is drop-in (see Assets/Gods/Hanan/README.md): each file is used when
+# it exists and the placeholder stays when it does not.
+const ART_DIR := "res://Assets/Gods/Hanan/"
+const BAKA_STRIP_FRAMES := 5  # a Baka.png this many frames wide holds one height per level
+const SCREEN_SIZE := Vector2(1152.0, 648.0)  # the authored arena (see arena.gd)
 const CLEAN_COLOR := Color(0.7, 1, 0.8)
 const TRIP_COLOR := Color(1, 0.5, 0.45)
 
@@ -63,6 +68,10 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @export var bar_offset := Vector2(36.0, 0.0)  # where the bar hangs, from the mortal's feet
 
 @onready var baka: Node2D = get_node_or_null("ArenaField/Baka")
+@onready var baka_sprite: Sprite2D = get_node_or_null("ArenaField/Baka/Sprite")
+@onready var baka_body: ColorRect = get_node_or_null("ArenaField/Baka/Body")
+@onready var overseer: Sprite2D = get_node_or_null("ArenaField/Overseer")
+@onready var background: Sprite2D = get_node_or_null("Background")
 # The labels sit high (HananHud, above everything) so they always stay readable.
 # The bar sits LOW (BarLayer, below Mayari's VisionLayer and Apolaki's Patches):
 # a blackout or a sun patch must hide it like it hides any other trial's field.
@@ -113,6 +122,10 @@ func shares_mortal_positions() -> bool:
 # The Guidance reads "another mortal is nearby" - there is nobody else on this field.
 func nearby_movement_favors_enabled() -> bool:
 	return false
+
+
+func collect_units() -> void:
+	_apply_art()
 
 
 func arena_round_reset() -> void:
@@ -199,8 +212,7 @@ func _enter_run(unlock := true) -> void:
 	player.global_position = _start_position
 	if unlock:
 		player.set_lock(false)
-	if baka != null:
-		baka.scale.y = 0.6 + 0.2 * mini(_level, LEVEL_NAMES.size())
+	_show_baka_height()
 
 
 # The mortal reached the Baka: the bar starts, with the indicator already in the box.
@@ -361,6 +373,56 @@ func _leave_vault() -> void:
 func _show_level_banner() -> void:
 	_show_banner("LEVEL %d  -  %s" % [_level, level_name()], god.color, 1.8)
 	_log("The Baka grows: %s" % level_name(), god.color)
+
+
+# --- ART ---------------------------------------------------------------------
+
+static func art(file: String) -> Texture2D:
+	var path := ART_DIR + file
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
+func _apply_art() -> void:
+	_use_baka_art(art("Baka.png"))
+	var watcher := art("Hanan-Overseer.png")
+	if overseer != null:
+		overseer.texture = watcher
+		overseer.visible = watcher != null
+	var backdrop := art("Arena-Background.png")
+	if background != null and backdrop != null:
+		# The placeholder's transform was tuned for Mayari's image; a real
+		# background simply fills the authored screen.
+		background.texture = backdrop
+		background.position = SCREEN_SIZE * 0.5
+		background.scale = SCREEN_SIZE / backdrop.get_size()
+
+
+# The Baka's art, or the coloured rectangle when there is none. A wide image is a
+# strip of one frame per level; otherwise the one image is stretched taller.
+func _use_baka_art(texture: Texture2D) -> void:
+	if baka_sprite != null:
+		baka_sprite.texture = texture
+		baka_sprite.visible = texture != null
+		if texture != null:
+			var strip := texture.get_width() >= texture.get_height() * 2.5
+			baka_sprite.hframes = BAKA_STRIP_FRAMES if strip else 1
+			baka_sprite.offset.y = -texture.get_height() * 0.5  # stands on the Baka's origin, like the rectangle
+	if baka_body != null:
+		baka_body.visible = texture == null
+	_show_baka_height()
+
+
+# Taller every level: the strip shows that level's frame, a single image or the
+# rectangle is stretched.
+func _show_baka_height() -> void:
+	if baka == null:
+		return
+	var step := mini(_level, LEVEL_NAMES.size())
+	if baka_sprite != null and baka_sprite.visible and baka_sprite.hframes > 1:
+		baka.scale.y = 1.0
+		baka_sprite.frame = step - 1
+	else:
+		baka.scale.y = 0.6 + 0.2 * step
 
 
 # --- HUD ---------------------------------------------------------------------
