@@ -198,6 +198,9 @@ var _gain_timer := 0.0
 var _vision_fade := 1.0               # blindness mask fade-in (see Settings.reduce_flashing)
 var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
 var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
+# Who started each of those, so Hanan's Break of Day can end ONE caster's effects:
+var _double_loss_source: Dictionary = {}  # victim id -> caster id of its doubled loss
+var _sun_patch_sources: Dictionary = {}   # mortal id -> Array[int], caster id per _sun_patches timer (-1 = none)
 var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
 var _victor_claimed: Dictionary = {}  # owner id -> true (once per trial)
 var _rivalry_claimed: Dictionary = {} # owner id -> {favor id -> {victim id: true}}
@@ -469,8 +472,10 @@ func _start_trial() -> void:
 	set_mortal_invuln(_my_id, spawn_immunity)
 	_blind_time = 0.0
 	_sun_patches.clear()
+	_sun_patch_sources.clear()
 	clear_sun_patches()
 	_double_loss.clear()
+	_double_loss_source.clear()
 	_great_pending.clear()
 	_victor_claimed.clear()
 	_rivalry_claimed.clear()
@@ -1005,7 +1010,8 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			if mortal.id == caster_id:
 				continue
 			_double_loss[mortal.id] = maxf(float(_double_loss.get(mortal.id, 0.0)), duration)
-			_add_sun_patches(mortal.id, 1, duration)
+			_double_loss_source[mortal.id] = caster_id
+			_add_sun_patches(mortal.id, 1, duration, caster_id)
 		_publish_god_state()
 	elif favor.id == &"let_us_light_your_way":
 		var duration := maxf(0.0, favor.duration)
@@ -1019,6 +1025,7 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 	elif favor.id == &"break_of_day" and _authority:
 		var target_id := rules.break_of_day(caster_id)
 		if target_id >= 0:
+			_end_arena_effects_of(target_id)
 			_log("Break of Day - %s's favors fade and their skills start over" % mortal_label(target_id), favor.color)
 		else:
 			_log("Break of Day - no other mortal to reach", favor.color)
@@ -1027,7 +1034,7 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 		var mortal := rules.mortal(caster_id)
 		if mortal == null:
 			return
-		_sun_patches.erase(caster_id)
+		_erase_sun_patches(caster_id)
 		if caster_id == _my_id:
 			_blind_time = 0.0
 			_refresh_sun_patches()
@@ -1035,15 +1042,57 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_publish_god_state()
 
 
+# A duration of 0 means "stop now" (Break of Day ending the caster's pull).
 func _start_movement_override(caster_id: int, duration: float) -> void:
+	if duration <= 0.0:
+		if caster_id == _movement_override_caster:
+			_movement_override_time = 0.0
+		return
 	_movement_override_caster = caster_id
 	_movement_override_time = maxf(_movement_override_time, duration)
 
 
 func _on_movement_override_received(caster_id: int, duration: float) -> void:
-	if caster_id == _my_id or duration <= 0.0:
+	if caster_id == _my_id:
 		return
 	_start_movement_override(caster_id, duration)
+
+
+# Host: Break of Day just hit `caster_id`. GodMatch already ended their favor
+# durations; these are the effects of their casts that live in the arena instead
+# - the doubled loss and the sun patches of Apolaki's Sibling's Compromise, and
+# Tala's Let Us Light Your Way pulling everyone towards them - so end those too,
+# and only those (other casters' patches stay).
+func _end_arena_effects_of(caster_id: int) -> void:
+	for victim_id in _double_loss_source.keys().duplicate():
+		if int(_double_loss_source[victim_id]) == caster_id:
+			_double_loss.erase(victim_id)
+			_double_loss_source.erase(victim_id)
+	for mortal_id in _sun_patches.keys().duplicate():
+		var sources: Array = _sun_patch_sources.get(mortal_id, [])
+		var timers: Array = _sun_patches[mortal_id]
+		var kept_timers: Array = []
+		var kept_sources: Array = []
+		for index in range(timers.size()):
+			var source: int = int(sources[index]) if index < sources.size() else -1
+			if source != caster_id:
+				kept_timers.append(timers[index])
+				kept_sources.append(source)
+		if kept_timers.is_empty():
+			_erase_sun_patches(mortal_id)
+		else:
+			_sun_patches[mortal_id] = kept_timers
+			_sun_patch_sources[mortal_id] = kept_sources
+	_refresh_sun_patches()
+	if caster_id == _movement_override_caster and _movement_override_time > 0.0:
+		_start_movement_override(caster_id, 0.0)
+		if _networked and _net != null:
+			_net.send_arena_movement_override(caster_id, 0.0)
+
+
+func _erase_sun_patches(mortal_id: int) -> void:
+	_sun_patches.erase(mortal_id)
+	_sun_patch_sources.erase(mortal_id)
 
 
 func nearby_movement_favors_enabled() -> bool:
@@ -1248,16 +1297,23 @@ func _on_sun_favor_changed(player_id: int, delta: int) -> void:
 			_add_sun_patches(opponents[0], 1, _favor_duration(victim, &"the_ruler", 1.5))
 
 
-func _add_sun_patches(mortal_id: int, count: int, duration: float) -> void:
+func _add_sun_patches(mortal_id: int, count: int, duration: float, source := -1) -> void:
 	if count <= 0 or duration <= 0.0:
 		return
 	var mortal := rules.mortal(mortal_id)
 	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		return
 	var timers: Array = _sun_patches.get(mortal_id, [])
+	var sources: Array = _sun_patch_sources.get(mortal_id, [])
+	sources.resize(timers.size())  # an entry the host made without a source reads as -1
+	for index in range(sources.size()):
+		if sources[index] == null:
+			sources[index] = -1
 	for index in range(count):
 		timers.append(duration)
+		sources.append(source)
 	_sun_patches[mortal_id] = timers
+	_sun_patch_sources[mortal_id] = sources
 	# A blot aimed at US is drawn here, right now: it claims a rect at random out
 	# of the free ones and comes down on its own clock. Blots aimed at somebody
 	# else stay host-side data and travel in the arena tick.
@@ -1287,18 +1343,24 @@ func _tick_sun_favors(delta: float) -> void:
 		return
 	for mortal_id in _sun_patches.keys().duplicate():
 		var active: Array = []
-		for left in _sun_patches[mortal_id]:
-			var remaining := maxf(0.0, float(left) - delta)
+		var active_sources: Array = []
+		var sources: Array = _sun_patch_sources.get(mortal_id, [])
+		var timers: Array = _sun_patches[mortal_id]
+		for index in range(timers.size()):
+			var remaining := maxf(0.0, float(timers[index]) - delta)
 			if remaining > 0.0:
 				active.append(remaining)
+				active_sources.append(int(sources[index]) if index < sources.size() else -1)
 		if active.is_empty():
-			_sun_patches.erase(mortal_id)
+			_erase_sun_patches(mortal_id)
 		else:
 			_sun_patches[mortal_id] = active
+			_sun_patch_sources[mortal_id] = active_sources
 	for mortal_id in _double_loss.keys().duplicate():
 		var remaining := maxf(0.0, float(_double_loss[mortal_id]) - delta)
 		if remaining <= 0.0:
 			_double_loss.erase(mortal_id)
+			_double_loss_source.erase(mortal_id)
 		else:
 			_double_loss[mortal_id] = remaining
 	_refresh_sun_patches()
@@ -1602,7 +1664,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	_sun_patches = state.get("sun_patches", {}).duplicate(true)
 	var local_mortal := rules.local()
 	if local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0:
-		_sun_patches.erase(_my_id)
+		_erase_sun_patches(_my_id)
 		_blind_time = 0.0
 	_refresh_sun_patches()
 	arena_read_tick(state)
@@ -1739,7 +1801,7 @@ func _apply_blindness(delta: float) -> void:
 	var mortal := rules.local() if rules != null else null
 	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		_blind_time = 0.0
-		_sun_patches.erase(_my_id)
+		_erase_sun_patches(_my_id)
 		_refresh_sun_patches()
 	_blind_time = maxf(0.0, _blind_time - delta)
 	var active := _blind_time > 0.0
