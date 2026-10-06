@@ -97,6 +97,7 @@ var _pending_gain := 0.0
 var _bank_timer := 0.0
 var _ground_y := 0.0
 var _callout_time := 0.0
+var _frozen := false  # the God's Due menu or a dialogue is open over a vault
 
 
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
@@ -212,6 +213,16 @@ func begin_vault() -> void:
 
 
 func _tick_vault(delta: float) -> void:
+	# Opening the God's Due menu (or a dialogue landing) mid-vault must not cost a
+	# trip: the whole vault - indicator, box, clock, grace - waits, and nothing is
+	# banked, until it closes.
+	if dialogue.is_active() or due_menu.is_open():
+		_frozen = true
+		return
+	if _frozen:
+		_frozen = false
+		# A click spent inside the menu is not a hold: take the button as it is now.
+		_holding = Input.is_action_pressed("attack")
 	_step_indicator(delta)
 	_step_box(delta)
 	if is_inside_box():
@@ -234,8 +245,7 @@ func _tick_vault(delta: float) -> void:
 
 # Floaty on purpose: the button is an acceleration, not a position.
 func _step_indicator(delta: float) -> void:
-	var holding: bool = _holding and not dialogue.is_active() and not due_menu.is_open()
-	var accel := lift_accel if holding else -gravity
+	var accel := lift_accel if _holding else -gravity
 	_ind_vel = clampf(_ind_vel + accel * delta, -max_speed, max_speed)
 	_ind_pos += _ind_vel * delta
 	if _ind_pos < 0.0:

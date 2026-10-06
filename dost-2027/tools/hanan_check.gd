@@ -140,6 +140,37 @@ func _run() -> void:
 	_arena._tick_vault(DT)
 	_check(_arena._vault_state == HananArena.Vault.VAULT, "a moment outside the box inside the grace time is no trip")
 
+	# --- the God's Due menu pauses a vault --------------------------------------------------
+	_arena._leave_vault()
+	_arena._enter_run()
+	_arena._level = 3  # a box that moves on its own
+	_arena.rules.local().favor = 500
+	_arena.begin_vault()
+	for step in range(20):
+		_arena._holding = _arena._ind_pos < _arena._box_center
+		_arena._tick_vault(DT)
+	var frozen_box: float = _arena._box_center
+	var frozen_ind: float = _arena._ind_pos
+	var frozen_left: float = _arena._vault_left
+	var frozen_favor: int = _arena.rules.local().favor
+	_arena._holding = false  # the button is let go to click in the menu
+	_arena._toggle_due_menu()
+	_check(_arena.due_menu.is_open(), "(the God's Due menu opens mid-vault)")
+	for step in range(int(_arena.grace_time * 3.0 / DT)):
+		_arena._tick_vault(DT)
+	_check(_arena._vault_state == HananArena.Vault.VAULT, "a menu open longer than the grace time does not trip the mortal")
+	_check(_arena._box_center == frozen_box and _arena._ind_pos == frozen_ind and _arena._vault_left == frozen_left,
+		"the box, the indicator and the vault clock all wait")
+	_check(_arena.rules.local().favor == frozen_favor, "nothing is banked while the menu is open")
+	_arena._holding = true  # a click used inside the menu...
+	_arena.due_menu.close()
+	_arena._tick_vault(DT)
+	_check(_arena._vault_state == HananArena.Vault.VAULT and not _arena._holding,
+		"closing the menu resumes the vault, with the button read fresh (not held)")
+	_check(is_equal_approx(_arena._vault_left, frozen_left - DT), "the vault clock picks up where it stopped")
+	_arena._leave_vault()
+	_arena._enter_run()
+
 	# --- the levels ------------------------------------------------------------------------
 	_arena._leave_vault()
 	_arena._enter_run()
