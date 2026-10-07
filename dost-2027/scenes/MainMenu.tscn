@@ -220,7 +220,7 @@ theme_override_styles/hover = SubResource("2")
 theme_override_styles/focus = SubResource("1")
 text = "JOIN GAME"
 
-[node name="AlmanacButton" type="Button" parent="CenterContainer/VBoxContainer"]
+[node name="AlmanacButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=184902713]
 custom_minimum_size = Vector2(260, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
@@ -235,7 +235,7 @@ theme_override_styles/hover = SubResource("5")
 theme_override_styles/focus = SubResource("4")
 text = "ALMANAC"
 
-[node name="OptionsButton" type="Button" parent="CenterContainer/VBoxContainer"]
+[node name="OptionsButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=646522129]
 custom_minimum_size = Vector2(260, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
