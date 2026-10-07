@@ -123,6 +123,10 @@ func _run() -> void:
 	_arena._combo = 2.0
 	_arena.begin_vault()
 	_arena._holding = false
+	# Pin the box where the vault opened it: a level-1 box drifts at random and
+	# could follow the falling indicator down, making the trip late or never.
+	_arena._box_goal = _arena._box_center
+	_arena._box_timer = 999.0
 	for step in range(400):
 		if _arena._vault_state != HananArena.Vault.VAULT:
 			break
