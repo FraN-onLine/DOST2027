@@ -11,6 +11,7 @@ const ARENAS := [
 	"res://scenes/gods/apolaki/ApolakiArena.tscn",
 	"res://scenes/gods/tala/TalaArena.tscn",
 	"res://scenes/gods/hanan/HananArena.tscn",
+	"res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn",
 ]
 
 

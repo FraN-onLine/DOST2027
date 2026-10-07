@@ -21,6 +21,10 @@ signal favor_fired(player_id: int, favor: GodFavor, text: String)
 const MILESTONE_STEP := 1000  # default: every 1000 FAVOR hands out one God's Due
 const LOCAL_ID := 1
 const LOSS_HISTORY_SECONDS := 10.0  # longest look-back any favor may ask for (Bagong Umaga)
+# The reason on a favor_changed that only MOVED FAVOR between a mortal's total and
+# their Kamalig (the granary): it is not a loss and not a gain, so the loss
+# listeners (The Sun God, The Ruler, the red popup) skip it.
+const TRANSFER_REASON := "Kamalig"
 
 
 class Mortal:
@@ -36,6 +40,20 @@ class Mortal:
 	var durations: Dictionary = {}  # favor id -> seconds left (timed effect)
 	var loss_immunity: float = 0.0
 	var loss_history: Array = []  # [time, amount] of FAVOR actually lost, newest last
+	# Mapulon & Ikapati's favors (see the HARVEST PAIR section below):
+	var binhi_trials: int = 0          # trials ended while holding Binhi
+	var kabiyak: int = -1              # the mortal this one is paired with (-1 = none)
+	var kabiyak_pending: float = 0.0   # fractional share not paid yet
+	var weeds_time: float = 0.0        # Ligaw na Damo on this mortal: seconds left
+	var weeds_caster: int = -1
+	var weeds_pending: float = 0.0
+	var drought_time: float = 0.0      # Tagtuyot on this mortal: seconds left
+	var drought_caster: int = -1
+	var drought_total: int = 0         # FAVOR it has taken so far (capped)
+	var drought_tick: float = 0.0      # seconds to the next once-a-second bite
+	var rain_lost: int = 0             # Unang Ulan: FAVOR lost while the rain falls
+	var regrowths: Array = []          # [seconds left, amount] waiting to grow back
+	var granary: int = 0               # Kamalig: FAVOR stored, out of the total
 
 	func favor_by_id(favor_id: StringName) -> GodFavor:
 		for favor in favors:
@@ -67,6 +85,13 @@ var trial_active: bool = false
 # FAVOR per God's Due for this run. The lobby can change it (RunSettings.due_step);
 # a standalone arena keeps the default.
 var milestone_step: int = MILESTONE_STEP
+# False on a client: it mirrors the host and must never run a rule that changes
+# FAVOR on its own (Tagtuyot's bites, Unang Ulan's regrowth).
+var authority := true
+# Seconds left on the trial clock, kept up to date by the host's arena (INF when no
+# clock is running). Panahon ng Anihan reads it; the arena puts it back to INF
+# before the end-of-trial payouts so they never count as the harvest.
+var time_left := INF
 var _clock := 0.0  # seconds since the match began - stamps the loss history
 
 
@@ -113,6 +138,8 @@ func gain_multiplier(m: Mortal) -> float:
 			mult *= favor.param("gain_mult", 1.1)
 		if favor.is_skill() and m.duration_left(favor.id) > 0.0:
 			mult *= favor.param("gain_mult_while_active", 1.0)
+		if favor.id == &"panahon_ng_anihan" and time_left <= favor.param("window", 15.0):
+			mult *= favor.param("gain_mult", 1.3)
 	return mult
 
 
@@ -139,7 +166,20 @@ func add_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 	m.pending_favor = scaled - float(gained)
 	if gained == 0:
 		return 0
-	_apply(m, gained, reason)
+	# Ligaw na Damo: weeds in this mortal's field send a share to the caster.
+	var weeded := 0
+	var caster := mortal(m.weeds_caster) if m.weeds_time > 0.0 else null
+	var weeds: GodFavor = Gods.favor_by_id(&"ligaw_na_damo")
+	if caster != null and caster != m and weeds != null:
+		var siphoned := float(gained) * weeds.param("siphon", 0.3) + m.weeds_pending
+		weeded = int(siphoned)
+		m.weeds_pending = siphoned - float(weeded)
+	gained -= weeded
+	if gained != 0:
+		_apply(m, gained, reason)
+	if weeded > 0:
+		_apply(caster, weeded, "Ligaw na Damo")
+	_share_with_kabiyak(m, gained)
 	return gained
 
 
@@ -155,6 +195,8 @@ func lose_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 	if lost <= 0:
 		return 0
 	_apply(m, -lost, reason)
+	if m.duration_left(&"unang_ulan") > 0.0:
+		m.rain_lost += lost  # watered: it grows back once the rain stops
 	m.loss_history.append([_clock, lost])
 	while not m.loss_history.is_empty() and _clock - float(m.loss_history[0][0]) > LOSS_HISTORY_SECONDS:
 		m.loss_history.pop_front()
@@ -271,6 +313,11 @@ func _fire_instant_effect(holder: Mortal, favor: GodFavor) -> void:
 			var amount := int(float(target.favor - lowest) * favor.param("gap_fraction", 0.5))
 			var lost := lose_favor(amount, favor.display_name, target.id)
 			favor_fired.emit(holder.id, favor, "An Even Playing Field - %s loses %d FAVOR" % [target.display_name, lost])
+		&"kabiyak":
+			_pair_kabiyak(holder)
+			var partner := mortal(holder.kabiyak)
+			if partner != null:
+				favor_fired.emit(holder.id, favor, "Kabiyak - %s is paired with %s" % [holder.display_name, partner.display_name])
 
 
 # The mortal with the most FAVOR other than `excluded_id` (ties: random).
@@ -288,6 +335,10 @@ func _highest_other(excluded_id: int) -> Mortal:
 
 # Host, at the start of every trial: First Light pays the mortals in last place.
 func begin_trial() -> void:
+	# Kabiyak: an other half who left during an earlier trial is replaced now.
+	for m in mortals.values():
+		if m.has_favor(&"kabiyak") and not mortals.has(m.kabiyak):
+			_pair_kabiyak(m)
 	var lowest := 1 << 60
 	var highest := -1
 	for m in mortals.values():
@@ -328,11 +379,149 @@ func break_of_day(caster_id: int) -> int:
 		return -1
 	target.durations.clear()
 	target.loss_immunity = 0.0
+	# Their Mapulon & Ikapati casts end too: the drought and the weeds they sent,
+	# and the rain they were standing in (what it watered does not grow back).
+	target.rain_lost = 0
+	for m in mortals.values():
+		if m.drought_caster == target.id:
+			m.drought_time = 0.0
+		if m.weeds_caster == target.id:
+			m.weeds_time = 0.0
 	for slot in [GodFavor.Slot.E, GodFavor.Slot.Q]:
 		var skill := target.favor_in_slot(slot)
 		if skill != null and skill.cooldown > 0.0:
 			target.cooldowns[skill.id] = skill_cooldown(slot, target.id)
 	return target.id
+
+
+# --- MAPULON & IKAPATI'S FAVORS (the Harvest Pair) ------------------------------
+# Everything they give grows over time. The host runs these; clients mirror the
+# numbers through snapshots (binhi_trials, kabiyak and granary travel with them).
+
+# Kabiyak: pair `m` with the mortal closest to them in FAVOR (ties random).
+func _pair_kabiyak(m: Mortal) -> void:
+	var best: Array[Mortal] = []
+	for other in mortals.values():
+		if other.id == m.id:
+			continue
+		var gap := absi(other.favor - m.favor)
+		if best.is_empty() or gap < absi(best[0].favor - m.favor):
+			best = [other]
+		elif gap == absi(best[0].favor - m.favor):
+			best.append(other)
+	m.kabiyak = -1 if best.is_empty() else best[randi() % best.size()].id
+
+
+# Whoever holds Kabiyak paired with `m` gets a share of what `m` really gained.
+# Paid through _apply, never add_favor: two mortals paired with each other cannot
+# feed each other forever, and Full Moon does not stack on the share.
+func _share_with_kabiyak(m: Mortal, gained: int) -> void:
+	if gained <= 0:
+		return
+	for holder in mortals.values():
+		if holder.id == m.id or holder.kabiyak != m.id:
+			continue
+		var perk: GodFavor = holder.favor_by_id(&"kabiyak")
+		if perk == null:
+			continue
+		var share: float = float(gained) * perk.param("share", 0.1) + holder.kabiyak_pending
+		var paid := int(share)
+		holder.kabiyak_pending = share - float(paid)
+		if paid > 0:
+			_apply(holder, paid, "Kabiyak")
+
+
+# Tagtuyot: the leader (second place when the caster leads; same targeting as
+# Break of Day) withers for the favor's duration. Returns the target's id or -1.
+func cast_tagtuyot(caster_id: int, favor: GodFavor) -> int:
+	var target := _highest_other(caster_id)
+	if target == null:
+		return -1
+	target.drought_time = maxf(0.0, favor.duration)
+	target.drought_caster = caster_id
+	target.drought_total = 0
+	return target.id
+
+
+# Ligaw na Damo: weeds in every other mortal's field (the latest caster wins).
+func cast_ligaw_na_damo(caster_id: int, favor: GodFavor) -> void:
+	for m in mortals.values():
+		if m.id != caster_id:
+			m.weeds_time = maxf(0.0, favor.duration)
+			m.weeds_caster = caster_id
+			m.weeds_pending = 0.0
+
+
+# Kamalig: move a share of the mortal's FAVOR into the granary. A transfer, not a
+# loss: it skips lose_favor (no loss history, no Unang Ulan, no Waning Moon) and
+# is marked with TRANSFER_REASON so no loss listener reacts. Returns the amount.
+func store_in_granary(player_id: int, favor: GodFavor) -> int:
+	var m := _resolve(player_id)
+	if m == null:
+		return 0
+	var amount := mini(int(float(m.favor) * favor.param("store_fraction", 0.25)), int(favor.param("max_store", 400.0)))
+	if amount <= 0:
+		return 0
+	m.granary += amount
+	_apply(m, -amount, TRANSFER_REASON)
+	return amount
+
+
+func _tick_harvest(m: Mortal, delta: float) -> void:
+	m.weeds_time = maxf(0.0, m.weeds_time - delta)
+	if m.drought_time > 0.0:
+		# One bite each time the clock crosses a whole second: 5s = 5 bites.
+		var before := ceilf(m.drought_time)
+		m.drought_time = maxf(0.0, m.drought_time - delta)
+		var drought: GodFavor = Gods.favor_by_id(&"tagtuyot")
+		if authority and ceilf(m.drought_time) < before and drought != null:
+			var room := int(drought.param("max_total", 400.0)) - m.drought_total
+			var bite := mini(int(float(m.favor) * drought.param("percent_per_second", 0.03)), room)
+			if bite > 0:
+				m.drought_total += lose_favor(bite, "Tagtuyot", m.id)
+	if not authority:
+		return
+	for index in range(m.regrowths.size() - 1, -1, -1):
+		var entry: Array = m.regrowths[index]
+		entry[0] = float(entry[0]) - delta
+		if float(entry[0]) <= 0.0:
+			m.regrowths.remove_at(index)
+			_apply(m, int(entry[1]), "Unang Ulan")
+	var rain: GodFavor = m.favor_by_id(&"unang_ulan")
+	if rain != null and m.rain_lost > 0 and m.duration_left(&"unang_ulan") <= 0.0:
+		# The rain stopped: what it watered grows back after a while.
+		m.regrowths.append([rain.param("regrow_delay", 5.0), int(float(m.rain_lost) * rain.param("regrow_mult", 1.25))])
+		m.rain_lost = 0
+
+
+# Trial end, before Favorable Outcome: the granary comes back with interest, rain
+# still waiting to regrow is paid at once, and Binhi grows.
+func _settle_harvest(m: Mortal) -> int:
+	var bonus := 0
+	if m.granary > 0:
+		var kamalig: GodFavor = Gods.favor_by_id(&"kamalig")
+		var interest := kamalig.param("interest", 0.2) if kamalig != null else 0.0
+		var returned := m.granary + int(float(m.granary) * interest)
+		m.granary = 0
+		_apply(m, returned, TRANSFER_REASON)
+	var rain: GodFavor = Gods.favor_by_id(&"unang_ulan")
+	var waiting := int(float(m.rain_lost) * (rain.param("regrow_mult", 1.25) if rain != null else 1.0))
+	for entry in m.regrowths:
+		waiting += int(entry[1])
+	m.rain_lost = 0
+	m.regrowths.clear()
+	if waiting > 0:
+		_apply(m, waiting, "Unang Ulan")
+	var binhi: GodFavor = m.favor_by_id(&"binhi")
+	if binhi != null:
+		m.binhi_trials += 1
+		var grown := int(binhi.param("growth_per_trial", 50.0)) * m.binhi_trials
+		_apply(m, grown, "Binhi")
+		favor_fired.emit(m.id, binhi, "Binhi - %s's seed grows: +%d FAVOR" % [m.display_name, grown])
+		bonus += grown
+	m.drought_time = 0.0
+	m.weeds_time = 0.0
+	return bonus
 
 
 # The Three Sisters: +per_sister for each of Mayari and Tala the mortal holds a
@@ -382,6 +571,10 @@ func ensure_mortal(id: int, display_name: String) -> Mortal:
 
 func remove_mortal(id: int) -> void:
 	mortals.erase(id)
+	# Kabiyak: a holder whose other half left is paired with the next closest.
+	for m in mortals.values():
+		if m.kabiyak == id:
+			_pair_kabiyak(m)
 
 
 # Absolute snapshot of every mortal - the host broadcasts this to the clients.
@@ -407,6 +600,9 @@ func snapshot() -> Dictionary:
 			"durations": durations,
 			"immunity": m.loss_immunity,
 			"claimed": m.claimed_milestones.duplicate(),
+			"binhi": m.binhi_trials,
+			"kabiyak": m.kabiyak,
+			"granary": m.granary,
 		}
 	return out
 
@@ -425,6 +621,10 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.pending_favor = float(entry.get("pending", 0.0))
 		m.loss_immunity = float(entry.get("immunity", 0.0))
 		m.claimed_milestones = entry.get("claimed", {}).duplicate()
+		m.binhi_trials = int(entry.get("binhi", m.binhi_trials))
+		m.kabiyak = int(entry.get("kabiyak", m.kabiyak))
+		var previous_granary := m.granary
+		m.granary = int(entry.get("granary", m.granary))
 		var owned: Array[GodFavor] = []
 		for favor_id in entry.get("favors", []):
 			var favor: GodFavor = Gods.favor_by_id(StringName(favor_id))
@@ -449,7 +649,9 @@ func apply_snapshot(state: Dictionary) -> void:
 		for favor_id in durations.keys():
 			m.durations[favor_id] = float(durations[favor_id])
 		if m.is_local and m.favor != previous_favor:
-			favor_changed.emit(m.id, m.favor, m.favor - previous_favor, "")
+			# FAVOR that moved in or out of the granary is a transfer, not a loss.
+			var reason := TRANSFER_REASON if m.granary != previous_granary else ""
+			favor_changed.emit(m.id, m.favor, m.favor - previous_favor, reason)
 
 
 # --- E / Q SKILLS -----------------------------------------------------------
@@ -540,6 +742,7 @@ func _tick_mortal(m: Mortal, delta: float) -> void:
 				skill_recharged.emit(m.id, favor)
 	for favor_id in m.durations.keys():
 		m.durations[favor_id] = maxf(0.0, float(m.durations[favor_id]) - delta)
+	_tick_harvest(m, delta)
 
 
 func _simulate_rivals(delta: float) -> void:
@@ -556,7 +759,12 @@ func _simulate_rivals(delta: float) -> void:
 
 
 func end_trial() -> Dictionary:
-	# End-of-trial favors (Favorable Outcome) settle here.
+	# End-of-trial favors settle here: first the Harvest Pair's (Kamalig's store
+	# comes back, Binhi grows), then Favorable Outcome judges the real totals.
+	time_left = INF  # nothing paid from here on is the harvest
+	var harvest := {}
+	for m in mortals.values():
+		harvest[m.id] = _settle_harvest(m)
 	var summary := {}
 	var top_id := top_player_id()
 	for m in mortals.values():
@@ -571,7 +779,7 @@ func end_trial() -> Dictionary:
 			"name": m.display_name,
 			"favor": m.favor,
 			"due": m.due,
-			"bonus": bonus,
+			"bonus": bonus + int(harvest.get(m.id, 0)),
 			"is_local": m.is_local,
 		}
 	trial_active = false

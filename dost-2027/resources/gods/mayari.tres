@@ -122,5 +122,6 @@ transition_lines = {
 "apolaki": ["Apolaki, the mortals are ready for your duel."],
 "bathala": ["Bathala, the trials are complete. The mortals await your judgment."],
 "mayari": ["The moon rises again. Let the next trial begin."],
-"tala": ["Tala, the players come to your cans. Watch their aim."]
+"tala": ["Tala, the players come to your cans. Watch their aim."],
+"mapulon_ikapati": ["Mapulon, Ikapati - the night is over and your field is waiting. Be kind to them; they have been running in the dark."]
 }

@@ -68,6 +68,10 @@ extends Node2D
 #   attack                   LEFT MOUSE - the mortal's attack (Arnis,
 #                            Tumbang Preso). Ignore it while a dialogue or a
 #                            menu is open, exactly like the other actions.
+#   dash                     SHIFT (and SPACE) - a short burst along the way the
+#                            mortal moves. Off unless the arena sets
+#                            dash_enabled (Langit Lupa); SPACE is also
+#                            advance_dialogue, so it only dashes during play.
 #
 # Solo: this scene simulates everything.
 # Multiplayer: the HOST is authoritative and is the only clock. It broadcasts
@@ -130,6 +134,13 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var invuln_time := 1.2
 # Mercy every mortal starts a round with.
 @export var spawn_immunity := 1.0
+
+@export_category("Dash")
+# Only the arenas that ask for it (Langit Lupa) let the mortal dash.
+@export var dash_enabled := false
+@export var dash_distance := 110.0
+@export var dash_time := 0.15
+@export var dash_cooldown := 1.6
 
 @export_category("Knockback")
 # What a hit does to a mortal: no control for this long, shoved at this speed.
@@ -215,6 +226,7 @@ var _base_move_speed := 215.0
 var _guidance_time := 0.0
 var _movement_override_caster := -1
 var _movement_override_time := 0.0
+var _dash_cd := 0.0
 
 # --- multiplayer ---
 var _net: Node = null
@@ -247,6 +259,7 @@ func _ready() -> void:
 	rules = GodMatch.new()
 	rules.name = "GodMatch"
 	rules.milestone_step = due_step
+	rules.authority = _authority
 	add_child(rules)
 	if _networked:
 		rules.setup_peers(god, _peer_names(), _my_id, false)
@@ -533,12 +546,14 @@ func _process(delta: float) -> void:
 	_apply_blindness(delta)
 	_move_ghosts(delta)
 	_update_movement_favors(delta)
+	_dash_cd = maxf(0.0, _dash_cd - delta)
 
 
 func _tick_trial(delta: float) -> void:
 	# The shared part of one round: the clock runs down, the mercy seconds burn
 	# off, and the arena's own rules get their frame.
 	_trial_time -= delta
+	rules.time_left = _trial_time  # Panahon ng Anihan's harvest window reads it
 	trial_time_changed.emit(_trial_time)
 	hud.set_time_left(_trial_time)
 	_tick_invuln(delta)
@@ -975,6 +990,23 @@ func _use_skill(slot: int) -> void:
 	_publish_god_state()
 
 
+# A short burst along the way the mortal is moving (or facing, standing still).
+# Our own mortal is ours to move on every peer, so no host round trip is needed:
+# the new position travels like any other step. Returns true when it dashed.
+func try_dash() -> bool:
+	if not dash_enabled or _phase != Phase.PLAYING or _dash_cd > 0.0 or player.locked or player.is_stunned():
+		return false
+	if dialogue.is_active() or due_menu.is_open():
+		return false
+	_dash_cd = dash_cooldown
+	player.dash(Input.get_vector("move_left", "move_right", "move_up", "move_down"), dash_distance, dash_time)
+	return true
+
+
+func dash_cooldown_left() -> float:
+	return _dash_cd
+
+
 func _slot_key(slot: int) -> String:
 	return "E" if slot == GodFavor.Slot.E else "Q"
 
@@ -1029,6 +1061,27 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_log("Break of Day - %s's favors fade and their skills start over" % mortal_label(target_id), favor.color)
 		else:
 			_log("Break of Day - no other mortal to reach", favor.color)
+		_publish_god_state()
+	elif favor.id == &"tagtuyot" and _authority:
+		var target_id := rules.cast_tagtuyot(caster_id, favor)
+		if target_id >= 0:
+			_log("Tagtuyot - drought withers %s's field" % mortal_label(target_id), favor.color)
+		else:
+			_log("Tagtuyot - no other mortal to reach", favor.color)
+		_publish_god_state()
+	elif favor.id == &"ligaw_na_damo" and _authority:
+		rules.cast_ligaw_na_damo(caster_id, favor)
+		_log("Ligaw na Damo - weeds grow in every other field, feeding %s" % mortal_label(caster_id), favor.color)
+		_publish_god_state()
+	elif favor.id == &"unang_ulan" and _authority:
+		var holder := rules.mortal(caster_id)
+		if holder != null:
+			holder.rain_lost = 0
+		_log("Unang Ulan - what %s loses now grows back" % mortal_label(caster_id), favor.color)
+		_publish_god_state()
+	elif favor.id == &"kamalig" and _authority:
+		var stored := rules.store_in_granary(caster_id, favor)
+		_log("Kamalig - %s stores %d FAVOR in the granary" % [mortal_label(caster_id), stored], favor.color)
 		_publish_god_state()
 	elif favor.id == &"unswerved_unbothered":
 		var mortal := rules.mortal(caster_id)
@@ -1743,6 +1796,12 @@ func _on_peer_left(peer_id: int) -> void:
 # --- MATCH SIGNALS ----------------------------------------------------------
 
 func _on_favor_changed(player_id: int, _total: int, delta: int, reason: String) -> void:
+	if reason == GodMatch.TRANSFER_REASON:
+		# Kamalig moving FAVOR in or out of the granary: not a loss, so no sun
+		# patch, no red popup - just say where it went.
+		if player_id == rules.local_id and delta != 0:
+			_log("%s %d FAVOR   (Kamalig)" % ["stored" if delta < 0 else "returned", absi(delta)], Color(0.56, 0.78, 0.33))
+		return
 	_on_sun_favor_changed(player_id, delta)
 	if delta == 0:
 		return
@@ -1848,6 +1907,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_use_skill(GodFavor.Slot.E)
 			elif event.is_action_pressed("skill_q"):
 				_use_skill(GodFavor.Slot.Q)
+			elif dash_enabled and event.is_action_pressed("dash"):
+				# SPACE is also advance_dialogue: during play it only ever dashes.
+				viewport.set_input_as_handled()
+				try_dash()
 		Phase.RESULTS:
 			if event.is_action_pressed("advance_dialogue"):
 				viewport.set_input_as_handled()

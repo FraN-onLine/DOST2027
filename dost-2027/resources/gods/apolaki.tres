@@ -120,7 +120,8 @@ transition_lines = {
 "apolaki": ["Apolaki, another duel awaits."],
 "mayari": ["Mayari, the next arena is yours. Keep the mortals in your light."],
 "tala": ["Tala, take the field. Their next throw is yours to judge."],
-"bathala": ["Bathala, the trials are complete. The mortals await your judgment."]
+"bathala": ["Bathala, the trials are complete. The mortals await your judgment."],
+"mapulon_ikapati": ["Mapulon, Ikapati, the sun has dried your field. Let them run on it."]
 }
 success_lines = Array[String](["You struck true. The sun saw it."])
 failure_lines = Array[String](["Not enough fire in you yet."])

@@ -110,6 +110,7 @@ transition_lines = {
 "tala": ["Tala, my sister, the stars are yours. Teach them to aim true."],
 "bathala": ["Father, the mortals have leapt as far as they can. Their Favor is yours to judge, and I am on their side."],
 "hanan": ["Another morning, another Baka. Rise with me again."],
+"mapulon_ikapati": ["Mapulon, Ikapati, the morning is up and the field is wet with dew. They are yours."],
 "*": ["The morning is done. Go well, mortals."]
 }
 success_lines = Array[String](["You leapt like the morning itself. Father should be proud."])

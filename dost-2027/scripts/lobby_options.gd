@@ -149,6 +149,11 @@ func _slot_row(slot: int, settings: RunSettings, playable: Array[StringName], re
 	if god != null:
 		picker.add_theme_color_override("font_color", god.color)
 		picker.add_theme_color_override("font_disabled_color", Color(god.color, 0.7))
+	# Every god hosts at most one trial: a god already in another slot is greyed out.
+	for index in range(playable.size()):
+		var elsewhere := settings.custom_order.duplicate()
+		elsewhere.remove_at(slot)
+		picker.set_item_disabled(index, elsewhere.has(playable[index]))
 	picker.disabled = not editable
 	picker.item_selected.connect(_on_slot_picked.bind(slot))
 	row.add_child(picker)

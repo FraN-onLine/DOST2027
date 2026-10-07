@@ -21,6 +21,7 @@ const MAYARI := &"mayari"
 const APOLAKI := &"apolaki"
 const TALA := &"tala"
 const HANAN := &"hanan"
+const MAPULON_IKAPATI := &"mapulon_ikapati"
 const BATHALA := &"bathala"
 
 # The God Games' own name: the title screen and the finale read these, so the
@@ -31,10 +32,10 @@ const GAME_ALT_NAME := "Bathala: the God Games"
 const GAME_PROLOGUE := "Bathala took the dearest of the mortals, convince him that they are ought to be released by getting FAVOR from God's challenges."
 
 # How many trials a run holds - Bathala's finale always comes on top and is never
-# counted. The host picks the number in the lobby (RunSettings.trials); more
-# trials than playable gods simply means the gods come round again.
+# counted. The host picks the number in the lobby (RunSettings.trials), 3..5: each
+# playable god hosts at most one trial of a run.
 const TRIALS_MIN := 3
-const TRIALS_MAX := 9
+const TRIALS_MAX := 5
 const TRIALS_DEFAULT := 4
 
 static var _gods: Dictionary = {}    # god id -> God
@@ -131,6 +132,10 @@ static func tala() -> God:
 
 static func hanan() -> God:
 	return by_id(HANAN)
+
+
+static func mapulon_ikapati() -> God:
+	return by_id(MAPULON_IKAPATI)
 
 
 static func bathala() -> God:

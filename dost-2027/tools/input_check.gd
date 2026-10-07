@@ -7,7 +7,7 @@ extends SceneTree
 
 const KEY_ACTIONS := [
 	"move_left", "move_right", "move_up", "move_down",
-	"skill_e", "skill_q", "due_menu", "advance_dialogue",
+	"skill_e", "skill_q", "due_menu", "advance_dialogue", "dash",
 ]
 const MOUSE_ACTIONS := {
 	"attack": MOUSE_BUTTON_LEFT,

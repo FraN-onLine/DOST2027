@@ -41,7 +41,7 @@ func _run() -> void:
 	# The lobby's plan, set BEFORE the client joins: a late joiner must still be
 	# handed it. A CUSTOM order, so a private random draw on the client would be
 	# impossible to mistake for it.
-	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["tala", "mayari", "tala"],
+	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["tala", "mayari", "hanan"],
 		"trial_time": 120.0, "due_step": 750})
 	_say("HOST: setup after set = %s" % str(network.run_settings.to_dict()))
 	var file := FileAccess.open(PORT_FILE, FileAccess.WRITE)
@@ -87,9 +87,9 @@ func _run() -> void:
 	if _in_run():
 		var ids: Array = _ids(current_scene.trial_order)
 		_say("HOST ORDER: %s" % ", ".join(ids))
-		_check(ids == ["tala", "mayari", "tala", "bathala"], "the host plays the order it planned")
+		_check(ids == ["tala", "mayari", "hanan", "bathala"], "the host plays the order it planned")
 		_check(_god_of(current_scene) == "tala", "the host opens on its first god")
-	_check(network.trial_order_ids == [&"tala", &"mayari", &"tala", &"bathala"], "the host still holds the plan the client asked for")
+	_check(network.trial_order_ids == [&"tala", &"mayari", &"hanan", &"bathala"], "the host still holds the plan the client asked for")
 	_finish()
 
 

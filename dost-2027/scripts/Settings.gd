@@ -27,7 +27,7 @@ const ACTIONS := {
 	"move_up": "Move Up", "move_down": "Move Down", "move_left": "Move Left",
 	"move_right": "Move Right", "attack": "Attack", "defend": "Defend",
 	"skill_e": "Skill E", "skill_q": "Skill Q", "due_menu": "God's Due menu",
-	"advance_dialogue": "Advance dialogue", "due_choice_1": "God's Due choice 1",
+	"advance_dialogue": "Advance dialogue", "dash": "Dash", "due_choice_1": "God's Due choice 1",
 	"due_choice_2": "God's Due choice 2", "due_choice_3": "God's Due choice 3",
 }
 const DEFAULTS := {

@@ -65,13 +65,14 @@ static func from_dict(data: Dictionary) -> RunSettings:
 	return settings
 
 
-# Puts every field back inside the rules: trials 3..9, only known choices for the
+# Puts every field back inside the rules: trials 3..5, only known choices for the
 # times / steps / modes, custom_order made of playable gods and exactly `trials`
-# long (new slots are filled by the no-repeat rule, extra ones are cut from the
-# end). With `fix_repeats` it also replaces a god that would play twice in a row.
+# long (new slots are filled with gods not playing yet, extra ones are cut from
+# the end). With `fix_repeats` it also replaces a god that already plays in an
+# earlier slot - every god hosts at most one trial of a run.
 #
-# The lobby passes fix_repeats = false while the host is editing: a back-to-back
-# repeat the host just picked must stay on screen as a warning (and keep START
+# The lobby passes fix_repeats = false while the host is editing: a repeat that
+# arrived some other way must stay on screen as a warning (and keep START
 # disabled) rather than being silently changed under them. Returns the problems
 # that are left - an empty array means the run can start.
 func validate(fix_repeats := true) -> Array[String]:
@@ -95,10 +96,11 @@ func validate(fix_repeats := true) -> Array[String]:
 	while custom_order.size() < trials and not playable.is_empty():
 		custom_order.append(next_god(custom_order))
 	if fix_repeats:
-		for index in range(1, custom_order.size()):
-			if custom_order[index] == custom_order[index - 1]:
-				var after: StringName = custom_order[index + 1] if index + 1 < custom_order.size() else &""
-				custom_order[index] = next_god(custom_order.slice(0, index), after)
+		for index in repeat_slots():
+			for god_id in playable:
+				if not custom_order.has(god_id):
+					custom_order[index] = god_id
+					break
 	return problems()
 
 
@@ -108,15 +110,16 @@ func problems() -> Array[String]:
 	if order_mode == ORDER_CUSTOM and playable_ids().size() > 1:
 		for index in repeat_slots():
 			var god := Gods.by_id(custom_order[index])
-			found.append("Trial %d repeats %s right after itself" % [index + 1, god.display_name if god != null else str(custom_order[index])])
+			found.append("Trial %d: %s already plays in trial %d" % [index + 1,
+				god.display_name if god != null else str(custom_order[index]), custom_order.find(custom_order[index]) + 1])
 	return found
 
 
-# Indexes of the custom slots that hold the same god as the slot before them.
+# Indexes of the custom slots whose god already plays in an earlier slot.
 func repeat_slots() -> Array[int]:
 	var slots: Array[int] = []
 	for index in range(1, custom_order.size()):
-		if custom_order[index] == custom_order[index - 1]:
+		if custom_order.slice(0, index).has(custom_order[index]):
 			slots.append(index)
 	return slots
 
@@ -138,10 +141,9 @@ static func playable_ids() -> Array[StringName]:
 	return ids
 
 
-# The god that should come next after `order`: the one that has waited longest
-# (never played first), so no god comes back before every other has had a turn,
-# and never the god just played (nor `avoid`, the slot after it) when another is
-# available.
+# The god that should come next after `order`: one that has not played yet when
+# there is one (the one that has waited longest otherwise), and never the god just
+# played (nor `avoid`, the slot after it) when another is available.
 static func next_god(order: Array[StringName], avoid: StringName = &"") -> StringName:
 	var playable := playable_ids()
 	if playable.is_empty():
@@ -161,9 +163,10 @@ static func next_god(order: Array[StringName], avoid: StringName = &"") -> Strin
 	return best if best != &"" else playable[0]
 
 
-# A random run of `count` gods: a shuffled pool of every playable god is used up
-# before any god comes back, and a new pool never opens on the god that just
-# played. Shared by the host's draw and the offline game shell.
+# A random run of `count` gods, each playable god at most once (a shuffled pool;
+# only a run longer than the pool - fewer playable gods than TRIALS_MAX - opens a
+# second pool, never on the god that just played). Shared by the host's draw and
+# the offline game shell.
 static func draw_order(count: int) -> Array[StringName]:
 	var playable := playable_ids()
 	if playable.is_empty():

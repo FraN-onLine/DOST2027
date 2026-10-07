@@ -194,7 +194,9 @@ func _start_current_trial() -> void:
 	# _ready builds the GodMatch from them). Bathala's finale has no arena, so it
 	# is never touched.
 	var settings: RunSettings = Network.run_settings
-	arena_instance.trial_time = settings.trial_time
+	# An arena with a round length of its own (Langit Lupa: 60s) keeps it.
+	var fixed = arena_instance.get("fixed_trial_time")
+	arena_instance.trial_time = float(fixed) if fixed != null and float(fixed) > 0.0 else settings.trial_time
 	arena_instance.due_step = settings.due_step
 	# A god speaks its full intro only the first time it hosts in this run (FULL),
 	# or never (SHORT); either way the dialogue handshake still runs.
