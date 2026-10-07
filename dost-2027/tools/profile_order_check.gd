@@ -99,10 +99,10 @@ func _run() -> void:
 	# The announcement is a CALL_LOCAL rpc, so on a hosted lobby the host runs the
 	# handler on its own live data. The handler must copy what it was handed, or
 	# the setup vanishes the moment it is sent.
-	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["tala", "mayari", "tala"]})
+	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["tala", "mayari", "hanan"]})
 	var live: Dictionary = network.run_settings.to_dict()
 	network.rpc_sync_run_settings(live)
-	_check(network.run_settings.custom_order == [&"tala", &"mayari", &"tala"], "the host's own setup survives its own announcement")
+	_check(network.run_settings.custom_order == [&"tala", &"mayari", &"hanan"], "the host's own setup survives its own announcement")
 	network.set_run_settings(RunSettings.defaults().to_dict())
 	var run_order: Array[StringName] = [&"tala", &"mayari", &"apolaki", &"bathala"]
 	network.trial_order_ids = run_order

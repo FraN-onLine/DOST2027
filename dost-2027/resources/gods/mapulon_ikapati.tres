@@ -1,0 +1,122 @@
+[gd_resource type="Resource" script_class="God" format=3]
+
+[ext_resource type="Script" path="res://scripts/gods/god_favor.gd" id="1_favor"]
+[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Script" path="res://scripts/gods/god.gd" id="3_god"]
+
+[sub_resource type="Resource" id="Favor_binhi"]
+script = ExtResource("1_favor")
+id = &"binhi"
+god_id = &"mapulon_ikapati"
+display_name = "Binhi (Ikapati)"
+description = "The seed. At the end of every trial you hold it, gain 50 FAVOR for each trial it has grown: 50, then 100, then 150... Plant it early."
+slot = 0
+kind = 0
+color = Color(0.56, 0.78, 0.33, 1)
+icon = ExtResource("2_icon")
+params = {"growth_per_trial": 50}
+
+[sub_resource type="Resource" id="Favor_panahon_ng_anihan"]
+script = ExtResource("1_favor")
+id = &"panahon_ng_anihan"
+god_id = &"mapulon_ikapati"
+display_name = "Panahon ng Anihan (Mapulon)"
+description = "Harvest season. FAVOR you earn in the last 15 seconds of every trial is increased by 30%. End-of-trial payouts do not count."
+slot = 0
+kind = 0
+color = Color(0.56, 0.78, 0.33, 1)
+icon = ExtResource("2_icon")
+params = {"gain_mult": 1.3, "window": 15.0}
+
+[sub_resource type="Resource" id="Favor_kabiyak"]
+script = ExtResource("1_favor")
+id = &"kabiyak"
+god_id = &"mapulon_ikapati"
+display_name = "Kabiyak (The Pair)"
+description = "Your other half. You are paired with the mortal closest to you in FAVOR. For the rest of the run, whenever they gain FAVOR you gain 10% of it; they lose nothing. If they leave, you pair with the next closest. Only offered while you hold a Mapulon & Ikapati favor."
+slot = 0
+kind = 2
+color = Color(0.56, 0.78, 0.33, 1)
+icon = ExtResource("2_icon")
+params = {"requires_god": "mapulon_ikapati", "share": 0.1}
+
+[sub_resource type="Resource" id="Favor_tagtuyot"]
+script = ExtResource("1_favor")
+id = &"tagtuyot"
+god_id = &"mapulon_ikapati"
+display_name = "Tagtuyot (Mapulon)"
+description = "E - drought. The leading mortal (second place if you lead) loses 3% of their FAVOR every second for 5s, at most 400 in all. Cooldown: 30s."
+slot = 1
+kind = 1
+cooldown = 30.0
+duration = 5.0
+color = Color(0.56, 0.78, 0.33, 1)
+icon = ExtResource("2_icon")
+params = {"max_total": 400, "percent_per_second": 0.03}
+
+[sub_resource type="Resource" id="Favor_ligaw_na_damo"]
+script = ExtResource("1_favor")
+id = &"ligaw_na_damo"
+god_id = &"mapulon_ikapati"
+display_name = "Ligaw na Damo (Ikapati)"
+description = "E - weeds. For 6s, weeds grow in every other mortal's field: 30% of the FAVOR they gain goes to you instead. Cooldown: 30s."
+slot = 1
+kind = 1
+cooldown = 30.0
+duration = 6.0
+color = Color(0.56, 0.78, 0.33, 1)
+icon = ExtResource("2_icon")
+params = {"siphon": 0.3}
+
+[sub_resource type="Resource" id="Favor_unang_ulan"]
+script = ExtResource("1_favor")
+id = &"unang_ulan"
+god_id = &"mapulon_ikapati"
+display_name = "Unang Ulan (Mapulon)"
+description = "Q - first rain. For 6s, every bit of FAVOR you lose is watered: 5s after the rain stops it grows back at 125%. Cooldown: 30s."
+slot = 2
+kind = 1
+cooldown = 30.0
+duration = 6.0
+color = Color(0.56, 0.78, 0.33, 1)
+icon = ExtResource("2_icon")
+params = {"regrow_delay": 5.0, "regrow_mult": 1.25}
+
+[sub_resource type="Resource" id="Favor_kamalig"]
+script = ExtResource("1_favor")
+id = &"kamalig"
+god_id = &"mapulon_ikapati"
+display_name = "Kamalig (Ikapati)"
+description = "Q - the granary. Store 25% of your FAVOR (at most 400) where nothing can touch it; it comes back with 20% interest when the trial ends. Stored FAVOR does not count as yours until then. Cooldown: 40s."
+slot = 2
+kind = 1
+cooldown = 40.0
+color = Color(0.56, 0.78, 0.33, 1)
+icon = ExtResource("2_icon")
+params = {"interest": 0.2, "max_store": 400, "store_fraction": 0.25}
+
+[resource]
+script = ExtResource("3_god")
+id = &"mapulon_ikapati"
+display_name = "MAPULON & IKAPATI"
+epithet = "The Harvest Pair"
+color = Color(0.56, 0.78, 0.33, 1)
+icon = ExtResource("2_icon")
+game_name = "LANGIT LUPA"
+game_blurb = "One mortal is the Taya and chases the rest across the field. Climb onto a Langit and the Taya cannot touch you - until the sky platforms crumble and land somewhere new. The less time you spend as Taya, the more the pair pays you."
+arena_scene = "res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn"
+implemented = true
+favors = Array[ExtResource("1_favor")]([SubResource("Favor_binhi"), SubResource("Favor_panahon_ng_anihan"), SubResource("Favor_kabiyak"), SubResource("Favor_tagtuyot"), SubResource("Favor_ligaw_na_damo"), SubResource("Favor_unang_ulan"), SubResource("Favor_kamalig")])
+intro_lines = Array[String](["Mapulon: The rains are late, and the mortals are early. Welcome to Langit Lupa.", "Ikapati: The sky is his - climb onto a Langit and no Taya can touch you, until it crumbles back into my earth.", "Mapulon: Spend as little of the season as you can being Taya, and we will pay you for it."])
+trial_end_lines = Array[String](["Ikapati: The field is cleared and the harvest counted.", "Mapulon: What you planted here will keep growing. We are patient - be patient with it."])
+success_lines = Array[String](["Mapulon: A good season.", "Ikapati: A full granary. We are proud of you."])
+failure_lines = Array[String](["Ikapati: A thin harvest this time.", "Mapulon: Seasons turn. Plant again."])
+transition_lines = {
+"mayari": ["Mapulon: The sun goes down on our field. Mayari, the night is yours.", "Ikapati: Let them rest under your moon. They ran a long way today."],
+"apolaki": ["Ikapati: Apolaki, they are fed and ready.", "Mapulon: The sun is high. Go easy on our harvest."],
+"tala": ["Mapulon: Tala, the farmers read the season in your stars.", "Ikapati: Show them where to plant their aim."],
+"hanan": ["Ikapati: Hanan, morning on the field is the best hour for work.", "Mapulon: Take them. The dew is still on the grass."],
+"bathala": ["Mapulon: Bathala, the season is over.", "Ikapati: Weigh what they grew. Our daughter Anagolay will find whatever they lost along the way."],
+"mapulon_ikapati": ["Mapulon: Another season already?", "Ikapati: The field never sleeps for long. Back to it."],
+"*": ["Ikapati: Go well, mortals. Eat before you play.", "Mapulon: And watch the sky."]
+}

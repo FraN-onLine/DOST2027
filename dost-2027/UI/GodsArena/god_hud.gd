@@ -4,7 +4,8 @@ extends Control
 # Top-left: the two stats - FAVOR and the GOD'S DUE voucher count - with the two
 # favor bars (E on the left, Q on the right) directly underneath them.
 # Also carries the trial clock, the event line, the banner and the end-of-trial
-# results panel.
+# results panel, and a small note (top right) for the favors that keep something
+# of the mortal's somewhere else: Kabiyak's other half and Kamalig's granary.
 
 const COLOR_TIME_OK := Color(1, 1, 1, 1)
 const COLOR_TIME_LOW := Color(1, 0.4, 0.35, 1)
@@ -23,6 +24,7 @@ const COLOR_TIME_LOW := Color(1, 0.4, 0.35, 1)
 @onready var results_title: Label = $ResultsPanel/Margin/VBox/ResultsTitle
 @onready var results_label: Label = $ResultsPanel/Margin/VBox/ResultsLabel
 @onready var results_hint: Label = $ResultsPanel/Margin/VBox/ResultsHint
+@onready var favor_note: Label = $FavorNote
 
 var _match: GodMatch = null
 var _god: God = null
@@ -104,6 +106,18 @@ func _process(delta: float) -> void:
 	due_value.text = str(mortal.due)
 	_sync_bar(bar_e, GodFavor.Slot.E)
 	_sync_bar(bar_q, GodFavor.Slot.Q)
+	_sync_favor_note(mortal)
+
+
+func _sync_favor_note(mortal: GodMatch.Mortal) -> void:
+	var lines: Array[String] = []
+	if mortal.has_favor(&"kabiyak"):
+		var partner := _match.mortal(mortal.kabiyak)
+		lines.append("KABIYAK: %s" % (partner.display_name if partner != null else "-"))
+	if mortal.granary > 0:
+		lines.append("KAMALIG: %d STORED" % mortal.granary)
+	favor_note.text = "\n".join(lines)
+	favor_note.visible = not lines.is_empty()
 
 
 func _sync_bar(bar: PanelContainer, slot: int) -> void:

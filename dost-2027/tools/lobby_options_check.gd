@@ -2,10 +2,11 @@ extends SceneTree
 
 # Validation for the lobby's OPTIONS menu (scenes/LobbyOptions.tscn) and the run
 # setup behind it (scripts/RunSettings.gd, Network.run_settings):
-#   * trials stay within 3..9
+#   * trials stay within 3..5
 #   * every planned run ends with exactly one Bathala and has trials + 1 entries
-#   * with more trials than gods, gods repeat - but never back to back
-#   * CUSTOM rows follow the trial count, and a back-to-back repeat blocks START
+#   * no god plays twice in a run (RANDOM and CUSTOM)
+#   * CUSTOM rows follow the trial count, a god already in a slot is greyed out
+#     in the others, and a repeat blocks START
 #   * a client cannot change any setting; a synced setup reaches its lobby
 #   * trial length, God's Due step and intro mode reach the arena and GodMatch
 #   * RESET restores the defaults, and the host's saved setup loads back
@@ -53,15 +54,15 @@ func _run() -> void:
 	_check(panel.position.x >= 0 and panel.position.y >= 0 and panel.end.x <= 1152 and panel.end.y <= 648,
 		"the panel fits the 1152x648 screen (%s)" % str(panel))
 
-	# --- trials stay within 3..9 ------------------------------------------------------
+	# --- trials stay within 3..5 ------------------------------------------------------
 	_network.set_run_setting("trials", 1)
 	_check(_settings().trials == Gods.TRIALS_MIN, "trials cannot go below 3")
 	_check(options.minus_button.disabled, "the - button stops at 3")
 	_network.set_run_setting("trials", 42)
-	_check(_settings().trials == Gods.TRIALS_MAX, "trials cannot go above 9")
-	_check(options.plus_button.disabled, "the + button stops at 9")
+	_check(Gods.TRIALS_MAX == 5 and _settings().trials == 5, "trials cannot go above 5")
+	_check(options.plus_button.disabled, "the + button stops at 5")
 	options._step_trials(1)
-	_check(_settings().trials == Gods.TRIALS_MAX, "+ at 9 changes nothing")
+	_check(_settings().trials == Gods.TRIALS_MAX, "+ at 5 changes nothing")
 	_apply(RunSettings.defaults().to_dict())
 	_check(_settings().trials == 4 and options.trials_value.text == "4", "the default is 4 trials")
 	options._step_trials(1)
@@ -70,8 +71,7 @@ func _run() -> void:
 	# --- every planned run: trials + 1 entries, one Bathala, last --------------------
 	var playable := RunSettings.playable_ids()
 	var shape_ok := true
-	var no_back_to_back := true
-	var repeats_seen := false
+	var no_repeats := true
 	var turns_ok := true
 	for trials in range(Gods.TRIALS_MIN, Gods.TRIALS_MAX + 1):
 		for mode in [RunSettings.ORDER_RANDOM, RunSettings.ORDER_CUSTOM]:
@@ -80,36 +80,40 @@ func _run() -> void:
 				var order := _settings().planned_order()
 				if order.size() != trials + 1 or order.count(Gods.BATHALA) != 1 or order[order.size() - 1] != Gods.BATHALA:
 					shape_ok = false
-				for index in range(1, trials):
-					if order[index] == order[index - 1]:
-						no_back_to_back = false
 				var gods := order.slice(0, trials)
-				if trials > playable.size():
-					repeats_seen = repeats_seen or _unique(gods) < trials
+				if _unique(gods) < trials:
+					no_repeats = false
 				# No god comes back before every other god has had a turn.
 				if _unique(gods.slice(0, mini(trials, playable.size()))) != mini(trials, playable.size()):
 					turns_ok = false
 	_check(shape_ok, "every planned run has trials + 1 entries and ends with exactly one Bathala")
-	_check(repeats_seen, "with more trials than gods (%d), gods repeat" % playable.size())
-	_check(no_back_to_back, "...but never the same god twice in a row (RANDOM and CUSTOM)")
+	_check(playable.size() >= Gods.TRIALS_MAX, "there is a god for every trial slot (%d gods, %d slots)" % [playable.size(), Gods.TRIALS_MAX])
+	_check(no_repeats, "no god plays twice in a run, a random 5 included (RANDOM and CUSTOM)")
 	_check(turns_ok, "no god returns before every other god has had a turn")
 
 	# --- CUSTOM rows follow the trial count ------------------------------------------
-	_apply({"trials": 4, "order_mode": "custom"})
+	_apply({"trials": 3, "order_mode": "custom"})
 	await _frames(1)
-	_check(options.order_list.get_child_count() == 5, "CUSTOM shows a row per trial plus Bathala (4 + 1)")
+	_check(options.order_list.get_child_count() == 4, "CUSTOM shows a row per trial plus Bathala (3 + 1)")
 	var finale: Label = options.order_list.get_child(options.order_list.get_child_count() - 1)
 	_check(finale.text.contains("BATHALA (finale)") and finale.get_theme_color("font_color") == Gods.bathala().color,
 		"the last row is BATHALA (finale), in Bathala's colour")
 	var before: Array[StringName] = _settings().custom_order.duplicate()
 	options._step_trials(2)
-	_check(_settings().custom_order.size() == 6 and options.order_list.get_child_count() == 7, "two more trials, two more rows")
-	_check(_settings().custom_order.slice(0, 4) == before, "growing keeps the rows already chosen")
-	_check(_settings().repeat_slots().is_empty(), "new rows are filled without a back-to-back repeat")
+	_check(_settings().custom_order.size() == 5 and options.order_list.get_child_count() == 6, "two more trials, two more rows")
+	_check(_settings().custom_order.slice(0, 3) == before, "growing keeps the rows already chosen")
+	_check(_settings().repeat_slots().is_empty(), "new rows are filled with gods not playing yet")
+	var first_picker: OptionButton = options.order_list.get_child(0).get_node("God")
+	var greyed_ok := true
+	for index in range(playable.size()):
+		var elsewhere: bool = _settings().custom_order.slice(1).has(playable[index])
+		if first_picker.is_item_disabled(index) != elsewhere:
+			greyed_ok = false
+	_check(greyed_ok, "a slot's picker greys out every god already in another slot")
 	_apply({"trials": 3, "order_mode": "custom", "custom_order": _strings(_settings().custom_order)})
 	_check(_settings().custom_order == before.slice(0, 3), "fewer trials cut rows from the end")
 
-	# A back-to-back repeat: warned about, and START is blocked until it is fixed.
+	# A repeat (from a sync or an old file): warned about, and START is blocked.
 	_apply({"trials": 3, "order_mode": "custom", "custom_order": ["mayari", "mayari", "tala"]})
 	await _frames(1)
 	_check(_settings().custom_order == [&"mayari", &"mayari", &"tala"], "the host's repeat stays on screen instead of being changed")
@@ -119,6 +123,9 @@ func _run() -> void:
 	_check(not _network._game_in_progress, "start_game refuses a run with a repeat")
 	options._on_slot_picked(playable.find(&"tala"), 1)
 	_check(_settings().custom_order == [&"mayari", &"tala", &"tala"], "the dropdown changes one slot")
+	await _frames(1)
+	_check(options.warning_label.text.contains("already plays in trial 2") and lobby.start_game_button.disabled,
+		"a repeat that is not back to back is still a repeat (%s)" % options.warning_label.text)
 	options._on_slot_picked(playable.find(&"apolaki"), 2)
 	_check(not options.warning_label.visible and not lobby.start_game_button.disabled, "fixing it clears the warning and enables START")
 
@@ -152,11 +159,11 @@ func _run() -> void:
 	_check(_settings().to_dict() == locked, "a client cannot change any setting")
 
 	# --- a synced setup reaches a client's lobby -------------------------------------------
-	_network.rpc_sync_run_settings({"trials": 6, "order_mode": "random", "trial_time": 60.0, "due_step": 750, "intro_mode": "full"})
+	_network.rpc_sync_run_settings({"trials": 4, "order_mode": "random", "trial_time": 60.0, "due_step": 750, "intro_mode": "full"})
 	await _frames(1)
-	_check(_settings().trials == 6 and _settings().trial_time == 60.0, "a client adopts the setup the host sends")
-	_check(lobby.run_summary_label.text == "6 trials + Bathala   |   Random order   |   60s", "the lobby summary follows it (%s)" % lobby.run_summary_label.text)
-	_check(options.trials_value.text == "6", "so does the open panel")
+	_check(_settings().trials == 4 and _settings().trial_time == 60.0, "a client adopts the setup the host sends")
+	_check(lobby.run_summary_label.text == "4 trials + Bathala   |   Random order   |   60s", "the lobby summary follows it (%s)" % lobby.run_summary_label.text)
+	_check(options.trials_value.text == "4", "so does the open panel")
 	lobby.is_host = true
 	options.close()
 
@@ -188,7 +195,7 @@ func _run() -> void:
 	_network.trial_order_ids.clear()
 
 	# --- the host's last setup loads back ------------------------------------------------------
-	_apply({"trials": 6, "order_mode": "custom", "trial_time": 120.0, "due_step": 750, "intro_mode": "short"})
+	_apply({"trials": 5, "order_mode": "custom", "trial_time": 120.0, "due_step": 750, "intro_mode": "short"})
 	var saved := _settings().to_dict()
 	_network.save_host_settings()
 	_apply(RunSettings.defaults().to_dict())
@@ -200,10 +207,19 @@ func _run() -> void:
 	cfg.save(TEMP_SETTINGS)
 	_network.load_host_settings()
 	var loaded := _settings()
-	_check(loaded.trials == 9 and loaded.trial_time == 90.0 and loaded.due_step == 1000 and loaded.intro_mode == "full",
+	_check(loaded.trials == 5 and loaded.trial_time == 90.0 and loaded.due_step == 1000 and loaded.intro_mode == "full",
 		"a bad saved file is validated on load")
-	_check(not loaded.custom_order.has(Gods.BATHALA) and loaded.custom_order.size() == 9 and loaded.repeat_slots().is_empty(),
+	_check(not loaded.custom_order.has(Gods.BATHALA) and loaded.custom_order.size() == 5 and loaded.repeat_slots().is_empty(),
 		"...and its order is cleaned (no Bathala, no unknown god, no repeat)")
+	# A file saved when a run could hold 9 trials (and gods came round again).
+	cfg.set_value("run", "settings", {"trials": 9, "order_mode": "custom", "trial_time": 90.0, "due_step": 1000, "intro_mode": "full",
+		"custom_order": ["mayari", "tala", "apolaki", "hanan", "mayari", "tala", "apolaki", "hanan", "mayari"]})
+	cfg.save(TEMP_SETTINGS)
+	_network.load_host_settings()
+	loaded = _settings()
+	_check(loaded.trials == 5 and loaded.custom_order.size() == 5 and _unique(loaded.custom_order) == 5,
+		"an old 9-trial setup loads as 5 trials, every god once (%s)" % str(loaded.custom_order))
+	_check(loaded.custom_order.slice(0, 4) == [&"mayari", &"tala", &"apolaki", &"hanan"], "...keeping the gods it already had in order")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SETTINGS))
 	_apply(RunSettings.defaults().to_dict())
 

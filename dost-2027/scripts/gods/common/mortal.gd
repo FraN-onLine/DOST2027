@@ -34,6 +34,8 @@ var _stun := 0.0
 var _knockback := Vector2.ZERO
 var _forced_move_time := 0.0
 var _forced_move_direction := Vector2.ZERO
+var _dash_time := 0.0
+var _dash_velocity := Vector2.ZERO
 var _bob := 0.0
 var _flash := 0.0
 var _floating_time := 0.0
@@ -75,6 +77,19 @@ func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:
 func force_movement(direction: Vector2, duration: float) -> void:
 	_forced_move_direction = direction.normalized()
 	_forced_move_time = maxf(_forced_move_time, duration)
+
+
+# A quick burst of `distance` pixels over `time` seconds along `direction`, or
+# the way the mortal faces when it is zero (standing still). Walls and the
+# arena's bounds still stop it.
+func dash(direction: Vector2, distance: float, time: float) -> void:
+	var way := direction.normalized() if direction.length() > 0.01 else Vector2(facing, 0.0)
+	_dash_time = maxf(0.01, time)
+	_dash_velocity = way * distance / _dash_time
+
+
+func is_dashing() -> bool:
+	return _dash_time > 0.0
 
 
 func set_lock(value: bool) -> void:
@@ -180,6 +195,11 @@ func _physics_process(delta: float) -> void:
 		_stun = maxf(0.0, _stun - delta)
 		velocity = _knockback
 		_knockback = _knockback.move_toward(Vector2.ZERO, 1400.0 * delta)
+	elif _dash_time > 0.0:
+		velocity = _dash_velocity
+		_dash_time -= delta
+		if _dash_time < 0.001:
+			_dash_time = 0.0  # 0.15s at 60 FPS is 9 frames, not a 10th from rounding
 	elif _forced_move_time > 0.0:
 		_forced_move_time = maxf(0.0, _forced_move_time - delta)
 		velocity = _forced_move_direction * move_speed

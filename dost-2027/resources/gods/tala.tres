@@ -98,7 +98,8 @@ transition_lines = {
 "apolaki": ["Apolaki, the players are coming to your arena.", "I will watch the next throw from the stars."],
 "mayari": ["Mayari, the field belongs to you now.", "I will keep watch from above."],
 "tala": ["The next round begins. The cans are set again."],
-"bathala": ["Bathala, the mortals have played their games. Their Favor is yours to judge."]
+"bathala": ["Bathala, the mortals have played their games. Their Favor is yours to judge."],
+"mapulon_ikapati": ["Mapulon, Ikapati, the stars say it is planting season.", "The field is yours."]
 }
 success_lines = Array[String](["The game is done. The Favor you gathered will speak for you."])
 failure_lines = Array[String](["The game is done. The Favor you gathered will speak for you."])
