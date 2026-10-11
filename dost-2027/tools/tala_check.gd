@@ -120,6 +120,72 @@ func _run() -> void:
 		"the mercy seconds keep her from charging the same mortal twice")
 	_arena._invuln.clear()
 
+	# --- SHE CUTS A SLIPPER OFF FROM HER OWN BEAT ------------------------------
+	# With her chance forced high, a throw makes her hurry along her route to
+	# the spot where the slipper's path crosses it - she never steps off the
+	# TalaPath, she anticipates the throw from it.
+	_arena._end_seek()  # a stray intercept left over from an earlier throw's roll
+	_arena._seek_cd = 0.0
+	_arena.seek_chance = 1.0
+	_arena._tala_seek = Vector2.INF
+	for can in _arena._cans:  # keep the throw's line clear of the cans
+		can.visible = false
+	_arena._tala_distance = 0.0
+	_arena._place_tala()
+	var block_at: Vector2 = _arena._point_on_tala_path(60.0)
+	var slipper_from: Vector2 = block_at + Vector2(-560.0, 0.0)
+	_arena.player.global_position = slipper_from
+	_arena._modes[_arena._my_id] = "ready"
+	_arena._local_mode = "ready"
+	_arena._start_throw(_arena._my_id, (block_at - slipper_from).normalized())
+	_check(_arena._seeking, "a thrown slipper makes her hurry along her beat to cut it off")
+	_check(_arena.arena_tick_fields().get("tala_seek") == _arena.tala.global_position,
+		"the host tells every screen where she stands while cutting one off")
+	var distance_before := _arena._tala_distance
+	var left_the_route := false
+	for step in range(240):
+		_arena._move_tala(1.0 / 60.0)
+		_arena._move_slippers(1.0 / 60.0)
+		if _gap_to_route(_arena.tala.global_position) > 1.0:
+			left_the_route = true
+		if str(_arena._slippers.get(_arena._my_id, {}).get("state", "")) != "flying":
+			break
+	_check(not left_the_route, "she stays on the TalaPath the whole time")
+	_check(_arena._tala_distance > distance_before, "and hurries along it toward the slipper's path")
+	_check(_arena.tala.global_position.distance_to(block_at) < 150.0,
+		"and plants herself near where the slipper crosses her beat")
+	# A catch DROPS the slipper where she stood; a slipper that flew past her
+	# would drop out at the far barrier instead.
+	var caught: Dictionary = _arena._slippers.get(_arena._my_id, {})
+	_check(str(caught.get("state", "")) == "dropped",
+		"and she is standing in its path when it arrives")
+	# The slipper is dealt with: the intercept ends and the patrol carries on
+	# from wherever along the route that left her.
+	_arena._move_tala(1.0 / 60.0)
+	_check(not _arena._seeking, "she goes back to her beat once the slipper is gone")
+	_check(_gap_to_route(_arena.tala.global_position) <= 1.0,
+		"and she carries on along the route from where the intercept left her")
+	# With her chance spent, the very next throw leaves her walking her route.
+	_arena.seek_chance = 0.0
+	_arena._seek_cd = 0.0
+	_arena._start_throw(2, Vector2.RIGHT, Vector2(500, 300))
+	_check(not _arena._seeking, "with no chance rolled she stays on her route")
+	_arena._slippers.clear()
+	_arena._modes.erase(2)
+	_arena.seek_chance = 0.45
+	# A client puts her exactly where the host says she stands, and back on the
+	# route the moment the host says the intercept is over. The rest of the
+	# world travels with that same tick, so nothing else on screen changes.
+	var mirror: Dictionary = _arena.arena_tick_fields()
+	mirror["tala_seek"] = Vector2(500, 300)
+	_arena.arena_read_tick(mirror)
+	_check(_arena.tala.global_position == Vector2(500, 300),
+		"a client puts her where the host says she stands")
+	mirror["tala_seek"] = Vector2.INF
+	_arena.arena_read_tick(mirror)
+	_check(_gap_to_route(_arena.tala.global_position) <= 1.0,
+		"and back on her route when the host says the intercept is over")
+
 	_arena.tala.global_position = Vector2(835, 270)
 	_arena._local_mode = "ready"
 	_arena._modes[_arena._my_id] = "ready"
