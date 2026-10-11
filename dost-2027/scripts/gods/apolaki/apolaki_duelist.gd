@@ -8,7 +8,8 @@ extends Node2D
 #
 # THREE states, and that is the whole duel. IDLE is the hub: he walks toward
 # the mortal and watches. From there he either swings (ATTACK) or raises his
-# stick (DEFEND), then goes back to IDLE.
+# stick (DEFEND), then goes back to IDLE. He keeps walking whichever state he
+# is in - a swing or a guard never freezes him in place.
 #
 #   the mortal strikes him -> IDLE or ATTACK pays the mortal, DEFEND costs them
 #   his swing lands        -> the mortal IDLE or ATTACKing pays, DEFENDING gains
@@ -185,9 +186,9 @@ func _tick_attack_window() -> void:
 
 
 func _move(delta: float) -> void:
-	# Idle is the only chase: a swing and a guard both plant him where he is.
-	if state != State.IDLE:
-		return
+	# He walks through every state: a swing and a guard no longer plant him, so
+	# he keeps closing the distance (or backing off) for the whole clip - he can
+	# swing on the move and guard on the move.
 	var to_target := target - global_position
 	var distance := to_target.length()
 	if distance < 0.01:

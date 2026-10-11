@@ -15,8 +15,9 @@ extends Arena
 #   play out (separate_players).
 #
 # THE DUEL - three states each, and every outcome falls out of them
-#   Apolaki is IDLE (he just chases you), ATTACKING, or DEFENDING. The mortal is
-#   IDLE, ATTACKing, or DEFENDING. That is the whole game.
+#   Apolaki is IDLE (he stalks you), ATTACKING, or DEFENDING - and he walks
+#   through all three, so neither his swing nor his guard freezes him in place.
+#   The mortal is IDLE, ATTACKing, or DEFENDING. That is the whole game.
 #   ATTACK (LEFT MOUSE) - the mortal plays its "hit-arnis" clip; the strike lands
 #   on frames strike_hit_open_frame..strike_hit_close_frame of it, once per swing:
 #   hitting him while he is IDLE or ATTACKING pays strike_favor, hitting his
@@ -41,10 +42,12 @@ extends Arena
 # script only runs the rules.
 
 @export_category("Arnis")
-@export var strike_favor := 200          # hitting him while he IDLES or ATTACKS
-@export var strike_defend_penalty := 100 # hitting him while he DEFENDS
-@export var block_favor := 100           # a DEFENDING mortal beats his swing
-@export var hit_penalty := 80            # an idle / attacking mortal takes his swing
+# The whole duel economy, halved from its first tuning: the swing pays 100, his
+# guard punishes 50, a block earns 50 and taking his swing costs 40.
+@export var strike_favor := 100          # hitting him while he IDLES or ATTACKS
+@export var strike_defend_penalty := 50  # hitting him while he DEFENDS
+@export var block_favor := 50            # a DEFENDING mortal beats his swing
+@export var hit_penalty := 40            # an idle / attacking mortal takes his swing
 @export var strike_cooldown := 1.0       # seconds between two strikes
 @export var strike_hit_open_frame := 3   # the mortal's swing lands from this frame
 @export var strike_hit_close_frame := 5  # ...through this one (hit-arnis)

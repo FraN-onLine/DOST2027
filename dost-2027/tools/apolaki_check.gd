@@ -66,10 +66,11 @@ func _run() -> void:
 	_arena._strike_cd = 0.0
 
 	# --- THE BALANCE, SPELLED OUT ----------------------------------------------
-	_check(_arena.strike_favor == 200, "hitting him while he IDLES or ATTACKS is worth 200 FAVOR")
-	_check(_arena.strike_defend_penalty == 100, "hitting his DEFEND costs 100 FAVOR")
-	_check(_arena.block_favor == 100, "DEFENDING his swing is worth 100 FAVOR")
-	_check(_arena.hit_penalty == 80, "taking his swing while idle or mid-swing costs 80 FAVOR")
+	# The whole duel economy is halved from its first tuning (100 / 50 / 50 / 40).
+	_check(_arena.strike_favor == 100, "hitting him while he IDLES or ATTACKS is worth 100 FAVOR")
+	_check(_arena.strike_defend_penalty == 50, "hitting his DEFEND costs 50 FAVOR")
+	_check(_arena.block_favor == 50, "DEFENDING his swing is worth 50 FAVOR")
+	_check(_arena.hit_penalty == 40, "taking his swing while idle or mid-swing costs 40 FAVOR")
 
 	# --- MORTAL -> APOLAKI: all three of his states -----------------------------
 	_arena.duelist.global_position = _arena.player.global_position
@@ -78,7 +79,7 @@ func _run() -> void:
 	_arena.rules.local().favor = 500
 	_arena._try_strike()
 	_arena._resolve_strike()
-	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he IDLES pays 200")
+	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he IDLES pays 100")
 	_arena._strike_cd = 0.0
 	_arena._swinging = false
 
@@ -86,7 +87,7 @@ func _run() -> void:
 	_arena.rules.local().favor = 500
 	_arena._try_strike()
 	_arena._resolve_strike()
-	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he ATTACKS pays the same 200")
+	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he ATTACKS pays the same 100")
 	_arena._strike_cd = 0.0
 	_arena._swinging = false
 
@@ -94,7 +95,7 @@ func _run() -> void:
 	_arena.rules.local().favor = 500
 	_arena._try_strike()
 	_arena._resolve_strike()
-	_check(_arena.rules.local().favor == 500 - _arena.strike_defend_penalty, "striking his DEFEND costs 100")
+	_check(_arena.rules.local().favor == 500 - _arena.strike_defend_penalty, "striking his DEFEND costs 50")
 	_arena._strike_cd = 0.0
 	_arena._swinging = false
 
@@ -106,7 +107,7 @@ func _run() -> void:
 	_arena.player._knockback = Vector2.ZERO
 	_arena.rules.local().favor = 500
 	_arena._on_duelist_attack_landed()
-	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "his swing costs 80 while the mortal is IDLE")
+	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "his swing costs 40 while the mortal is IDLE")
 	_check(_arena.player._knockback != Vector2.ZERO, "his swing shoves the mortal back")
 	_check(_arena._invuln.has(_arena._my_id), "the mercy seconds start when his swing lands")
 	_check(_arena.active_sun_patches() == _arena.hit_patch_count, "a landed swing blots one sun patch on your screen")
@@ -137,7 +138,7 @@ func _run() -> void:
 	_arena.player._knockback = Vector2.ZERO
 	_arena.rules.local().favor = 500
 	_arena._on_duelist_attack_landed()
-	_check(_arena.rules.local().favor == 500 + _arena.block_favor, "DEFENDING his swing gains 100")
+	_check(_arena.rules.local().favor == 500 + _arena.block_favor, "DEFENDING his swing gains 50")
 	_check(_arena.player._knockback == Vector2.ZERO, "a defended swing does not shove the mortal")
 	_check(_arena.active_sun_patches() == 0, "a defended swing leaves no sun patch")
 	_arena._guarding = false
@@ -234,6 +235,22 @@ func _run() -> void:
 	_arena.duelist._face_target()
 	_check(_arena.duelist.icon.flip_h == (_arena.duelist.art_facing != -1),
 		"he turns back when the mortal stands to his left")
+
+	# --- HE KEEPS WALKING THROUGH A SWING AND A GUARD --------------------------
+	# Neither action plants him any more: the walk runs in every state.
+	_arena.duelist.frozen = false
+	_arena.duelist.global_position = _arena.player.global_position
+	_arena.duelist.target = _arena.player.global_position + Vector2(240.0, 0.0)
+	var walk_from := _arena.duelist.global_position
+	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist._move(0.5)
+	_check(_arena.duelist.global_position.distance_to(walk_from) > 1.0,
+		"he keeps closing the distance while he swings")
+	walk_from = _arena.duelist.global_position
+	_arena.duelist._enter(ApolakiDuelist.State.DEFEND)
+	_arena.duelist._move(0.5)
+	_check(_arena.duelist.global_position.distance_to(walk_from) > 1.0,
+		"he keeps walking while he guards")
 	_arena._phase = Arena.Phase.PLAYING
 
 	var rivalry: GodFavor = _arena.god.get_favor(&"siblings_rivalry")
@@ -262,7 +279,7 @@ func _run() -> void:
 	var rival_favor_before: int = _arena.rules.mortal(2).favor
 	_arena.rules.bestow_favor(_arena.god.get_favor(&"the_victor"), 3)
 	_arena._add_sun_patches(2, 5, 1.5)
-	_check(_arena.rules.mortal(2).favor == rival_favor_before - 400, "each Victor owner removes 200 FAVOR at five patches")
+	_check(_arena.rules.mortal(2).favor == rival_favor_before - 200, "each Victor owner removes 100 FAVOR at five patches")
 	var immune_id := 4
 	_arena.rules.ensure_mortal(immune_id, "IMMUNE")
 	_arena.rules.bestow_favor(_arena.god.get_favor(&"the_victor"), immune_id)
@@ -272,7 +289,7 @@ func _run() -> void:
 	_arena.rules.bestow_favor(_arena.god.get_favor(&"the_great"))
 	var great_before: int = _arena.rules.local().favor
 	_arena._tick_the_great(1.0)
-	_check(_arena.rules.local().favor == great_before + 2, "The Great gains 2 FAVOR while any patch is active")
+	_check(_arena.rules.local().favor == great_before + 1, "The Great gains 1 FAVOR while any patch is active")
 
 	var compromise: GodFavor = _arena.god.get_favor(&"siblings_compromise_sun")
 	_arena.rules.bestow_favor(compromise)

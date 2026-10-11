@@ -15,7 +15,10 @@ extends Arena
 # her - running into the guard costs the same as her grabbing your footwear.
 @export var tala_penalty := 100
 
-@onready var tala: Sprite2D = get_node_or_null("ArenaField/Tala")
+# Node2D, not Sprite2D: the scene may draw her as a plain Sprite2D or as an
+# AnimatedSprite2D (she is animated as of the Tala-Sheet art) - the rules only
+# ever read and write where she stands.
+@onready var tala: Node2D = get_node_or_null("ArenaField/Tala")
 @onready var tala_path: Line2D = get_node_or_null("ArenaField/TalaPath")
 @onready var cans_root: Node2D = get_node_or_null("ArenaField/Cans")
 @onready var barrier: Line2D = get_node_or_null("ArenaField/Barrier")

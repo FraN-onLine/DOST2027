@@ -50,10 +50,10 @@ corner_radius_bottom_left = 4
 
 [node name="ApolakiArena" unique_id=437979526 instance=ExtResource("1_base")]
 script = ExtResource("2_arena")
-strike_favor = 200
-strike_defend_penalty = 100
-block_favor = 100
-hit_penalty = 80
+strike_favor = 100
+strike_defend_penalty = 50
+block_favor = 50
+hit_penalty = 40
 strike_cooldown = 1.0
 strike_hit_open_frame = 3
 strike_hit_close_frame = 5

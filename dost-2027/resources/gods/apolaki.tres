@@ -34,12 +34,12 @@ script = ExtResource("1_dp3kp")
 id = &"the_victor"
 god_id = &"apolaki"
 display_name = "The Victor"
-description = "At 5 sun patches on one opponent they lose 200 FAVOR - once per trial. You are immune to other mortals holding this favor."
+description = "At 5 sun patches on one opponent they lose 100 FAVOR - once per trial. You are immune to other mortals holding this favor."
 color = Color(1, 0.85, 0.25, 1)
 icon = ExtResource("2_e57f4")
 params = {
 "patch_threshold": 5,
-"penalty": 200
+"penalty": 100
 }
 
 [sub_resource type="Resource" id="Resource_vs2ev"]
@@ -47,11 +47,11 @@ script = ExtResource("1_dp3kp")
 id = &"the_great"
 god_id = &"apolaki"
 display_name = "The Great"
-description = "Gain 2 FAVOR per second for as long as any sun patch is shining."
+description = "Gain 1 FAVOR per second for as long as any sun patch is shining."
 color = Color(1, 0.85, 0.25, 1)
 icon = ExtResource("2_e57f4")
 params = {
-"favor_per_sec": 2.0
+"favor_per_sec": 1.0
 }
 
 [sub_resource type="Resource" id="Resource_mua1f"]
