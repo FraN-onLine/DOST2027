@@ -13,9 +13,9 @@ extends Node2D
 #   the mortal strikes him -> IDLE or ATTACK pays the mortal, DEFEND costs them
 #   his swing lands        -> the mortal IDLE or ATTACKing pays, DEFENDING gains
 #
-# The arena owns the FAVOR. This script owns his three states, his walk, and the
-# frame window his swing is live on - and it announces a swing that actually
-# connected (inside his area) so the arena can score it.
+# The arena owns the FAVOR. This script owns his three states, his walk, which
+# way he faces, and the frame window his swing is live on - and it announces a
+# swing that actually connected (inside his area) so the arena can score it.
 #
 # Art lives in Apolaki.tscn: Icon (an AnimatedSprite2D whose frames carry the
 # states) and Name. This script never draws. The three clips are the whole
@@ -36,12 +36,15 @@ const ANIM_DEFEND := &"defend"  # the raised-stick guard
 @export var speed := 74.0           # how fast he closes the distance
 @export var keep_distance := 80.0   # how close he stands while idle
 @export var reach := 92.0           # HIS AREA: a swing only lands this close
-@export var attack_hit_open_frame := 2   # his swing is live from this frame...
-@export var attack_hit_close_frame := 5  # ...through this one of the clip
+@export var attack_hit_open_frame := 4   # his swing is live from this frame...
+@export var attack_hit_close_frame := 7  # ...through this one of the clip
 @export var idle_time := 0.9        # how long he watches before his next move
-@export var attack_time := 0.6      # how long one swing lasts
+@export var attack_time := 1.0      # how long one swing lasts (its clip plays out)
 @export var defend_time := 0.9      # how long a guard holds
 @export var defend_chance := 0.35   # how often his next move is a guard
+# The sheet is drawn facing LEFT, so he is mirrored when the mortal stands to
+# his right. Flip this if a new sheet is drawn the other way round.
+@export var art_facing := -1
 
 var state := State.IDLE
 var color := Color(1.0, 0.85, 0.25)
@@ -153,8 +156,15 @@ func _play_for_state() -> void:
 
 
 # HIS SWING: live on frames attack_hit_open_frame..attack_hit_close_frame of the
-# attack clip, once per swing, and only while the mortal stands inside his area
-# (the duelist checks that itself, so the arena is only told about real hits).
+# attack clip, and only while the mortal stands inside his area (the duelist
+# checks that itself, so the arena is only told about real hits).
+# The window stays open for ALL of those frames: a swing is only spent once it
+# actually connects, so a mortal who was a step too far away on one live frame
+# and closes the distance on the next still gets hit. (Spending the swing on the
+# first live frame it saw - whether or not the mortal was in reach - is what let
+# his stick pass through a mortal now and then with nothing to show for it.)
+# If the window closes without the mortal ever stepping inside his area, the
+# swing simply missed.
 # A clip too short to reach the window would mean a swing that can never land,
 # so in that case the whole clip counts as live.
 func _tick_attack_window() -> void:
@@ -169,8 +179,8 @@ func _tick_attack_window() -> void:
 	var frame := icon.frame
 	if frame < open or frame > close:
 		return
-	_hit_resolved = true
 	if in_reach(target):
+		_hit_resolved = true
 		attack_landed.emit()
 
 
@@ -194,6 +204,7 @@ func _move(delta: float) -> void:
 func _refresh() -> void:
 	# The frames carry the states; only a swing and a guard take a tint so they
 	# read at a glance, and the name breathes with the beat.
+	_face_target()
 	var pulse := 0.5 + 0.5 * sin(_pulse * (10.0 if state == State.ATTACK else 4.0))
 	if icon != null:
 		match state:
@@ -206,3 +217,16 @@ func _refresh() -> void:
 	if name_label != null:
 		name_label.text = "APOLAKI"
 		name_label.modulate = Color(1, 1, 1, 0.55 + 0.4 * pulse)
+
+
+# HE TURNS TO WHOMEVER HE IS DUELLING: the sprite mirrors whenever the mortal
+# stands on the side the art is not drawn for, so his stick always points at
+# whoever he is stalking (the same facing rule the mortal itself follows, see
+# scripts/gods/common/mortal.gd). The name tag never flips.
+func _face_target() -> void:
+	if icon == null:
+		return
+	var toward := target.x - global_position.x
+	if absf(toward) < 0.5:
+		return  # straight above / below: keep facing whatever he faced before
+	icon.flip_h = (1 if toward > 0.0 else -1) != art_facing

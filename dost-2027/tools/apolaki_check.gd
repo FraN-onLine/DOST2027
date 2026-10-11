@@ -103,9 +103,12 @@ func _run() -> void:
 	_arena._guarding = false
 	_arena._swinging = false
 	_arena._invuln.clear()
+	_arena.player._knockback = Vector2.ZERO
 	_arena.rules.local().favor = 500
 	_arena._on_duelist_attack_landed()
 	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "his swing costs 80 while the mortal is IDLE")
+	_check(_arena.player._knockback != Vector2.ZERO, "his swing shoves the mortal back")
+	_check(_arena._invuln.has(_arena._my_id), "the mercy seconds start when his swing lands")
 	_check(_arena.active_sun_patches() == _arena.hit_patch_count, "a landed swing blots one sun patch on your screen")
 	_check(is_equal_approx(_arena.sun_patch_time_left(0), _arena.hit_patch_time), "the blot starts at hit_patch_time (3s)")
 	# It has to burn down over REAL frames, not merely vanish on one big tick:
@@ -185,25 +188,52 @@ func _run() -> void:
 	_arena.duelist.target = _arena.player.global_position
 	_arena.duelist.global_position = _arena.player.global_position + Vector2(600.0, 0.0)
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
-	_arena.duelist.icon.frame = 3
+	_arena.duelist.icon.frame = 5
 	_arena.duelist._tick_attack_window()
 	_check(_landed == 0, "his swing misses while the mortal stands outside his area")
+	# The window itself: 3 is too early, 5 and 7 are live, 8 is too late.
 	_arena.duelist.global_position = _arena.player.global_position
-	# The window itself: 1 is too early, 3 is live, 6 is too late.
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
-	_arena.duelist.icon.frame = 1
-	_arena.duelist._tick_attack_window()
-	_check(_landed == 0, "his swing is not live before frame 2")
 	_arena.duelist.icon.frame = 3
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 0, "his swing is not live before frame 4")
+	_arena.duelist.icon.frame = 5
 	_arena.duelist._tick_attack_window()
 	_arena.duelist._tick_attack_window()
 	_check(_landed == 1, "his swing connects once per swing inside his area")
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist.icon.frame = 8
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 1, "his swing is closed after frame 7")
+	_check(_arena.duelist.attack_hit_open_frame == 4 and _arena.duelist.attack_hit_close_frame == 7,
+		"his swing is live on frames 4..7")
+	# The window stays open across all of its frames: a mortal that was out of
+	# reach on one live frame and steps in on a later one still gets hit - this
+	# is the rule that stops his stick from passing through a mortal untouched.
+	_arena.duelist.global_position = _arena.player.global_position + Vector2(600.0, 0.0)
+	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist.icon.frame = 4
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 1, "a live frame outside his area spends nothing")
+	_arena.duelist.global_position = _arena.player.global_position
 	_arena.duelist.icon.frame = 6
 	_arena.duelist._tick_attack_window()
-	_check(_landed == 1, "his swing is closed after frame 5")
-	_check(_arena.duelist.attack_hit_open_frame == 2 and _arena.duelist.attack_hit_close_frame == 5,
-		"his swing is live on frames 2..5")
+	_arena.duelist.icon.frame = 7
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 2, "stepping into his area on a later live frame lands the swing")
+
+	# --- HE TURNS TO FACE WHOMEVER HE IS DUELLING ------------------------------
+	# The sheet is drawn facing one way (art_facing); the sprite mirrors whenever
+	# the mortal stands on the other side.
+	_arena.duelist.global_position = _arena.player.global_position
+	_arena.duelist.target = _arena.player.global_position + Vector2(120.0, 0.0)
+	_arena.duelist._face_target()
+	_check(_arena.duelist.icon.flip_h == (_arena.duelist.art_facing != 1),
+		"he mirrors his art when the mortal stands to his right")
+	_arena.duelist.target = _arena.player.global_position + Vector2(-120.0, 0.0)
+	_arena.duelist._face_target()
+	_check(_arena.duelist.icon.flip_h == (_arena.duelist.art_facing != -1),
+		"he turns back when the mortal stands to his left")
 	_arena._phase = Arena.Phase.PLAYING
 
 	var rivalry: GodFavor = _arena.god.get_favor(&"siblings_rivalry")

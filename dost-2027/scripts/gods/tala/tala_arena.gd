@@ -11,6 +11,8 @@ extends Arena
 @export var tala_max_y := 565.0
 @export var can_repair_time := 3.0
 @export var can_favor := 300
+# FAVOR lost two ways: when Tala catches your slipper, and when YOU walk into
+# her - running into the guard costs the same as her grabbing your footwear.
 @export var tala_penalty := 100
 
 @onready var tala: Sprite2D = get_node_or_null("ArenaField/Tala")
@@ -109,6 +111,7 @@ func arena_rules_tick(delta: float) -> void:
 	_move_tala(delta)
 	_move_slippers(delta)
 	_check_pickups()
+	_check_tala_touch()
 	_repair_cans(delta)
 
 
@@ -307,6 +310,35 @@ func _check_pickups() -> void:
 			_modes[owner] = "ready"
 			if owner == _my_id:
 				_local_mode = "ready"
+
+
+# TALA HERSELF: walking into her is no different from her catching your slipper -
+# it costs tala_penalty FAVOR and shoves the mortal back the same way a Mayari
+# clone does (MayariArena._on_clone_hit is the model). The host runs it
+# (arena_rules_tick), the mercy seconds keep her from charging the same mortal
+# twice in a row, and the shove reaches whichever screen simulates that mortal
+# (knock_mortal splits the local / remote case).
+func _check_tala_touch() -> void:
+	if tala == null:
+		return
+	for entry in mortal_entries():
+		var mortal_id := int(entry["id"])
+		if is_mortal_invulnerable(mortal_id):
+			continue
+		var position: Vector2 = entry["pos"]
+		if position.distance_to(tala.global_position) > tala_radius + player.radius:
+			continue
+		set_mortal_invuln(mortal_id, invuln_time)
+		var lost := lose_favor(tala_penalty, "walking into Tala", mortal_id)
+		knock_mortal(mortal_id, tala.global_position)
+		if mortal_id != _my_id:
+			if lost > 0:
+				_log("%s ran into Tala  (-%d FAVOR)" % [mortal_label(mortal_id), lost], Color(1, 0.6, 0.5))
+			continue
+		if lost > 0:
+			_log("You ran into Tala  (-%d FAVOR)" % lost, Color(1, 0.5, 0.45))
+		else:
+			_log("Tala caught you but your favor held", god.color)
 
 
 func _repair_cans(delta: float) -> void:

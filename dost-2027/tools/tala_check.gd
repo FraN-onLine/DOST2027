@@ -103,6 +103,23 @@ func _run() -> void:
 	_check(_arena.rules.local().favor == 400, "Tala catching a slipper costs 100 FAVOR")
 	_check(_arena._modes.get(_arena._my_id) == "retrieve", "Tala drops the caught slipper by her area")
 
+	# --- RUNNING INTO TALA HERSELF ----------------------------------------------
+	# She keeps walking her route whatever you do; standing in it is no
+	# different from her grabbing your slipper: FAVOR lost, shoved back.
+	_arena._invuln.clear()
+	_arena.player.global_position = Vector2(350, 420)
+	_arena.player._knockback = Vector2.ZERO
+	_arena.rules.local().favor = 500
+	_arena.tala.global_position = _arena.player.global_position
+	_arena._check_tala_touch()
+	_check(_arena.rules.local().favor == 500 - _arena.tala_penalty, "walking into Tala costs 100 FAVOR")
+	_check(_arena.player._knockback != Vector2.ZERO, "walking into Tala shoves the mortal back")
+	_check(_arena._invuln.has(_arena._my_id), "the mercy seconds start when Tala touches you")
+	_arena._check_tala_touch()
+	_check(_arena.rules.local().favor == 500 - _arena.tala_penalty,
+		"the mercy seconds keep her from charging the same mortal twice")
+	_arena._invuln.clear()
+
 	_arena.tala.global_position = Vector2(835, 270)
 	_arena._local_mode = "ready"
 	_arena._modes[_arena._my_id] = "ready"

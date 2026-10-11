@@ -4,20 +4,34 @@
 [ext_resource type="Script" uid="uid://by5jteym7ab2h" path="res://scripts/gods/apolaki/apolaki_arena.gd" id="2_arena"]
 [ext_resource type="PackedScene" uid="uid://d3dnsdaacfeqq" path="res://scenes/gods/apolaki/Apolaki.tscn" id="3_duelist"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="4_bg"]
-[ext_resource type="Texture2D" uid="uid://b6ugwucajnrhk" path="res://Assets/UI/pips-male-Sheet.png" id="5_sheet"]
+[ext_resource type="Texture2D" uid="uid://c6i33c3omdl0l" path="res://Assets/Gods/Apolaki/apolaki-overseer-Sheet.png" id="5_x3nwb"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="6_x3nwb"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_strike"]
-atlas = ExtResource("5_sheet")
-region = Rect2(64, 0, 64, 64)
+[sub_resource type="AtlasTexture" id="AtlasTexture_hwxck"]
+atlas = ExtResource("5_x3nwb")
+region = Rect2(0, 0, 130, 99)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pdigu"]
+atlas = ExtResource("5_x3nwb")
+region = Rect2(130, 0, 130, 99)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8geo1"]
+atlas = ExtResource("5_x3nwb")
+region = Rect2(260, 0, 130, 99)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_overseer"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_strike")
+"texture": SubResource("AtlasTexture_hwxck")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pdigu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8geo1")
 }],
-"loop": 1,
+"loop": 2,
 "name": &"default",
 "speed": 5.0
 }]
@@ -58,13 +72,22 @@ texture = ExtResource("4_bg")
 metadata/_edit_lock_ = true
 
 [node name="Apolaki" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1246256867 instance=ExtResource("3_duelist")]
-position = Vector2(780, 420)
+position = Vector2(831, 474)
+scale = Vector2(2.0653045, 1.9356914)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1955814452]
-position = Vector2(919.75, 188.5)
-scale = Vector2(5.9140635, 5.078125)
+position = Vector2(952.00006, 173)
+scale = Vector2(3.9358778, 3.6552243)
 sprite_frames = SubResource("SpriteFrames_overseer")
 autoplay = "default"
+frame_progress = 0.11239928
+
+[node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=15752441]
+position = Vector2(193.45038, 247.55435)
+scale = Vector2(0.8759542, 0.67663044)
+points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
+width = 4.0
+default_color = Color(0.54901963, 0.8509804, 1, 0)
 
 [node name="Border" type="Line2D" parent="." index="3" unique_id=2116842975]
 position = Vector2(193.45038, 178.20657)
@@ -74,7 +97,8 @@ width = 4.0
 default_color = Color(0.54901963, 0.8509804, 1, 0)
 
 [node name="Player" parent="." index="6" unique_id=1489401219]
-position = Vector2(420, 470)
+position = Vector2(435, 490)
+scale = Vector2(2.0233405, 1.8783596)
 
 [node name="DuelHud" type="CanvasLayer" parent="." index="10" unique_id=1284817974]
 layer = 12
@@ -166,5 +190,3 @@ theme_override_font_sizes/font_size = 11
 text = "RIGHT MOUSE  DEFEND  READY"
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[editable path="ArenaField/Apolaki"]

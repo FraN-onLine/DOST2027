@@ -23,8 +23,10 @@ extends Arena
 #   DEFEND costs strike_defend_penalty. Nothing else - all three states covered.
 #   DEFEND (RIGHT MOUSE) - the mortal plays its "defend-arnis" clip.
 #   HIS SWING (ApolakiDuelist.attack_landed) only reaches a mortal standing
-#   inside his area, and only while its frames are live. A mortal who is IDLE or
-#   ATTACKing then loses hit_penalty (shoved back, with a sun patch blotting
+#   inside his area, and only while its frames are live (frames 4..7 of his
+#   clip - the window stays open across all of them, so a swing is only spent
+#   once it truly connects). A mortal who is IDLE or ATTACKing then loses
+#   hit_penalty and is shoved back (knock_mortal), with a sun patch blotting
 #   their own screen for hit_patch_time seconds); one who is DEFENDING gains
 #   block_favor instead.
 #   Both buttons run on their own cooldown, drawn as the two bars on the duel HUD.
@@ -250,7 +252,11 @@ func _try_defend() -> void:
 
 # HIS SWING CONNECTED inside his area. The duelist already checked the distance
 # and the frame window, so this only reads what the mortal was doing when it
-# arrived: DEFENDING gains, and being IDLE or mid-swing both pay.
+# arrived: DEFENDING gains, and being IDLE or mid-swing both pay - and BOTH pay
+# in full: the FAVOR is taken, the mortal is shoved away from his stick
+# (knock_mortal - the same shove Mayari's clones deal), the blot drops on the
+# screen and the mercy seconds start, so the next swing cannot charge the same
+# hit twice.
 func _on_duelist_attack_landed() -> void:
 	if _phase != Phase.PLAYING or player.locked:
 		return
