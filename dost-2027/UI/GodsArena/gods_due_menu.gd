@@ -1,7 +1,8 @@
 extends Control
 
 # "God's Due" menu - press F in the arena to spend a voucher on one of the
-# hosting god's favors, then press 1 / 2 / 3 to pick which one.
+# hosting god's favors, then press 1 / 2 / 3 - or simply CLICK one of the rows -
+# to pick which one.
 # If a god intervenes between trials you get a free grant instead of a voucher.
 
 signal favor_chosen(favor: GodFavor, free_grants_left: int)
@@ -61,9 +62,9 @@ func _rebuild() -> void:
 	if mortal != null:
 		due = mortal.due
 	if _free_grants > 0:
-		due_label.text = "A GOD INTERVENES - ONE FAVOR IS FREE"
+		due_label.text = "A GOD INTERVENES - ONE FAVOR IS FREE  -  CLICK ONE (OR PRESS 1/2/3)"
 	else:
-		due_label.text = "GOD'S DUE VOUCHERS: %d" % due
+		due_label.text = "GOD'S DUE VOUCHERS: %d  -  CLICK ONE (OR PRESS 1/2/3)" % due
 
 	# Every opening rolls a fresh set. E/Q candidates stay eligible because
 	# selecting one replaces the currently owned skill in that slot.
@@ -166,7 +167,43 @@ func _make_row(number: int, favor: GodFavor, due: int) -> PanelContainer:
 	box.add_child(cost)
 	margin.add_child(box)
 	panel.add_child(margin)
+	# The row is tappable: the panel takes the mouse (its contents stay
+	# see-through) and answers it the way its number key does. The border
+	# brightens under the mouse, so it reads as something you can press.
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	for child in [margin, box, head_row, icon, head, desc, cost]:
+		child.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.gui_input.connect(_on_row_input.bind(number - 1))
+	panel.mouse_entered.connect(_on_row_hover.bind(panel, style, style.border_color))
+	panel.mouse_exited.connect(_on_row_unhover.bind(panel, style, style.border_color))
 	return panel
+
+
+# A click on a row claims the favor it shows, exactly like its number key.
+func _on_row_input(index: int, event: InputEvent) -> void:
+	if not visible:
+		return
+	if not (event is InputEventMouseButton):
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+		return
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.set_input_as_handled()
+	_choose(index)
+
+
+# Hover affordance: the row's border brightens while the mouse is on it. The
+# base colour is carried in, so a row that is hovered over and over keeps the
+# exact colour it was drawn with.
+func _on_row_hover(panel: PanelContainer, style: StyleBoxFlat, base: Color) -> void:
+	style.border_color = base.lightened(0.4)
+	panel.queue_redraw()
+
+
+func _on_row_unhover(panel: PanelContainer, style: StyleBoxFlat, base: Color) -> void:
+	style.border_color = base
+	panel.queue_redraw()
 
 
 func _choose(index: int) -> void:

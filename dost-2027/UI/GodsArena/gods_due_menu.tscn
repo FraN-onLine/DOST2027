@@ -100,6 +100,6 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.6, 0.65, 0.75, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 10
-text = "1 / 2 / 3  CHOOSE          F  CLOSE"
+text = "CLICK A ROW / 1 / 2 / 3  CHOOSE          F  CLOSE"
 horizontal_alignment = 1
 autowrap_mode = 3

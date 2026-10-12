@@ -309,6 +309,40 @@ func _run() -> void:
 	_arena.lose_favor(50, "shield test", _arena._my_id)
 	_check(_arena.rules.local().favor == shielded_before, "The Unmoving prevents FAVOR loss")
 
+	# --- THE TWO FAVOR PANELS ARE TAPPABLE -------------------------------------
+	# A click on the Q panel is the same as pressing its key: claimed before the
+	# duel's own mouse buttons could read it as an attack. The arena scenes are
+	# authored embedded (the shell owns these panels in a real run), so the stats
+	# panel is put back on screen here to exercise the arena's own bars.
+	_arena.hud.get_node("StatsPanel").visible = true
+	await _frames(2)  # let the panel lay its rows out before any rect is trusted
+	# The panel's own click answer (the GUI path: bar -> HUD -> arena).
+	var tap := InputEventMouseButton.new()
+	tap.button_index = MOUSE_BUTTON_LEFT
+	tap.pressed = true
+	_arena.rules.local().cooldowns.clear()
+	_arena.hud.bar_q.gui_input.emit(tap)
+	_check(_arena.rules.local().cooldown_left(&"the_unmoving") > 0.0,
+		"the Q panel's own click answer fires its favor")
+	# The preemption path: the duel's mouse buttons run before the GUI, so a
+	# click on the panel is claimed there - never read as an attack.
+	_arena._swinging = false
+	_arena.rules.local().cooldowns.clear()
+	var panel_click := InputEventMouseButton.new()
+	panel_click.button_index = MOUSE_BUTTON_LEFT
+	panel_click.pressed = true
+	panel_click.position = _arena.hud.bar_q.get_global_rect().get_center()
+	_check(_arena._tap_panel_click(panel_click), "a click on the Q panel is claimed by the panel")
+	_check(_arena.rules.local().cooldown_left(&"the_unmoving") > 0.0, "the tap fires that favor")
+	_check(not _arena._swinging, "and it is not read as a swing")
+	# A click anywhere else is the duel's business.
+	var world_click := InputEventMouseButton.new()
+	world_click.button_index = MOUSE_BUTTON_LEFT
+	world_click.pressed = true
+	world_click.position = _arena.player.global_position
+	_arena._input(world_click)
+	_check(_arena._swinging, "a click in the world still starts the duel's swing")
+
 	_arena._sun_patches[_arena._my_id] = [1.0]
 	_arena._refresh_sun_patches()
 	var visible_patches := 0

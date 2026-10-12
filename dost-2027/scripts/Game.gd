@@ -232,6 +232,11 @@ func _on_arena_ready() -> void:
 	var arena_hud = arena.get("hud")
 	if arena_hud != null:
 		arena_hud.set_trial(trial_index + 1, trial_order.size())
+	# The shell's two favor bars are the ones on screen in an embedded run, so
+	# they answer a click the way E and Q do - the arena claims the tap before
+	# its world-attack handlers can see the mouse.
+	arena.register_tap_panel(GodFavor.Slot.E, e_bar)
+	arena.register_tap_panel(GodFavor.Slot.Q, q_bar)
 	if not run_snapshot.is_empty():
 		rules.apply_snapshot(run_snapshot)
 	_refresh_local_stats()

@@ -305,6 +305,31 @@ func _run() -> void:
 	print("knockback moved the mortal %.1f px (bounds %s)" % [
 		shoved_from.distance_to(arena.player.global_position), str(arena.player.bounds)])
 
+	# --- the favor panels are tappable, not just keyed --------------------------
+	# The shell's two bars are the ones on screen in an embedded run, so a click
+	# on one of them is the same as pressing its key - and a click anywhere else
+	# stays the world's business.
+	arena.rules.bestow_favor(arena.god.get_favor(&"siblings_compromise"))
+	await _frames(2)
+	var bar_click := InputEventMouseButton.new()
+	bar_click.button_index = MOUSE_BUTTON_LEFT
+	bar_click.pressed = true
+	bar_click.position = _shell.q_bar.get_global_rect().get_center()
+	var claimed: bool = arena._tap_panel_click(bar_click)
+	print("favor panel tap: claimed=%s | Q cooldown left=%.1fs | shell bar rect=%s" % [
+		str(claimed), arena.rules.local().cooldown_left(&"siblings_compromise"),
+		str(_shell.q_bar.get_global_rect())])
+	if not claimed:
+		printerr("trial_check: a click on the shell's Q bar must fire its favor")
+	if arena.rules.local().cooldown_left(&"siblings_compromise") <= 0.0:
+		printerr("trial_check: tapping the bar must put that favor on its cooldown")
+	var world_click := InputEventMouseButton.new()
+	world_click.button_index = MOUSE_BUTTON_LEFT
+	world_click.pressed = true
+	world_click.position = arena.player.global_position
+	if arena._tap_panel_click(world_click):
+		printerr("trial_check: a click in the world must not fire a favor")
+
 	# A gain pops in the light yellow: big changes at once, small ones gathered
 	# over the popup_flush window (a lit zone pays many times a second, so one
 	# popup per credit would be unreadable).

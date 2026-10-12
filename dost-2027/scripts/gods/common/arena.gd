@@ -73,6 +73,13 @@ extends Node2D
 #                            dash_enabled (Langit Lupa); SPACE is also
 #                            advance_dialogue, so it only dashes during play.
 #
+# The two favor panels are tappable as well as keyed: anyone (the arena's own
+# HUD, or the shell's bars in an embedded run) hands them to the arena with
+# register_tap_panel(), and Arena._input answers a click on one of them the way
+# its key would. The click has to be claimed there - before the GUI ever sees
+# it - because the arenas above read their attack from _input, which runs first
+# and would otherwise treat a tap on a panel as an attack on the world.
+#
 # Solo: this scene simulates everything.
 # Multiplayer: the HOST is authoritative and is the only clock. It broadcasts
 # the round - phase, seconds, the arena's own state at 10 Hz and FAVOR snapshots
@@ -272,6 +279,9 @@ func _ready() -> void:
 
 	hud = HUD_SCENE.instantiate()
 	ui_layer.add_child(hud)
+	hud.skill_pressed.connect(_use_skill)
+	register_tap_panel(GodFavor.Slot.E, hud.bar_e)
+	register_tap_panel(GodFavor.Slot.Q, hud.bar_q)
 	if embedded:
 		hud.get_node("StatsPanel").visible = false
 		hud.get_node("TrialPanel").visible = false
@@ -1878,6 +1888,53 @@ func _apply_blindness(delta: float) -> void:
 	var mortal_pos := player.global_position
 	material.set_shader_parameter("center", Vector2(mortal_pos.x / maxf(1.0, view.x), mortal_pos.y / maxf(1.0, view.y)))
 	material.set_shader_parameter("radius", _blind_radius)
+
+
+# --- TAPPABLE FAVOR PANELS ---------------------------------------------------
+# Panels that answer a click the way the slot's key does: the arena's own HUD
+# registers its two bars, and an embedded run's shell registers its own (they
+# are the ones on screen then). One panel per slot; the last registration wins,
+# which is exactly right - the shell's bars replace the HUD's hidden ones.
+
+var _tap_panels: Dictionary = {}   # slot -> Control
+
+
+func register_tap_panel(slot: int, panel: Control) -> void:
+	if panel != null:
+		_tap_panels[slot] = panel
+	else:
+		_tap_panels.erase(slot)
+
+
+func tap_panel(slot: int) -> Control:
+	return _tap_panels.get(slot, null)
+
+
+func _tap_panel_at(slot: int, point: Vector2) -> bool:
+	var panel: Control = tap_panel(slot)
+	return panel != null and is_instance_valid(panel) and panel.is_visible_in_tree() \
+		and panel.get_global_rect().has_point(point)
+
+
+func _tap_panel_click(event: InputEvent) -> bool:
+	# A click on one of the favor panels is the panel's business, never the
+	# world's attack. Every arena's own _input calls this first and stops when
+	# it answers: during play only, exactly like the keyboard path, and the
+	# click is marked handled so nothing downstream reads it either.
+	if not (event is InputEventMouseButton) or not event.pressed:
+		return false
+	if event.button_index != MOUSE_BUTTON_LEFT:
+		return false
+	if _phase != Phase.PLAYING or dialogue.is_active() or due_menu.is_open():
+		return false
+	for slot in _tap_panels.keys():
+		if _tap_panel_at(int(slot), event.position):
+			_use_skill(int(slot))
+			var viewport := get_viewport()
+			if viewport != null:
+				viewport.set_input_as_handled()
+			return true
+	return false
 
 
 func _unhandled_input(event: InputEvent) -> void:

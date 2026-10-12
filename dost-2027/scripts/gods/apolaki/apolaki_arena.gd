@@ -156,6 +156,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# A click on one of the favor panels is the HUD's answer, not a swing.
+	if super._tap_panel_click(event):
+		return
 	# ATTACK / DEFEND are mouse buttons, so they have to be caught before the GUI
 	# consumes them (Mayari and Tala read their attack the same way). Only during
 	# PLAYING: a dialogue, the God's Due menu or the countdown keep the mortal

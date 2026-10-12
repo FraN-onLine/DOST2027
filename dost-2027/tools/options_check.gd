@@ -108,6 +108,22 @@ func _run() -> void:
 	await _frames(2)
 	due._unhandled_input(_key(KEY_2))
 	_check(_picked.size() == 1, "pressing 2 in the God's Due menu picks a favor")
+
+	# --- the same favor, claimed with the mouse ---------------------------------
+	_picked.clear()
+	due.open(Gods.mayari(), rules, 1, true)
+	await _frames(2)
+	var rows_box: VBoxContainer = due.get_node("SidePanel/Margin/VBox/Rows")
+	var first_row: Control = rows_box.get_child(0) as Control
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	if first_row != null:
+		click.position = first_row.get_global_rect().get_center()
+		first_row.gui_input.emit(click)
+	_check(_picked.size() == 1, "clicking a row in the God's Due menu claims its favor")
+	_check(first_row != null and first_row.mouse_filter == Control.MOUSE_FILTER_STOP,
+		"and the rows are tap targets")
 	due.queue_free()
 	_finish(settings)
 
