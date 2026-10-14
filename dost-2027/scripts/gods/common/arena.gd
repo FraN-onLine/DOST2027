@@ -101,6 +101,10 @@ const MORTAL_SCENE := preload("res://scenes/gods/common/Mortal.tscn")
 const POPUP_SCENE := preload("res://UI/Popups/favor_popup.tscn")
 const TEMP_ICON := preload("res://icon.svg")
 
+# The photo of the current god - taken from the god's .tres icon field (each
+# god's .tres carries its own portrait now, so we no longer need a shared icon).
+const GOD_PHOTO := TEMP_ICON
+
 # A FAVOR popup: light yellow when FAVOR arrives, light red when it is taken.
 const POPUP_GAIN_COLOR := Color(1.0, 0.96, 0.62)
 const POPUP_LOSS_COLOR := Color(1.0, 0.55, 0.45)
@@ -457,8 +461,8 @@ func _start_intro() -> void:
 	# run comes back around (or when the shell hands the field over), only the
 	# short "take your place" line is needed - the hand-over itself was already
 	# spoken by the god that just closed.
-	var lines := _speech(god, god.intro_lines) if first_visit else _speech(god, [opening_call()])
-	dialogue.show_lines(lines, TEMP_ICON)
+	var lines := _speech(god, god.intro_lines, god.intro_voices) if first_visit else _speech(god, [opening_call()])
+	dialogue.show_lines(lines, god.portrait if god.portrait != null else god.icon)
 
 
 # The one line a god says when it calls a trial it has already introduced.
@@ -822,11 +826,20 @@ func _flush_favor_popups(delta: float) -> void:
 
 # --- DIALOGUE / RESULTS -----------------------------------------------------
 
-func _speech(speaker: God, lines: Array) -> Array:
+func _speech(speaker: God, lines: Array, voices: Array = []) -> Array:
 	var out: Array = []
-	for line in lines:
-		out.append({"speaker": speaker.display_name, "color": speaker.color, "text": str(line)})
+	for i in lines.size():
+		var entry := {"speaker": speaker.display_name, "color": speaker.color, "text": str(lines[i])}
+		if i < voices.size() and voices[i] is AudioStream:
+			entry["voice"] = voices[i]
+		if speaker.portrait != null:
+			entry["portrait"] = speaker.portrait
+		out.append(entry)
 	return out
+
+
+func _speech_transition(speaker: God, next_id: StringName, next_name: String) -> Array:
+	return _speech(speaker, speaker.transition_to(next_id, next_name), speaker.transition_voices_for(next_id))
 
 
 func _on_dialogue_finished() -> void:
@@ -934,11 +947,14 @@ func _show_closing_lines() -> void:
 		# declares a winner, it just hands the field on.
 		var mine := local_favor()
 		var success := mine >= success_favor
-		lines.append_array(_speech(god, god.success_lines if success else god.failure_lines))
+		if success:
+			lines.append_array(_speech(god, god.success_lines, god.success_voices))
+		else:
+			lines.append_array(_speech(god, god.failure_lines, god.failure_voices))
 	else:
-		lines.append_array(_speech(god, god.trial_end_lines))
+		lines.append_array(_speech(god, god.trial_end_lines, god.trial_end_voices))
 		if god.trial_end_lines.is_empty():
-			lines.append({"speaker": god.display_name, "color": god.color, "text": "The trial is complete. Your Favor carries onward."})
+			lines.append({"speaker": god.display_name, "color": god.color, "text": "The trial is complete. Your Favor carries onward.", "portrait": god.portrait if god.portrait != null else god.icon})
 
 	# The hand-over: what THIS god says about the god that follows it. Every
 	# combination lives in the god's own transition_lines, keyed by the next
@@ -946,8 +962,8 @@ func _show_closing_lines() -> void:
 	var next_god: God = Gods.by_id(next_god_id) if next_god_id != &"" else Gods.next_god(god.id)
 	_free_grants = 0
 	if next_god != null:
-		lines.append_array(_speech(god, god.transition_to(next_god.id, next_god.display_name)))
-	dialogue.show_lines(lines, TEMP_ICON)
+		lines.append_array(_speech_transition(god, next_god.id, next_god.display_name))
+	dialogue.show_lines(lines, god.portrait if god.portrait != null else god.icon)
 
 
 # Kept for the older "a god with no arena introduces itself" path.

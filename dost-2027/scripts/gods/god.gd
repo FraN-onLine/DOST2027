@@ -18,7 +18,30 @@ extends Resource
 @export var implemented: bool = false
 @export var favors: Array[GodFavor] = []
 
-# --- DIALOGUE -----------------------------------------------------------------
+# --- DIALOGUE PORTRAIT + VOICE --------------------------------------------------
+# `portrait` is the big photo shown at the right side of the dialogue box.
+# Each `*_voices` array plays ALONG with the matching `*_lines` entry
+# (index-clamped: line 0 plays voices[0], extras ignored, missing = silent).
+# `transition_voices` mirrors `transition_lines`: next god id -> Array[AudioStream],
+# with "*" as the fallback. All optional - empty means "keep current behaviour".
+@export var portrait: Texture2D
+@export var intro_voices: Array[AudioStream] = []
+@export var trial_end_voices: Array[AudioStream] = []
+@export var success_voices: Array[AudioStream] = []
+@export var failure_voices: Array[AudioStream] = []
+@export var transition_voices: Dictionary = {}  # next god id (String) -> Array[AudioStream]
+
+
+# Voices that go with `transition_to(next_god_id, ...)`: per-god entry first,
+# then the "*" fallback, then empty (silent).
+func transition_voices_for(next_god_id: StringName) -> Array:
+	for key in [str(next_god_id), "*"]:
+		var entry = transition_voices.get(key)
+		if entry is Array and not (entry as Array).is_empty():
+			return entry as Array
+	return []
+
+# --- DIALOGUE LINES -----------------------------------------------------------
 # The run never stops between gods: one god's closing lines hand the field to the
 # next and no winner is declared until Bathala's final trial. So a god carries:
 #

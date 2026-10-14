@@ -180,7 +180,9 @@ func _make_row(number: int, favor: GodFavor, due: int) -> PanelContainer:
 
 
 # A click on a row claims the favor it shows, exactly like its number key.
-func _on_row_input(index: int, event: InputEvent) -> void:
+# `index` arrives as the BOUND argument (see _make_row), so it comes AFTER the
+# event the gui_input signal carries.
+func _on_row_input(event: InputEvent, index: int) -> void:
 	if not visible:
 		return
 	if not (event is InputEventMouseButton):

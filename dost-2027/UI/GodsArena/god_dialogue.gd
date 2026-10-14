@@ -3,37 +3,83 @@ extends Control
 # God dialogue box: the god speaks (name colored with the god's color), you read,
 # press SPACE or click to advance. Used for the intro, the hand-off to the next
 # god and the closing lines after the trial.
+#
+# LAYERING: this scene is instanced into Arena's UILayer (CanvasLayer layer 10)
+# and re-parented into a dedicated DialogueLayer (layer 50) on ready, so the
+# portrait + box sit ABOVE every game UI element (attack bars at layer 11-12,
+# HUD, popups). Dim covers the whole screen; the god's photo docks right;
+# the box sits bottom; the name nub sticks out ABOVE the box like a folder tab.
+#
+# VOICE: each entry may carry "voice" (AudioStream) and "portrait" (Texture2D).
+# "voice" plays alongside that line; "portrait" swaps the side photo for that
+# line only. Both optional - missing means silent / keep current photo.
 
 signal finished()
 
+@onready var dim: ColorRect = $Dim
+@onready var photo: TextureRect = $Photo
+@onready var voice: AudioStreamPlayer = $Voice
+@onready var box: PanelContainer = $Box
+@onready var name_tab: PanelContainer = $NameTab
+@onready var name_label: Label = $NameTab/NameLabel
+@onready var portrait: TextureRect = $Box/Margin/HBox/Portrait
 @onready var speaker_label: Label = $Box/Margin/HBox/VBox/SpeakerLabel
 @onready var line_label: Label = $Box/Margin/HBox/VBox/LineLabel
 @onready var hint_label: Label = $Box/Margin/HBox/VBox/HintLabel
-@onready var portrait: TextureRect = $Box/Margin/HBox/Portrait
 
 var _lines: Array = []
 var _index := 0
 var _active := false
 
-
 func _ready() -> void:
 	visible = false
+	# Overlay over everything: lift out of UILayer (10) into our own layer
+	# above attack bars (11-12) and any arena CanvasLayers.
+	_ensure_top_layer()
+
+
+# Move this Control under a dedicated CanvasLayer (layer 50) when it lives
+# inside a CanvasLayer at a lower level (Arena's UILayer is 10, attack bars
+# are 11-12). Safe to call repeatedly; no-op when already topmost or when
+# there is no CanvasLayer ancestor (unit tests add it straight to the root).
+func _ensure_top_layer() -> void:
+	var on_layer := false
+	var ancestor: Node = get_parent()
+	while ancestor != null:
+		if ancestor is CanvasLayer:
+			on_layer = true
+			if (ancestor as CanvasLayer).layer >= 50 and ancestor.name == &"DialogueLayer":
+				return
+			break
+		ancestor = ancestor.get_parent()
+	if not on_layer:
+		return
+	var host: Node = get_parent()
+	var layer := CanvasLayer.new()
+	layer.name = &"DialogueLayer"
+	layer.layer = 50
+	host.add_child(layer)
+	host.remove_child(self)
+	layer.add_child(self)
 
 
 func is_active() -> bool:
 	return _active
 
 
-# entries: Array of Dictionaries -> {"speaker": String, "color": Color, "text": String}
-func show_lines(entries: Array, portrait_texture: Texture2D = null) -> void:
+# entries: Array of Dictionaries -> {"speaker": String, "color": Color, "text": String,
+#                                    "portrait": Texture2D (opt), "voice": AudioStream (opt)}
+# `fallback_portrait` is the god's Tres portrait (used when an entry has none).
+func show_lines(entries: Array, fallback_portrait: Texture2D = null) -> void:
 	if entries.is_empty():
 		return
 	_lines = entries.duplicate()
 	_index = 0
 	_active = true
 	visible = true
-	if portrait_texture != null:
-		portrait.texture = portrait_texture
+	for entry in _lines:
+		if entry is Dictionary and not entry.has("portrait") and fallback_portrait != null:
+			(entry as Dictionary)["portrait"] = fallback_portrait
 	_render()
 
 
@@ -44,8 +90,30 @@ func _render() -> void:
 	var entry: Dictionary = _lines[_index]
 	speaker_label.text = str(entry.get("speaker", ""))
 	speaker_label.add_theme_color_override("font_color", entry.get("color", Color.WHITE))
+	name_label.text = str(entry.get("speaker", ""))
+	name_label.add_theme_color_override("font_color", entry.get("color", Color.WHITE))
 	line_label.text = str(entry.get("text", ""))
 	hint_label.text = "SPACE  CLOSE" if _index == _lines.size() - 1 else "SPACE  NEXT"
+	var tex = entry.get("portrait", null)
+	if tex is Texture2D:
+		portrait.texture = tex
+		photo.texture = tex
+		photo.visible = true
+		portrait.visible = true
+	else:
+		photo.visible = photo.texture != null
+		portrait.visible = portrait.texture != null
+	_play_voice(entry.get("voice", null))
+
+
+# One voice line at a time: stop the previous line before starting the next so
+# overlapping advances never stack audio. Null / missing = silent advance.
+func _play_voice(stream) -> void:
+	if voice.playing:
+		voice.stop()
+	if stream is AudioStream:
+		voice.stream = stream
+		voice.play()
 
 
 func advance() -> void:
@@ -67,6 +135,8 @@ func close_now() -> void:
 func _close() -> void:
 	_active = false
 	visible = false
+	if voice.playing:
+		voice.stop()
 	finished.emit()
 
 

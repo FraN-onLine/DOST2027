@@ -1,0 +1,152 @@
+[gd_scene format=3 uid="uid://d5bathalaagawan01"]
+
+[ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/gods/bathala/bathala_arena.gd" id="2_arena"]
+[ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
+[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="4_font"]
+
+[node name="BathalaArena" instance=ExtResource("1_base")]
+script = ExtResource("2_arena")
+god_id = &"bathala"
+embedded = true
+dialogue_prefix = "bathala"
+freeze_time = 5.0
+tag_radius = 34.0
+attack_cooldown = 0.6
+base_radius = 46.0
+tag_god_favor = 50
+unfreeze_favor = 100
+capture_favor = 350
+tagged_favor = 100
+base_lost_favor = 500
+
+[node name="Background" parent="." index="0"]
+modulate = Color(0.55, 0.55, 0.6, 1)
+position = Vector2(654.75, 274)
+scale = Vector2(6.5475, 4.87)
+texture = ExtResource("3_bg")
+
+[node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0"]
+points = PackedVector2Array(262, 96, 1130, 96, 1130, 584, 262, 584, 262, 96)
+width = 4.0
+default_color = Color(0.78, 0.78, 0.82, 0.8)
+
+[node name="SectionLeft" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1"]
+points = PackedVector2Array(560, 96, 560, 584)
+width = 2.0
+default_color = Color(0.78, 0.78, 0.82, 0.35)
+
+[node name="SectionRight" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2"]
+points = PackedVector2Array(900, 96, 900, 584)
+width = 2.0
+default_color = Color(0.78, 0.78, 0.82, 0.35)
+
+[node name="Bases" type="Node2D" parent="."]
+z_index = 1
+
+[node name="Mine" type="Node2D" parent="Bases"]
+position = Vector2(360, 340)
+
+[node name="Fill" type="ColorRect" parent="Bases/Mine"]
+offset_left = -46.0
+offset_top = -46.0
+offset_right = 46.0
+offset_bottom = 46.0
+mouse_filter = 2
+color = Color(0.7, 1, 0.8, 0.18)
+
+[node name="Ring" type="Line2D" parent="Bases/Mine"]
+points = PackedVector2Array(46, 0, 44.44, 11.79, 40.5, 22.74, 34.55, 32.27, 27.28, 39.55, 18.42, 44.44, 8.42, 46.79, 0, 47, -8.42, 46.79, -18.42, 44.44, -27.28, 39.55, -34.55, 32.27, -40.5, 22.74, -44.44, 11.79, -46, 0, -44.44, -11.79, -40.5, -22.74, -34.55, -32.27, -27.28, -39.55, -18.42, -44.44, -8.42, -46.79, 0, -47, 8.42, -46.79, 18.42, -44.44, 27.28, -39.55, 34.55, -32.27, 40.5, -22.74, 44.44, -11.79, 46, 0)
+width = 3.0
+default_color = Color(0.7, 1, 0.8, 0.85)
+
+[node name="Name" type="Label" parent="Bases/Mine"]
+offset_left = -60.0
+offset_top = 6.0
+offset_right = 60.0
+offset_bottom = 26.0
+theme_override_colors/font_color = Color(0.7, 1, 0.8, 0.9)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 10
+text = "YOUR BASE"
+horizontal_alignment = 1
+
+[node name="Bathala" type="Node2D" parent="Bases"]
+position = Vector2(1040, 340)
+
+[node name="Fill" type="ColorRect" parent="Bases/Bathala"]
+offset_left = -46.0
+offset_top = -46.0
+offset_right = 46.0
+offset_bottom = 46.0
+mouse_filter = 2
+color = Color(0.78, 0.78, 0.82, 0.2)
+
+[node name="Ring" type="Line2D" parent="Bases/Bathala"]
+points = PackedVector2Array(46, 0, 44.44, 11.79, 40.5, 22.74, 34.55, 32.27, 27.28, 39.55, 18.42, 44.44, 8.42, 46.79, 0, 47, -8.42, 46.79, -18.42, 44.44, -27.28, 39.55, -34.55, 32.27, -40.5, 22.74, -44.44, 11.79, -46, 0, -44.44, -11.79, -40.5, -22.74, -34.55, -32.27, -27.28, -39.55, -18.42, -44.44, -8.42, -46.79, 0, -47, 8.42, -46.79, 18.42, -44.44, 27.28, -39.55, 34.55, -32.27, 40.5, -22.74, 44.44, -11.79, 46, 0)
+width = 3.0
+default_color = Color(0.95, 0.95, 1, 0.9)
+
+[node name="Name" type="Label" parent="Bases/Bathala"]
+offset_left = -70.0
+offset_top = 6.0
+offset_right = 70.0
+offset_bottom = 26.0
+theme_override_colors/font_color = Color(1, 0.95, 0.78, 0.95)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 10
+text = "BATHALA'S BASE"
+horizontal_alignment = 1
+
+[node name="Gods" type="Node2D" parent="."]
+z_index = 3
+
+[node name="Player" parent="."]
+position = Vector2(360, 470)
+
+[node name="AgawanHud" type="CanvasLayer" parent="."]
+layer = 12
+
+[node name="Status" type="Label" parent="AgawanHud"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 242.0
+offset_top = -52.0
+offset_right = 942.0
+offset_bottom = -28.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.78, 0.78, 0.82, 1)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 13
+text = "ON THE FIELD     ATTACK READY     ROUND 1"
+
+[node name="Hint" type="Label" parent="AgawanHud"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 242.0
+offset_top = -27.0
+offset_right = 942.0
+offset_bottom = -3.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 0.85)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 10
+text = "CLICK - ATTACK"
+
+[node name="Callout" type="Label" parent="AgawanHud"]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 120.0
+offset_right = 200.0
+offset_bottom = 150.0
+grow_horizontal = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1

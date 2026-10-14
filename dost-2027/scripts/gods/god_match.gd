@@ -54,6 +54,12 @@ class Mortal:
 	var rain_lost: int = 0             # Unang Ulan: FAVOR lost while the rain falls
 	var regrowths: Array = []          # [seconds left, amount] waiting to grow back
 	var granary: int = 0               # Kamalig: FAVOR stored, out of the total
+	# Bathala's sacrifices (see the BATHALA'S FAVORS section below):
+	var mayari_curse: float = 0.0      # Mayari's blindness promised on the field (s)
+	var apolaki_curse: float = 0.0     # Apolaki's Sun Patches promised (s)
+	var apolaki_patches: int = 0       # how many Sun Patches that promise carries
+	var batman_shield: bool = false    # Si Batman: nothing can take FAVOR until the game ends
+	var bathala_regrowth: Array = []   # [seconds left, per_second, remaining] slow returns
 
 	func favor_by_id(favor_id: StringName) -> GodFavor:
 		for favor in favors:
@@ -187,6 +193,10 @@ func lose_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 	var m := _resolve(player_id)
 	if m == null or amount <= 0:
 		return 0
+	# Si Batman: once the shield is up, nothing takes this mortal's FAVOR away.
+	if m.batman_shield:
+		notice.emit("%s cannot lose FAVOR (Si Batman)" % m.display_name)
+		return 0
 	var lost := int(round(float(amount) * loss_multiplier(m)))
 	if lost <= 0:
 		notice.emit("FAVOR shielded - nothing lost")
@@ -318,6 +328,39 @@ func _fire_instant_effect(holder: Mortal, favor: GodFavor) -> void:
 			var partner := mortal(holder.kabiyak)
 			if partner != null:
 				favor_fired.emit(holder.id, favor, "Kabiyak - %s is paired with %s" % [holder.display_name, partner.display_name])
+		&"our_partnership_ends_mayari":
+			var cost := int(favor.param("cost", 500.0))
+			var lost := lose_favor(cost, favor.display_name, holder.id)
+			# Mayari's blindness is a screen effect: the arena fires it (see
+			# _apply_skill_effect), so here we only mark it and pay the cost.
+			holder.mayari_curse = maxf(holder.mayari_curse, favor.param("blind_duration", 10.0))
+			favor_fired.emit(holder.id, favor, "Our Partnership Ends Here - %s pays %d FAVOR, Mayari blinds the field" % [holder.display_name, lost])
+		&"our_partnership_ends_apolaki":
+			var cost := int(favor.param("cost", 500.0))
+			var lost := lose_favor(cost, favor.display_name, holder.id)
+			# Apolaki's Sun Patches are a screen effect the arena fires; the match
+			# only pays the cost and records how many patches were promised.
+			holder.apolaki_curse = maxf(holder.apolaki_curse, favor.param("sun_duration", 10.0))
+			holder.apolaki_patches = int(favor.param("sun_count", 4))
+			favor_fired.emit(holder.id, favor, "Our Partnership Ends Here - %s pays %d FAVOR, Apolaki sears the field" % [holder.display_name, lost])
+		&"bathala_na":
+			var per := int(favor.param("per_due", 350.0))
+			var spent := holder.due
+			if spent > 0:
+				holder.due = 0
+				due_changed.emit(holder.id, holder.due)
+				# Paid through _apply, not add_favor: it is the DUE being poured out,
+				# not a favour being multiplied by Full Moon and friends.
+				_apply(holder, per * spent, favor.display_name)
+			favor_fired.emit(holder.id, favor, "Bathala Na - %s pours out %d God's Due for %d FAVOR" % [holder.display_name, spent, per * spent])
+		&"si_batman":
+			var cost := int(favor.param("cost", 1500.0))
+			# The one cost is paid straight to the total (it must land even though
+			# the shield is about to go up), then nothing can take this mortal's
+			# FAVOR away again until the game ends - lose_favor checks the shield.
+			_apply(holder, -mini(cost, holder.favor), favor.display_name)
+			holder.batman_shield = true
+			favor_fired.emit(holder.id, favor, "Si Batman - %s pays %d FAVOR and cannot lose FAVOR until the game ends" % [holder.display_name, cost])
 
 
 # The mortal with the most FAVOR other than `excluded_id` (ties: random).
@@ -331,6 +374,67 @@ func _highest_other(excluded_id: int) -> Mortal:
 		elif m.favor == best[0].favor:
 			best.append(m)
 	return null if best.is_empty() else best[randi() % best.size()]
+
+
+# --- BATHALA'S FAVORS (the sacrifices) ----------------------------------------
+# Half Vision (E): cut the leading opponent's FAVOR in half. The amount actually
+# taken is queued to grow back over `regrow_time` seconds at `regrow` of it (the
+# note "delete and recover 20% per second" - 80% of the half over 4s). Returns the
+# target's id, or -1 when nobody else is playing.
+func cast_half_vision(caster_id: int, favor: GodFavor) -> int:
+	var target := _highest_other(caster_id)
+	if target == null:
+		return -1
+	var half := int(round(float(target.favor) * favor.param("halve", 0.5)))
+	var lost := lose_favor(half, favor.display_name, target.id)
+	var back := int(round(float(lost) * favor.param("regrow", 0.8)))
+	if back > 0:
+		_queue_regrowth(target, back, favor.param("regrow_time", 4.0))
+	return target.id
+
+
+# Sibling's Compromise (Q): cut your OWN FAVOR in half, then grow 120% of the
+# amount back over `regrow_time` seconds - a net gain if you can survive it.
+func cast_siblings_compromise(player_id: int, favor: GodFavor) -> int:
+	var m := _resolve(player_id)
+	if m == null:
+		return 0
+	var half := int(round(float(m.favor) * favor.param("halve", 0.5)))
+	var lost := lose_favor(half, favor.display_name, m.id)
+	var back := int(round(float(lost) * favor.param("regrow", 1.2)))
+	if back > 0:
+		_queue_regrowth(m, back, favor.param("regrow_time", 6.0))
+	return lost
+
+
+# Queue `amount` FAVOR to grow back onto `m` smoothly over `seconds` (a little
+# each second, so it reads as a slow return rather than a lump). Paid through
+# _apply so no gain multiplier inflates it a second time.
+func _queue_regrowth(m: Mortal, amount: int, seconds: float) -> void:
+	if amount <= 0 or seconds <= 0.0:
+		return
+	var per_second := float(amount) / seconds
+	m.bathala_regrowth.append([seconds, per_second, float(amount)])
+
+
+# The slow returns tick a little each second: "recover 20% per second" reads as a
+# steady drip back, not a lump. Runs on the host; clients mirror through snapshots.
+func _tick_bathala_regrowth(m: Mortal, delta: float) -> void:
+	if m.bathala_regrowth.is_empty():
+		return
+	var alive: Array = []
+	for entry in m.bathala_regrowth:
+		var left := float(entry[0]) - delta
+		var per_second := float(entry[1])
+		var remaining := float(entry[2]) - per_second * delta
+		var grew := int(per_second * delta)
+		if grew > 0:
+			_apply(m, grew, "Bathala's sacrifice")
+		if left > 0.0 and remaining > 0.5:
+			alive.append([left, per_second, maxf(0.0, remaining)])
+	m.bathala_regrowth = alive
+
+
 
 
 # Host, at the start of every trial: First Light pays the mortals in last place.
@@ -603,7 +707,8 @@ func snapshot() -> Dictionary:
 			"binhi": m.binhi_trials,
 			"kabiyak": m.kabiyak,
 			"granary": m.granary,
-		}
+			"batman": m.batman_shield,
+			}
 	return out
 
 
@@ -623,6 +728,7 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.claimed_milestones = entry.get("claimed", {}).duplicate()
 		m.binhi_trials = int(entry.get("binhi", m.binhi_trials))
 		m.kabiyak = int(entry.get("kabiyak", m.kabiyak))
+		m.batman_shield = bool(entry.get("batman", m.batman_shield))
 		var previous_granary := m.granary
 		m.granary = int(entry.get("granary", m.granary))
 		var owned: Array[GodFavor] = []
@@ -743,6 +849,7 @@ func _tick_mortal(m: Mortal, delta: float) -> void:
 	for favor_id in m.durations.keys():
 		m.durations[favor_id] = maxf(0.0, float(m.durations[favor_id]) - delta)
 	_tick_harvest(m, delta)
+	_tick_bathala_regrowth(m, delta)
 
 
 func _simulate_rivals(delta: float) -> void:
