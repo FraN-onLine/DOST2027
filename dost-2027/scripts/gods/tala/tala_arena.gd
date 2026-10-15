@@ -11,9 +11,25 @@ extends Arena
 @export var tala_max_y := 565.0
 @export var can_repair_time := 3.0
 @export var can_favor := 300
+# FAVOR lost two ways: when Tala catches your slipper, and when YOU walk into
+# her - running into the guard costs the same as her grabbing your footwear.
 @export var tala_penalty := 100
 
-@onready var tala: Sprite2D = get_node_or_null("ArenaField/Tala")
+# THE GUARD WHO CUTS YOU OFF. Every so often she hurries along her OWN route to
+# meet a slipper in the air: seek_chance is rolled when a slipper is thrown, and
+# she walks to the spot of her beat nearest where its path would reach her,
+# standing there until it is caught, lands, or seek_time runs out. She never
+# leaves the TalaPath - she anticipates the throw from it. One intercept at a
+# time, with a cooldown, so she cannot cut off every slipper that flies.
+@export var seek_chance := 0.45   # how often a throw makes her hurry to cut it off
+@export var seek_speed := 260.0   # how fast she hurries along her route
+@export var seek_time := 1.4      # seconds one intercept lasts at most
+@export var seek_cooldown := 1.6  # seconds between two intercepts
+
+# Node2D, not Sprite2D: the scene may draw her as a plain Sprite2D or as an
+# AnimatedSprite2D (she is animated as of the Tala-Sheet art) - the rules only
+# ever read and write where she stands.
+@onready var tala: Node2D = get_node_or_null("ArenaField/Tala")
 @onready var tala_path: Line2D = get_node_or_null("ArenaField/TalaPath")
 @onready var cans_root: Node2D = get_node_or_null("ArenaField/Cans")
 @onready var barrier: Line2D = get_node_or_null("ArenaField/Barrier")
@@ -35,10 +51,21 @@ var _local_mode := "ready"
 var _tala_knots := PackedVector2Array()  # the path's points, in world space
 var _tala_length := 0.0                  # how long that route is
 var _tala_distance := 0.0                # how far along it Tala stands
+var _rng := RandomNumberGenerator.new()
+var _seeking := false       # she has hurried along her route to cut a slipper off
+var _seek_owner := -1       # whose slipper she is cutting off
+var _seek_point := Vector2.INF  # where that slipper's path would reach her
+var _seek_distance := 0.0   # the spot of her route this intercept walks to
+var _seek_time := 0.0       # seconds left on this intercept
+var _seek_cd := 0.0         # seconds before she may intercept again
+# The host's word on where she stands while intercepting (the route knows
+# nothing about it); Vector2.INF whenever she is simply walking her beat.
+var _tala_seek := Vector2.INF
 
 
 func _ready() -> void:
 	super._ready()
+	_rng.randomize()
 	for id in rules.mortals.keys():
 		_modes.get_or_add(int(id), "ready")
 	_update_local_bounds()
@@ -96,7 +123,14 @@ func _point_on_tala_path(distance: float) -> Vector2:
 
 
 func _place_tala() -> void:
-	if tala == null or _tala_knots.size() < 2:
+	if tala == null:
+		return
+	# While she is cutting a slipper off, the host's word is where she stands -
+	# the route says nothing about an intercept.
+	if _tala_seek != Vector2.INF:
+		tala.global_position = _tala_seek
+		return
+	if _tala_knots.size() < 2:
 		return
 	# global_position, not `position = to_local(...)`: the sprite's own offset
 	# would feed back into the conversion and walk her off the screen.
@@ -106,9 +140,11 @@ func _place_tala() -> void:
 func arena_rules_tick(delta: float) -> void:
 	if not _authority:
 		return
+	_seek_cd = maxf(0.0, _seek_cd - delta)
 	_move_tala(delta)
 	_move_slippers(delta)
 	_check_pickups()
+	_check_tala_touch()
 	_repair_cans(delta)
 
 
@@ -118,6 +154,12 @@ func arena_round_reset() -> void:
 	_can_repair.clear()
 	_tala_dir = 1.0
 	_tala_distance = 0.0
+	_seeking = false
+	_seek_owner = -1
+	_seek_point = Vector2.INF
+	_seek_time = 0.0
+	_seek_cd = 0.0
+	_tala_seek = Vector2.INF
 	if tala != null and _tala_knots.size() < 2:
 		tala.position.y = (tala_min_y + tala_max_y) * 0.5
 	_place_tala()
@@ -141,6 +183,9 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# A click on one of the favor panels is the HUD's answer, not a throw.
+	if super._tap_panel_click(event):
+		return
 	if not (event is InputEventMouseButton) or not event.pressed or event.button_index != MOUSE_BUTTON_LEFT:
 		return
 	if _phase != Phase.PLAYING or player.locked or dialogue.is_active() or due_menu.is_open():
@@ -193,10 +238,14 @@ func _start_throw(mortal_id: int, direction: Vector2, start_position := Vector2.
 	}
 	if mortal_id == _my_id:
 		_local_mode = "flying"
+	_maybe_seek(mortal_id)
 
 
 func _move_tala(delta: float) -> void:
 	if tala == null:
+		return
+	if _seeking:
+		_tick_seek(delta)
 		return
 	# With a route drawn for her she walks that route, turning round at both of
 	# its ends. Without one (an arena that has no TalaPath) she still paces the
@@ -218,6 +267,125 @@ func _move_tala(delta: float) -> void:
 	elif tala.position.y <= tala_min_y:
 		tala.position.y = tala_min_y
 		_tala_dir = 1.0
+
+
+# --- THE GUARD WHO CUTS YOU OFF ----------------------------------------------
+# Every so often she hurries along her own route to meet a slipper in the air.
+# The host rolls seek_chance the moment the slipper is thrown; she then walks to
+# the spot of her beat nearest where its path would reach her and plants herself
+# there - she never steps off the TalaPath, she anticipates the throw from it.
+# The catch itself is the one that already existed (_move_slippers): she has
+# simply put her beat in the slipper's way. One intercept at a time, with a
+# cooldown, and she carries on along the route from wherever that left her.
+
+func _maybe_seek(mortal_id: int) -> void:
+	if _seeking or _seek_cd > 0.0 or tala == null:
+		return
+	if str(_slippers.get(mortal_id, {}).get("state", "")) != "flying":
+		return
+	if _rng.randf() >= seek_chance:
+		return
+	_seeking = true
+	_seek_owner = mortal_id
+	_seek_time = seek_time
+	_seek_point = _intercept_point(_slippers[mortal_id])
+	_seek_distance = _nearest_route_distance(_seek_point)
+	if mortal_id == _my_id:
+		_log("Tala moves to cut off your slipper!", Color(1.0, 0.65, 0.45))
+
+
+# One frame of an intercept: keep re-aiming at where the slipper would be when
+# she could reach it, walk to the spot of her OWN route nearest that point, and
+# plant herself there - the path is blocked either way. The seek ends the moment
+# that slipper stops flying or the clock runs out.
+func _tick_seek(delta: float) -> void:
+	_seek_time -= delta
+	var slipper: Dictionary = _slippers.get(_seek_owner, {})
+	if str(slipper.get("state", "")) != "flying" or _seek_time <= 0.0:
+		_end_seek()
+		return
+	_seek_point = _intercept_point(slipper)
+	if _tala_knots.size() < 2:
+		_walk_seek_direct(delta)  # no route drawn: there is no beat to stay on
+		return
+	_seek_distance = _nearest_route_distance(_seek_point)
+	_walk_route_toward(_seek_distance, seek_speed, delta)
+
+
+# The intercept with no route to walk: head straight for the meeting point.
+func _walk_seek_direct(delta: float) -> void:
+	var toward := _seek_point - tala.global_position
+	if toward.length() > 3.0:
+		tala.global_position += toward.normalized() * maxf(1.0, seek_speed) * delta
+
+
+# One step along her own route towards `wanted` (a distance along it), hurrying
+# at `speed` and turning to face the way she walks - the same walk the patrol
+# does, only faster, so an intercept never steps off the path.
+func _walk_route_toward(wanted: float, speed: float, delta: float) -> void:
+	var gap := clampf(wanted, 0.0, _tala_length) - _tala_distance
+	if absf(gap) < 3.0:
+		return  # planted: her beat is in the slipper's way from here
+	var step := maxf(1.0, speed) * delta
+	_tala_dir = 1.0 if gap > 0.0 else -1.0
+	_tala_distance = clampf(_tala_distance + step * _tala_dir, 0.0, _tala_length)
+	_place_tala()
+
+
+# The point of her route nearest to `point`, as a distance along it.
+func _nearest_route_distance(point: Vector2) -> float:
+	if _tala_knots.size() < 2:
+		return _tala_distance
+	var travelled := 0.0
+	var best_distance := _tala_distance
+	var best_gap := INF
+	for index in range(1, _tala_knots.size()):
+		var from := _tala_knots[index - 1]
+		var segment := _tala_knots[index] - from
+		var length_squared := segment.length_squared()
+		var length := sqrt(length_squared)
+		var along := 0.0 if length_squared <= 0.0001 else clampf((point - from).dot(segment) / length_squared, 0.0, 1.0)
+		var gap := point.distance_to(from + segment * along)
+		if gap < best_gap:
+			best_gap = gap
+			best_distance = travelled + length * along
+		travelled += length
+	return clampf(best_distance, 0.0, _tala_length)
+
+
+# Where the slipper will be when she could be standing there. It flies at
+# throw_speed along a straight line and she walks at seek_speed, so this solves
+# |slipper + velocity * wait - tala| = seek_speed * wait for the first moment
+# she can plant herself on its path. When no such moment exists (she cannot get
+# there in time) she aims straight at the slipper instead - walking at it is
+# still walking into its direction.
+func _intercept_point(slipper: Dictionary) -> Vector2:
+	var position: Vector2 = slipper.get("position", tala.global_position)
+	var velocity: Vector2 = slipper.get("direction", Vector2.ZERO) * throw_speed
+	var offset := position - tala.global_position
+	var a := velocity.length_squared() - seek_speed * seek_speed
+	var b := 2.0 * velocity.dot(offset)
+	var c := offset.length_squared()
+	var wait := 0.0
+	if absf(a) > 0.001:
+		var discriminant := b * b - 4.0 * a * c
+		if discriminant >= 0.0:
+			var root := sqrt(discriminant)
+			var first := (-b - root) / (2.0 * a)
+			var second := (-b + root) / (2.0 * a)
+			wait = first if first > 0.0 else (second if second > 0.0 else 0.0)
+	return position + velocity * wait
+
+
+func _end_seek() -> void:
+	if not _seeking:
+		return
+	_seeking = false
+	_seek_owner = -1
+	_seek_point = Vector2.INF
+	_seek_cd = seek_cooldown
+	# She never left the route, so `_tala_distance` already says where she
+	# stands: the patrol simply carries on from there.
 
 
 func _move_slippers(delta: float) -> void:
@@ -309,6 +477,35 @@ func _check_pickups() -> void:
 				_local_mode = "ready"
 
 
+# TALA HERSELF: walking into her is no different from her catching your slipper -
+# it costs tala_penalty FAVOR and shoves the mortal back the same way a Mayari
+# clone does (MayariArena._on_clone_hit is the model). The host runs it
+# (arena_rules_tick), the mercy seconds keep her from charging the same mortal
+# twice in a row, and the shove reaches whichever screen simulates that mortal
+# (knock_mortal splits the local / remote case).
+func _check_tala_touch() -> void:
+	if tala == null:
+		return
+	for entry in mortal_entries():
+		var mortal_id := int(entry["id"])
+		if is_mortal_invulnerable(mortal_id):
+			continue
+		var position: Vector2 = entry["pos"]
+		if position.distance_to(tala.global_position) > tala_radius + player.radius:
+			continue
+		set_mortal_invuln(mortal_id, invuln_time)
+		var lost := lose_favor(tala_penalty, "walking into Tala", mortal_id)
+		knock_mortal(mortal_id, tala.global_position)
+		if mortal_id != _my_id:
+			if lost > 0:
+				_log("%s ran into Tala  (-%d FAVOR)" % [mortal_label(mortal_id), lost], Color(1, 0.6, 0.5))
+			continue
+		if lost > 0:
+			_log("You ran into Tala  (-%d FAVOR)" % lost, Color(1, 0.5, 0.45))
+		else:
+			_log("Tala caught you but your favor held", god.color)
+
+
 func _repair_cans(delta: float) -> void:
 	for index in _can_repair.keys():
 		var left := maxf(0.0, float(_can_repair[index]) - delta)
@@ -360,6 +557,9 @@ func arena_tick_fields() -> Dictionary:
 		"tala_y": tala.global_position.y if tala != null else 0.0,
 		"tala_distance": _tala_distance,
 		"tala_direction": _tala_dir,
+		# Where she stands while cutting a slipper off - the route alone cannot
+		# say it, so every screen walks her to the very spot the host chose.
+		"tala_seek": tala.global_position if _seeking else Vector2.INF,
 		"slippers": _slippers.duplicate(true),
 		"modes": _modes.duplicate(true),
 		"can_repairs": can_repairs,
@@ -368,7 +568,9 @@ func arena_tick_fields() -> Dictionary:
 
 func arena_read_tick(state: Dictionary) -> void:
 	# Tala is placed by how far along her route the host says she is, so every
-	# screen walks the very path the designer drew.
+	# screen walks the very path the designer drew - unless she is cutting a
+	# slipper off, where the host's own word puts her instead.
+	_tala_seek = state.get("tala_seek", Vector2.INF)
 	_tala_dir = float(state.get("tala_direction", _tala_dir))
 	if state.has("tala_distance"):
 		_tala_distance = clampf(float(state.get("tala_distance", _tala_distance)), 0.0, _tala_length)

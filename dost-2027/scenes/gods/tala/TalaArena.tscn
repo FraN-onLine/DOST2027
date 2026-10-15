@@ -3,10 +3,39 @@
 [ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://cknynasdvc8bu" path="res://scripts/gods/tala/tala_arena.gd" id="2_tala"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
-[ext_resource type="Texture2D" uid="uid://dkonkmxjrraxg" path="res://Assets/Gods/Tala/Tala-Guard.png" id="4_guard"]
+[ext_resource type="Texture2D" uid="uid://dqltvlxohlij3" path="res://Assets/Gods/Tala/Tala-Sheet.png" id="5_28pec"]
 [ext_resource type="Texture2D" uid="uid://beidyhoq1ofro" path="res://Assets/Gods/Tala/Cans.png" id="5_cans"]
 [ext_resource type="Texture2D" uid="uid://du3e4xxsj2xtm" path="res://Assets/Gods/Tala/Tala-Overseer.png" id="6_28pec"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="6_font"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kthyc"]
+atlas = ExtResource("5_28pec")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sff6p"]
+atlas = ExtResource("5_28pec")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rl0e3"]
+atlas = ExtResource("5_28pec")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_yf5fn"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kthyc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sff6p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rl0e3")
+}],
+"loop": 2,
+"name": &"default",
+"speed": 5.0
+}]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8urks"]
 atlas = ExtResource("6_28pec")
@@ -109,10 +138,12 @@ position = Vector2(985, 505)
 scale = Vector2(0.9, 0.9)
 texture = ExtResource("5_cans")
 
-[node name="Tala" type="Sprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="6" unique_id=280902070]
-position = Vector2(835, 425)
-scale = Vector2(0.72, 0.72)
-texture = ExtResource("4_guard")
+[node name="Tala" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="6" unique_id=1560858802]
+position = Vector2(835.99994, 426)
+scale = Vector2(1.404091, 1.4874569)
+sprite_frames = SubResource("SpriteFrames_yf5fn")
+autoplay = "default"
+frame_progress = 0.38359016
 
 [node name="OverSeerGod" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="7" unique_id=287992503]
 position = Vector2(983.99994, 185)

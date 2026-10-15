@@ -176,7 +176,7 @@ func _start_current_trial() -> void:
 	var god := trial_order[trial_index]
 
 	# Every god of the trial order ships its own arena scene (res://scenes/gods/
-	# <god>/). Bathala has none yet, so it stays the marker that closes the run.
+	# <god>/); one that does not (or is not implemented) closes the run instead.
 	if not god.implemented or god.arena_scene == "":
 		_show_finale()
 		return
@@ -232,6 +232,11 @@ func _on_arena_ready() -> void:
 	var arena_hud = arena.get("hud")
 	if arena_hud != null:
 		arena_hud.set_trial(trial_index + 1, trial_order.size())
+	# The shell's two favor bars are the ones on screen in an embedded run, so
+	# they answer a click the way E and Q do - the arena claims the tap before
+	# its world-attack handlers can see the mouse.
+	arena.register_tap_panel(GodFavor.Slot.E, e_bar)
+	arena.register_tap_panel(GodFavor.Slot.Q, q_bar)
 	if not run_snapshot.is_empty():
 		rules.apply_snapshot(run_snapshot)
 	_refresh_local_stats()
@@ -298,6 +303,14 @@ func _on_trial_complete() -> void:
 		run_snapshot = rules.snapshot()
 	trial_index += 1
 	if trial_index >= trial_order.size():
+		# The run is over (Bathala's final trial has just closed): clear the field
+		# and hand it to the scoreboard. The cutscene is still to come - for now it
+		# goes straight to the final judgment.
+		if arena != null and is_instance_valid(arena):
+			arena.queue_free()
+		arena = null
+		rules = null
+		_show_finale()
 		return
 	var next_god: God = trial_order[trial_index]
 	if arena != null and is_instance_valid(arena):

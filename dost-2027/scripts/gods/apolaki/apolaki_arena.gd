@@ -15,16 +15,19 @@ extends Arena
 #   play out (separate_players).
 #
 # THE DUEL - three states each, and every outcome falls out of them
-#   Apolaki is IDLE (he just chases you), ATTACKING, or DEFENDING. The mortal is
-#   IDLE, ATTACKing, or DEFENDING. That is the whole game.
+#   Apolaki is IDLE (he stalks you), ATTACKING, or DEFENDING - and he walks
+#   through all three, so neither his swing nor his guard freezes him in place.
+#   The mortal is IDLE, ATTACKing, or DEFENDING. That is the whole game.
 #   ATTACK (LEFT MOUSE) - the mortal plays its "hit-arnis" clip; the strike lands
 #   on frames strike_hit_open_frame..strike_hit_close_frame of it, once per swing:
 #   hitting him while he is IDLE or ATTACKING pays strike_favor, hitting his
 #   DEFEND costs strike_defend_penalty. Nothing else - all three states covered.
 #   DEFEND (RIGHT MOUSE) - the mortal plays its "defend-arnis" clip.
 #   HIS SWING (ApolakiDuelist.attack_landed) only reaches a mortal standing
-#   inside his area, and only while its frames are live. A mortal who is IDLE or
-#   ATTACKing then loses hit_penalty (shoved back, with a sun patch blotting
+#   inside his area, and only while its frames are live (frames 4..7 of his
+#   clip - the window stays open across all of them, so a swing is only spent
+#   once it truly connects). A mortal who is IDLE or ATTACKing then loses
+#   hit_penalty and is shoved back (knock_mortal), with a sun patch blotting
 #   their own screen for hit_patch_time seconds); one who is DEFENDING gains
 #   block_favor instead.
 #   Both buttons run on their own cooldown, drawn as the two bars on the duel HUD.
@@ -39,10 +42,12 @@ extends Arena
 # script only runs the rules.
 
 @export_category("Arnis")
-@export var strike_favor := 200          # hitting him while he IDLES or ATTACKS
-@export var strike_defend_penalty := 100 # hitting him while he DEFENDS
-@export var block_favor := 100           # a DEFENDING mortal beats his swing
-@export var hit_penalty := 80            # an idle / attacking mortal takes his swing
+# The whole duel economy, halved from its first tuning: the swing pays 100, his
+# guard punishes 50, a block earns 50 and taking his swing costs 40.
+@export var strike_favor := 100          # hitting him while he IDLES or ATTACKS
+@export var strike_defend_penalty := 50  # hitting him while he DEFENDS
+@export var block_favor := 50            # a DEFENDING mortal beats his swing
+@export var hit_penalty := 40            # an idle / attacking mortal takes his swing
 @export var strike_cooldown := 1.0       # seconds between two strikes
 @export var strike_hit_open_frame := 3   # the mortal's swing lands from this frame
 @export var strike_hit_close_frame := 5  # ...through this one (hit-arnis)
@@ -151,6 +156,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# A click on one of the favor panels is the HUD's answer, not a swing.
+	if super._tap_panel_click(event):
+		return
 	# ATTACK / DEFEND are mouse buttons, so they have to be caught before the GUI
 	# consumes them (Mayari and Tala read their attack the same way). Only during
 	# PLAYING: a dialogue, the God's Due menu or the countdown keep the mortal
@@ -250,7 +258,11 @@ func _try_defend() -> void:
 
 # HIS SWING CONNECTED inside his area. The duelist already checked the distance
 # and the frame window, so this only reads what the mortal was doing when it
-# arrived: DEFENDING gains, and being IDLE or mid-swing both pay.
+# arrived: DEFENDING gains, and being IDLE or mid-swing both pay - and BOTH pay
+# in full: the FAVOR is taken, the mortal is shoved away from his stick
+# (knock_mortal - the same shove Mayari's clones deal), the blot drops on the
+# screen and the mercy seconds start, so the next swing cannot charge the same
+# hit twice.
 func _on_duelist_attack_landed() -> void:
 	if _phase != Phase.PLAYING or player.locked:
 		return

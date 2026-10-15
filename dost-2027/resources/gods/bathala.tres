@@ -1,18 +1,122 @@
-[gd_resource type="Resource" script_class="God" format=3 uid="uid://dc4bjuqa45kpv"]
+[gd_resource type="Resource" script_class="God" format=3]
 
-[ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_8h3xf"]
-[ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_1yni8"]
+[ext_resource type="Script" path="res://scripts/gods/god_favor.gd" id="1_favor"]
+[ext_resource type="Script" path="res://scripts/gods/god.gd" id="2_god"]
 [ext_resource type="Texture2D" path="res://icon.svg" id="3_icon"]
 
+[sub_resource type="Resource" id="Favor_partnership_mayari"]
+script = ExtResource("1_favor")
+id = &"our_partnership_ends_mayari"
+god_id = &"bathala"
+display_name = "Our Partnership Ends Here (Mayari)"
+description = "Lose 500 FAVOR now; every opposing mortal is struck by Mayari's blindness for 10s. A favor is about sacrifice."
+kind = 2
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("3_icon")
+params = {
+"blind_duration": 10.0,
+"cost": 500
+}
+
+[sub_resource type="Resource" id="Favor_partnership_apolaki"]
+script = ExtResource("1_favor")
+id = &"our_partnership_ends_apolaki"
+god_id = &"bathala"
+display_name = "Our Partnership Ends Here (Apolaki)"
+description = "Lose 500 FAVOR now; every opposing mortal is seared by 4 Sun Patches for 10s. A favor is about sacrifice."
+kind = 2
+color = Color(1, 0.55, 0.2, 1)
+icon = ExtResource("3_icon")
+params = {
+"cost": 500,
+"sun_count": 4,
+"sun_duration": 10.0
+}
+
+[sub_resource type="Resource" id="Favor_bathala_na"]
+script = ExtResource("1_favor")
+id = &"bathala_na"
+god_id = &"bathala"
+display_name = "Bathala Na"
+description = "Pour out every God's Due you hold; gain 350 FAVOR for each one spent this way. A favor is about sacrifice."
+kind = 2
+color = Color(1, 0.95, 0.78, 1)
+icon = ExtResource("3_icon")
+params = {
+"per_due": 350
+}
+
+[sub_resource type="Resource" id="Favor_si_batman"]
+script = ExtResource("1_favor")
+id = &"si_batman"
+god_id = &"bathala"
+display_name = "Si Batman"
+description = "Lose 1500 FAVOR now; from here on nothing can take your FAVOR away until the game ends. A favor is about sacrifice."
+kind = 2
+color = Color(0.45, 0.47, 0.55, 1)
+icon = ExtResource("3_icon")
+params = {
+"cost": 1500
+}
+
+[sub_resource type="Resource" id="Favor_half_vision_sacrifice"]
+script = ExtResource("1_favor")
+id = &"half_vision_sacrifice"
+god_id = &"bathala"
+display_name = "Half Vision"
+description = "E - cut the leading opponent's FAVOR in half; they slowly win 80% of it back over 4s. Cooldown: 60s. A favor is about sacrifice."
+slot = 1
+kind = 1
+cooldown = 60.0
+duration = 4.0
+color = Color(0.55, 0.85, 1, 1)
+icon = ExtResource("3_icon")
+params = {
+"halve": 0.5,
+"regrow": 0.8,
+"regrow_time": 4.0
+}
+
+[sub_resource type="Resource" id="Favor_siblings_compromise_bathala"]
+script = ExtResource("1_favor")
+id = &"siblings_compromise_bathala"
+god_id = &"bathala"
+display_name = "Sibling's Compromise (Mayari)"
+description = "Q - cut your own FAVOR in half; you slowly win 120% of it back over 6s. Cooldown: 45s. A favor is about sacrifice."
+slot = 2
+kind = 1
+cooldown = 45.0
+duration = 6.0
+color = Color(0.7, 0.85, 1, 1)
+icon = ExtResource("3_icon")
+params = {
+"halve": 0.5,
+"regrow": 1.2,
+"regrow_time": 6.0
+}
+
 [resource]
-script = ExtResource("2_1yni8")
+script = ExtResource("2_god")
 id = &"bathala"
 display_name = "BATHALA"
 epithet = "Ang Laro ng mga diyos"
-color = Color(1, 0.95, 0.78, 1)
+color = Color(0.78, 0.78, 0.82, 1)
 icon = ExtResource("3_icon")
-game_name = "THE FINAL CHALLENGE"
-game_blurb = "Bathala judges the FAVOR you gathered from every god."
-intro_lines = Array[String](["Bathala took the dearest of the mortals, convince him that they are ought to be released by getting FAVOR from God's challenges.", "FAVOR is the total points among all the challenges.", "You and fellow mortals take on a series of 4 to 6 challenges, and then one final challenge.", "Each god puts a Filipino sport in an arena and awards whoever entertained them the most.", "Every 1000 FAVOR you reach hands you a God's Due to spend on their favors.", "Play well. The gods are watching."])
-success_lines = Array[String](["The gods keep their word. Your mortal goes free."])
-failure_lines = Array[String](["Not yet. The gods are not finished watching you."])
+game_name = "AGAWAN BASE"
+game_blurb = "Bathala watches all. Two bases, yours and his, split by a common field. Tag the gods who hunt you - the same swing thaws a frozen ally - and hold his base to catch it. Do not let them touch yours."
+arena_scene = "res://scenes/gods/bathala/BathalaArena.tscn"
+implemented = true
+favors = Array[ExtResource("1_favor")]([SubResource("Favor_partnership_mayari"), SubResource("Favor_partnership_apolaki"), SubResource("Favor_bathala_na"), SubResource("Favor_si_batman"), SubResource("Favor_half_vision_sacrifice"), SubResource("Favor_siblings_compromise_bathala")])
+intro_lines = Array[String](["Bathala took the dearest of the mortals. Now you stand in Agawan Base, the last of my trials.", "Two bases, yours and mine, split by a field we all share. Tag my gods to freeze them - the same swing thaws a frozen ally - and hold my base to catch it.", "My favors are about sacrifice. Give up what you hold, and I will give you more in return."])
+trial_end_lines = Array[String](["The bases fall quiet. Count what you have won, mortal - the judgment is close.", "Your FAVOR is weighed now."])
+success_lines = Array[String](["You defended your base and took mine. The gods keep their word. Your mortal goes free.", "Well played. Bathala is satisfied."])
+failure_lines = Array[String](["Your base fell too often. Not yet - the gods are not finished watching you.", "Rise, and try Agawan Base again."])
+transition_lines = {
+"*": ["The field is yours now. Go well, mortal."],
+"apolaki": ["Apolaki, my son, the sun answers to you. Let them stand in it."],
+"bathala": ["Agawan Base again. Guard your base, and take mine."],
+"hanan": ["Hanan, sister of the morning, greet them with the first light."],
+"mapulon_ikapati": ["Mapulon, Ikapati, the season is yours. Be kind to them; they have run far."],
+"mayari": ["Mayari, my daughter, the night is yours once more. Keep them in your light."],
+"tala": ["Tala, hold the stars. Their next throw is yours to judge."]
+}

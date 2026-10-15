@@ -197,6 +197,9 @@ func _tick_hanan(delta: float) -> void:
 # draws a full-screen Control over the arena and a GUI mouse event would never
 # reach us otherwise - the same reason Apolaki reads his buttons here.
 func _input(event: InputEvent) -> void:
+	# A click on one of the favor panels is the HUD's answer, not a rise.
+	if super._tap_panel_click(event):
+		return
 	if not (event is InputEventMouseButton):
 		return
 	if event.is_action_pressed("attack"):

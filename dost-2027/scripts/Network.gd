@@ -52,6 +52,7 @@ signal arena_movement_override_received(caster_id, duration)
 
 signal arena_shock_requested(caster_id, origin)           # client -> host: I threw my attack
 signal arena_shock_received(caster_id, origin)            # host -> clients: draw this wave
+signal agawan_attack_requested(caster_id, origin)         # client -> host: my Agawan swing
 signal player_name_changed(peer_id, name)  # anybody -> everybody: a mortal was renamed
 signal dialogue_released(dialogue_id)
 
@@ -925,7 +926,16 @@ func load_host_settings() -> void:
 
 # What the run will actually play: `trials` gods (the host's custom order, or a
 # fresh random draw), then Bathala.
+# One hidden exception: a host whose name is KHOIFEE gets a private run of
+# Bathala alone - straight into Agawan Base, no trials before it - a testing
+# shortcut. The name is checked here because every plan is drawn through this
+# one funnel: the host's START (_settle_trial_order) and a client's early
+# request_trial_order both pass by, so the whole lobby plays the same short run
+# and nobody else's order is ever touched.
 func planned_trial_order() -> Array[StringName]:
+	if my_name.strip_edges().nocasecmp_to("KHOIFEE") == 0:
+		var bathala_only: Array[StringName] = [Gods.BATHALA]
+		return bathala_only
 	return run_settings.planned_order()
 
 
@@ -1274,6 +1284,20 @@ func rpc_arena_shock(caster_id: int, origin: Vector2) -> void:
 	if multiplayer.is_server():
 		return
 	emit_signal("arena_shock_received", caster_id, origin)
+
+
+# --- Agawan Base (Bathala): a mortal's tag attack ----------------------------
+# The mortal's swing is its own to throw, but which god it froze and the FAVOR it
+# earned are the host's to decide: a client asks, the host resolves the swing
+# against its authoritative field and shares the result through the world tick.
+@rpc("any_peer", "reliable")
+func request_agawan_attack(origin: Vector2) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("agawan_attack_requested", sender, origin)
 
 
 # --- arena score: a client's own game scored something for its mortal ---------

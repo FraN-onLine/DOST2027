@@ -3,6 +3,8 @@ extends Control
 # Arena HUD.
 # Top-left: the two stats - FAVOR and the GOD'S DUE voucher count - with the two
 # favor bars (E on the left, Q on the right) directly underneath them.
+# The two bars are TAPPABLE: a click on one fires the favor it holds, the same
+# as its key (skill_pressed carries that to the arena).
 # Also carries the trial clock, the event line, the banner and the end-of-trial
 # results panel, and a small note (top right) for the favors that keep something
 # of the mortal's somewhere else: Kabiyak's other half and Kamalig's granary.
@@ -10,12 +12,14 @@ extends Control
 const COLOR_TIME_OK := Color(1, 1, 1, 1)
 const COLOR_TIME_LOW := Color(1, 0.4, 0.35, 1)
 
+signal skill_pressed(slot: int)   # one of the two favor bars was tapped
+
 @onready var god_label: Label = $StatsPanel/Margin/VBox/GodLabel
 @onready var game_label: Label = $StatsPanel/Margin/VBox/GameLabel
 @onready var favor_value: Label = $StatsPanel/Margin/VBox/StatsRow/FavorBox/FavorValue
 @onready var due_value: Label = $StatsPanel/Margin/VBox/StatsRow/DueBox/DueValue
-@onready var bar_e: PanelContainer = $StatsPanel/Margin/VBox/SkillRow/SkillBarE
-@onready var bar_q: PanelContainer = $StatsPanel/Margin/VBox/SkillRow/SkillBarQ
+@onready var bar_e: SkillBar = $StatsPanel/Margin/VBox/SkillRow/SkillBarE
+@onready var bar_q: SkillBar = $StatsPanel/Margin/VBox/SkillRow/SkillBarQ
 @onready var time_label: Label = $TrialPanel/Margin/VBox/TimeLabel
 @onready var trial_label: Label = $TrialPanel/Margin/VBox/TrialLabel
 @onready var event_label: Label = $EventLabel
@@ -35,9 +39,23 @@ var _banner_time := 0.0
 func _ready() -> void:
 	bar_e.setup("E")
 	bar_q.setup("Q")
+	bar_e.pressed.connect(_on_bar_pressed.bind(GodFavor.Slot.E))
+	bar_q.pressed.connect(_on_bar_pressed.bind(GodFavor.Slot.Q))
 	results_panel.visible = false
 	banner_label.visible = false
 	event_label.text = ""
+
+
+# A bar was tapped: the arena answers it exactly like its key would.
+func _on_bar_pressed(slot: int) -> void:
+	skill_pressed.emit(slot)
+
+
+# Was that click on one of the two favor bars? (The arena asks this before the
+# GUI ever sees the mouse - see Arena._input.)
+func hit_skill_bar(slot: int, point: Vector2) -> bool:
+	var bar: PanelContainer = bar_e if slot == GodFavor.Slot.E else bar_q
+	return bar != null and bar.handles(point)
 
 
 func bind(match_ref: GodMatch, god_ref: God) -> void:
@@ -120,7 +138,7 @@ func _sync_favor_note(mortal: GodMatch.Mortal) -> void:
 	favor_note.visible = not lines.is_empty()
 
 
-func _sync_bar(bar: PanelContainer, slot: int) -> void:
+func _sync_bar(bar: SkillBar, slot: int) -> void:
 	var favor := _match.skill_favor(slot)
 	if _bar_favor.get(bar, null) != favor:
 		_bar_favor[bar] = favor

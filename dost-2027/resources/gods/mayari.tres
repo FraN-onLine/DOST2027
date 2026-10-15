@@ -1,9 +1,9 @@
-[gd_resource type="Resource" script_class="God" format=3 uid="uid://du505xvxgjo36"]
+[gd_resource type="Resource" script_class="God" format=3 uid="uid://c0qlwqxqcn5fx"]
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_kov66"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_v7yr7"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_nlsjc"]
-[ext_resource type="Texture2D" uid="uid://ckx5l0dio4oup" path="res://Assets/Gods/Mayari/Mayari-Icon.png" id="4_icon"]
+[ext_resource type="Texture2D" uid="uid://ic70yh8ivypb" path="res://Assets/Gods/Mayari/mayari.png" id="3_v7yr7"]
 
 [sub_resource type="Resource" id="Resource_0nofr"]
 script = ExtResource("1_kov66")
@@ -107,7 +107,7 @@ id = &"mayari"
 display_name = "MAYARI"
 epithet = "Goddess of the Moon"
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("4_icon")
+icon = ExtResource("3_v7yr7")
 game_name = "PATINTERO"
 game_blurb = "Four boxes sit on the field and Mayari lights one at a time. Stand in the lit box and hold it while her two clones walk the lines drawn for them - every so often one hunts the nearest mortal - and let one touch you and you pay for it."
 arena_scene = "res://scenes/gods/mayari/MayariArena.tscn"
@@ -118,10 +118,10 @@ trial_end_lines = Array[String](["The moonlight fades from the field. Your Favor
 success_lines = Array[String](["You moved like moonlight on water. The moon remembers this."])
 failure_lines = Array[String](["Hm. The night is long - try again before the moon sets."])
 transition_lines = {
-"hanan": ["Hanan, sister of the morning, the mortals are yours. Do not let them leap too lightly."],
 "apolaki": ["Apolaki, the mortals are ready for your duel."],
 "bathala": ["Bathala, the trials are complete. The mortals await your judgment."],
+"hanan": ["Hanan, sister of the morning, the mortals are yours. Do not let them leap too lightly."],
+"mapulon_ikapati": ["Mapulon, Ikapati - the night is over and your field is waiting. Be kind to them; they have been running in the dark."],
 "mayari": ["The moon rises again. Let the next trial begin."],
-"tala": ["Tala, the players come to your cans. Watch their aim."],
-"mapulon_ikapati": ["Mapulon, Ikapati - the night is over and your field is waiting. Be kind to them; they have been running in the dark."]
+"tala": ["Tala, the players come to your cans. Watch their aim."]
 }

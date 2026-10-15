@@ -66,10 +66,11 @@ func _run() -> void:
 	_arena._strike_cd = 0.0
 
 	# --- THE BALANCE, SPELLED OUT ----------------------------------------------
-	_check(_arena.strike_favor == 200, "hitting him while he IDLES or ATTACKS is worth 200 FAVOR")
-	_check(_arena.strike_defend_penalty == 100, "hitting his DEFEND costs 100 FAVOR")
-	_check(_arena.block_favor == 100, "DEFENDING his swing is worth 100 FAVOR")
-	_check(_arena.hit_penalty == 80, "taking his swing while idle or mid-swing costs 80 FAVOR")
+	# The whole duel economy is halved from its first tuning (100 / 50 / 50 / 40).
+	_check(_arena.strike_favor == 100, "hitting him while he IDLES or ATTACKS is worth 100 FAVOR")
+	_check(_arena.strike_defend_penalty == 50, "hitting his DEFEND costs 50 FAVOR")
+	_check(_arena.block_favor == 50, "DEFENDING his swing is worth 50 FAVOR")
+	_check(_arena.hit_penalty == 40, "taking his swing while idle or mid-swing costs 40 FAVOR")
 
 	# --- MORTAL -> APOLAKI: all three of his states -----------------------------
 	_arena.duelist.global_position = _arena.player.global_position
@@ -78,7 +79,7 @@ func _run() -> void:
 	_arena.rules.local().favor = 500
 	_arena._try_strike()
 	_arena._resolve_strike()
-	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he IDLES pays 200")
+	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he IDLES pays 100")
 	_arena._strike_cd = 0.0
 	_arena._swinging = false
 
@@ -86,7 +87,7 @@ func _run() -> void:
 	_arena.rules.local().favor = 500
 	_arena._try_strike()
 	_arena._resolve_strike()
-	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he ATTACKS pays the same 200")
+	_check(_arena.rules.local().favor == 500 + _arena.strike_favor, "striking him while he ATTACKS pays the same 100")
 	_arena._strike_cd = 0.0
 	_arena._swinging = false
 
@@ -94,7 +95,7 @@ func _run() -> void:
 	_arena.rules.local().favor = 500
 	_arena._try_strike()
 	_arena._resolve_strike()
-	_check(_arena.rules.local().favor == 500 - _arena.strike_defend_penalty, "striking his DEFEND costs 100")
+	_check(_arena.rules.local().favor == 500 - _arena.strike_defend_penalty, "striking his DEFEND costs 50")
 	_arena._strike_cd = 0.0
 	_arena._swinging = false
 
@@ -103,9 +104,12 @@ func _run() -> void:
 	_arena._guarding = false
 	_arena._swinging = false
 	_arena._invuln.clear()
+	_arena.player._knockback = Vector2.ZERO
 	_arena.rules.local().favor = 500
 	_arena._on_duelist_attack_landed()
-	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "his swing costs 80 while the mortal is IDLE")
+	_check(_arena.rules.local().favor == 500 - _arena.hit_penalty, "his swing costs 40 while the mortal is IDLE")
+	_check(_arena.player._knockback != Vector2.ZERO, "his swing shoves the mortal back")
+	_check(_arena._invuln.has(_arena._my_id), "the mercy seconds start when his swing lands")
 	_check(_arena.active_sun_patches() == _arena.hit_patch_count, "a landed swing blots one sun patch on your screen")
 	_check(is_equal_approx(_arena.sun_patch_time_left(0), _arena.hit_patch_time), "the blot starts at hit_patch_time (3s)")
 	# It has to burn down over REAL frames, not merely vanish on one big tick:
@@ -134,7 +138,7 @@ func _run() -> void:
 	_arena.player._knockback = Vector2.ZERO
 	_arena.rules.local().favor = 500
 	_arena._on_duelist_attack_landed()
-	_check(_arena.rules.local().favor == 500 + _arena.block_favor, "DEFENDING his swing gains 100")
+	_check(_arena.rules.local().favor == 500 + _arena.block_favor, "DEFENDING his swing gains 50")
 	_check(_arena.player._knockback == Vector2.ZERO, "a defended swing does not shove the mortal")
 	_check(_arena.active_sun_patches() == 0, "a defended swing leaves no sun patch")
 	_arena._guarding = false
@@ -185,25 +189,68 @@ func _run() -> void:
 	_arena.duelist.target = _arena.player.global_position
 	_arena.duelist.global_position = _arena.player.global_position + Vector2(600.0, 0.0)
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
-	_arena.duelist.icon.frame = 3
+	_arena.duelist.icon.frame = 5
 	_arena.duelist._tick_attack_window()
 	_check(_landed == 0, "his swing misses while the mortal stands outside his area")
+	# The window itself: 3 is too early, 5 and 7 are live, 8 is too late.
 	_arena.duelist.global_position = _arena.player.global_position
-	# The window itself: 1 is too early, 3 is live, 6 is too late.
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
-	_arena.duelist.icon.frame = 1
-	_arena.duelist._tick_attack_window()
-	_check(_landed == 0, "his swing is not live before frame 2")
 	_arena.duelist.icon.frame = 3
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 0, "his swing is not live before frame 4")
+	_arena.duelist.icon.frame = 5
 	_arena.duelist._tick_attack_window()
 	_arena.duelist._tick_attack_window()
 	_check(_landed == 1, "his swing connects once per swing inside his area")
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist.icon.frame = 8
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 1, "his swing is closed after frame 7")
+	_check(_arena.duelist.attack_hit_open_frame == 4 and _arena.duelist.attack_hit_close_frame == 7,
+		"his swing is live on frames 4..7")
+	# The window stays open across all of its frames: a mortal that was out of
+	# reach on one live frame and steps in on a later one still gets hit - this
+	# is the rule that stops his stick from passing through a mortal untouched.
+	_arena.duelist.global_position = _arena.player.global_position + Vector2(600.0, 0.0)
+	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist.icon.frame = 4
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 1, "a live frame outside his area spends nothing")
+	_arena.duelist.global_position = _arena.player.global_position
 	_arena.duelist.icon.frame = 6
 	_arena.duelist._tick_attack_window()
-	_check(_landed == 1, "his swing is closed after frame 5")
-	_check(_arena.duelist.attack_hit_open_frame == 2 and _arena.duelist.attack_hit_close_frame == 5,
-		"his swing is live on frames 2..5")
+	_arena.duelist.icon.frame = 7
+	_arena.duelist._tick_attack_window()
+	_check(_landed == 2, "stepping into his area on a later live frame lands the swing")
+
+	# --- HE TURNS TO FACE WHOMEVER HE IS DUELLING ------------------------------
+	# The sheet is drawn facing one way (art_facing); the sprite mirrors whenever
+	# the mortal stands on the other side.
+	_arena.duelist.global_position = _arena.player.global_position
+	_arena.duelist.target = _arena.player.global_position + Vector2(120.0, 0.0)
+	_arena.duelist._face_target()
+	_check(_arena.duelist.icon.flip_h == (_arena.duelist.art_facing != 1),
+		"he mirrors his art when the mortal stands to his right")
+	_arena.duelist.target = _arena.player.global_position + Vector2(-120.0, 0.0)
+	_arena.duelist._face_target()
+	_check(_arena.duelist.icon.flip_h == (_arena.duelist.art_facing != -1),
+		"he turns back when the mortal stands to his left")
+
+	# --- HE KEEPS WALKING THROUGH A SWING AND A GUARD --------------------------
+	# Neither action plants him any more: the walk runs in every state.
+	_arena.duelist.frozen = false
+	_arena.duelist.global_position = _arena.player.global_position
+	_arena.duelist.target = _arena.player.global_position + Vector2(240.0, 0.0)
+	var walk_from := _arena.duelist.global_position
+	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
+	_arena.duelist._move(0.5)
+	_check(_arena.duelist.global_position.distance_to(walk_from) > 1.0,
+		"he keeps closing the distance while he swings")
+	walk_from = _arena.duelist.global_position
+	_arena.duelist._enter(ApolakiDuelist.State.DEFEND)
+	_arena.duelist._move(0.5)
+	_check(_arena.duelist.global_position.distance_to(walk_from) > 1.0,
+		"he keeps walking while he guards")
 	_arena._phase = Arena.Phase.PLAYING
 
 	var rivalry: GodFavor = _arena.god.get_favor(&"siblings_rivalry")
@@ -232,7 +279,7 @@ func _run() -> void:
 	var rival_favor_before: int = _arena.rules.mortal(2).favor
 	_arena.rules.bestow_favor(_arena.god.get_favor(&"the_victor"), 3)
 	_arena._add_sun_patches(2, 5, 1.5)
-	_check(_arena.rules.mortal(2).favor == rival_favor_before - 400, "each Victor owner removes 200 FAVOR at five patches")
+	_check(_arena.rules.mortal(2).favor == rival_favor_before - 200, "each Victor owner removes 100 FAVOR at five patches")
 	var immune_id := 4
 	_arena.rules.ensure_mortal(immune_id, "IMMUNE")
 	_arena.rules.bestow_favor(_arena.god.get_favor(&"the_victor"), immune_id)
@@ -242,7 +289,7 @@ func _run() -> void:
 	_arena.rules.bestow_favor(_arena.god.get_favor(&"the_great"))
 	var great_before: int = _arena.rules.local().favor
 	_arena._tick_the_great(1.0)
-	_check(_arena.rules.local().favor == great_before + 2, "The Great gains 2 FAVOR while any patch is active")
+	_check(_arena.rules.local().favor == great_before + 1, "The Great gains 1 FAVOR while any patch is active")
 
 	var compromise: GodFavor = _arena.god.get_favor(&"siblings_compromise_sun")
 	_arena.rules.bestow_favor(compromise)
@@ -261,6 +308,40 @@ func _run() -> void:
 	var shielded_before: int = _arena.rules.local().favor
 	_arena.lose_favor(50, "shield test", _arena._my_id)
 	_check(_arena.rules.local().favor == shielded_before, "The Unmoving prevents FAVOR loss")
+
+	# --- THE TWO FAVOR PANELS ARE TAPPABLE -------------------------------------
+	# A click on the Q panel is the same as pressing its key: claimed before the
+	# duel's own mouse buttons could read it as an attack. The arena scenes are
+	# authored embedded (the shell owns these panels in a real run), so the stats
+	# panel is put back on screen here to exercise the arena's own bars.
+	_arena.hud.get_node("StatsPanel").visible = true
+	await _frames(2)  # let the panel lay its rows out before any rect is trusted
+	# The panel's own click answer (the GUI path: bar -> HUD -> arena).
+	var tap := InputEventMouseButton.new()
+	tap.button_index = MOUSE_BUTTON_LEFT
+	tap.pressed = true
+	_arena.rules.local().cooldowns.clear()
+	_arena.hud.bar_q.gui_input.emit(tap)
+	_check(_arena.rules.local().cooldown_left(&"the_unmoving") > 0.0,
+		"the Q panel's own click answer fires its favor")
+	# The preemption path: the duel's mouse buttons run before the GUI, so a
+	# click on the panel is claimed there - never read as an attack.
+	_arena._swinging = false
+	_arena.rules.local().cooldowns.clear()
+	var panel_click := InputEventMouseButton.new()
+	panel_click.button_index = MOUSE_BUTTON_LEFT
+	panel_click.pressed = true
+	panel_click.position = _arena.hud.bar_q.get_global_rect().get_center()
+	_check(_arena._tap_panel_click(panel_click), "a click on the Q panel is claimed by the panel")
+	_check(_arena.rules.local().cooldown_left(&"the_unmoving") > 0.0, "the tap fires that favor")
+	_check(not _arena._swinging, "and it is not read as a swing")
+	# A click anywhere else is the duel's business.
+	var world_click := InputEventMouseButton.new()
+	world_click.button_index = MOUSE_BUTTON_LEFT
+	world_click.pressed = true
+	world_click.position = _arena.player.global_position
+	_arena._input(world_click)
+	_check(_arena._swinging, "a click in the world still starts the duel's swing")
 
 	_arena._sun_patches[_arena._my_id] = [1.0]
 	_arena._refresh_sun_patches()

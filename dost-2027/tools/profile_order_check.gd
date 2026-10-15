@@ -141,10 +141,14 @@ func _run() -> void:
 	game._on_trial_complete()
 	await _frames(4)
 	_check(game.arena.god_id == &"tala", "Mayari transitions to Tala")
-	_check(not game.finale_panel.visible, "the run summary stays hidden before the final marker")
+	_check(not game.finale_panel.visible, "the run summary stays hidden before Bathala's final trial")
 	game._on_trial_complete()
 	await _frames(4)
-	_check(game.arena == null and game.finale_panel.visible, "Bathala shows the cumulative summary after all games")
+	_check(game.arena.god_id == &"bathala", "Tala hands the field to Bathala's final arena")
+	_check(not game.finale_panel.visible, "the run summary stays hidden while Bathala's final trial plays")
+	game._on_trial_complete()
+	await _frames(4)
+	_check(game.arena == null and game.finale_panel.visible, "Bathala's final trial closes the run with the cumulative summary")
 	game.run_snapshot = {
 		1: {"name": "HOST", "favor": 900, "due": 0},
 		2: {"name": "RIVAL", "favor": 750, "due": 0},

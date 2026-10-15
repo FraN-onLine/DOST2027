@@ -129,7 +129,7 @@ animations = [{
 }]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_mortal"]
-radius = 38.052597
+radius = 41.01219
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_af5nn"]
 radius = 24.0
@@ -147,6 +147,7 @@ texture = ExtResource("2_icon")
 
 [node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=348660814]
 position = Vector2(0, -11)
+scale = Vector2(1.1, 1.1)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
 animation = &"hit-arnis"
 autoplay = "default"
@@ -166,10 +167,11 @@ shape = SubResource("CircleShape2D_af5nn")
 metadata/_edit_lock_ = true
 
 [node name="NameTag" type="Label" parent="." unique_id=345467521]
-offset_left = -55.0
-offset_top = -51.0
-offset_right = 65.0
-offset_bottom = -33.0
+offset_left = -47.000004
+offset_top = -48.000004
+offset_right = 73.0
+offset_bottom = -30.000004
+scale = Vector2(0.80199254, 0.77494526)
 theme_override_colors/font_color = Color(1, 0.95, 0.8, 0.85)
 theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 10

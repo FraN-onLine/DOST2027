@@ -1,8 +1,18 @@
-[gd_scene format=3 uid="uid://cgodtalk000001"]
+[gd_scene format=3 uid="uid://8ma2i38a6emi"]
 
-[ext_resource type="Script" path="res://UI/GodsArena/god_dialogue.gd" id="1_talk"]
+[ext_resource type="Script" uid="uid://ddfpoam17prnm" path="res://UI/GodsArena/god_dialogue.gd" id="1_talk"]
+[ext_resource type="Texture2D" uid="uid://ic70yh8ivypb" path="res://Assets/Gods/Mayari/mayari.png" id="2_f13ei"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="3_icon"]
+[ext_resource type="Texture2D" uid="uid://qhwimvi6gul2" path="res://Assets/Gods/Tala/Tala-Icon.png" id="4_f13ei"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab"]
+bg_color = Color(0.07, 0.09, 0.15, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_color = Color(0.34, 0.38, 0.5, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_box"]
 bg_color = Color(0.07, 0.09, 0.15, 0.96)
@@ -16,18 +26,16 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[node name="GodDialogue" type="Control"]
-visible = false
+[node name="GodDialogue" type="Control" unique_id=1163833398]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
 script = ExtResource("1_talk")
 
-[node name="Dim" type="ColorRect" parent="."]
+[node name="Dim" type="ColorRect" parent="." unique_id=101339470]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -37,7 +45,46 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 0.5)
 
-[node name="Box" type="PanelContainer" parent="."]
+[node name="Photo" type="TextureRect" parent="." unique_id=2025508779]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -602.0
+offset_top = -117.0
+offset_right = 55.0
+offset_bottom = 444.0
+grow_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("2_f13ei")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Voice" type="AudioStreamPlayer" parent="." unique_id=274996860]
+
+[node name="NameTab" type="PanelContainer" parent="." unique_id=187654321]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 100.0
+offset_top = -252.0
+offset_right = 330.0
+offset_bottom = -204.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_tab")
+
+[node name="NameLabel" type="Label" parent="NameTab" unique_id=187654322]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 14
+text = "GOD"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Box" type="PanelContainer" parent="." unique_id=235571542]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -52,7 +99,7 @@ grow_vertical = 0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_box")
 
-[node name="Margin" type="MarginContainer" parent="Box"]
+[node name="Margin" type="MarginContainer" parent="Box" unique_id=1828446432]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 18
@@ -60,47 +107,44 @@ theme_override_constants/margin_top = 14
 theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 14
 
-[node name="HBox" type="HBoxContainer" parent="Box/Margin"]
+[node name="HBox" type="HBoxContainer" parent="Box/Margin" unique_id=73631499]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 16
 
-[node name="Portrait" type="TextureRect" parent="Box/Margin/HBox"]
+[node name="Portrait" type="TextureRect" parent="Box/Margin/HBox" unique_id=1403375065]
 custom_minimum_size = Vector2(72, 72)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
-texture = ExtResource("3_icon")
+texture = ExtResource("4_f13ei")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="VBox" type="VBoxContainer" parent="Box/Margin/HBox"]
+[node name="VBox" type="VBoxContainer" parent="Box/Margin/HBox" unique_id=754099170]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 theme_override_constants/separation = 6
 
-[node name="SpeakerLabel" type="Label" parent="Box/Margin/HBox/VBox"]
+[node name="SpeakerLabel" type="Label" parent="Box/Margin/HBox/VBox" unique_id=461827633]
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 15
 text = "MAYARI"
 
-[node name="LineLabel" type="Label" parent="Box/Margin/HBox/VBox"]
+[node name="LineLabel" type="Label" parent="Box/Margin/HBox/VBox" unique_id=536141873]
 layout_mode = 2
 size_flags_vertical = 3
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.9, 0.93, 1, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 13
 vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="HintLabel" type="Label" parent="Box/Margin/HBox/VBox"]
+[node name="HintLabel" type="Label" parent="Box/Margin/HBox/VBox" unique_id=1189323918]
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.6, 0.65, 0.75, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 10

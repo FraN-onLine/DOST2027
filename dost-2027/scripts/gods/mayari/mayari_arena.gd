@@ -299,6 +299,9 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# A click on one of the favor panels is the HUD's answer, not a shockwave.
+	if super._tap_panel_click(event):
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _phase != Phase.PLAYING or player.locked or dialogue.is_active() or due_menu.is_open():
 			return

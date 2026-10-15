@@ -1,68 +1,181 @@
 [gd_scene format=3 uid="uid://d3dnsdaacfeqq"]
 
 [ext_resource type="Script" uid="uid://c054b8tm7375x" path="res://scripts/gods/apolaki/apolaki_duelist.gd" id="1_duel"]
+[ext_resource type="Texture2D" uid="uid://byjur5ypi5h6e" path="res://Assets/Gods/Apolaki/Apolaki-Sheet-Sheet.png" id="2_0clss"]
 [ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
-[ext_resource type="Texture2D" uid="uid://dehaj28kx0n0n" path="res://Assets/Gods/Apolaki/Apolaki-Sheet.png" id="3_nm4fq"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_yqmxj"]
-atlas = ExtResource("3_nm4fq")
+[sub_resource type="AtlasTexture" id="AtlasTexture_nm4fq"]
+atlas = ExtResource("2_0clss")
 region = Rect2(0, 0, 64, 64)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_yqmxj"]
+atlas = ExtResource("2_0clss")
+region = Rect2(64, 0, 64, 64)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_4n8w7"]
-atlas = ExtResource("3_nm4fq")
+atlas = ExtResource("2_0clss")
 region = Rect2(128, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hcabe"]
-atlas = ExtResource("3_nm4fq")
-region = Rect2(64, 0, 64, 64)
+atlas = ExtResource("2_0clss")
+region = Rect2(768, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tue6n"]
+atlas = ExtResource("2_0clss")
+region = Rect2(832, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_24ovy"]
+atlas = ExtResource("2_0clss")
+region = Rect2(896, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w0ag5"]
+atlas = ExtResource("2_0clss")
+region = Rect2(960, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_apjou"]
+atlas = ExtResource("2_0clss")
+region = Rect2(1024, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_di8qa"]
+atlas = ExtResource("2_0clss")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7gsfg"]
+atlas = ExtResource("2_0clss")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vmq4l"]
+atlas = ExtResource("2_0clss")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v61og"]
+atlas = ExtResource("2_0clss")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uw8p7"]
+atlas = ExtResource("2_0clss")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5jbp8"]
+atlas = ExtResource("2_0clss")
+region = Rect2(512, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_no6fy"]
+atlas = ExtResource("2_0clss")
+region = Rect2(576, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7jom1"]
+atlas = ExtResource("2_0clss")
+region = Rect2(640, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pphnv"]
+atlas = ExtResource("2_0clss")
+region = Rect2(704, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_yqmxj")
-}],
-"loop": 0,
-"name": &"default",
-"speed": 5.0
+"texture": SubResource("AtlasTexture_nm4fq")
 }, {
-"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yqmxj")
+}, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_4n8w7")
 }],
-"loop": 0,
-"name": &"defend",
-"speed": 5.0
+"loop": 2,
+"name": &"default",
+"speed": 8.0
 }, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_hcabe")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_hcabe")
+"texture": SubResource("AtlasTexture_tue6n")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_hcabe")
+"texture": SubResource("AtlasTexture_24ovy")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_hcabe")
+"texture": SubResource("AtlasTexture_w0ag5")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_hcabe")
+"texture": SubResource("AtlasTexture_apjou")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_hcabe")
+"texture": SubResource("AtlasTexture_w0ag5")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_hcabe")
+"texture": SubResource("AtlasTexture_apjou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_apjou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w0ag5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w0ag5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_apjou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_apjou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_apjou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_apjou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w0ag5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w0ag5")
+}],
+"loop": 0,
+"name": &"defend",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_di8qa")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7gsfg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vmq4l")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v61og")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uw8p7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5jbp8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_no6fy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7jom1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pphnv")
 }],
 "loop": 0,
 "name": &"hit",
-"speed": 5.0
+"speed": 9.0
 }]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_g4v7s"]
-radius = 39.56008
+radius = 49.497475
 
 [node name="Apolaki" type="Node2D" unique_id=1714060332]
 script = ExtResource("1_duel")
@@ -75,10 +188,11 @@ animation = &"hit"
 autoplay = "default"
 
 [node name="Name" type="Label" parent="." unique_id=668277825]
-offset_left = -60.0
-offset_top = -58.0
-offset_right = 60.0
-offset_bottom = -40.0
+offset_left = -52.0
+offset_top = -42.0
+offset_right = 68.0
+offset_bottom = -24.0
+scale = Vector2(0.8709185, 0.9568265)
 theme_override_colors/font_color = Color(1, 1, 1, 0.75)
 theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 10
