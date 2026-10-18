@@ -1,21 +1,8 @@
 [gd_scene format=3 uid="uid://d6712qv5yvg0"]
 
 [ext_resource type="Script" uid="uid://bmntx8i2qeed3" path="res://scripts/Almanac.gd" id="1_almanac"]
-[ext_resource type="Texture2D" uid="uid://cgt4dp3y83y4y" path="res://Assets/title/poster.jpg" id="2_bcwl7"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_qwc0f"]
-animations = [{
-"frames": [],
-"loop": 1,
-"name": &"default",
-"speed": 5.0
-}, {
-"frames": [],
-"loop": 1,
-"name": &"new_animation",
-"speed": 5.0
-}]
+[ext_resource type="Texture2D" uid="uid://xno0bm25ol28" path="res://Assets/title/title_sky.png" id="2_sky"]
+[ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="3_ornament"]
 
 [node name="Almanac" type="Control" unique_id=563705249]
 layout_mode = 3
@@ -26,13 +13,6 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_almanac")
 
-[node name="Poster" type="Sprite2D" parent="." unique_id=1564434000]
-visible = false
-z_index = 15
-position = Vector2(-8498.239, -4200.677)
-scale = Vector2(0.08612501, 0.07583331)
-texture = ExtResource("2_bcwl7")
-
 [node name="Background" type="ColorRect" parent="." unique_id=1245312879]
 layout_mode = 1
 anchors_preset = 15
@@ -40,148 +20,252 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.04, 0.05, 0.1, 1)
+mouse_filter = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="." unique_id=2093283402]
+[node name="Sky" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0.2)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_sky")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=533882917]
-custom_minimum_size = Vector2(800, 0)
-layout_mode = 2
-theme_override_constants/separation = 10
+[node name="Index" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=1485338348]
+[node name="Center" type="CenterContainer" parent="Index"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Index/Center"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 32
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="Index/Center/VBox"]
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
 text = "ALMANAC"
 horizontal_alignment = 1
 
-[node name="SubtitleLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=850588793]
+[node name="SubtitleLabel" type="Label" parent="Index/Center/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "Every Favor the gods can bestow, who grants it, and what it asks for"
+theme_type_variation = &"MutedLabel"
+text = "Every god of the contest, and every favor they bestow"
 horizontal_alignment = 1
 
-[node name="ScrollContainer" type="ScrollContainer" parent="CenterContainer/VBoxContainer" unique_id=1693354001]
-custom_minimum_size = Vector2(800, 500)
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="FavorList" type="VBoxContainer" parent="CenterContainer/VBoxContainer/ScrollContainer" unique_id=550225437]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="BackButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1658601410]
-custom_minimum_size = Vector2(800, 40)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "BACK"
-
-[node name="DetailPanel" type="Panel" parent="." unique_id=528433893]
-visible = false
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = 201.0
-offset_top = -295.0
-offset_right = 563.0
-offset_bottom = 276.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="DetailPanel" unique_id=1498119732]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = -20.0
-offset_bottom = -60.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/separation = 10
-
-[node name="CardTexture" type="TextureRect" parent="DetailPanel/VBoxContainer" unique_id=1917922975]
-custom_minimum_size = Vector2(200, 200)
+[node name="Rule" type="Control" parent="Index/Center/VBox"]
+custom_minimum_size = Vector2(320, 12)
 layout_mode = 2
 size_flags_horizontal = 4
-expand_mode = 1
-stretch_mode = 5
+mouse_filter = 2
+script = ExtResource("3_ornament")
+rule_only = true
 
-[node name="NameLabel" type="Label" parent="DetailPanel/VBoxContainer" unique_id=555847071]
+[node name="Gap" type="Control" parent="Index/Center/VBox"]
+custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 24
-text = "Card Name"
-horizontal_alignment = 1
-autowrap_mode = 3
+mouse_filter = 2
 
-[node name="TypeLabel" type="Label" parent="DetailPanel/VBoxContainer" unique_id=1484879898]
+[node name="Choices" type="HBoxContainer" parent="Index/Center/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "Type: Building"
-horizontal_alignment = 1
+alignment = 1
+theme_override_constants/separation = 32
 
-[node name="CostLabel" type="Label" parent="DetailPanel/VBoxContainer" unique_id=394063249]
+[node name="GodsChoice" type="Button" parent="Index/Center/VBox/Choices"]
+custom_minimum_size = Vector2(320, 272)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "Cost: 3 Energy"
-horizontal_alignment = 1
+tooltip_text = "Who hosts each trial, and what they ask of you."
+theme_type_variation = &"SecondaryButton"
 
-[node name="DescLabel" type="Label" parent="DetailPanel/VBoxContainer" unique_id=803622172]
+[node name="FavorsChoice" type="Button" parent="Index/Center/VBox/Choices"]
+custom_minimum_size = Vector2(320, 272)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "Description"
-horizontal_alignment = 1
-autowrap_mode = 3
+tooltip_text = "Every boon a god can bestow."
+theme_type_variation = &"SecondaryButton"
 
-[node name="CloseButton" type="Button" parent="DetailPanel" unique_id=782543434]
+[node name="BackButton" type="Button" parent="Index"]
+custom_minimum_size = Vector2(120, 32)
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 150.0
-offset_top = -40.0
-offset_right = 250.0
-offset_bottom = -10.0
+offset_left = 24.0
+offset_top = -58.0
+offset_right = 144.0
+offset_bottom = -24.0
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "CLOSE"
+theme_type_variation = &"GhostButton"
+text = "BACK"
 
-[node name="Poster2" type="Sprite2D" parent="." unique_id=184631618]
+[node name="Page" type="MarginContainer" parent="."]
 visible = false
-position = Vector2(129.5, 323.49997)
-scale = Vector2(0.087666675, 0.13312498)
-texture = ExtResource("2_bcwl7")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1433183351]
-sprite_frames = SubResource("SpriteFrames_qwc0f")
-frame_progress = 0.366431
+[node name="VBox" type="VBoxContainer" parent="Page"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PageTitle" type="Label" parent="Page/VBox"]
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+text = "MGA DIYOS"
+
+[node name="Filters" type="HFlowContainer" parent="Page/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="Body" type="HBoxContainer" parent="Page/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="BookPage" type="PanelContainer" parent="Page/VBox/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.45
+theme_type_variation = &"PanelInset"
+
+[node name="CardScroll" type="ScrollContainer" parent="Page/VBox/Body/BookPage"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="Margin" type="MarginContainer" parent="Page/VBox/Body/BookPage/CardScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="CardGrid" type="GridContainer" parent="Page/VBox/Body/BookPage/CardScroll/Margin"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 4
+
+[node name="Detail" type="PanelContainer" parent="Page/VBox/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.55
+theme_type_variation = &"PanelCard"
+
+[node name="DetailScroll" type="ScrollContainer" parent="Page/VBox/Body/Detail"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="VBox" type="VBoxContainer" parent="Page/VBox/Body/Detail/DetailScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="Top" type="HBoxContainer" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PortraitFrame" type="PanelContainer" parent="Page/VBox/Body/Detail/DetailScroll/VBox/Top"]
+custom_minimum_size = Vector2(144, 144)
+layout_mode = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Portrait" type="TextureRect" parent="Page/VBox/Body/Detail/DetailScroll/VBox/Top/PortraitFrame"]
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Ornament" type="Control" parent="Page/VBox/Body/Detail/DetailScroll/VBox/Top/PortraitFrame"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_ornament")
+
+[node name="Info" type="VBoxContainer" parent="Page/VBox/Body/Detail/DetailScroll/VBox/Top"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Name" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox/Top/Info"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "NAME"
+autowrap_mode = 3
+
+[node name="Subtitle" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox/Top/Info"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Subtitle"
+autowrap_mode = 3
+
+[node name="Chips" type="HFlowContainer" parent="Page/VBox/Body/Detail/DetailScroll/VBox/Top/Info"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="Description" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+layout_mode = 2
+text = "Description"
+autowrap_mode = 3
+
+[node name="Flavor" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+layout_mode = 2
+theme_type_variation = &"FlavorLabel"
+text = "Flavor"
+autowrap_mode = 3
+
+[node name="Condition" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="PacketsLabel" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "FAVORS"
+
+[node name="Packets" type="HFlowContainer" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="Footer" type="HBoxContainer" parent="Page/VBox"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="Page/VBox/Footer"]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+text = "BACK"
+
+[node name="Hint" type="Label" parent="Page/VBox/Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CaptionLabel"
+text = "Arrows: move   Enter: select   Esc: back"
+horizontal_alignment = 2
+vertical_alignment = 1

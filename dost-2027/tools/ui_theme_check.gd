@@ -15,16 +15,13 @@ const VARIATIONS := [
 	"PrimaryButton", "SecondaryButton", "GhostButton", "SmallButton", "DangerButton",
 	"TabButton", "IconButton", "KeycapButton", "KeycapLabel", "PanelCard", "PanelInset", "PanelHud",
 	"Nameplate", "PanelEmpty", "PanelRow", "CodeField", "CodeLabel", "ShrineTile", "SeedPacket", "HeroLabel", "DisplayLabel",
-	"HeadingLabel", "CaptionLabel", "MutedLabel", "WarningLabel",
+	"HeadingLabel", "CaptionLabel", "MutedLabel", "WarningLabel", "ChipLabel", "FlavorLabel", "PacketLabel", "BadgeLabel", "CardButton", "SelectionRing",
 ]
 const SCAN_DIRS := ["res://scenes", "res://UI", "res://scripts"]
 
 # path -> why it may keep its own styling / off-scale sizes.
 const ALLOW := {
 	"res://UI/Server and Lobby handlers/hosting.tscn": "unused leftover (see tools/lobby_check.gd); nothing loads it",
-	# Phase 3 rebuilds the Almanac.
-	"res://scenes/Almanac.tscn": "almanac: rebuilt in phase 3",
-	"res://scripts/Almanac.gd": "almanac: rebuilt in phase 3",
 	# Phase 4 restyles the in-game UI.
 	"res://scenes/Game.tscn": "in-game: phase 4",
 	"res://scenes/GodIntro.tscn": "in-game: phase 4",

@@ -170,6 +170,31 @@ func _labels() -> void:
 	theme.set_font_size("font_size", "CodeLabel", UITokens.DISPLAY)
 	theme.set_color("font_color", "CodeLabel", UITokens.GOLD)
 
+	# A stat chip (the Almanac's "ARNIS", "E", "30s cooldown").
+	theme.set_type_variation("ChipLabel", "Label")
+	theme.set_stylebox("normal", "ChipLabel", _box(UITokens.NIGHT_700, UITokens.LINE, {"margin": Vector4(8, 4, 8, 4)}))
+
+	# A flavour line: muted, with a slight slant for an italic feel (Minecraftia
+	# has no italic; the slant is a shear of whole pixels' rows, not a blur).
+	theme.set_type_variation("FlavorLabel", "Label")
+	var slanted := FontVariation.new()
+	slanted.base_font = FONT
+	slanted.variation_transform = Transform2D(Vector2(1, 0), Vector2(0.2, 1), Vector2.ZERO)
+	theme.set_font("font", "FlavorLabel", slanted)
+	theme.set_color("font_color", "FlavorLabel", UITokens.MUTED)
+
+	# A packet's corner badge: its slot or kind (E, Q, PASSIVE, ONCE, END).
+	theme.set_type_variation("BadgeLabel", "Label")
+	theme.set_font_size("font_size", "BadgeLabel", UITokens.CAPTION)
+	theme.set_color("font_color", "BadgeLabel", UITokens.IVORY)
+	theme.set_stylebox("normal", "BadgeLabel", _box(UITokens.NIGHT_900, Color(0, 0, 0, 0), {"border": 0,
+		"margin": Vector4(3, 1, 3, 1)}))
+
+	# Text printed on a seed packet's paper face.
+	theme.set_type_variation("PacketLabel", "Label")
+	theme.set_font_size("font_size", "PacketLabel", UITokens.CAPTION)
+	theme.set_color("font_color", "PacketLabel", UITokens.NIGHT_900)
+
 	theme.set_color("default_color", "RichTextLabel", UITokens.IVORY)
 	theme.set_stylebox("normal", "RichTextLabel", _empty())
 
@@ -238,6 +263,13 @@ func _buttons() -> void:
 		box.set_content_margin_all(UITokens.SPACE_4)
 		theme.set_stylebox(state, "IconButton", box)
 
+	# CardButton: the invisible, focusable shell of an Almanac card or a God's
+	# Due packet. The card draws itself (ShrineTile / SeedPacket inside it) and
+	# shows its selection with a SelectionRing, so the shell draws nothing.
+	theme.set_type_variation("CardButton", "Button")
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		theme.set_stylebox(state, "CardButton", _empty())
+
 	# A rebind button looks like the key it shows.
 	theme.set_type_variation("KeycapButton", "Button")
 	theme.set_font("font", "KeycapButton", FONT)
@@ -292,6 +324,10 @@ func _panels() -> void:
 	theme.set_type_variation("SeedPacket", "PanelContainer")
 	theme.set_stylebox("panel", "SeedPacket", _box(Color("#E9DDBC"), Color("#8C7A55"), {"shadow": UITokens.SHADOW,
 		"highlight": UITokens.GOLD, "highlight_width": 10, "margin": Vector4(4, 14, 4, 4)}))
+
+	# The selected card's gold outline, 2 px clear of the card.
+	theme.set_type_variation("SelectionRing", "Panel")
+	theme.set_stylebox("panel", "SelectionRing", _box(Color(0, 0, 0, 0), UITokens.GOLD, {"grow": 4, "margin": Vector4.ZERO}))
 
 	var line := StyleBoxLine.new()
 	line.color = UITokens.LINE

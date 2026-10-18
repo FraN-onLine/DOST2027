@@ -122,15 +122,17 @@ func _run() -> void:
 	var almanac: Control = load("res://scenes/Almanac.tscn").instantiate()
 	view.add_child(almanac)
 	await _frames(3)
-	var rows: Node = almanac.get_node("CenterContainer/VBoxContainer/ScrollContainer/FavorList")
+	almanac._open_page("favors")
+	await _frames(2)
+	var rows: Node = almanac.card_grid
 	var total_favors := 0
 	for god in Gods.all():
 		total_favors += god.favors.size()
-	# One header + one row per god with favors, so strictly more rows than favors.
-	if rows.get_child_count() < total_favors:
-		printerr("god_audit: the Almanac lists %d rows for %d favors" % [rows.get_child_count(), total_favors])
+	# One seed packet per favor on the favors page (ALL filter).
+	if rows.get_child_count() != total_favors:
+		printerr("god_audit: the Almanac shows %d packets for %d favors" % [rows.get_child_count(), total_favors])
 		problems += 1
-	print("  Almanac: %d rows for %d favors" % [rows.get_child_count(), total_favors])
+	print("  Almanac: %d packets for %d favors" % [rows.get_child_count(), total_favors])
 	almanac.queue_free()
 	await _frames(2)
 

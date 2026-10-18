@@ -134,11 +134,14 @@ static func god_text(god: God) -> Color:
 
 
 # A copy of a theme stylebox with its border in `color`: the one runtime override
-# the redesign allows (a god's accent on a frame). Works on the placeholder
+# the redesign allows (a god's accent on a frame). With `band` the accent goes on
+# the top band instead (a seed packet's coloured top). Works on the placeholder
 # PixelStyleBox and on a StyleBoxTexture once real art lands (it is modulated).
-static func accent_box(base: StyleBox, color: Color) -> StyleBox:
+static func accent_box(base: StyleBox, color: Color, band: bool = false) -> StyleBox:
 	var box: StyleBox = base.duplicate()
-	if box is PixelStyleBox:
+	if box is PixelStyleBox and band:
+		(box as PixelStyleBox).highlight_color = color
+	elif box is PixelStyleBox:
 		(box as PixelStyleBox).border_color = color
 	elif box is StyleBoxFlat:
 		(box as StyleBoxFlat).border_color = color
