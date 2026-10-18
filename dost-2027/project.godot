@@ -25,19 +25,24 @@ config/icon="res://icon.svg"
 Network="*res://scripts/Network.gd"
 Global="*res://scripts/Global.gd"
 Settings="*res://scripts/Settings.gd"
+_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [display]
 
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
-[gui]
+[editor_plugins]
 
-theme/custom="res://UI/theme/bathala_theme.tres"
+enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
 
 [global_group]
 
 buildings=""
+
+[gui]
+
+theme/custom="res://UI/theme/bathala_theme.tres"
 
 [input]
 
