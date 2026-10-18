@@ -61,6 +61,23 @@ text = "LANGIT"
 horizontal_alignment = 1
 theme_type_variation = &"WorldLabel"
 
+[node name="Lock" type="Node2D" parent="ArenaField/Langits/Langit1"]
+visible = false
+position = Vector2(0, -20)
+
+[node name="Body" type="ColorRect" parent="ArenaField/Langits/Langit1/Lock"]
+offset_left = -7.0
+offset_top = -3.0
+offset_right = 7.0
+offset_bottom = 8.0
+mouse_filter = 2
+color = Color(0.42, 0.45, 0.55, 1)
+
+[node name="Shackle" type="Line2D" parent="ArenaField/Langits/Langit1/Lock"]
+points = PackedVector2Array(-4, -3, -4, -8, -2, -10, 2, -10, 4, -8, 4, -3)
+width = 2.0
+default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
+
 [node name="Langit2" type="Node2D" parent="ArenaField/Langits"]
 visible = false
 position = Vector2(700, 300)
@@ -96,6 +113,23 @@ text = "LANGIT"
 horizontal_alignment = 1
 theme_type_variation = &"WorldLabel"
 
+[node name="Lock" type="Node2D" parent="ArenaField/Langits/Langit2"]
+visible = false
+position = Vector2(0, -20)
+
+[node name="Body" type="ColorRect" parent="ArenaField/Langits/Langit2/Lock"]
+offset_left = -7.0
+offset_top = -3.0
+offset_right = 7.0
+offset_bottom = 8.0
+mouse_filter = 2
+color = Color(0.42, 0.45, 0.55, 1)
+
+[node name="Shackle" type="Line2D" parent="ArenaField/Langits/Langit2/Lock"]
+points = PackedVector2Array(-4, -3, -4, -8, -2, -10, 2, -10, 4, -8, 4, -3)
+width = 2.0
+default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
+
 [node name="Overseer" type="Sprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2"]
 visible = false
 position = Vector2(1060, 150)
@@ -129,6 +163,118 @@ text = "TAYA"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(0.8784314, 0.38039216, 0.30980393, 1)
 theme_type_variation = &"WorldValue"
+
+[node name="ChantRow" type="Node2D" parent="TayaMarker"]
+visible = false
+position = Vector2(0, -96)
+
+[node name="Slot1" type="Node2D" parent="TayaMarker/ChantRow"]
+position = Vector2(-119, 0)
+
+[node name="Word" type="Label" parent="TayaMarker/ChantRow/Slot1"]
+offset_left = -26.0
+offset_top = -8.0
+offset_right = 26.0
+offset_bottom = 6.0
+text = "LANGIT"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.43529412, 0.47843137, 0.6, 1)
+theme_type_variation = &"WorldLabel"
+
+[node name="Arrow" type="Polygon2D" parent="TayaMarker/ChantRow/Slot1"]
+visible = false
+position = Vector2(0, 14)
+color = Color(0.9490196, 0.9098039, 0.8117647, 1)
+polygon = PackedVector2Array(0, -5, 5, 4, -5, 4)
+
+[node name="Slot2" type="Node2D" parent="TayaMarker/ChantRow"]
+position = Vector2(-73, 0)
+
+[node name="Word" type="Label" parent="TayaMarker/ChantRow/Slot2"]
+offset_left = -20.0
+offset_top = -8.0
+offset_right = 20.0
+offset_bottom = 6.0
+text = "LUPA"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.43529412, 0.47843137, 0.6, 1)
+theme_type_variation = &"WorldLabel"
+
+[node name="Arrow" type="Polygon2D" parent="TayaMarker/ChantRow/Slot2"]
+visible = false
+position = Vector2(0, 14)
+color = Color(0.9490196, 0.9098039, 0.8117647, 1)
+polygon = PackedVector2Array(0, -5, 5, 4, -5, 4)
+
+[node name="Slot3" type="Node2D" parent="TayaMarker/ChantRow"]
+position = Vector2(-20, 0)
+
+[node name="Word" type="Label" parent="TayaMarker/ChantRow/Slot3"]
+offset_left = -33.0
+offset_top = -8.0
+offset_right = 33.0
+offset_bottom = 6.0
+text = "IMPYERNO"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.43529412, 0.47843137, 0.6, 1)
+theme_type_variation = &"WorldLabel"
+
+[node name="Arrow" type="Polygon2D" parent="TayaMarker/ChantRow/Slot3"]
+visible = false
+position = Vector2(0, 14)
+color = Color(0.9490196, 0.9098039, 0.8117647, 1)
+polygon = PackedVector2Array(0, -5, 5, 4, -5, 4)
+
+[node name="Slot4" type="Node2D" parent="TayaMarker/ChantRow"]
+position = Vector2(56, 0)
+
+[node name="Word" type="Label" parent="TayaMarker/ChantRow/Slot4"]
+offset_left = -43.0
+offset_top = -8.0
+offset_right = 43.0
+offset_bottom = 6.0
+text = "SAKSAK PUSO"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.43529412, 0.47843137, 0.6, 1)
+theme_type_variation = &"WorldLabel"
+
+[node name="Arrow" type="Polygon2D" parent="TayaMarker/ChantRow/Slot4"]
+visible = false
+position = Vector2(0, 14)
+color = Color(0.9490196, 0.9098039, 0.8117647, 1)
+polygon = PackedVector2Array(0, -5, 5, 4, -5, 4)
+
+[node name="Slot5" type="Node2D" parent="TayaMarker/ChantRow"]
+position = Vector2(122, 0)
+
+[node name="Word" type="Label" parent="TayaMarker/ChantRow/Slot5"]
+offset_left = -23.0
+offset_top = -8.0
+offset_right = 23.0
+offset_bottom = 6.0
+text = "ALIS!"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.43529412, 0.47843137, 0.6, 1)
+theme_type_variation = &"WorldLabel"
+
+[node name="Arrow" type="Polygon2D" parent="TayaMarker/ChantRow/Slot5"]
+visible = false
+position = Vector2(0, 14)
+color = Color(0.9490196, 0.9098039, 0.8117647, 1)
+polygon = PackedVector2Array(0, -5, 5, 4, -5, 4)
+
+[node name="SwapRing" type="Line2D" parent="."]
+visible = false
+z_index = 2
+points = PackedVector2Array(28.0, 0.0, 27.05, 7.25, 24.25, 14.0, 19.8, 19.8, 14.0, 24.25, 7.25, 27.05, 0.0, 28.0, -7.25, 27.05, -14.0, 24.25, -19.8, 19.8, -24.25, 14.0, -27.05, 7.25, -28.0, 0.0, -27.05, -7.25, -24.25, -14.0, -19.8, -19.8, -14.0, -24.25, -7.25, -27.05, -0.0, -28.0, 7.25, -27.05, 14.0, -24.25, 19.8, -19.8, 24.25, -14.0, 27.05, -7.25, 28.0, -0.0)
+width = 3.0
+default_color = Color(0.8784314, 0.38039216, 0.30980393, 1)
+
+[node name="Guide" type="Line2D" parent="."]
+visible = false
+z_index = 2
+width = 2.0
+default_color = Color(0.9490196, 0.9098039, 0.8117647, 0.35)
 
 [node name="LangitHud" type="CanvasLayer" parent="."]
 layer = 12
@@ -180,5 +326,47 @@ offset_top = -27.0
 offset_right = 942.0
 offset_bottom = -3.0
 grow_vertical = 0
-text = "CLAIM A LANGIT"
+text = "REACH A NEW LANGIT FOR FAVOR"
 theme_type_variation = &"HudHint"
+
+[node name="RulesCard" type="PanelContainer" parent="LangitHud"]
+visible = false
+offset_left = 386.0
+offset_top = 168.0
+offset_right = 1006.0
+offset_bottom = 208.0
+mouse_filter = 2
+theme_type_variation = &"PanelHud"
+
+[node name="Lines" type="VBoxContainer" parent="LangitHud/RulesCard"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Lupa" type="Label" parent="LangitHud/RulesCard/Lines"]
+layout_mode = 2
+text = "LUPA: the Taya can tag you here."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Langit" type="Label" parent="LangitHud/RulesCard/Lines"]
+layout_mode = 2
+text = "LANGIT: safe, until the Taya's chant yells ALIS! Then jump to ANOTHER one."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Favor" type="Label" parent="LangitHud/RulesCard/Lines"]
+layout_mode = 2
+text = "Every crossing earns FAVOR. Get tagged and you're the Taya."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="TayaTip" type="Label" parent="LangitHud"]
+visible = false
+offset_left = 386.0
+offset_top = 168.0
+offset_right = 1006.0
+offset_bottom = 192.0
+text = "RIGHT CLICK - CHANT. Hit the keys to force them off the Langit."
+horizontal_alignment = 1
+autowrap_mode = 3
+theme_type_variation = &"HudLabel"

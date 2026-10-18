@@ -1,13 +1,19 @@
 extends SceneTree
 
-# Validation: Mapulon & Ikapati's Langit Lupa. The richest mortal starts as Taya
-# (ties random); a touch on the Lupa passes it, a touch on a claimed Langit does
-# not; the new Taya cannot tag back for 1s; one mortal per Langit and the right
-# number of them; they move every 3s and never land on the Taya; Time as Taya and
-# its drain; the payout by least time; the 60s round; and the dash (only here).
+# Validation: Mapulon & Ikapati's Langit Lupa. The rhyme picks the richest mortal
+# as Taya (ties random); mortals + 1 Langit, shared by any number of runners for
+# as long as they like; the Taya's chant roots it and blocks tags, breaks on a
+# wrong key or a missed beat, and on ALIS! closes each runner's Langit to them
+# only, shoves off whoever stays and pays the Taya; the host ignores chant
+# messages that are not the Taya's or out of order; the Taya is never safe and is
+# pushed off a Langit; crossings, close calls and streaks pay; a tag moves
+# tag_steal; tagged_mercy stops a tag-back; seasons move every Langit (clear of
+# the UI strip and the Taya) and reopen them; Time as Taya, its drain and the
+# payout (shown in the results' bonus); the 60s round; and the dash (only here).
 # Run: godot --headless --path <project> -s res://tools/langit_lupa_check.gd
 
 const DT := 0.25  # exact in binary, so four steps are exactly one second
+const FAR := Vector2(1080, 560)
 
 var _arena: LangitLupaArena
 var _rules: GodMatch
@@ -40,13 +46,27 @@ func _run() -> void:
 	_check(not _arena.separate_players() and _arena.shares_mortal_positions(), "Langit Lupa is a shared field")
 	_check(is_equal_approx(_arena.trial_time, 60.0), "a standalone round lasts 60s")
 	_check(_arena._bots.size() == 2 and not _rules.simulate_rivals, "solo: two bots take the rivals' places (and the quiet FAVOR trickle is off)")
+
+	# --- the countdown is the rhyme, and the rules card shows on a first visit ----------
 	_arena._start_countdown()
-	_check(not _arena._langits.is_empty(), "(the countdown lays out the Langit)")
+	_check(_arena._langits.size() == 4, "(the countdown lays out the Langit: 3 mortals -> 4)")
+	_arena._show_banner("3", Color.WHITE)
+	var first: String = _arena.hud.banner_label.text
+	_arena._show_banner("2", Color.WHITE)
+	var second: String = _arena.hud.banner_label.text
+	_arena._show_banner("1", Color.WHITE)
+	_check(first == "LANGIT..." and second == "LUPA..." and _arena.hud.banner_label.text == "IMPYERNO!",
+		"the 3-2-1 is the rhyme: LANGIT... LUPA... IMPYERNO! (%s / %s / %s)" % [first, second, _arena.hud.banner_label.text])
+	_arena._refresh_hud(0.0)
+	_check(_arena.rules_card.visible, "the rules card shows through the countdown of a first visit")
 
 	# --- the first Taya ----------------------------------------------------------
 	_set_favor(100, 500, 200)
 	_arena._start_trial()
 	_check(_arena.taya_id() == 2, "the mortal with the most FAVOR starts as Taya")
+	_check(_arena.hud.banner_label.text == "TAYA: MORTAL 2!", "the rhyme lands on them: \"TAYA: MORTAL 2!\" (%s)" % _arena.hud.banner_label.text)
+	_arena._refresh_hud(0.0)
+	_check(not _arena.rules_card.visible, "the rules card is gone at GO")
 	var seen := {}
 	for attempt in range(40):
 		_set_favor(100, 500, 500)
@@ -65,109 +85,250 @@ func _run() -> void:
 	for bot in _arena._bots.values():
 		bot.queue_free()
 	_arena._bots.clear()
-	_arena._shift_timer = 1000.0
 
-	# --- tagging -----------------------------------------------------------------
-	var centre := Vector2(700, 340)
-	_arena._langits.clear()
-	_arena._claims.clear()
-	_put(1, centre)
-	_put(2, centre + Vector2(20, 0))
-	_put(3, Vector2(1000, 520))
-	_arena.set_taya(1)
-	_arena._tagback = 0.0
+	# --- Langit ------------------------------------------------------------------------
+	for mortals in [2, 3, 4]:
+		_check(_arena.langit_count(mortals) == mortals + 1, "%d mortals -> %d Langit" % [mortals, mortals + 1])
+	var spot := Vector2(500, 300)
+	var other_spot := Vector2(800, 300)
+	_reset(3, [spot, other_spot])
+	_put(1, spot + Vector2(-12, 0))
+	_put(2, spot + Vector2(12, 5))
+	_check(_arena.is_safe(1) and _arena.is_safe(2), "two runners can be safe on the same Langit")
+	_put(2, spot + Vector2(_arena.langit_size.x * 0.5 + 4.0, 0))
+	_check(_arena.is_safe(2), "standing on the edge (inside langit_safe_margin) still counts")
+	_put(2, spot + Vector2(12, 5))
+	_put(3, spot + Vector2(0, 50))  # the Taya, right next to them
+	for step in range(20):
+		_arena.arena_rules_tick(DT)
+	_check(_arena.is_safe(1) and _arena.is_safe(2) and _arena.taya_id() == 3, "...and they stay safe there, with no chant, for as long as they like (5s)")
+	_put(3, spot)
+	_check(not _arena.is_safe(3), "the Taya never counts as safe, even on a Langit")
+	var pushed: Vector2 = _arena._push_out(spot + Vector2(10, 4))
+	var rect: Rect2 = _arena.langit_rect(0)
+	_check(not rect.has_point(pushed) and pushed.distance_to(spot + Vector2(10, 4)) <= rect.size.y * 0.5 + 1.0,
+		"a Taya inside a Langit is pushed back out to the nearest edge (%s)" % str(pushed))
+	_reset(1, [spot, other_spot])
+	_put(1, spot)
+	_arena._process(0.0)
+	_check(not rect.has_point(_arena.player.global_position), "...on the Taya's own screen, every frame")
+
+	# --- the chant: rooted, no tags, no dash ----------------------------------------------
+	_reset(1, [spot, other_spot])
+	_put(1, Vector2(650, 450))
+	_put(2, Vector2(660, 450))  # on the Lupa, within reach
+	_put(3, FAR)
+	_check(_arena.start_chant(), "the Taya can start a chant")
+	_check(_arena._chanting and _arena.player.locked, "a chant roots the Taya")
 	_arena._check_tag()
-	_check(_arena.taya_id() == 2, "a touch on the Lupa passes Taya")
+	_check(_arena.taya_id() == 1, "a chanting Taya cannot tag")
+	_check(not _arena.try_dash(), "...nor dash")
+	_check(not _arena.start_chant(), "a second chant cannot start over the first")
+	# a wrong key breaks it
+	_arena.chant_key((_arena._my_chant[0] + 1) % 4)
+	_check(not _arena._chanting and _arena._chant_broken == 0, "a wrong key breaks the chant (on its first word)")
+	_check(_arena._chant_cd > 0.0 and is_equal_approx(_arena._chant_cd, _arena.chant_cooldown), "...and the cooldown starts anyway")
+	_check(_arena.player.locked and _arena._root_left > 0.0, "the Taya stumbles, still rooted")
+	_arena._check_tag()
+	_check(_arena.taya_id() == 1, "...and still cannot tag")
+	_arena._tick_my_chant(_arena.chant_fail_stun + 0.01)
+	_arena._tick_chant(_arena.chant_fail_stun + 0.01)
+	_check(not _arena.player.locked, "after the stumble the Taya moves again")
+	_check(not _arena.start_chant(), "a chant waits for the cooldown")
+	# a missed beat breaks it
+	_arena._chant_cd = 0.0
+	_check(_arena.start_chant(), "(a new chant once the cooldown is ready)")
+	_arena.chant_key(_arena._my_chant[0])
+	_check(_arena._chant_step == 1, "a right key lights the next word")
+	_arena._tick_my_chant(_arena.chant_beat - 0.1)
+	_check(_arena._chanting, "the beat is not missed yet")
+	_arena._tick_my_chant(0.2)
+	_check(not _arena._chanting and _arena._chant_broken == 1 and _arena._chant_cd > 0.0, "a missed beat breaks it (on the word it was on) and starts the cooldown")
+	_arena._tick_my_chant(1.0)
+	_arena._tick_chant(1.0)
+	# RIGHT CLICK, and never while a dialogue or the God's Due menu is open
+	_arena._chant_cd = 0.0
+	var right := InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	right.pressed = true
+	_arena.dialogue.show_lines([{"speaker": "TEST", "color": Color.WHITE, "text": "A LINE"}])
+	_arena._input(right)
+	_check(not _arena._chanting, "RIGHT CLICK does not chant while a dialogue is open")
+	_arena.dialogue.close_now()
+	_arena._toggle_due_menu()
+	_arena._input(right)
+	_check(not _arena._chanting, "...nor while the God's Due menu is open")
+	_arena.due_menu.close()
+	_arena._input(right)
+	_check(_arena._chanting, "during play RIGHT CLICK starts the chant")
+	for word in range(_arena.chant_length):
+		var key := InputEventAction.new()
+		key.action = LangitLupaArena.MOVE_ACTIONS[_arena._my_chant[word]]
+		key.pressed = true
+		_arena._input(key)
+	_check(not _arena._chanting and _arena._chant_broken == -1 and _arena._chant_cd > 0.0 and not _arena.player.locked,
+		"the move keys answer the prompts: a full chant ends it, unroots the Taya and starts the cooldown")
+
+	# --- the chant from a remote Taya: the host checks every message ---------------------------
+	_reset(2, [spot, other_spot])
+	_put(2, Vector2(650, 300))     # the Taya, between the two Langit
+	_put(1, spot)                  # our mortal sits on Langit 0
+	_put(3, Vector2(650, 500))     # on the Lupa
+	_set_favor(500, 500, 500)
+	_arena._on_chant_message(3, "start", 0)
+	_check(not _arena._chanting, "the host ignores a chant from a mortal who is not the Taya")
+	_arena._season_timer = _arena.shift_warning * 0.5
+	_arena._on_chant_message(2, "start", 0)
+	_check(not _arena._chanting, "a chant cannot start during the crumble warning")
+	_arena._season_timer = 1000.0
+	_arena._on_chant_message(2, "start", 0)
+	_check(_arena._chanting, "the Taya's start is accepted")
+	_arena._on_chant_message(2, "step", 2)
+	_check(_arena._chant_step == 0, "a step out of order is ignored")
+	_arena._on_chant_message(3, "step", 1)
+	_check(_arena._chant_step == 0, "so is a step from somebody else")
+	_arena._on_chant_message(2, "step", 1)
+	_arena._on_chant_message(2, "result", 1)
+	_check(not _arena._chanting and _arena.swap_left(1) == 0.0 and _arena._chant_cd > 0.0,
+		"a \"success\" that skipped words is a broken chant, not an ALIS")
+	_arena._chant_cd = 0.0
+	_arena._root_left = 0.0
+	_arena._on_chant_message(2, "start", 0)
+	for word in range(1, _arena.chant_length + 1):
+		_arena._on_chant_message(2, "step", word)
+	_arena._on_chant_message(2, "result", 1)
+	_check(is_equal_approx(_arena.swap_left(1), _arena.swap_time), "ALIS! gives the runner on a Langit swap_time to leave")
+	_check(_arena.is_closed_for(1, 0) and not _arena.is_closed_for(3, 0), "their Langit is closed to them, and to nobody else")
+	_check(_arena.langit_index_at(3, spot) == 0 and _arena.langit_index_at(1, spot) == -1, "...it still counts for the others")
+	_check(_arena.swap_left(3) == 0.0 and not _arena._closed.has(3), "a runner who was on the Lupa is left alone")
+	_check(_rules.mortal(2).favor == 500 + _arena.chant_favor, "the Taya is paid chant_favor per runner forced off (%d)" % _rules.mortal(2).favor)
+	_check(_arena.is_safe(1), "while the swap clock runs the runner is still safe")
+	_arena._on_chant_message(2, "start", 0)
+	_check(not _arena._chanting, "the next chant waits for the cooldown")
+	_arena._tick_swaps(_arena.swap_time + 0.01)
+	_arena._tick_swaps(0.01)
+	_check(not _arena.is_safe(1) and _arena.player.is_stunned(), "whoever stays on it after swap_time is shoved off, and no longer safe")
+	_put(1, other_spot)
+	_check(_arena.is_safe(1), "the other Langit is still open to them")
+	_arena._turn_season()
+	_check(_arena._closed.is_empty() and _arena._swap.is_empty(), "a season change opens the closed Langit again")
+
+	# --- crossings, close calls, streaks, the catch --------------------------------------------------
+	_reset(3, [spot, other_spot])
+	_set_favor(1000, 1000, 1000)
+	_put(3, FAR)
+	_put(1, spot)
+	_arena._tick_crossings()
+	var favor: int = _rules.mortal(1).favor
+	_put(1, Vector2(650, 450))
+	_arena._tick_crossings()
+	_put(1, spot)
+	_arena._tick_crossings()
+	_check(_rules.mortal(1).favor == favor, "stepping back onto the Langit you left pays nothing")
+	_put(1, Vector2(650, 450))
+	_arena._tick_crossings()
+	_put(1, other_spot)
+	_arena._tick_crossings()
+	var streak: int = _arena.streak_of(1)
+	_check(_rules.mortal(1).favor == favor + _arena.crossing_favor + (streak - 1) * _arena.streak_step,
+		"a crossing to a new Langit pays crossing_favor (+ the streak) (%d)" % (_rules.mortal(1).favor - favor))
+	favor = _rules.mortal(1).favor
+	_put(1, Vector2(650, 450))
+	_arena._tick_crossings()
+	_put(3, Vector2(650, 450 + _arena.close_call_radius - 10.0))
+	_arena._tick_crossings()
+	_put(3, FAR)
+	_put(1, spot)
+	_arena._tick_crossings()
+	_check(_rules.mortal(1).favor == favor + _arena.crossing_favor + streak * _arena.streak_step + _arena.close_call_bonus,
+		"a close call on the way adds close_call_bonus, and the streak adds streak_step (%d)" % (_rules.mortal(1).favor - favor))
+	_check(_arena.streak_of(1) == streak + 1, "the streak grows with each crossing")
+	_arena._streak[1] = 20
+	favor = _rules.mortal(1).favor
+	_put(1, Vector2(650, 450))
+	_arena._tick_crossings()
+	_put(1, other_spot)
+	_arena._tick_crossings()
+	_check(_rules.mortal(1).favor == favor + _arena.crossing_favor + _arena.streak_cap, "the streak bonus stops at streak_cap")
+	_put(1, Vector2(650, 450))
+	_put(3, Vector2(660, 450))
+	_arena._tagback = 0.0
+	_arena._invuln.clear()
+	var runner_before: int = _rules.mortal(1).favor
+	var taya_before: int = _rules.mortal(3).favor
+	_arena._check_tag()
+	_check(_arena.taya_id() == 1, "a touch on the Lupa passes Taya")
+	_check(_arena.streak_of(1) == 0, "being tagged resets the streak")
+	_check(_rules.mortal(1).favor == runner_before - _arena.tag_steal and _rules.mortal(3).favor == taya_before + _arena.tag_steal,
+		"a tag moves tag_steal FAVOR from the runner to the Taya")
 	_check(is_equal_approx(_arena._tagback, _arena.tagback_immunity), "the new Taya gets the tag-back buffer")
 	_arena._check_tag()
-	_check(_arena.taya_id() == 2, "the new Taya cannot tag straight back")
-	for step in range(3):
-		_arena.arena_rules_tick(DT)
-	_check(_arena.taya_id() == 2, "...for the whole second (0.75s in)")
-	for step in range(2):
-		_arena.arena_rules_tick(DT)
-	_check(_arena.taya_id() == 1, "after 1s the Taya can tag again")
-	_arena._place_marker()
-	_check(_arena.taya_marker.visible == (_arena._phase == Arena.Phase.PLAYING), "the Taya wears a marker")
-
-	# --- Langit --------------------------------------------------------------------
-	var spot := Vector2(500, 300)
-	_arena._langits = [spot]
-	_arena._claims.clear()
-	_arena.set_taya(1)
+	_check(_arena.taya_id() == 1, "the new Taya cannot tag straight back")
 	_arena._tagback = 0.0
-	_put(3, spot)
-	_arena._update_claims()
-	_put(2, spot + Vector2(10, 5))  # a frame later
-	_arena._update_claims()
-	_check(_arena.is_safe(3) and not _arena.is_safe(2), "one mortal per Langit: the first on it claims it, the second is not safe")
-	_put(1, spot + Vector2(-10, 0))
-	_arena._update_claims()
-	_check(not _arena._claims.values().has(1), "the Taya can walk over a Langit but never claims one")
-	_put(2, Vector2(1000, 520))
 	_arena._check_tag()
-	_check(_arena.taya_id() == 1, "a touch on a claimed Langit does not pass Taya")
-	_put(2, spot + Vector2(10, 5))
+	_check(_arena.taya_id() == 1, "and once its buffer is over, tagged_mercy still keeps the old Taya safe")
+	_arena._tick_invuln(_arena.tagged_mercy + 0.01)
 	_arena._check_tag()
-	_check(_arena.taya_id() == 2, "the unclaimed mortal on the same Langit is tagged")
-	_put(3, Vector2(1000, 520))
-	_arena._update_claims()
-	_check(not _arena.is_safe(3), "stepping off gives the Langit back")
+	_check(_arena.taya_id() == 3, "after it, the old Taya can be tagged again")
+	_rules.mortal(1).favor = 25
+	_rules.mortal(3).favor = 0
+	_arena._tagback = 0.0
+	_arena._invuln.clear()
+	_arena._check_tag()
+	_check(_arena.taya_id() == 1 and _rules.mortal(3).favor == 25, "the Taya gets only what the runner really lost (25 of 60)")
+	_arena._place_marker()
+	_check(_arena.taya_marker.visible, "the Taya wears a marker")
 
-	for mortals in [2, 3, 4]:
-		var expected: int = {2: 1, 3: 1, 4: 2}[mortals]
-		_check(_arena.langit_count(mortals) == expected, "%d mortals -> %d Langit" % [mortals, expected])
-	_rules.ensure_mortal(4, "MORTAL 4")
+	# --- seasons ------------------------------------------------------------------------------------------
+	_reset(1, [])
 	_arena._place_langits()
-	_check(_arena._langits.size() == 2, "with four mortals the field holds two Langit")
-	_rules.remove_mortal(4)
-	_arena._place_langits()
-	_check(_arena._langits.size() == 1, "with three, one")
-
-	# --- crumbling every 3s ---------------------------------------------------------
-	_arena._shift_timer = _arena.shift_interval
-	var shifts: int = _arena._shift_count
+	_arena._season_timer = _arena.season_interval
+	var season: int = _arena._season
 	var before: Array = _arena._langits.duplicate()
-	_arena._tick_shift(2.0)
-	_check(not _arena.is_crumbling(), "no warning 1s before the crumble... (%.2fs left)" % _arena._shift_timer)
-	_arena._tick_shift(0.5)
-	_check(_arena.is_crumbling(), "...the warning shows in the last 0.75s")
-	_arena._tick_shift(0.4)
-	_check(_arena._shift_count == shifts, "still the same Langit at 2.9s")
-	_arena._tick_shift(0.2)
-	_check(_arena._shift_count == shifts + 1, "they crumble and move at 3s")
-	_check(_arena._langits != before, "...to new spots")
+	_arena._tick_season(_arena.season_interval - _arena.shift_warning - 0.25)
+	_check(not _arena.is_crumbling(), "no warning before the last shift_warning seconds (%.2fs left)" % _arena._season_timer)
+	_arena._tick_season(0.5)
+	_check(_arena.is_crumbling(), "...then the Langit shake")
+	_arena._tick_season(0.5)
+	_check(_arena._season == season, "still the same Langit just before the season turns")
+	_arena._tick_season(0.5)
+	_check(_arena._season == season + 1 and _arena._langits != before, "every season_interval they crumble and move to new spots")
 	var placement_ok := true
+	var spaced := 0
+	var layouts := 0
 	_rules.ensure_mortal(4, "MORTAL 4")
 	for attempt in range(60):
 		var taya_at := Vector2(randf_range(270, 1120), randf_range(100, 580))
 		_put(_arena.taya_id(), taya_at)
 		_arena._place_langits()
+		layouts += 1
+		var all_spaced := true
 		for index in range(_arena._langits.size()):
-			var rect: Rect2 = _arena.langit_rect(index)
+			var here: Rect2 = _arena.langit_rect(index)
 			if _arena._langits[index].distance_to(taya_at) < _arena.taya_clearance:
 				placement_ok = false
-			if not _arena._field.encloses(rect) or rect.position.x < Arena.UI_STRIP_WIDTH:
+			if not _arena._field.encloses(here) or here.position.x < Arena.UI_STRIP_WIDTH:
 				placement_ok = false
 			for other in range(index + 1, _arena._langits.size()):
-				if rect.intersects(_arena.langit_rect(other)):
+				if here.intersects(_arena.langit_rect(other)):
 					placement_ok = false
+				if _arena._langits[index].distance_to(_arena._langits[other]) < _arena.langit_spacing:
+					all_spaced = false
+		spaced += int(all_spaced)
+	_check(_arena._langits.size() == 5, "with four mortals the field holds five Langit")
 	_rules.remove_mortal(4)
 	_check(placement_ok, "a Langit never lands near the Taya, off the field, in the UI strip or on another Langit")
-	_check(_arena._claims.is_empty(), "a crumble sends everybody back to the Lupa")
+	_check(spaced * 10 >= layouts * 9, "...and they are spread langit_spacing apart (%d of %d layouts)" % [spaced, layouts])
 
 	# --- Time as Taya and the drain -------------------------------------------------
-	_arena._shift_timer = 1000.0
-	_arena._langits.clear()
-	_arena._claims.clear()
-	_arena._taya_time.clear()
-	_arena._drain_pending.clear()
-	_arena._drain_tick = 1.0
+	_reset(1, [])
 	_set_favor(1000, 1000, 1000)
 	_put(1, Vector2(300, 120))
 	_put(2, Vector2(1100, 560))
 	_put(3, Vector2(700, 560))
-	_arena.set_taya(1)
+	_arena._taya_time.clear()
+	_arena._drain_pending.clear()
+	_arena._drain_tick = 1.0
 	for step in range(2):
 		_arena.arena_rules_tick(DT)
 	_check(is_equal_approx(_arena.taya_seconds(1), 0.5) and _arena.taya_seconds(2) == 0.0 and _arena.taya_seconds(3) == 0.0,
@@ -188,14 +349,14 @@ func _run() -> void:
 	# --- the payout --------------------------------------------------------------------
 	_arena._taya_time = {1: 5.0, 2: 10.0, 3: 20.0}
 	var paid: Dictionary = _arena.payouts()
-	_check(paid[1] == 1200 and paid[2] == 700 and paid[3] == 200, "least time as Taya is paid most: 1200 / 700 / 200 (%s)" % str(paid))
+	_check(paid[1] == 600 and paid[2] == 350 and paid[3] == 100, "least time as Taya is paid most: 600 / 350 / 100 (%s)" % str(paid))
 	_arena._taya_time = {1: 5.0, 2: 5.2, 3: 20.0}
 	paid = _arena.payouts()
-	_check(paid[1] == 1200 and paid[2] == 1200 and paid[3] == 200, "times within 0.25s tie and share the better payout (%s)" % str(paid))
+	_check(paid[1] == 600 and paid[2] == 600 and paid[3] == 100, "times within 0.25s tie and share the better payout (%s)" % str(paid))
 	_rules.ensure_mortal(4, "MORTAL 4")
 	_arena._taya_time = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.0}
 	paid = _arena.payouts()
-	_check(paid[1] == 1200 and paid[2] == 867 and paid[3] == 533 and paid[4] == 200, "four places are spread evenly (%s)" % str(paid))
+	_check(paid[1] == 600 and paid[2] == 433 and paid[3] == 267 and paid[4] == 100, "four places are spread evenly (%s)" % str(paid))
 	_rules.remove_mortal(4)
 	_arena._taya_time = {1: 5.0, 2: 10.0, 3: 20.0}
 	_set_favor(0, 0, 0)
@@ -203,8 +364,10 @@ func _run() -> void:
 	_rules.favor_changed.connect(func(_id: int, _total: int, _delta: int, reason: String) -> void: reasons.append(reason))
 	_arena._end_trial()
 	var result: Dictionary = _arena._results.get(1, {})
-	_check(_rules.mortal(1).favor == 1200 and int(result.get("favor", 0)) == 1200, "the payout is banked before the results are written")
+	_check(_rules.mortal(1).favor == 600 and int(result.get("favor", 0)) == 600, "the payout is banked before the results are written")
 	_check(reasons.has("Langit Lupa payout"), "...under the reason \"Langit Lupa payout\"")
+	_check(int(result.get("bonus", 0)) == 600 and int(_arena._results.get(3, {}).get("bonus", 0)) == 100,
+		"...and it shows in the results' bonus column (%s)" % str(result))
 
 	# --- the 60s round through the game shell --------------------------------------------
 	var network: Node = root.get_node("Network")
@@ -221,6 +384,8 @@ func _run() -> void:
 	await _frames(2)
 
 	# --- the dash ----------------------------------------------------------------------------
+	for step in range(20):
+		await physics_frame  # the shove test's stumble wears off
 	_arena._phase = Arena.Phase.PLAYING
 	_arena.dialogue.close_now()  # the closing lines of the payout test
 	_arena.player.set_lock(false)
@@ -274,6 +439,26 @@ func _run() -> void:
 	print("Langit Lupa checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
 	quit(1 if _problems > 0 else 0)
+
+
+# A quiet field for one test: `taya` is it (with no buffer), the Langit are
+# where the test says, nobody's chant, swap, streak or mercy is left over, and
+# the season will not turn by itself.
+func _reset(taya: int, langits: Array) -> void:
+	_arena._phase = Arena.Phase.PLAYING
+	_arena._langits.clear()
+	for spot in langits:
+		_arena._langits.append(spot)
+	for runners in [_arena._swap, _arena._closed, _arena._shoving, _arena._on, _arena._last_left, _arena._close_call, _arena._streak]:
+		runners.clear()
+	_arena._season_timer = 1000.0
+	_arena.set_taya(taya)
+	_arena._tagback = 0.0
+	_arena._chant_cd = 0.0
+	_arena._invuln.clear()
+	_arena._my_chanting = false
+	_arena._my_stumble = 0.0
+	_arena._set_rooted(false)
 
 
 func _set_favor(mine: int, rival: int, rival_two: int) -> void:
