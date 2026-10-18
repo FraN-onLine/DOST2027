@@ -305,7 +305,7 @@ func _ready() -> void:
 	_start_position = player.global_position
 	_base_move_speed = player.move_speed
 	_read_field()
-	player.set_display_name(_mortal_name(), god.color)
+	player.set_display_name(_mortal_name(), UITokens.god_text(god))
 	hud.bind(rules, god)
 	_connect_network()
 	_sync_ghosts()
@@ -366,7 +366,7 @@ func _read_field() -> void:
 	var tint: Color = god.color if god != null else Color.WHITE
 	field_root.apply_tint(tint)
 	player.bounds = _field
-	player.ring_color = tint
+	player.ring_color = UITokens.god_accent(god)
 	_apply_vision_mask()
 	collect_units()
 	if _authority:
@@ -1625,9 +1625,9 @@ func _on_player_name_changed(peer_id: int, name: String) -> void:
 	if mortal != null:
 		mortal.display_name = clean
 	if peer_id == _my_id:
-		player.set_display_name(clean, god.color)
+		player.set_display_name(clean, UITokens.god_text(god))
 	elif _ghosts.has(peer_id) and is_instance_valid(_ghosts[peer_id]):
-		_ghosts[peer_id].set_display_name(clean, god.color)
+		_ghosts[peer_id].set_display_name(clean, UITokens.god_text(god))
 
 
 func _sync_ghosts() -> void:
@@ -1649,8 +1649,8 @@ func _sync_ghosts() -> void:
 		var ghost: ArenaMortal = MORTAL_SCENE.instantiate()
 		ghosts_root.add_child(ghost)
 		ghost.set_lock(true)
-		ghost.ring_color = god.color
-		ghost.set_display_name(str(names[pid]), god.color)
+		ghost.ring_color = UITokens.god_accent(god)
+		ghost.set_display_name(str(names[pid]), UITokens.god_text(god))
 		_ghosts[id] = ghost
 	for id in _ghosts.keys().duplicate():
 		if not names.has(int(id)):

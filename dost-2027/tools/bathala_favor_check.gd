@@ -5,8 +5,8 @@ extends SceneTree
 #   Our Partnership Ends Here (Apolaki) - pay 500, curse the field with Sun Patches.
 #   Bathala Na                          - pour out every God's Due, +350 each.
 #   Si Batman                           - pay 1500, then nothing can take FAVOR.
-#   Half Vision (E)                     - halve the leader, they win 80% back over 4s.
-#   Sibling's Compromise (Mayari) (Q)   - halve yourself, win 120% back over 6s.
+#   Blindside (E)                       - halve the leader, they win 80% back over 4s.
+#   Vantage Point (Q)                   - halve yourself, win 120% back over 6s.
 # Run: godot --headless --path <project> -s res://tools/bathala_favor_check.gd
 
 const DT := 0.25  # exact in binary: four steps are exactly one second
@@ -46,8 +46,9 @@ func _run() -> void:
 	var batman := _favor("si_batman")
 	var half := _favor("half_vision_sacrifice")
 	var sibling := _favor("siblings_compromise_bathala")
-	_check(half.slot == GodFavor.Slot.E and is_equal_approx(half.cooldown, 60.0), "Half Vision is a 60s E")
-	_check(sibling.slot == GodFavor.Slot.Q and is_equal_approx(sibling.cooldown, 45.0), "Sibling's Compromise is a 45s Q")
+	_check(half.display_name == "Blindside" and sibling.display_name == "Vantage Point", "the E and Q favors are named Blindside and Vantage Point")
+	_check(half.slot == GodFavor.Slot.E and is_equal_approx(half.cooldown, 60.0), "Blindside is a 60s E")
+	_check(sibling.slot == GodFavor.Slot.Q and is_equal_approx(sibling.cooldown, 45.0), "Vantage Point is a 45s Q")
 
 	# --- Our Partnership Ends Here (Mayari): pay 500, curse the field ------------
 	_setup(1000, 800, 600)
@@ -86,11 +87,11 @@ func _run() -> void:
 	_check(_rules.mortal(1).favor == 500, "nothing can take the shielded mortal's FAVOR away (%d)" % _rules.mortal(1).favor)
 	_check(_rules.mortal(2).batman_shield == false, "other mortals are not shielded")
 
-	# --- Half Vision (E): halve the leader, they win 80% back over 4s ------------
+	# --- Blindside (E): halve the leader, they win 80% back over 4s --------------
 	_setup(0, 1000, 0)
 	_rules.bestow_favor(half, 1)
 	_arena._apply_skill_effect(half, 1)
-	_check(_rules.mortal(2).favor == 500, "Half Vision cuts the leader's FAVOR in half (%d)" % _rules.mortal(2).favor)
+	_check(_rules.mortal(2).favor == 500, "Blindside cuts the leader's FAVOR in half (%d)" % _rules.mortal(2).favor)
 	_check(not (_rules.mortal(2).bathala_regrowth as Array).is_empty(), "...and queues a slow return for the leader")
 	var before_recover: int = _rules.mortal(2).favor
 	for step in range(int(4.0 / DT) + 1):
@@ -98,11 +99,11 @@ func _run() -> void:
 	_check(_rules.mortal(2).favor - before_recover >= 390 and _rules.mortal(2).favor - before_recover <= 410,
 		"over 4s the leader wins back 80%% of the cut (+%d)" % (_rules.mortal(2).favor - before_recover))
 
-	# --- Sibling's Compromise (Q): halve yourself, win 120% back over 6s ---------
+	# --- Vantage Point (Q): halve yourself, win 120% back over 6s ----------------
 	_setup(1000, 0, 0)
 	_rules.bestow_favor(sibling, 1)
 	_arena._apply_skill_effect(sibling, 1)
-	_check(_rules.mortal(1).favor == 500, "Sibling's Compromise cuts your own FAVOR in half (%d)" % _rules.mortal(1).favor)
+	_check(_rules.mortal(1).favor == 500, "Vantage Point cuts your own FAVOR in half (%d)" % _rules.mortal(1).favor)
 	before_recover = _rules.mortal(1).favor
 	for step in range(int(6.0 / DT) + 1):
 		_rules._tick_mortal(_rules.mortal(1), DT)

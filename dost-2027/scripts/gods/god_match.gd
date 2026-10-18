@@ -377,7 +377,7 @@ func _highest_other(excluded_id: int) -> Mortal:
 
 
 # --- BATHALA'S FAVORS (the sacrifices) ----------------------------------------
-# Half Vision (E): cut the leading opponent's FAVOR in half. The amount actually
+# Blindside (E, Bathala): cut the leading opponent's FAVOR in half. The amount actually
 # taken is queued to grow back over `regrow_time` seconds at `regrow` of it (the
 # note "delete and recover 20% per second" - 80% of the half over 4s). Returns the
 # target's id, or -1 when nobody else is playing.
@@ -393,7 +393,7 @@ func cast_half_vision(caster_id: int, favor: GodFavor) -> int:
 	return target.id
 
 
-# Sibling's Compromise (Q): cut your OWN FAVOR in half, then grow 120% of the
+# Vantage Point (Q, Bathala): cut your OWN FAVOR in half, then grow 120% of the
 # amount back over `regrow_time` seconds - a net gain if you can survive it.
 func cast_siblings_compromise(player_id: int, favor: GodFavor) -> int:
 	var m := _resolve(player_id)

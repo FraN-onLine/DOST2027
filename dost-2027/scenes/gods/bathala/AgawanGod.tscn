@@ -13,6 +13,24 @@ points = PackedVector2Array(20, 0, 19.32, 5.13, 17.32, 9.89, 14.14, 14.14, 9.89,
 width = 3.0
 default_color = Color(1, 1, 1, 0.5)
 
+[node name="Reach" type="Line2D" parent="."]
+visible = false
+points = PackedVector2Array(20, 0, 19.32, 5.13, 17.32, 9.89, 14.14, 14.14, 9.89, 17.32, 5.13, 19.32, 0, 20, -5.13, 19.32, -9.89, 17.32, -14.14, 14.14, -17.32, 9.89, -19.32, 5.13, -20, 0, -19.32, -5.13, -17.32, -9.89, -14.14, -14.14, -9.89, -17.32, -5.13, -19.32, 0, -20, 5.13, -19.32, 9.89, -17.32, 14.14, -14.14, 17.32, -9.89, 19.32, -5.13, 20, 0)
+width = 1.5
+default_color = Color(0.55, 0.85, 1, 0.3)
+
+[node name="Pulse" type="Line2D" parent="."]
+visible = false
+points = PackedVector2Array(20, 0, 19.32, 5.13, 17.32, 9.89, 14.14, 14.14, 9.89, 17.32, 5.13, 19.32, 0, 20, -5.13, 19.32, -9.89, 17.32, -14.14, 14.14, -17.32, 9.89, -19.32, 5.13, -20, 0, -19.32, -5.13, -17.32, -9.89, -14.14, -14.14, -9.89, -17.32, -5.13, -19.32, 0, -20, 5.13, -19.32, 9.89, -17.32, 14.14, -14.14, 17.32, -9.89, 19.32, -5.13, 20, 0)
+width = 2.0
+default_color = Color(1, 0.62, 0.55, 0.7)
+
+[node name="Lunge" type="Line2D" parent="."]
+visible = false
+points = PackedVector2Array(0, 0, 140, 0)
+width = 3.0
+default_color = Color(1, 0.55, 0.2, 0.6)
+
 [node name="Icon" type="Sprite2D" parent="."]
 scale = Vector2(0.5, 0.5)
 texture = ExtResource("2_icon")
