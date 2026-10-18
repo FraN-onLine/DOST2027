@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cbathala000001"]
 
 [ext_resource type="Script" path="res://scripts/GodIntro.gd" id="1_intro"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+[ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="2_ornament"]
 
 [node name="GodIntro" type="Control"]
 layout_mode = 3
@@ -19,15 +19,16 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.02, 0.03, 0.06, 1)
+mouse_filter = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 12.0
-offset_bottom = -52.0
+offset_top = 8.0
+offset_bottom = -40.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -37,51 +38,49 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="TitleLabel" type="Label" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.95, 0.78, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 44
+theme_type_variation = &"HeroLabel"
 text = "BATHALA"
 horizontal_alignment = 1
 
 [node name="SubtitleLabel" type="Label" parent="CenterContainer/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 18
 text = "Ang Laro ng mga diyos"
 horizontal_alignment = 1
 
 [node name="SubTitle2" type="Label" parent="CenterContainer/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 10
+theme_type_variation = &"CaptionLabel"
 text = "THE GOD GAMES"
 horizontal_alignment = 1
 
-[node name="HSeparator" type="HSeparator" parent="CenterContainer/VBox"]
-custom_minimum_size = Vector2(660, 4)
+[node name="Rule" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(320, 12)
 layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+script = ExtResource("2_ornament")
+rule_only = true
 
 [node name="StoryLabel" type="Label" parent="CenterContainer/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.82, 0.86, 0.94, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"FlavorLabel"
 text = "Bathala took the dearest of the mortals."
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="HSeparator2" type="HSeparator" parent="CenterContainer/VBox"]
-custom_minimum_size = Vector2(660, 4)
+[node name="Rule2" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(320, 12)
 layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+script = ExtResource("2_ornament")
+rule_only = true
 
 [node name="GodsLabel" type="Label" parent="CenterContainer/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 10
+theme_type_variation = &"CaptionLabel"
 text = "CHALLENGERS"
 horizontal_alignment = 1
 
@@ -89,13 +88,26 @@ horizontal_alignment = 1
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="PromptLabel" type="Label" parent="CenterContainer/VBox"]
+[node name="PromptGap" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "PRESS SPACE TO FACE THE GODS"
-horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="PromptRow" type="HBoxContainer" parent="CenterContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="PromptKey" type="Label" parent="CenterContainer/VBox/PromptRow"]
+layout_mode = 2
+theme_type_variation = &"KeycapLabel"
+text = "Space"
+
+[node name="PromptLabel" type="Label" parent="CenterContainer/VBox/PromptRow"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "FACE THE GODS"
+vertical_alignment = 1
 
 [node name="StatusLabel" type="Label" parent="."]
 layout_mode = 1
@@ -103,15 +115,13 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = -44.0
-offset_right = -20.0
-offset_bottom = -8.0
+offset_left = 24.0
+offset_top = -40.0
+offset_right = -24.0
+offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"MutedLabel"
 text = "Bathala is watching."
 horizontal_alignment = 1
 vertical_alignment = 2

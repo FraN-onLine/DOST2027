@@ -22,15 +22,28 @@ extends Control
 # One trial = one arena child of ArenaPanel (a full-screen, input-transparent
 # Control), which is why the arena's own coordinates are already screen
 # coordinates.
+#
+# Presentation (UI/theme): every panel is a translucent PanelHud framed in its
+# player's god accent; FAVOR is the biggest number on the card and counts up to
+# a new value instead of jumping; God's Due is a row of diamond pips; the E and
+# Q bars carry their keys as keycaps (rebinding shows here too); the clock is a
+# pill at the top that turns EMBER for the last ten seconds - a colour change
+# only, never a flash.
 
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
+const LOW_TIME := 10.0          # seconds left when the clock turns EMBER
+const COUNT_RATE := 12.0        # FAVOR count-up speed (fraction of the gap per second)
+const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
 
-@onready var own_name_label: Label = $TopLeft/VBoxContainer/NameLabel
-@onready var own_god_icon: TextureRect = $TopLeft/VBoxContainer/GodIcon
+@onready var own_panel: PanelContainer = $TopLeft
+@onready var own_name_label: Label = $TopLeft/VBoxContainer/Header/NameLabel
+@onready var own_icon_frame: PanelContainer = $TopLeft/VBoxContainer/Header/IconFrame
+@onready var own_god_icon: TextureRect = $TopLeft/VBoxContainer/Header/IconFrame/GodIcon
 @onready var favor_label: Label = $TopLeft/VBoxContainer/StatsRow/FavorBox/FavorValue
-@onready var due_label: Label = $TopLeft/VBoxContainer/StatsRow/DueBox/DueValue
-@onready var e_bar: ProgressBar = $TopLeft/VBoxContainer/EBar
-@onready var q_bar: ProgressBar = $TopLeft/VBoxContainer/QBar
+@onready var due_label: Label = $TopLeft/VBoxContainer/StatsRow/DueBox/DueRow/DueValue
+@onready var due_pips: HBoxContainer = $TopLeft/VBoxContainer/StatsRow/DueBox/DueRow/DuePips
+@onready var e_bar: ProgressBar = $TopLeft/VBoxContainer/ERow/EBar
+@onready var q_bar: ProgressBar = $TopLeft/VBoxContainer/QRow/QBar
 @onready var other_players_vbox: VBoxContainer = $OtherPlayersPanel/Margin/VBox
 @onready var opponent_placeholder: Control = $OtherPlayersPanel/Margin/VBox/OpponentPlaceholder
 @onready var timer_label: Label = $TrialTimer
@@ -44,6 +57,9 @@ var trial_index := 0
 var run_snapshot := {}
 var other_player_panels := {}
 var _visited_gods: Dictionary = {}   # god id -> true (its intro is spoken once)
+var _favor_target := 0               # the FAVOR the card is counting toward
+var _favor_shown := 0.0              # the FAVOR the card shows this frame
+var _pips_shown := -1                # God's Due drawn as pips (-1: not drawn yet)
 
 
 func _ready() -> void:
@@ -79,7 +95,11 @@ func _build_hud() -> void:
 	own_name_label.text = str(Network.players.get(my_id, Network.my_name if Network.my_name != "" else "Mortal"))
 	_set_own_god_icon(Network.player_icons.get(my_id, Network.my_god_icon_id))
 	$TopLeft/VBoxContainer/StatsRow/FavorBox/FavorCaption.text = "FAVOR"
-	$TopLeft/VBoxContainer/StatsRow/DueBox/DueCaption.text = "DUE"
+	$TopLeft/VBoxContainer/StatsRow/DueBox/DueCaption.text = "GOD'S DUE"
+	# Recognition over recall: the keys as the player bound them.
+	$TopLeft/VBoxContainer/ERow/EKey.text = UITokens.key_text(&"skill_e")
+	$TopLeft/VBoxContainer/QRow/QKey.text = UITokens.key_text(&"skill_q")
+	_show_due_pips(0)
 	_build_other_player_panels()
 
 
@@ -143,6 +163,10 @@ func _set_own_god_icon(god_id: StringName) -> void:
 	var god := Gods.by_id(god_id)
 	if god != null:
 		own_god_icon.texture = god.icon
+		# The card is framed in the accent of the god the player wears.
+		var accent := UITokens.god_accent(god)
+		own_panel.add_theme_stylebox_override("panel", UITokens.accent_box(own_panel.get_theme_stylebox("panel", &"PanelHud"), accent))
+		own_icon_frame.add_theme_stylebox_override("panel", UITokens.accent_box(own_icon_frame.get_theme_stylebox("panel", &"PanelInset"), accent))
 
 
 # The run's order comes from exactly one place: the host (Network.start_game
@@ -245,12 +269,49 @@ func _on_arena_ready() -> void:
 func _on_trial_time_changed(seconds: float) -> void:
 	var clamped := maxf(0.0, seconds)
 	timer_label.text = "%d:%02d" % [int(clamped / 60.0), int(clamped) % 60]
+	if clamped <= LOW_TIME:
+		timer_label.add_theme_color_override("font_color", UITokens.readable_on_dark(UITokens.EMBER, UITokens.NIGHT_900))
+	else:
+		timer_label.remove_theme_color_override("font_color")
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_refresh_local_stats()
 	if rules != null:
 		_update_panel_stats()
+	_count_favor(delta)
+
+
+# FAVOR ticks toward its new value over a few frames instead of jumping, so a
+# gain or a loss reads as movement. It always lands exactly on the real value.
+func _count_favor(delta: float) -> void:
+	var gap := _favor_target - _favor_shown
+	if absf(gap) < 0.5:
+		_favor_shown = _favor_target
+	else:
+		_favor_shown += gap * minf(1.0, delta * COUNT_RATE)
+	favor_label.text = str(roundi(_favor_shown))
+
+
+# God's Due as diamond pips (the radio icons of the theme, so the art swap
+# covers them), with "+N" once there are more than MAX_PIPS. Zero shows one
+# empty pip, so the row never vanishes.
+func _show_due_pips(due: int) -> void:
+	if due == _pips_shown:
+		return
+	_pips_shown = due
+	for child in due_pips.get_children():
+		due_pips.remove_child(child)
+		child.queue_free()
+	var full := due_pips.get_theme_icon(&"radio_checked", &"CheckBox")
+	var empty := due_pips.get_theme_icon(&"radio_unchecked", &"CheckBox")
+	for index in range(maxi(1, mini(due, MAX_PIPS))):
+		var pip := TextureRect.new()
+		pip.texture = full if due > 0 else empty
+		pip.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+		due_pips.add_child(pip)
+	due_label.visible = due > MAX_PIPS
+	due_pips.tooltip_text = "%d God's Due" % due
 
 
 func _refresh_local_stats() -> void:
@@ -259,8 +320,9 @@ func _refresh_local_stats() -> void:
 	var mortal := rules.local()
 	if mortal == null:
 		return
-	favor_label.text = str(mortal.favor)
-	due_label.text = str(mortal.due)
+	_favor_target = mortal.favor
+	due_label.text = "+%d" % (mortal.due - MAX_PIPS) if mortal.due > MAX_PIPS else str(mortal.due)
+	_show_due_pips(mortal.due)
 
 
 func _update_panel_stats() -> void:
@@ -326,7 +388,9 @@ func _on_trial_complete() -> void:
 func _show_finale() -> void:
 	$OtherPlayersPanel.visible = true
 	finale_panel.visible = true
+	UITokens.reveal(finale_panel)
 	timer_label.text = "FINAL JUDGMENT"
+	timer_label.remove_theme_color_override("font_color")
 	var ranked: Array[Dictionary] = []
 	for player_id in run_snapshot.keys():
 		var entry: Dictionary = run_snapshot[player_id].duplicate(true)

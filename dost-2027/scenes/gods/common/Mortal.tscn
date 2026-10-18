@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://mbsvj8vbhmue" path="res://scripts/gods/common/mortal.gd" id="1_mortal"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
 [ext_resource type="Texture2D" uid="uid://cphb53fo1gfxn" path="res://Assets/Player/Lamang-Sheet.png" id="3_af5nn"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8j8bf"]
 atlas = ExtResource("3_af5nn")
@@ -172,11 +171,9 @@ offset_top = -48.000004
 offset_right = 73.0
 offset_bottom = -30.000004
 scale = Vector2(0.80199254, 0.77494526)
-theme_override_colors/font_color = Color(1, 0.95, 0.8, 0.85)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 10
 text = "MORTAL"
 horizontal_alignment = 1
+theme_type_variation = &"WorldLabel"
 
 [node name="FloatingStatus" type="Label" parent="." unique_id=638494987]
 visible = false
@@ -184,6 +181,5 @@ offset_left = -90.0
 offset_top = -70.0
 offset_right = 90.0
 offset_bottom = -48.0
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 12
 horizontal_alignment = 1
+theme_type_variation = &"WorldValue"

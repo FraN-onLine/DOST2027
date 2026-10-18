@@ -2,64 +2,46 @@
 
 [ext_resource type="Script" path="res://UI/opponent_panel.gd" id="1_panel"]
 [ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
-
-[sub_resource type="StyleBoxFlat" id="1"]
-bg_color = Color(0.12, 0.14, 0.22, 0.9)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.35, 0.38, 0.5, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
 
 [node name="OpponentPanel" type="PanelContainer"]
-custom_minimum_size = Vector2(180, 130)
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = SubResource("1")
+custom_minimum_size = Vector2(0, 88)
+size_flags_horizontal = 3
+theme_type_variation = &"PanelRow"
 script = ExtResource("1_panel")
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="Icon" type="TextureRect" parent="MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(36, 36)
+[node name="Header" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-size_flags_horizontal = 4
+theme_override_constants/separation = 8
+
+[node name="Icon" type="TextureRect" parent="MarginContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
 texture = ExtResource("2_icon")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer/Header"]
 layout_mode = 2
+size_flags_horizontal = 3
+text = "PlayerName"
+vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 14
-text = "PlayerName"
-horizontal_alignment = 1
 
 [node name="StatsLabel" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 12
+theme_override_constants/separation = 16
 
 [node name="FavorBox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatsLabel"]
 layout_mode = 2
@@ -67,15 +49,12 @@ theme_override_constants/separation = 4
 
 [node name="FavorCaption" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/FavorBox"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 9
+theme_type_variation = &"CaptionLabel"
 text = "FAVOR"
+vertical_alignment = 1
 
 [node name="FavorValue" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/FavorBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 14
 text = "0"
 
 [node name="DueBox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatsLabel"]
@@ -84,31 +63,28 @@ theme_override_constants/separation = 4
 
 [node name="DueCaption" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/DueBox"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 9
+theme_type_variation = &"CaptionLabel"
 text = "DUE"
+vertical_alignment = 1
 
 [node name="DueValue" type="Label" parent="MarginContainer/VBoxContainer/StatsLabel/DueBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.9, 1, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 14
 text = "0"
 
 [node name="SkillRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 8
 
 [node name="EBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/SkillRow"]
-custom_minimum_size = Vector2(70, 16)
+custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
-value = 0.0
-show_percentage = false
+size_flags_horizontal = 3
 tooltip_text = "E  --"
+show_percentage = false
 
 [node name="QBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/SkillRow"]
-custom_minimum_size = Vector2(70, 16)
+custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
-value = 0.0
-show_percentage = false
+size_flags_horizontal = 3
 tooltip_text = "Q  --"
+show_percentage = false

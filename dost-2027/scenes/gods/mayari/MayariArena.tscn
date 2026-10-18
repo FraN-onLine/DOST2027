@@ -7,7 +7,6 @@
 [ext_resource type="Texture2D" uid="uid://du3e4xxsj2xtm" path="res://Assets/Gods/Tala/Tala-Overseer.png" id="4_qvw0k"]
 [ext_resource type="PackedScene" uid="uid://svxrl6j6aa6k" path="res://scenes/gods/mayari/MayariClone.tscn" id="5_clone"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="7_icon"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="7_wlxev"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_wlxev"]
 atlas = ExtResource("4_qvw0k")
@@ -161,9 +160,9 @@ offset_top = -67.0
 offset_right = 372.0
 offset_bottom = -39.0
 grow_vertical = 0
-theme_override_fonts/font = ExtResource("7_wlxev")
 text = "ATTACK  READY"
 horizontal_alignment = 1
+theme_type_variation = &"HudLabel"
 
 [node name="Icon" type="TextureRect" parent="AttackHud" index="1" unique_id=654105676]
 anchors_preset = 2

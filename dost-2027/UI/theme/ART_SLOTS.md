@@ -37,6 +37,8 @@ needed.
 | `btn_danger_{...}.png` | `DangerButton` | 60x16 / 130x22 | 3 / 3 / 3 / 4 | `EMBER` border. |
 | `btn_tab_{normal,hover,pressed}.png` | `TabButton` | 40x16 | 2 / 2 / 2 / 2 | Filter chips and tab-like toggles. `pressed` = selected (gold border, lit top). A god's chip has its border tinted at runtime, so draw the border in white or light grey. |
 | `keycap.png` (+ `_hover`, `_pressed`) | `KeycapButton`, `KeycapLabel` | 16x16 | 3 / 2 / 3 / 4 | A keyboard key seen from the front, with a thicker bottom lip. Text is drawn on top. |
+| `btn_icon_{normal,hover,pressed}.png` | `IconButton` | 22x22 | 2 / 2 / 2 / 2 | The lobby's god icon picker: a square toggle that is only a picture. `pressed` = chosen. |
+| `card_shell` (nothing to draw) | `CardButton` | - | - | The invisible, focusable shell of an Almanac card or God's Due packet. It draws nothing; leave it empty. |
 
 ## Panels
 
@@ -49,6 +51,13 @@ needed.
 | `panel_empty.png` | `PanelEmpty` | 32x32 | 3 / 3 / 3 / 3 | A dashed outline: an empty lobby slot. |
 | `shrine_tile.png` | `ShrineTile` | 48x56 | 4 / 6 / 4 / 6 | The Almanac's god card (96x112 on screen). The base strip is tinted with the god's accent at runtime. |
 | `seed_packet.png` | `SeedPacket` | 40x50 | 4 / 8 / 4 / 4 | The Almanac's and God's Due favor card (80x100 on screen): a paper packet with a coloured top band. The band and frame are tinted at runtime, so draw them light. |
+| `panel_row.png` | `PanelRow` | 32x16 | 3 / 3 / 3 / 3 | One row of a list (a LAN game, a lobby seat, a rival in the game). Tinted at runtime, so draw the border light. |
+| `selection_ring.png` | `SelectionRing` | 16x16 | 3 / 3 / 3 / 3 | The gold outline around a selected card. It sits 2 source px outside the card, so it is a frame only, with a transparent middle. |
+| `hud_plate.png` | `HudLabel`, `HudHint` (as the label's `normal` style) | 16x8 | 2 / 1 / 2 / 1 | A translucent plate behind in-game status and hint text. |
+| `timer_pill.png` | `TimerPill` | 32x16 | 4 / 3 / 4 / 3 | The trial clock at the top of the screen. |
+| `chip.png` | `ChipLabel` | 16x8 | 3 / 2 / 3 / 2 | The Almanac's stat chips ("ARNIS", "30s cooldown"). |
+| `badge.png` | `BadgeLabel` | 8x6 | 2 / 1 / 2 / 1 | A seed packet's corner badge (E, Q, PASSIVE, ONCE, END). |
+| `code_key.png` | `CodeLabel`, `CodeField` | 32x24 | 4 / 3 / 4 / 4 | The lobby ID drawn as one big key, and the field you type it into. |
 | `tooltip.png` | `TooltipPanel` | 16x16 | 3 / 3 / 3 / 3 | |
 | `dialog.png` | `Window` (embedded dialogs) | 48x48 | 4 / 16 / 4 / 4 | The top 16 source px hold the title bar. |
 | `tab_{selected,unselected,hovered}.png` | `TabContainer` tabs | 32x16 | 3 / 3 / 3 / 2 | The Options screen's tabs. |

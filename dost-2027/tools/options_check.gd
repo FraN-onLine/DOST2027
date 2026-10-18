@@ -114,7 +114,7 @@ func _run() -> void:
 	_picked.clear()
 	due.open(Gods.mayari(), rules, 1, true)
 	await _frames(2)
-	var rows_box: VBoxContainer = due.get_node("SidePanel/Margin/VBox/Rows")
+	var rows_box: BoxContainer = due.get_node("SidePanel/Margin/VBox/Rows")
 	var first_row: Control = rows_box.get_child(0) as Control
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT

@@ -46,6 +46,7 @@ static func shrine_tile(god: God, size: Vector2 = Vector2(96, 112)) -> Button:
 
 
 # `with_name` off draws a mini packet (icon and band only) - the tooltip names it.
+# A packet 140 px or wider prints its name at BODY size (the God's Due menu).
 static func seed_packet(favor: GodFavor, size: Vector2 = Vector2(80, 100), with_name: bool = true) -> Button:
 	var card := _shell(size, &"SeedPacket")
 	var god := Gods.by_id(favor.god_id)
@@ -61,7 +62,7 @@ static func seed_packet(favor: GodFavor, size: Vector2 = Vector2(80, 100), with_
 	if with_name:
 		var title := Label.new()
 		title.text = favor.display_name
-		title.theme_type_variation = &"PacketLabel"
+		title.theme_type_variation = &"PacketTitle" if size.x >= 140.0 else &"PacketLabel"
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		title.custom_minimum_size.x = size.x - 8

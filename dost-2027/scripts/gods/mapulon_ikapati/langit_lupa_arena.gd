@@ -540,7 +540,7 @@ func _set_callout(text: String, tint: Color, seconds: float) -> void:
 	if callout_label == null:
 		return
 	callout_label.text = text
-	callout_label.add_theme_color_override("font_color", tint)
+	callout_label.add_theme_color_override("font_color", UITokens.readable_on_dark(tint, UITokens.NIGHT_900))
 	callout_label.visible = seconds > 0.0
 
 
@@ -551,7 +551,7 @@ func _refresh_hud(delta: float) -> void:
 			callout_label.visible = false
 	if is_crumbling() and _callout_time <= 0.0 and callout_label != null:
 		callout_label.text = "THE LANGIT CRUMBLE!"
-		callout_label.add_theme_color_override("font_color", god.color)
+		callout_label.add_theme_color_override("font_color", UITokens.god_text(god))
 		callout_label.visible = true
 	elif not is_crumbling() and _callout_time <= 0.0 and callout_label != null:
 		callout_label.visible = false
@@ -566,7 +566,8 @@ func _refresh_hud(delta: float) -> void:
 		var dash := "DASH READY" if dash_cooldown_left() <= 0.0 else "DASH %.1fs" % dash_cooldown_left()
 		var stance := "TAYA" if _taya == _my_id else ("SAFE" if is_safe(_my_id) else "ON THE LUPA")
 		status_label.text = "%s     %s" % [stance, dash]
-		status_label.add_theme_color_override("font_color", TAYA_COLOR if _taya == _my_id else (SAFE_COLOR if is_safe(_my_id) else god.color))
+		status_label.add_theme_color_override("font_color", UITokens.readable_on_dark(
+			TAYA_COLOR if _taya == _my_id else (SAFE_COLOR if is_safe(_my_id) else god.color), UITokens.NIGHT_900))
 	if hint_label != null:
 		hint_label.text = "TAG A RUNNER ON THE LUPA    SHIFT / SPACE - DASH" if _taya == _my_id \
 			else "CLAIM A LANGIT - ONE MORTAL EACH    SHIFT / SPACE - DASH    E / Q - FAVORS    F - GOD'S DUE"

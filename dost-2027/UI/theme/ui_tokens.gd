@@ -152,7 +152,7 @@ static func accent_box(base: StyleBox, color: Color, band: bool = false) -> Styl
 
 # --- motion ------------------------------------------------------------------
 
-static func _calm() -> bool:
+static func calm() -> bool:
 	var tree := Engine.get_main_loop() as SceneTree
 	var settings := tree.root.get_node_or_null("Settings") if tree != null else null
 	return settings != null and settings.reduce_flashing()
@@ -165,7 +165,7 @@ static func tween_hover(control: CanvasItem, on: bool) -> void:
 	if control == null or not control.is_inside_tree():
 		return
 	var target := HOVER_TINT if on else Color.WHITE
-	if _calm():
+	if calm():
 		control.self_modulate = Color.WHITE
 		return
 	var tween := control.create_tween()
@@ -175,7 +175,7 @@ static func tween_hover(control: CanvasItem, on: bool) -> void:
 # Press: a quick 80 ms dip that settles back. The pressed style already drops
 # the 2 px shadow so the button reads as pushed in.
 static func tween_press(control: CanvasItem) -> void:
-	if control == null or not control.is_inside_tree() or _calm():
+	if control == null or not control.is_inside_tree() or calm():
 		return
 	var settle := HOVER_TINT if (control is Control and (control as Control).get_global_rect().has_point(
 		control.get_global_mouse_position())) else Color.WHITE
@@ -207,7 +207,7 @@ static func _on_node_added(node: Node) -> void:
 static func reveal(control: Control) -> void:
 	if control == null or not control.is_inside_tree():
 		return
-	if _calm():
+	if calm():
 		control.modulate.a = 1.0
 		return
 	control.modulate.a = 0.0
@@ -222,4 +222,9 @@ static func key_text(action: StringName) -> String:
 	var settings := tree.root.get_node_or_null("Settings") if tree != null else null
 	if settings == null:
 		return str(action)
-	return settings.event_label(settings.primary_event(action))
+	var event: InputEvent = settings.primary_event(action)
+	# A headless run (the checks) has no keyboard layout to translate through;
+	# name the physical key instead of asking the display server and failing.
+	if DisplayServer.get_name() == "headless" and event is InputEventKey:
+		return OS.get_keycode_string((event as InputEventKey).physical_keycode)
+	return settings.event_label(event)

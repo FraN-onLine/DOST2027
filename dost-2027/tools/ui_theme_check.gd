@@ -15,34 +15,13 @@ const VARIATIONS := [
 	"PrimaryButton", "SecondaryButton", "GhostButton", "SmallButton", "DangerButton",
 	"TabButton", "IconButton", "KeycapButton", "KeycapLabel", "PanelCard", "PanelInset", "PanelHud",
 	"Nameplate", "PanelEmpty", "PanelRow", "CodeField", "CodeLabel", "ShrineTile", "SeedPacket", "HeroLabel", "DisplayLabel",
-	"HeadingLabel", "CaptionLabel", "MutedLabel", "WarningLabel", "ChipLabel", "FlavorLabel", "PacketLabel", "BadgeLabel", "CardButton", "SelectionRing",
+	"HeadingLabel", "CaptionLabel", "MutedLabel", "WarningLabel", "ChipLabel", "FlavorLabel", "PacketLabel", "PacketTitle", "BadgeLabel", "TimerPill", "HudLabel", "HudHint", "HudLine", "HudCallout", "WorldLabel", "WorldValue", "CardButton", "SelectionRing",
 ]
 const SCAN_DIRS := ["res://scenes", "res://UI", "res://scripts"]
 
 # path -> why it may keep its own styling / off-scale sizes.
 const ALLOW := {
 	"res://UI/Server and Lobby handlers/hosting.tscn": "unused leftover (see tools/lobby_check.gd); nothing loads it",
-	# Phase 4 restyles the in-game UI.
-	"res://scenes/Game.tscn": "in-game: phase 4",
-	"res://scenes/GodIntro.tscn": "in-game: phase 4",
-	"res://scripts/GodIntro.gd": "in-game: phase 4",
-	"res://scripts/Settings.gd": "in-game: phase 4 (FPS counter)",
-	"res://UI/opponentpanels.tscn": "in-game: phase 4",
-	"res://UI/GodsArena/god_hud.tscn": "in-game: phase 4",
-	"res://UI/GodsArena/skill_bar.tscn": "in-game: phase 4",
-	"res://UI/GodsArena/gods_due_menu.tscn": "in-game: phase 4",
-	"res://UI/GodsArena/gods_due_menu.gd": "in-game: phase 4",
-	"res://UI/GodsArena/god_dialogue.tscn": "in-game: phase 4",
-	"res://UI/Popups/favor_popup.tscn": "in-game: phase 4",
-	"res://scenes/gods/apolaki/Apolaki.tscn": "in-game: phase 4",
-	"res://scenes/gods/apolaki/ApolakiArena.tscn": "in-game: phase 4",
-	"res://scenes/gods/bathala/AgawanGod.tscn": "in-game: phase 4",
-	"res://scenes/gods/bathala/BathalaArena.tscn": "in-game: phase 4",
-	"res://scenes/gods/common/Mortal.tscn": "in-game: phase 4",
-	"res://scenes/gods/hanan/HananArena.tscn": "in-game: phase 4",
-	"res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn": "in-game: phase 4",
-	"res://scenes/gods/mayari/MayariClone.tscn": "in-game: phase 4",
-	"res://scenes/gods/tala/TalaArena.tscn": "in-game: phase 4",
 }
 
 var _problems := 0

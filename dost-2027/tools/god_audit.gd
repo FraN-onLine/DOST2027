@@ -148,7 +148,7 @@ func _run() -> void:
 	var due_rows: Node = menu.get_node("SidePanel/Margin/VBox/Rows")
 	var row_count := due_rows.get_child_count()
 	var has_icon := false
-	if row_count > 0 and due_rows.get_child(0) is PanelContainer:
+	if row_count > 0 and due_rows.get_child(0) is Control:
 		has_icon = _contains_texture_rect(due_rows.get_child(0))
 	print("  God's Due menu: %d rows, icon on the first row: %s" % [row_count, str(has_icon)])
 	if row_count <= 0:

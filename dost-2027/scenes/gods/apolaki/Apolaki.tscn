@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://c054b8tm7375x" path="res://scripts/gods/apolaki/apolaki_duelist.gd" id="1_duel"]
 [ext_resource type="Texture2D" uid="uid://byjur5ypi5h6e" path="res://Assets/Gods/Apolaki/Apolaki-Sheet-Sheet.png" id="2_0clss"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_nm4fq"]
 atlas = ExtResource("2_0clss")
@@ -193,11 +192,9 @@ offset_top = -42.0
 offset_right = 68.0
 offset_bottom = -24.0
 scale = Vector2(0.8709185, 0.9568265)
-theme_override_colors/font_color = Color(1, 1, 1, 0.75)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 10
 text = "APOLAKI"
 horizontal_alignment = 1
+theme_type_variation = &"WorldLabel"
 
 [node name="Arnis-Hit" type="Area2D" parent="." unique_id=799705596]
 

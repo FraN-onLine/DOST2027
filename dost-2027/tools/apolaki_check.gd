@@ -356,6 +356,11 @@ func _run() -> void:
 	quit(1 if _problems > 0 else 0)
 
 
+func _frames(count: int) -> void:
+	for index in range(count):
+		await process_frame
+
+
 func _patch_total_except(player_id: int) -> int:
 	var total := 0
 	for id in _arena._sun_patches.keys():

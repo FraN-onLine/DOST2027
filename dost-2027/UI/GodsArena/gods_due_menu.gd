@@ -1,22 +1,21 @@
 extends Control
 
 # "God's Due" menu - press F in the arena to spend a voucher on one of the
-# hosting god's favors, then press 1 / 2 / 3 - or simply CLICK one of the rows -
-# to pick which one.
+# hosting god's favors, then press 1 / 2 / 3 - or simply CLICK one of the
+# packets - to pick which one. The offer is three seed packets side by side,
+# drawn exactly like the Almanac's (UICards), each under its key.
 # If a god intervenes between trials you get a free grant instead of a voucher.
 
 signal favor_chosen(favor: GodFavor, free_grants_left: int)
 
 const MAX_ROWS := 3
-
-# Every favor shows a little image beside its name. No favour has real art yet,
-# so this is the Godot placeholder - the same one every god and favor falls back
-# on (Gods.TEMP_ICON).
-const PLACEHOLDER_ICON := preload("res://icon.svg")
+const PACKET_SIZE := Vector2(160, 150)
+const COLUMN_WIDTH := 200.0
 
 @onready var title_label: Label = $SidePanel/Margin/VBox/TitleLabel
 @onready var due_label: Label = $SidePanel/Margin/VBox/DueLabel
-@onready var rows: VBoxContainer = $SidePanel/Margin/VBox/Rows
+@onready var rows: HBoxContainer = $SidePanel/Margin/VBox/Rows
+@onready var close_key: Label = $SidePanel/Margin/VBox/HintRow/CloseKey
 
 var _god: God = null
 var _match: GodMatch = null
@@ -40,6 +39,7 @@ func open(host_god: God, host_match: GodMatch, free_grants := 0, remote := false
 	_remote = remote
 	_rebuild()
 	visible = true
+	UITokens.reveal(self)
 
 
 func close() -> void:
@@ -55,16 +55,17 @@ func _rebuild() -> void:
 		return
 
 	title_label.text = "%s'S FAVORS" % _god.display_name
-	title_label.add_theme_color_override("font_color", _god.color)
+	title_label.add_theme_color_override("font_color", UITokens.god_text(_god))
+	close_key.text = UITokens.key_text(&"due_menu")
 
 	var mortal := _match.local()
 	var due := 0
 	if mortal != null:
 		due = mortal.due
 	if _free_grants > 0:
-		due_label.text = "A GOD INTERVENES - ONE FAVOR IS FREE  -  CLICK ONE (OR PRESS 1/2/3)"
+		due_label.text = "A GOD INTERVENES - ONE FAVOR IS FREE"
 	else:
-		due_label.text = "GOD'S DUE VOUCHERS: %d  -  CLICK ONE (OR PRESS 1/2/3)" % due
+		due_label.text = "GOD'S DUE VOUCHERS: %d" % due
 
 	# Every opening rolls a fresh set. E/Q candidates stay eligible because
 	# selecting one replaces the currently owned skill in that slot.
@@ -90,93 +91,72 @@ func _rebuild() -> void:
 func _make_note(text: String) -> Label:
 	var note := Label.new()
 	note.text = text
+	note.theme_type_variation = &"MutedLabel"
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_font_size_override("font_size", 10)
-	note.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	note.custom_minimum_size.x = COLUMN_WIDTH
+	note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return note
 
 
-func _make_row(number: int, favor: GodFavor, due: int) -> PanelContainer:
+# One offered favor: its key, its seed packet - the same packet the Almanac
+# shows, so it is recognised at a glance - what it does, and what it costs.
+func _make_row(number: int, favor: GodFavor, due: int) -> VBoxContainer:
 	var affordable := _free_grants > 0 or due > 0
 
-	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.12, 0.2, 0.95)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.border_color = favor.color
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_right = 4
-	style.corner_radius_bottom_left = 4
-	panel.add_theme_stylebox_override("panel", style)
-	panel.modulate.a = 1.0 if affordable else 0.5
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", UITokens.SPACE_8)
+	column.custom_minimum_size.x = COLUMN_WIDTH
+	column.modulate.a = 1.0 if affordable else 0.5
 
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	var key := Label.new()
+	key.text = UITokens.key_text(StringName("due_choice_%d" % number))
+	key.theme_type_variation = &"KeycapLabel"
+	key.custom_minimum_size.x = UITokens.BUTTON_ICON.x
+	key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	key.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	column.add_child(key)
 
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 3)
-
-	# The name row: the favor's icon, then the number and the name beside it.
-	var head_row := HBoxContainer.new()
-	head_row.add_theme_constant_override("separation", 6)
-	var icon := TextureRect.new()
-	icon.texture = favor.icon if favor.icon != null else PLACEHOLDER_ICON
-	icon.custom_minimum_size = Vector2(22, 22)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.modulate = favor.color
-	head_row.add_child(icon)
-
-	var head := Label.new()
-	head.text = "%d.  %s   [%s]" % [number, favor.display_name.to_upper(), favor.slot_name()]
-	head.add_theme_font_size_override("font_size", 12)
-	head.add_theme_color_override("font_color", favor.color)
-	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head_row.add_child(head)
+	var packet := UICards.seed_packet(favor, PACKET_SIZE)
+	packet.focus_mode = Control.FOCUS_NONE
+	packet.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	column.add_child(packet)
 
 	var desc := Label.new()
 	desc.text = favor.description
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.add_theme_font_size_override("font_size", 10)
-	desc.add_theme_color_override("font_color", Color(0.72, 0.76, 0.85))
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(desc)
 
 	var cost := Label.new()
 	var mortal := _match.local()
 	var current_skill: GodFavor = mortal.favor_in_slot(favor.slot) if mortal != null and favor.is_skill() else null
+	var cost_color := UITokens.JADE if affordable else UITokens.EMBER
 	if current_skill != null:
 		cost.text = "REPLACES: %s" % current_skill.display_name
-		cost.add_theme_color_override("font_color", Color(1.0, 0.8, 0.4))
+		cost_color = UITokens.GOLD
 	elif _free_grants > 0:
 		cost.text = "FREE - GIFT OF %s" % _god.display_name
 	elif due > 0:
 		cost.text = "COST: 1 GOD'S DUE"
 	else:
 		cost.text = "NEEDS 1 GOD'S DUE"
-	cost.add_theme_font_size_override("font_size", 10)
-	cost.add_theme_color_override("font_color", Color(0.55, 0.9, 0.6) if affordable else Color(0.85, 0.45, 0.4))
+	cost.theme_type_variation = &"CaptionLabel"
+	cost.add_theme_color_override("font_color", UITokens.readable_on_dark(cost_color, UITokens.NIGHT_800))
+	cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cost.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(cost)
 
-	box.add_child(head_row)
-	box.add_child(desc)
-	box.add_child(cost)
-	margin.add_child(box)
-	panel.add_child(margin)
-	# The row is tappable: the panel takes the mouse (its contents stay
-	# see-through) and answers it the way its number key does. The border
-	# brightens under the mouse, so it reads as something you can press.
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	for child in [margin, box, head_row, icon, head, desc, cost]:
+	# The whole column is the tap target: it takes the mouse (its contents stay
+	# see-through) and answers it the way its number key does. Under the mouse
+	# the packet is picked up - lifted, with the gold ring - so it reads as
+	# something you can press.
+	column.mouse_filter = Control.MOUSE_FILTER_STOP
+	for child in [key, packet, desc, cost]:
 		child.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.gui_input.connect(_on_row_input.bind(number - 1))
-	panel.mouse_entered.connect(_on_row_hover.bind(panel, style, style.border_color))
-	panel.mouse_exited.connect(_on_row_unhover.bind(panel, style, style.border_color))
-	return panel
+	column.gui_input.connect(_on_row_input.bind(number - 1))
+	column.mouse_entered.connect(UICards.set_selected.bind(packet, true))
+	column.mouse_exited.connect(UICards.set_selected.bind(packet, false))
+	return column
 
 
 # A click on a row claims the favor it shows, exactly like its number key.
@@ -193,19 +173,6 @@ func _on_row_input(event: InputEvent, index: int) -> void:
 	if viewport != null:
 		viewport.set_input_as_handled()
 	_choose(index)
-
-
-# Hover affordance: the row's border brightens while the mouse is on it. The
-# base colour is carried in, so a row that is hovered over and over keeps the
-# exact colour it was drawn with.
-func _on_row_hover(panel: PanelContainer, style: StyleBoxFlat, base: Color) -> void:
-	style.border_color = base.lightened(0.4)
-	panel.queue_redraw()
-
-
-func _on_row_unhover(panel: PanelContainer, style: StyleBoxFlat, base: Color) -> void:
-	style.border_color = base
-	panel.queue_redraw()
 
 
 func _choose(index: int) -> void:

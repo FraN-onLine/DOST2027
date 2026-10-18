@@ -1,7 +1,10 @@
 extends PanelContainer
 
-@onready var name_label = $MarginContainer/VBoxContainer/NameLabel
-@onready var god_icon: TextureRect = $MarginContainer/VBoxContainer/Icon
+# One rival in the shell's column: icon and name, FAVOR and DUE, the two favor
+# bars. Framed in the accent of the god the rival wears (UITokens.god_accent).
+
+@onready var name_label = $MarginContainer/VBoxContainer/Header/NameLabel
+@onready var god_icon: TextureRect = $MarginContainer/VBoxContainer/Header/Icon
 @onready var favor_label = $MarginContainer/VBoxContainer/StatsLabel/FavorBox/FavorValue
 @onready var due_label = $MarginContainer/VBoxContainer/StatsLabel/DueBox/DueValue
 @onready var e_bar = $MarginContainer/VBoxContainer/SkillRow/EBar
@@ -26,6 +29,7 @@ func set_god_icon(god_id: StringName) -> void:
 	var god := Gods.by_id(god_id)
 	if god != null:
 		god_icon.texture = god.icon
+		add_theme_stylebox_override("panel", UITokens.accent_box(get_theme_stylebox("panel", &"PanelRow"), UITokens.god_accent(god)))
 
 
 func update_stats(favor: int, due: int) -> void:

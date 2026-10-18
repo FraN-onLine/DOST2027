@@ -164,7 +164,7 @@ func _refresh_visual() -> void:
 		if frozen:
 			timer_label.visible = true
 			timer_label.text = "%d" % int(ceil(freeze_left))
-			timer_label.add_theme_color_override("font_color", Color(1, 0.5, 0.45))
+			timer_label.add_theme_color_override("font_color", UITokens.EMBER)
 		else:
 			timer_label.visible = false
 

@@ -106,8 +106,8 @@ const TEMP_ICON := preload("res://icon.svg")
 const GOD_PHOTO := TEMP_ICON
 
 # A FAVOR popup: light yellow when FAVOR arrives, light red when it is taken.
-const POPUP_GAIN_COLOR := Color(1.0, 0.96, 0.62)
-const POPUP_LOSS_COLOR := Color(1.0, 0.55, 0.45)
+const POPUP_GAIN_COLOR := UITokens.JADE    # the design system's gain / loss colours
+const POPUP_LOSS_COLOR := UITokens.EMBER
 const POPUP_OFFSET := Vector2(0.0, -42.0)   # above the mortal's head
 
 const DIALOGUE_TIMEOUT := 20.0

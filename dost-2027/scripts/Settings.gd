@@ -13,7 +13,6 @@ extends Node
 
 signal setting_changed(section: String, key: String, value: Variant)
 
-const FONT := preload("res://Assets/fonts/Minecraftia-Regular.ttf")
 const BUSES := {"master": "Master", "music": "Music", "sfx": "SFX", "ui": "UI"}
 const WINDOW_MODES := ["Windowed", "Fullscreen", "Borderless fullscreen"]
 const FPS_CHOICES := [30, 60, 120, 144, 0]  # 0 = unlimited
@@ -51,10 +50,7 @@ func _ready() -> void:
 	_fps_layer.layer = 100
 	_fps_label = Label.new()
 	_fps_label.position = Vector2(6, 4)
-	_fps_label.add_theme_font_override("font", FONT)
-	_fps_label.add_theme_font_size_override("font_size", 12)
-	_fps_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	_fps_label.add_theme_constant_override("outline_size", 4)
+	_fps_label.theme_type_variation = &"HudLine"  # rimmed text from the project theme
 	_fps_layer.add_child(_fps_label)
 	add_child(_fps_layer)
 	load_config()

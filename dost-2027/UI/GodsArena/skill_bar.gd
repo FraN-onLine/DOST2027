@@ -1,10 +1,16 @@
 class_name SkillBar
 extends PanelContainer
 
-# One FAVOR skill slot - the E bar on the left, the Q bar on the right.
-#   no favor bound to the slot -> the bar stays blank
-#   favor ready to use         -> the bar is full
-#   favor on cooldown          -> the bar slowly refills
+# One FAVOR skill slot - the E slot on the left, the Q slot on the right.
+#   [E] [icon] name
+#   no favor bound to the slot -> an empty slot and "--"
+#   favor ready to use         -> the icon, bright, and its name
+#   favor on cooldown          -> a dark curtain over the icon that drains from
+#                                 the top down as the cooldown runs out, with
+#                                 the seconds left written on it
+#
+# The key is a keycap read from the player's bindings (Settings.event_label), so
+# a rebinding shows here too - recognition over recall.
 #
 # The bar is TAPPABLE: a click on it is the same as pressing its key (the arena
 # answers it, see Arena._input and god_hud's skill_pressed signal). It also
@@ -13,12 +19,13 @@ extends PanelContainer
 
 signal pressed
 
-const COLOR_READY := Color(1, 1, 1, 1)
-const COLOR_COOLING := Color(1, 1, 1, 0.6)
-const COLOR_EMPTY := Color(0.42, 0.45, 0.55, 1)
+const PLACEHOLDER_ICON := preload("res://icon.svg")
 
-@onready var fill: ColorRect = $Body/Fill
-@onready var text_label: Label = $Body/Text
+@onready var key_label: Label = $Row/Key
+@onready var icon: TextureRect = $Row/Slot/Icon
+@onready var fill: ColorRect = $Row/Slot/Fill
+@onready var seconds_label: Label = $Row/Slot/Seconds
+@onready var text_label: Label = $Row/Text
 
 var key_text := "E"
 var favor: GodFavor = null
@@ -26,17 +33,11 @@ var favor: GodFavor = null
 var _ratio := 0.0
 var _remaining := 0.0
 var _hovering := false
-var _border_color := Color(0.28, 0.32, 0.44, 1)
+var _base_box: StyleBox
 
 
 func _ready() -> void:
-	# Each bar gets its own copy of the authored stylebox: the authored one is
-	# shared by every instance of the scene, and the hover tint below would
-	# otherwise brighten one bar's border on all of them.
-	var authored := get_theme_stylebox("panel")
-	if authored is StyleBoxFlat:
-		add_theme_stylebox_override("panel", authored.duplicate())
-		_border_color = (authored as StyleBoxFlat).border_color
+	_base_box = get_theme_stylebox("panel", &"PanelHud")
 	set_favor(null)
 	# A tap target: the panel itself takes the mouse, its contents stay see-through.
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -68,33 +69,36 @@ func _on_mouse_exited() -> void:
 	_refresh_border()
 
 
-# The border brightens under the mouse, so the bar reads as something you can
-# press - the same affordance the God's Due rows get.
+# The border takes the bound favor's colour, and turns gold under the mouse, so
+# the slot reads as something you can press - the same affordance as a button.
 func _refresh_border() -> void:
-	var style := get_theme_stylebox("panel")
-	if style is StyleBoxFlat:
-		style.border_color = _border_color.lightened(0.45 if _hovering else 0.0)
+	if _base_box == null:
+		return
+	var border := UITokens.LINE
+	if _hovering:
+		border = UITokens.GOLD
+	elif favor != null:
+		border = UITokens.readable_on_dark(favor.color, UITokens.NIGHT_900, UITokens.ACCENT_CONTRAST)
+	add_theme_stylebox_override("panel", UITokens.accent_box(_base_box, border))
 
 
-# Call once so the bar knows which key it stands for.
+# Call once so the bar knows which key it stands for ("E" or "Q").
 func setup(new_key: String) -> void:
 	key_text = new_key
+	key_label.text = UITokens.key_text(StringName("skill_%s" % new_key.to_lower()))
 	_refresh_text()
 
 
 # Only call when the bound favor actually changes - it resets the fill.
 func set_favor(new_favor: GodFavor) -> void:
 	favor = new_favor
-	if favor == null:
-		_ratio = 0.0
-		_remaining = 0.0
-		fill.visible = false
-	else:
-		fill.visible = true
-		fill.color = favor.color
-		_ratio = 1.0
-		_remaining = 0.0
-		_border_color = favor.color
+	_ratio = 0.0 if favor == null else 1.0
+	_remaining = 0.0
+	icon.visible = favor != null
+	if favor != null:
+		icon.texture = favor.icon if favor.icon != null else PLACEHOLDER_ICON
+		icon.modulate = favor.color  # the placeholder icon is tinted until real art lands
+	_refresh_fill()
 	_refresh_text()
 	_refresh_border()
 
@@ -103,19 +107,24 @@ func set_favor(new_favor: GodFavor) -> void:
 func set_state(ratio: float, remaining: float) -> void:
 	_ratio = clampf(ratio, 0.0, 1.0)
 	_remaining = maxf(0.0, remaining)
-	if fill.visible:
-		fill.anchor_right = _ratio
+	_refresh_fill()
 	_refresh_text()
+
+
+# The curtain covers the part of the cooldown still to run: its top edge moves
+# down as the slot recovers (drains from the top to the bottom).
+func _refresh_fill() -> void:
+	var cooling := favor != null and _ratio < 1.0
+	fill.visible = cooling
+	fill.anchor_top = _ratio
+	seconds_label.visible = cooling
+	seconds_label.text = "%d" % int(ceil(_remaining))
 
 
 func _refresh_text() -> void:
 	if favor == null:
-		text_label.text = "%s  --" % key_text
-		text_label.add_theme_color_override("font_color", COLOR_EMPTY)
+		text_label.text = "--"
+		text_label.add_theme_color_override("font_color", UITokens.FAINT)
 		return
-	if _ratio >= 1.0:
-		text_label.text = "%s  %s  READY" % [key_text, favor.display_name.to_upper()]
-		text_label.add_theme_color_override("font_color", COLOR_READY)
-		return
-	text_label.text = "%s  %s  %ds" % [key_text, favor.display_name.to_upper(), int(ceil(_remaining))]
-	text_label.add_theme_color_override("font_color", COLOR_COOLING)
+	text_label.text = favor.display_name.to_upper()
+	text_label.add_theme_color_override("font_color", UITokens.IVORY if _ratio >= 1.0 else UITokens.MUTED)

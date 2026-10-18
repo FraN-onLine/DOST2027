@@ -8,9 +8,14 @@ extends Control
 # Also carries the trial clock, the event line, the banner and the end-of-trial
 # results panel, and a small note (top right) for the favors that keep something
 # of the mortal's somewhere else: Kabiyak's other half and Kamalig's granary.
+#
+# Presentation (UI/theme): translucent PanelHud panels; every colour a god or a
+# favor hands in is drawn through UITokens.readable_on_dark, since the HUD's
+# words sit on night plates and dark rims. The banner sits high, under the
+# clock, so the middle of the field stays clear.
 
-const COLOR_TIME_OK := Color(1, 1, 1, 1)
-const COLOR_TIME_LOW := Color(1, 0.4, 0.35, 1)
+const COLOR_TIME_OK := UITokens.IVORY
+const COLOR_TIME_LOW := UITokens.EMBER
 
 signal skill_pressed(slot: int)   # one of the two favor bars was tapped
 
@@ -63,9 +68,8 @@ func bind(match_ref: GodMatch, god_ref: God) -> void:
 	_god = god_ref
 	if _god != null:
 		god_label.text = _god.display_name
-		god_label.add_theme_color_override("font_color", _god.color)
+		god_label.add_theme_color_override("font_color", UITokens.god_text(_god))
 		game_label.text = _god.game_name
-		game_label.add_theme_color_override("font_color", Color(_god.color.r, _god.color.g, _god.color.b, 0.75))
 	log_event("The trial begins.", _god.color if _god != null else Color.WHITE)
 
 
@@ -81,14 +85,14 @@ func set_time_left(seconds: float) -> void:
 
 func show_banner(text: String, color: Color, duration := 2.0) -> void:
 	banner_label.text = text
-	banner_label.add_theme_color_override("font_color", color)
+	banner_label.add_theme_color_override("font_color", UITokens.readable_on_dark(color, UITokens.NIGHT_900))
 	banner_label.visible = true
 	_banner_time = duration
 
 
 func log_event(text: String, color: Color) -> void:
 	event_label.text = text
-	event_label.add_theme_color_override("font_color", color)
+	event_label.add_theme_color_override("font_color", UITokens.readable_on_dark(color, UITokens.NIGHT_900))
 
 
 func show_results(summary: Dictionary, title := "TRIAL COMPLETE") -> void:
@@ -104,6 +108,7 @@ func show_results(summary: Dictionary, title := "TRIAL COMPLETE") -> void:
 		lines.append(line)
 	results_label.text = "\n".join(lines)
 	results_panel.visible = true
+	UITokens.reveal(results_panel)
 
 
 func set_results_hint(text: String) -> void:

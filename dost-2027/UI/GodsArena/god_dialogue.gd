@@ -10,6 +10,12 @@ extends Control
 # HUD, popups). Dim covers the whole screen; the god's photo docks right;
 # the box sits bottom; the name nub sticks out ABOVE the box like a folder tab.
 #
+# Presentation (UI/theme): the small portrait sits on the left of the box in a
+# frame of the speaker's accent; the name tab is a Nameplate in that accent with
+# the name in its readable form (readable_on_dark); the line is BODY ivory; the
+# advance key is a keycap from the player's bindings (advance_dialogue) that
+# blinks slowly - and holds still with reduce flashing on.
+#
 # VOICE: each entry may carry "voice" (AudioStream) and "portrait" (Texture2D).
 # "voice" plays alongside that line; "portrait" swaps the side photo for that
 # line only. Both optional - missing means silent / keep current photo.
@@ -22,14 +28,18 @@ signal finished()
 @onready var box: PanelContainer = $Box
 @onready var name_tab: PanelContainer = $NameTab
 @onready var name_label: Label = $NameTab/NameLabel
-@onready var portrait: TextureRect = $Box/Margin/HBox/Portrait
-@onready var speaker_label: Label = $Box/Margin/HBox/VBox/SpeakerLabel
+@onready var portrait_frame: PanelContainer = $Box/Margin/HBox/PortraitFrame
+@onready var portrait: TextureRect = $Box/Margin/HBox/PortraitFrame/Portrait
 @onready var line_label: Label = $Box/Margin/HBox/VBox/LineLabel
-@onready var hint_label: Label = $Box/Margin/HBox/VBox/HintLabel
+@onready var advance_key: Label = $Box/Margin/HBox/VBox/HintRow/AdvanceKey
+@onready var hint_label: Label = $Box/Margin/HBox/VBox/HintRow/HintLabel
+
+const BLINK_SECONDS := 0.8   # each half of the advance key's slow blink
 
 var _lines: Array = []
 var _index := 0
 var _active := false
+var _blink: Tween
 
 func _ready() -> void:
 	visible = false
@@ -80,7 +90,21 @@ func show_lines(entries: Array, fallback_portrait: Texture2D = null) -> void:
 	for entry in _lines:
 		if entry is Dictionary and not entry.has("portrait") and fallback_portrait != null:
 			(entry as Dictionary)["portrait"] = fallback_portrait
+	advance_key.text = UITokens.key_text(&"advance_dialogue")
+	_start_blink()
 	_render()
+
+
+# The advance key breathes slowly so a reader knows the box is waiting on them.
+func _start_blink() -> void:
+	if _blink != null and _blink.is_valid():
+		_blink.kill()
+	advance_key.modulate.a = 1.0
+	if not is_inside_tree() or UITokens.calm():
+		return
+	_blink = create_tween().set_loops()
+	_blink.tween_property(advance_key, "modulate:a", 0.35, BLINK_SECONDS)
+	_blink.tween_property(advance_key, "modulate:a", 1.0, BLINK_SECONDS)
 
 
 func _render() -> void:
@@ -88,12 +112,14 @@ func _render() -> void:
 		_close()
 		return
 	var entry: Dictionary = _lines[_index]
-	speaker_label.text = str(entry.get("speaker", ""))
-	speaker_label.add_theme_color_override("font_color", entry.get("color", Color.WHITE))
+	var speaker_color: Color = entry.get("color", Color.WHITE)
+	var accent := UITokens.readable_on_dark(speaker_color, UITokens.NIGHT_800, UITokens.ACCENT_CONTRAST)
 	name_label.text = str(entry.get("speaker", ""))
-	name_label.add_theme_color_override("font_color", entry.get("color", Color.WHITE))
+	name_label.add_theme_color_override("font_color", UITokens.readable_on_dark(speaker_color, UITokens.NIGHT_700))
+	name_tab.add_theme_stylebox_override("panel", UITokens.accent_box(name_tab.get_theme_stylebox("panel", &"Nameplate"), accent))
+	portrait_frame.add_theme_stylebox_override("panel", UITokens.accent_box(portrait_frame.get_theme_stylebox("panel", &"PanelInset"), accent))
 	line_label.text = str(entry.get("text", ""))
-	hint_label.text = "SPACE  CLOSE" if _index == _lines.size() - 1 else "SPACE  NEXT"
+	hint_label.text = "CLOSE" if _index == _lines.size() - 1 else "NEXT"
 	var tex = entry.get("portrait", null)
 	if tex is Texture2D:
 		portrait.texture = tex
@@ -103,6 +129,7 @@ func _render() -> void:
 	else:
 		photo.visible = photo.texture != null
 		portrait.visible = portrait.texture != null
+	portrait_frame.visible = portrait.visible
 	_play_voice(entry.get("voice", null))
 
 
@@ -135,6 +162,8 @@ func close_now() -> void:
 func _close() -> void:
 	_active = false
 	visible = false
+	if _blink != null and _blink.is_valid():
+		_blink.kill()
 	if voice.playing:
 		voice.stop()
 	finished.emit()

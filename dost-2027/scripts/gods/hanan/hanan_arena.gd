@@ -435,7 +435,7 @@ func _set_callout(text: String, tint: Color, seconds: float) -> void:
 	if callout_label == null:
 		return
 	callout_label.text = text
-	callout_label.add_theme_color_override("font_color", tint)
+	callout_label.add_theme_color_override("font_color", UITokens.readable_on_dark(tint, UITokens.NIGHT_900))
 	callout_label.visible = seconds > 0.0
 
 

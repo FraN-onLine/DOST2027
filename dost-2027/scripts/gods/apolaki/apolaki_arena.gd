@@ -326,7 +326,7 @@ func _fill_bar(bar: PanelContainer, caption: String, cooldown: float, total: flo
 	if label != null:
 		if cooldown <= 0.0:
 			label.text = "%s  READY" % caption
-			label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+			label.add_theme_color_override("font_color", UITokens.IVORY)
 		else:
 			label.text = "%s  %.1fs" % [caption, cooldown]
-			label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+			label.add_theme_color_override("font_color", UITokens.MUTED)

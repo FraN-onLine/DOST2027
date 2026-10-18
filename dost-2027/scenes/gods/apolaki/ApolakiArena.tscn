@@ -5,7 +5,6 @@
 [ext_resource type="PackedScene" uid="uid://d3dnsdaacfeqq" path="res://scenes/gods/apolaki/Apolaki.tscn" id="3_duelist"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="4_bg"]
 [ext_resource type="Texture2D" uid="uid://c6i33c3omdl0l" path="res://Assets/Gods/Apolaki/apolaki-overseer-Sheet.png" id="5_x3nwb"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="6_x3nwb"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hwxck"]
 atlas = ExtResource("5_x3nwb")
@@ -35,18 +34,6 @@ animations = [{
 "name": &"default",
 "speed": 5.0
 }]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_duelbar"]
-bg_color = Color(0.09, 0.11, 0.18, 0.9)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.28, 0.32, 0.44, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
 
 [node name="ApolakiArena" unique_id=437979526 instance=ExtResource("1_base")]
 script = ExtResource("2_arena")
@@ -112,10 +99,8 @@ offset_top = -129.0
 offset_right = 455.0
 offset_bottom = -105.0
 grow_vertical = 0
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("6_x3nwb")
-theme_override_font_sizes/font_size = 14
 text = "APOLAKI WATCHES"
+theme_type_variation = &"HudLabel"
 
 [node name="Bars" type="VBoxContainer" parent="DuelHud" index="1" unique_id=1232068069]
 anchors_preset = 7
@@ -134,7 +119,7 @@ theme_override_constants/separation = 16
 [node name="StrikeBar" type="PanelContainer" parent="DuelHud/Bars" index="0" unique_id=2064542693]
 custom_minimum_size = Vector2(168, 34)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_duelbar")
+theme_type_variation = &"PanelHud"
 
 [node name="Body" type="Control" parent="DuelHud/Bars/StrikeBar" index="0" unique_id=498527308]
 layout_mode = 2
@@ -154,17 +139,15 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("6_x3nwb")
-theme_override_font_sizes/font_size = 11
 text = "LEFT MOUSE  STRIKE  READY"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_type_variation = &"WorldLabel"
 
 [node name="DefendBar" type="PanelContainer" parent="DuelHud/Bars" index="1" unique_id=481221735]
 custom_minimum_size = Vector2(168, 34)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_duelbar")
+theme_type_variation = &"PanelHud"
 
 [node name="Body" type="Control" parent="DuelHud/Bars/DefendBar" index="0" unique_id=1348698528]
 layout_mode = 2
@@ -184,9 +167,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("6_x3nwb")
-theme_override_font_sizes/font_size = 11
 text = "RIGHT MOUSE  DEFEND  READY"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_type_variation = &"WorldLabel"

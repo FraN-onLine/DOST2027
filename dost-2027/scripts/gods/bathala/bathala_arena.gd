@@ -497,12 +497,12 @@ func _refresh_hud() -> void:
 			else ("CAPTURING!" if player.global_position.distance_to(_bathala_base) < base_radius else "ON THE FIELD")
 		var swing := "ATTACK READY" if _attack_cd <= 0.0 else "ATTACK %.1fs" % _attack_cd
 		status_label.text = "%s     %s     ROUND %d" % [stance, swing, _round]
-		status_label.add_theme_color_override("font_color", god.color)
+		status_label.add_theme_color_override("font_color", UITokens.god_text(god))
 	if hint_label != null:
 		hint_label.text = "CLICK - ATTACK (freeze a god / thaw an ally)     E / Q - FAVORS     F - GOD'S DUE"
 	if _round_note != "" and callout_label != null:
 		callout_label.text = _round_note
-		callout_label.add_theme_color_override("font_color", god.color)
+		callout_label.add_theme_color_override("font_color", UITokens.god_text(god))
 		callout_label.visible = true
 		_round_note = ""
 

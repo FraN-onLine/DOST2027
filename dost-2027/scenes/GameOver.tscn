@@ -1,22 +1,28 @@
 [gd_scene format=3 uid="uid://em16eflhpkcx"]
 
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="1_6bcno"]
 [ext_resource type="Script" uid="uid://t25fs0o5rvlk" path="res://scripts/game_over.gd" id="1_qae0b"]
 
 [node name="GameOver" type="CanvasLayer"]
 script = ExtResource("1_qae0b")
 
 [node name="ColorRect" type="ColorRect" parent="."]
-offset_right = 1151.0
-offset_bottom = 650.0
-color = Color(0, 0, 0, 1)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
 [node name="Label" type="Label" parent="."]
-offset_left = 7.0
-offset_top = 281.0
-offset_right = 1148.0
-offset_bottom = 481.0
-theme_override_fonts/font = ExtResource("1_6bcno")
-theme_override_font_sizes/font_size = 32
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_right = -48.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"DisplayLabel"
 text = " reign supreme, the last remaining city: Munimundo!"
 horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3

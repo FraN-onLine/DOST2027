@@ -195,8 +195,61 @@ func _labels() -> void:
 	theme.set_font_size("font_size", "PacketLabel", UITokens.CAPTION)
 	theme.set_color("font_color", "PacketLabel", UITokens.NIGHT_900)
 
+	theme.set_type_variation("PacketTitle", "PacketLabel")
+	theme.set_font_size("font_size", "PacketTitle", UITokens.BODY)
+
+	_hud_labels()
+
 	theme.set_color("default_color", "RichTextLabel", UITokens.IVORY)
 	theme.set_stylebox("normal", "RichTextLabel", _empty())
+
+
+# In-game text sits over a moving, colourful field, so it always brings its own
+# contrast: a translucent night plate (HUD lines) or a dark rim (callouts and
+# labels in the world). Nothing in-game is a bare coloured word on the field.
+func _hud_labels() -> void:
+	var plate := _box(Color(UITokens.NIGHT_900, 0.82), Color(0, 0, 0, 0), {"border": 0, "margin": Vector4(8, 2, 8, 2)})
+
+	# The trial clock: a pill centred at the top of the screen.
+	theme.set_type_variation("TimerPill", "Label")
+	theme.set_font_size("font_size", "TimerPill", UITokens.HEADING)
+	theme.set_stylebox("normal", "TimerPill", _box(Color(UITokens.NIGHT_900, 0.88), UITokens.LINE,
+		{"shadow": UITokens.SHADOW, "margin": Vector4(16, 4, 16, 4)}))
+
+	theme.set_type_variation("HudLabel", "Label")
+	theme.set_stylebox("normal", "HudLabel", plate)
+
+	theme.set_type_variation("HudHint", "Label")
+	theme.set_font_size("font_size", "HudHint", UITokens.CAPTION)
+	theme.set_color("font_color", "HudHint", UITokens.MUTED)
+	theme.set_stylebox("normal", "HudHint", plate)
+
+	# A HUD line that may be empty (the event log): a rim instead of a plate,
+	# so an empty line leaves no empty pill behind.
+	theme.set_type_variation("HudLine", "Label")
+	theme.set_color("font_outline_color", "HudLine", UITokens.SHADOW)
+	theme.set_constant("outline_size", "HudLine", 6)
+
+	theme.set_type_variation("HudCallout", "Label")
+	theme.set_font(&"font", "HudCallout", spaced)
+	theme.set_font_size("font_size", "HudCallout", UITokens.HEADING)
+	theme.set_color("font_color", "HudCallout", UITokens.GOLD)
+	theme.set_color("font_outline_color", "HudCallout", UITokens.SHADOW)
+	theme.set_constant("outline_size", "HudCallout", 6)
+	# Callouts are hidden whenever they are empty, so they can carry the plate:
+	# a god's light colour on a light sky still reads.
+	theme.set_stylebox("normal", "HudCallout", _box(Color(UITokens.NIGHT_900, 0.82), Color(0, 0, 0, 0),
+		{"border": 0, "margin": Vector4(16, 4, 16, 4)}))
+
+	# Names and numbers that float in the world (a mortal's tag, a base's name,
+	# a frozen god's countdown).
+	theme.set_type_variation("WorldLabel", "Label")
+	theme.set_font_size("font_size", "WorldLabel", UITokens.CAPTION)
+	theme.set_color("font_outline_color", "WorldLabel", UITokens.SHADOW)
+	theme.set_constant("outline_size", "WorldLabel", 4)
+	theme.set_type_variation("WorldValue", "Label")
+	theme.set_color("font_outline_color", "WorldValue", UITokens.SHADOW)
+	theme.set_constant("outline_size", "WorldValue", 6)
 
 
 # --- buttons ---------------------------------------------------------------------

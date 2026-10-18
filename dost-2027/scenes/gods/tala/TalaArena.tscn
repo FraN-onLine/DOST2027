@@ -6,7 +6,6 @@
 [ext_resource type="Texture2D" uid="uid://dqltvlxohlij3" path="res://Assets/Gods/Tala/Tala-Sheet.png" id="5_28pec"]
 [ext_resource type="Texture2D" uid="uid://beidyhoq1ofro" path="res://Assets/Gods/Tala/Cans.png" id="5_cans"]
 [ext_resource type="Texture2D" uid="uid://du3e4xxsj2xtm" path="res://Assets/Gods/Tala/Tala-Overseer.png" id="6_28pec"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="6_font"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kthyc"]
 atlas = ExtResource("5_28pec")
@@ -224,11 +223,9 @@ offset_top = -29.0
 offset_right = 532.0
 offset_bottom = -4.0
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.65, 0.82, 1, 1)
-theme_override_fonts/font = ExtResource("6_font")
-theme_override_font_sizes/font_size = 14
 text = "THROW FROM THE LINE"
 horizontal_alignment = 1
+theme_type_variation = &"HudLabel"
 
 [node name="Hint" type="Label" parent="TalaHud" index="1" unique_id=1700730853]
 anchors_preset = 2
@@ -239,8 +236,6 @@ offset_top = -27.0
 offset_right = 807.0
 offset_bottom = -1.0
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 0.85)
-theme_override_fonts/font = ExtResource("6_font")
-theme_override_font_sizes/font_size = 10
 text = "LEFT CLICK - THROW    WASD / ARROWS - MOVE    E / Q - FAVORS"
 horizontal_alignment = 1
+theme_type_variation = &"HudHint"
