@@ -31,6 +31,10 @@ Settings="*res://scripts/Settings.gd"
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[gui]
+
+theme/custom="res://UI/theme/bathala_theme.tres"
+
 [global_group]
 
 buildings=""
