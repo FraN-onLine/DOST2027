@@ -12,11 +12,10 @@ vaults_per_level = 3
 favor_per_second = 40.0
 combo_step = 0.25
 combo_cap = 3.0
-trip_penalty = 120
 bank_interval = 0.5
 stumble_time = 1.0
 stumble_force = 320.0
-vault_trigger_distance = 90.0
+vault_trigger_distance = 60.0
 jump_height = 90.0
 lift_accel = 2.6
 gravity = 2.2
@@ -44,7 +43,7 @@ width = 4.0
 default_color = Color(1, 0.62, 0.55, 0)
 
 [node name="Baka" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=4442098]
-position = Vector2(900, 470)
+position = Vector2(620, 470)
 
 [node name="Sprite" type="Sprite2D" parent="ArenaField/Baka" index="0" unique_id=1130681991]
 visible = false
@@ -70,7 +69,7 @@ position = Vector2(984, 185)
 scale = Vector2(3, 3)
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
-position = Vector2(330, 470)
+position = Vector2(400, 470)
 
 [node name="HananHud" type="CanvasLayer" parent="." index="9" unique_id=81470394]
 layer = 12
@@ -109,7 +108,7 @@ offset_top = -27.0
 offset_right = 842.0
 offset_bottom = -3.0
 grow_vertical = 0
-text = "RUN TO THE BAKA"
+text = "RUN INTO THE BAKA - LEAP OVER IT"
 theme_type_variation = &"HudHint"
 
 [node name="BarLayer" type="CanvasLayer" parent="." index="10" unique_id=1058177752]
@@ -151,3 +150,24 @@ offset_right = 6.0
 offset_bottom = 310.0
 mouse_filter = 2
 color = Color(0.9647059, 0.8235294, 0.47843137, 1)
+
+[node name="Rate" type="Label" parent="BarLayer/Bar" index="3"]
+visible = false
+layout_mode = 0
+offset_left = 58.0
+offset_top = 178.0
+offset_right = 198.0
+offset_bottom = 202.0
+text = "+40/s  x1.00"
+theme_type_variation = &"HudLabel"
+
+[node name="HoldPrompt" type="Label" parent="BarLayer/Bar" index="4"]
+visible = false
+layout_mode = 0
+offset_left = 58.0
+offset_top = 140.0
+offset_right = 238.0
+offset_bottom = 164.0
+text = "HOLD LEFT CLICK"
+theme_override_colors/font_color = Color(0.9098039, 0.72156864, 0.2901961, 1)
+theme_type_variation = &"HudLabel"

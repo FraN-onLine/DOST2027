@@ -14,17 +14,34 @@ extends Arena
 #   the host and the host banks it.
 #
 # THE VAULT
-#   RUN      run (WASD) up to the Baka.
-#   VAULT    a balance bar appears for `vault_window` seconds. HOLD LEFT CLICK
-#            (the `attack` action) to push the jump indicator up, let go and it
-#            falls. Keep it inside the target box and FAVOR flows every second,
-#            multiplied by the combo. Drift out for longer than `grace_time` and
-#            the mortal TRIPS.
-#   STUMBLE  a trip costs `trip_penalty` FAVOR, resets the combo and shoves the
-#            mortal back; then it is back to RUN for the next vault.
-#   A clean vault adds `combo_step` to the combo (up to `combo_cap`). Every
-#   `vaults_per_level` clean vaults the Baka gets harder:
+#   RUN      run (WASD) into the Baka, from either side.
+#   READY    every vault opens with `ready_time` seconds of "READY... LEAP!": the
+#            bar shows, the box is still, the indicator is held in it and the
+#            mortal crouches. Nothing is earned and the grace clock does not run.
+#   VAULT    for `vault_window` seconds the mortal leaps OVER the Baka: their x
+#            moves smoothly across `vault_span` (centred on the Baka) while the
+#            balance bar drives their height. HOLD LEFT CLICK (the `attack`
+#            action) to push the jump indicator up, let go and it falls. Keep it
+#            inside the target box and FAVOR flows every second, times the combo
+#            (the rate shows beside the bar). Drift out for longer than
+#            `grace_time` and the mortal TRIPS.
+#   A clean vault lands them on the FAR side, free to move and facing the Baka
+#   again - the next vault goes back the other way. It adds `combo_step` to the
+#   combo (up to `combo_cap`), and every `vaults_per_level` clean vaults the Baka
+#   gets harder:
 #     1 Low Baka, 2 Sitting Baka, 3 Standing Baka, 4 High Baka, 5+ Over the Moon.
+#   STUMBLE  a trip drops the mortal at the Baka's feet on the side they came
+#            from and shoves them back; it costs trip_penalty_base +
+#            trip_penalty_per_level for each level above the first (40 at Low
+#            Baka, 120 at Over the Moon) and resets the combo. They stay where
+#            they landed and run in again.
+#   HANAN'S MERCY  `mercy_trips` trips in a row at the same level drop the level
+#            by one (never below 1): "THE BAKA CROUCHES". A clean vault resets
+#            the count.
+#   FIRST VISIT  the first vault of the trial is a practice vault: the box is
+#            `practice_box_scale` times its size, a trip costs nothing and does
+#            not count for mercy, and "HOLD LEFT CLICK" waits beside the bar
+#            until the button is first held. It still pays FAVOR.
 #
 # The bar works in 0..1 "bar heights" (0 = bottom of the gauge), so the HUD only
 # has to scale it to pixels. Every number is an @export - tune it in the inspector.
@@ -47,11 +64,18 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @export var favor_per_second := 40.0       # FAVOR/s inside the box, times the combo
 @export var combo_step := 0.25             # combo gained per clean vault
 @export var combo_cap := 3.0
-@export var trip_penalty := 120            # FAVOR lost on a trip
+@export var trip_penalty_base := 40       # FAVOR lost on a trip at Low Baka...
+@export var trip_penalty_per_level := 20  # ...plus this for every level above it
+@export var mercy_trips := 2              # trips in a row at one level that lower it
+@export var ready_time := 0.6             # the READY beat before each vault
+@export var vault_span := 140.0           # how far the leap carries the mortal, centred on the Baka
+@export var practice_box_scale := 1.5     # the first-visit practice vault's box
 @export var bank_interval := 0.5           # the host is asked for FAVOR this often, not every frame
 @export var stumble_time := 1.0            # seconds the mortal stumbles after a trip
 @export var stumble_force := 320.0
-@export var vault_trigger_distance := 90.0 # how close to the Baka a run starts the vault
+# How close to the Baka a run starts the vault. Keep it under vault_span / 2, so
+# a mortal who just landed is not caught by the next vault before they turn.
+@export var vault_trigger_distance := 60.0
 @export var jump_height := 90.0            # pixels the mortal rises at the top of the bar
 
 @export_category("Balance Bar")
@@ -64,7 +88,7 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @export var box_sizes := PackedFloat32Array([0.42, 0.30, 0.26, 0.15, 0.13])
 @export var drift_speeds := PackedFloat32Array([0.14, 0.18, 0.38, 0.30, 0.50])
 @export var burst_multiplier := 3.2        # level 4: how much faster the box moves in a burst
-@export var shake_pixels := 5.0            # level 5+: how hard the screen shakes
+@export var shake_pixels := 5.0            # level 5+: how hard the field and the bar shake
 @export var bar_offset := Vector2(36.0, 0.0)  # where the bar hangs, from the mortal's feet
 
 @onready var baka: Node2D = get_node_or_null("ArenaField/Baka")
@@ -80,6 +104,8 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @onready var bar: Control = get_node_or_null("BarLayer/Bar")
 @onready var box: ColorRect = get_node_or_null("BarLayer/Bar/Box")
 @onready var indicator: ColorRect = get_node_or_null("BarLayer/Bar/Indicator")
+@onready var rate_label: Label = get_node_or_null("BarLayer/Bar/Rate")
+@onready var hold_prompt: Label = get_node_or_null("BarLayer/Bar/HoldPrompt")
 @onready var status_label: Label = get_node_or_null("HananHud/Status")
 @onready var callout_label: Label = get_node_or_null("HananHud/Callout")
 @onready var hint_label: Label = get_node_or_null("HananHud/Hint")
@@ -89,6 +115,7 @@ var _level := 1
 var _clean_in_level := 0
 var _clean_total := 0
 var _trips := 0
+var _trips_in_row := 0  # trips at this level since the last clean vault (Hanan's mercy)
 var _combo := 1.0
 var _holding := false
 var _vault_left := 0.0
@@ -107,6 +134,12 @@ var _bank_timer := 0.0
 var _ground_y := 0.0
 var _callout_time := 0.0
 var _frozen := false  # the God's Due menu or a dialogue is open over a vault
+var _ready_left := 0.0  # the READY beat still to run before the vault itself
+var _from_x := 0.0      # the leap: from the approach side...
+var _to_x := 0.0        # ...to the landing side
+var _practice := false  # first visit: the next vault is the practice vault
+var _practice_vault := false
+var _held_once := false
 
 
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
@@ -133,11 +166,15 @@ func arena_round_reset() -> void:
 	_clean_in_level = 0
 	_clean_total = 0
 	_trips = 0
+	_trips_in_row = 0
 	_combo = 1.0
+	_practice = first_visit
+	_practice_vault = false
+	_held_once = false
 	_pending_gain = 0.0
 	_holding = false
 	_leave_vault()
-	_enter_run(false)  # the base unlocks the mortal when the round starts
+	_enter_run(false)  # the base put the mortal on its spawn and unlocks it when the round starts
 	_set_callout("", Color.WHITE, 0.0)
 
 
@@ -157,11 +194,17 @@ func level_name() -> String:
 
 
 func current_box_size() -> float:
-	return box_sizes[mini(_level, box_sizes.size()) - 1]
+	var size: float = box_sizes[mini(_level, box_sizes.size()) - 1]
+	return size * (practice_box_scale if _practice_vault else 1.0)
 
 
 func current_drift_speed() -> float:
 	return drift_speeds[mini(_level, drift_speeds.size()) - 1]
+
+
+# 40 at Low Baka, 20 more a level, 120 at Over the Moon (and beyond).
+func trip_penalty() -> int:
+	return trip_penalty_base + trip_penalty_per_level * (mini(_level, LEVEL_NAMES.size()) - 1)
 
 
 # --- FRAME -------------------------------------------------------------------
@@ -204,24 +247,35 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("attack"):
 		_holding = _phase == Phase.PLAYING and not dialogue.is_active() and not due_menu.is_open()
+		_held_once = _held_once or (_holding and _vault_state == Vault.VAULT)
 	elif event.is_action_released("attack"):
 		_holding = false
 
 
 # --- RUN / VAULT / STUMBLE ---------------------------------------------------
 
+# Back to running, wherever the mortal stands: the far side after a clean vault,
+# the approach side after a trip. (The base puts it on its spawn each round.)
 func _enter_run(unlock := true) -> void:
 	_vault_state = Vault.RUN
-	player.global_position = _start_position
 	if unlock:
 		player.set_lock(false)
 	_show_baka_height()
 
 
-# The mortal reached the Baka: the bar starts, with the indicator already in the box.
+# The mortal ran into the Baka: the leap goes from this side to the other one,
+# and opens with the READY beat - the bar up, the indicator held in the box.
 func begin_vault() -> void:
 	_vault_state = Vault.VAULT
 	_vault_left = vault_window
+	_ready_left = ready_time
+	_practice_vault = _practice
+	_practice = false
+	var centre := baka.global_position.x if baka != null else player.global_position.x
+	var side := -1.0 if player.global_position.x < centre else 1.0
+	_from_x = centre + side * vault_span * 0.5
+	_to_x = centre - side * vault_span * 0.5
+	player.global_position.x = _from_x
 	_outside_time = 0.0
 	_bank_timer = bank_interval
 	_ind_vel = 0.0
@@ -235,7 +289,8 @@ func begin_vault() -> void:
 	_ind_pos = _box_center
 	_ground_y = player.global_position.y
 	player.set_lock(true)
-	_set_callout("VAULT!", god.color, 0.6)
+	player.scale = Vector2(1.0, 0.85)  # the crouch
+	_set_callout("READY...", god.color, ready_time)
 
 
 func _tick_vault(delta: float) -> void:
@@ -249,6 +304,15 @@ func _tick_vault(delta: float) -> void:
 		_frozen = false
 		# A click spent inside the menu is not a hold: take the button as it is now.
 		_holding = Input.is_action_pressed("attack")
+	if _ready_left > 0.0:
+		# READY: the box waits, the indicator is held in it, nothing is earned.
+		_ready_left -= delta
+		_ind_pos = _box_center
+		_ind_vel = 0.0
+		if _ready_left <= 0.0:
+			player.scale = Vector2.ONE
+			_set_callout("LEAP!", god.color, 0.5)
+		return
 	_step_indicator(delta)
 	_step_box(delta)
 	if is_inside_box():
@@ -263,8 +327,9 @@ func _tick_vault(delta: float) -> void:
 	if _bank_timer <= 0.0:
 		_bank_timer = bank_interval
 		_bank()
-	player.global_position.y = _ground_y - _ind_pos * jump_height
 	_vault_left -= delta
+	var across := smoothstep(0.0, 1.0, 1.0 - _vault_left / maxf(0.01, vault_window))
+	player.global_position = Vector2(lerpf(_from_x, _to_x, across), _ground_y - _ind_pos * jump_height)
 	if _vault_left <= 0.0:
 		_clean_vault()
 
@@ -339,12 +404,15 @@ func _clean_vault() -> void:
 	_combo = minf(combo_cap, _combo + combo_step)
 	_clean_total += 1
 	_clean_in_level += 1
+	_trips_in_row = 0
 	var leveled := _clean_in_level >= vaults_per_level
 	if leveled:
 		_level += 1
 		_clean_in_level = 0
 	_set_callout("CLEAN!  COMBO x%.2f" % _combo, CLEAN_COLOR, 1.2)
 	_leave_vault()
+	player.global_position.x = _to_x  # landed on the far side...
+	_face(baka.global_position.x if baka != null else _from_x)  # ...turned to the Baka again
 	_enter_run()
 	if leveled:
 		_show_level_banner()
@@ -353,11 +421,24 @@ func _clean_vault() -> void:
 func _trip() -> void:
 	_bank()
 	_pending_gain = 0.0
-	score_favor(-trip_penalty, "Tripped over the Baka")
+	var penalty := 0 if _practice_vault else trip_penalty()
+	if penalty > 0:
+		score_favor(-penalty, "Tripped over the Baka")
 	_combo = 1.0
 	_trips += 1
-	_set_callout("TRIP!  -%d FAVOR" % trip_penalty, TRIP_COLOR, 1.2)
+	var text := "TRIP!  -%d FAVOR" % penalty
+	if not _practice_vault:
+		_trips_in_row += 1
+		if _trips_in_row >= mercy_trips and _level > 1:
+			# Hanan's mercy: the Baka comes down a level.
+			_level -= 1
+			_clean_in_level = 0
+			_trips_in_row = 0
+			text += "\nTHE BAKA CROUCHES"
+			_log("Hanan's mercy - the Baka crouches: %s" % level_name(), god.color)
+	_set_callout(text, TRIP_COLOR, 1.2)
 	_leave_vault()
+	player.global_position.x = _from_x  # at the Baka's feet, on the side they came from
 	_vault_state = Vault.STUMBLE
 	_state_timer = stumble_time
 	player.set_lock(false)
@@ -369,8 +450,16 @@ func _trip() -> void:
 func _leave_vault() -> void:
 	if _vault_state == Vault.VAULT:
 		player.global_position.y = _ground_y
+	player.scale = Vector2.ONE
+	_practice_vault = false
+	_ready_left = 0.0
 	_ind_vel = 0.0
 	_ind_pos = 0.0
+
+
+func _face(x: float) -> void:
+	player.facing = 1 if x > player.global_position.x else -1
+	player._apply_facing()
 
 
 func _show_level_banner() -> void:
@@ -445,6 +534,13 @@ func _refresh_hud(delta: float) -> void:
 		if _callout_time <= 0.0 and callout_label != null:
 			callout_label.visible = false
 	var in_vault := _vault_state == Vault.VAULT
+	if rate_label != null:
+		rate_label.visible = in_vault and _ready_left <= 0.0 and is_inside_box()
+		rate_label.text = "+%d/s  x%.2f" % [int(round(favor_per_second * _combo)), _combo]
+	if hold_prompt != null:
+		hold_prompt.visible = in_vault and _practice_vault and not _held_once
+		if hold_prompt.visible:
+			hold_prompt.modulate.a = 0.55 + 0.45 * absf(sin(Time.get_ticks_msec() * 0.006))
 	if bar != null:
 		bar.visible = in_vault
 		if in_vault:
@@ -462,13 +558,12 @@ func _refresh_hud(delta: float) -> void:
 			_level, level_name(), _combo, _clean_total, _trips]
 	if hint_label != null:
 		hint_label.text = "HOLD LEFT CLICK - RISE    RELEASE - FALL    KEEP THE JUMP IN THE BOX" if in_vault \
-			else "RUN TO THE BAKA    E / Q - FAVORS    F - GOD'S DUE"
-	# Over the Moon shakes the screen - unless the player turned shaking off.
+			else "RUN INTO THE BAKA - LEAP OVER IT    E / Q - FAVORS    F - GOD'S DUE"
+	# Over the Moon shakes the field and the bar - never the labels, which must
+	# stay readable - unless the player turned shaking off.
 	var shake := Vector2.ZERO
 	if in_vault and _level >= 5 and screen_shake_allowed():
 		shake = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_pixels
-	if hud_layer != null:
-		hud_layer.offset = shake
 	if bar_layer != null:
 		bar_layer.offset = shake
 	field_root.position = shake
