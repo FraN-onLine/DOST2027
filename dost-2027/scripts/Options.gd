@@ -3,6 +3,10 @@ extends Control
 # The Options screen: Audio, Video, Controls and Gameplay tabs over the
 # Settings autoload. Every change applies live; BACK (or Esc) saves and leaves.
 #
+# Every tab is the same list of 44 px rows - a 200 px label column, the control
+# filling the rest - so the eye finds the label and the value in the same place
+# on every tab. Rebind buttons are drawn as keycaps: you see the key, not a word.
+#
 # The screen does not care which scene it sits in: opened as the current scene
 # (title menu) BACK returns to the main menu, opened as an overlay it frees
 # itself and emits `closed`.
@@ -16,11 +20,11 @@ const VOLUMES := {"master": "Master volume", "music": "Music volume", "sfx": "SF
 const IGNORED_MOUSE := [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 
 @onready var tabs: TabContainer = $Panel/Margin/VBox/Tabs
-@onready var audio_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Audio
-@onready var video_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Video
+@onready var audio_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Audio/List
+@onready var video_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Video/List
 @onready var controls_scroll: ScrollContainer = $Panel/Margin/VBox/Tabs/Controls
 @onready var controls_list: VBoxContainer = $Panel/Margin/VBox/Tabs/Controls/List
-@onready var gameplay_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Gameplay
+@onready var gameplay_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Gameplay/List
 @onready var reset_button: Button = $Panel/Margin/VBox/Buttons/ResetButton
 @onready var back_button: Button = $Panel/Margin/VBox/Buttons/BackButton
 @onready var confirm: ConfirmationDialog = $ConfirmDialog
@@ -80,10 +84,13 @@ func _clear(node: Node) -> void:
 
 func _row(parent: Control, text: String, control: Control) -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", UITokens.SPACE_16)
+	row.custom_minimum_size.y = UITokens.ROW_HEIGHT
 	var label := Label.new()
 	label.text = text
-	label.custom_minimum_size.x = 280
+	label.custom_minimum_size.x = UITokens.LABEL_COLUMN
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	row.add_child(label)
 	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(control)
@@ -92,7 +99,7 @@ func _row(parent: Control, text: String, control: Control) -> void:
 
 func _slider_row(parent: Control, text: String, section: String, key: String) -> void:
 	var box := HBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
+	box.add_theme_constant_override("separation", UITokens.SPACE_16)
 	var slider := HSlider.new()
 	slider.max_value = 100
 	slider.step = 1
@@ -100,7 +107,8 @@ func _slider_row(parent: Control, text: String, section: String, key: String) ->
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var readout := Label.new()
-	readout.custom_minimum_size.x = 48
+	readout.custom_minimum_size.x = UITokens.SPACE_48
+	readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	readout.text = "%d" % slider.value
 	slider.value_changed.connect(func(value: float) -> void:
 		readout.text = "%d" % value
@@ -120,6 +128,7 @@ func _check_row(parent: Control, text: String, section: String, key: String) -> 
 
 func _option_row(parent: Control, text: String, labels: Array, selected: int, on_pick: Callable) -> OptionButton:
 	var option := OptionButton.new()
+	option.custom_minimum_size.y = UITokens.FIELD_HEIGHT
 	for label in labels:
 		option.add_item(str(label))
 	option.selected = selected
@@ -162,15 +171,19 @@ func _build_controls() -> void:
 	_bind_buttons.clear()
 	for action in Settings.ACTIONS:
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(220, 32)
+		button.theme_type_variation = &"KeycapButton"
+		button.custom_minimum_size = Vector2(UITokens.BUTTON_SMALL.x, 36)
 		button.pressed.connect(_begin_rebind.bind(action))
 		_bind_buttons[action] = button
 		_row(controls_list, Settings.ACTIONS[action], button)
+		button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_refresh_bindings()
 
 
 func _build_gameplay() -> void:
 	var name_input := LineEdit.new()
+	name_input.custom_minimum_size.y = UITokens.FIELD_HEIGHT
 	name_input.max_length = 20
 	name_input.placeholder_text = "Random name each time"
 	name_input.text = Settings.get_value("gameplay", "player_name")

@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://e24754evurcs"]
 
 [ext_resource type="Script" uid="uid://c2ui5kirtd4ry" path="res://scripts/hosting.gd" id="1_host"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+[ext_resource type="Texture2D" uid="uid://xno0bm25ol28" path="res://Assets/title/title_sky.png" id="2_sky"]
 
 [node name="Hosting" type="Control" unique_id=568291395]
 layout_mode = 3
@@ -19,7 +19,21 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.04, 0.05, 0.1, 1)
+mouse_filter = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 1)
+
+[node name="Sky" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0.25)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_sky")
+expand_mode = 1
+stretch_mode = 6
 
 [node name="CenterContainer" type="CenterContainer" parent="." unique_id=1682612295]
 layout_mode = 1
@@ -29,80 +43,73 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=1765284076]
-custom_minimum_size = Vector2(320, 0)
+[node name="Card" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_type_variation = &"PanelCard"
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=1918956082]
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Card" unique_id=1765284076]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 32
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/Card/VBoxContainer" unique_id=1918956082]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 text = "HOST GAME"
 horizontal_alignment = 1
 
-[node name="SubtitleLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=803097319]
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/Card/VBoxContainer" unique_id=803097319]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
+theme_type_variation = &"MutedLabel"
 text = "On LAN - others can join automatically"
 horizontal_alignment = 1
+autowrap_mode = 3
 
-[node name="NameLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=661839950]
+[node name="FieldGap" type="Control" parent="CenterContainer/Card/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 15
+mouse_filter = 2
+
+[node name="NameLabel" type="Label" parent="CenterContainer/Card/VBoxContainer" unique_id=661839950]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
 text = "YOUR NAME"
-horizontal_alignment = 1
 
-[node name="NameInput" type="LineEdit" parent="CenterContainer/VBoxContainer" unique_id=852490383]
-custom_minimum_size = Vector2(320, 44)
+[node name="NameInput" type="LineEdit" parent="CenterContainer/Card/VBoxContainer" unique_id=852490383]
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/caret_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 18
 placeholder_text = "Enter your name..."
-alignment = 1
 max_length = 16
 
-[node name="StartButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=207929624]
-custom_minimum_size = Vector2(320, 48)
+[node name="ActionGap" type="Control" parent="CenterContainer/Card/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6143486, 0.6477322, 0.7930389, 1)
-theme_override_colors/font_focus_color = Color(0.08, 0.09, 0.15, 1)
-theme_override_colors/font_pressed_color = Color(0.12, 0.13, 0.2, 1)
-theme_override_colors/font_hover_color = Color(0.05, 0.06, 0.12, 1)
-theme_override_colors/font_disabled_color = Color(0.4, 0.4, 0.45, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 18
+mouse_filter = 2
+
+[node name="StartButton" type="Button" parent="CenterContainer/Card/VBoxContainer" unique_id=207929624]
+custom_minimum_size = Vector2(260, 52)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
 text = "START HOSTING"
 
-[node name="BackButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1902135896]
-custom_minimum_size = Vector2(320, 40)
+[node name="StatusLabel" type="Label" parent="CenterContainer/Card/VBoxContainer" unique_id=2132691186]
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "BACK"
+theme_type_variation = &"MutedLabel"
+text = "Enter your name to host a game"
+horizontal_alignment = 1
+autowrap_mode = 3
 
-[node name="StatusLabel" type="Label" parent="." unique_id=2132691186]
+[node name="BackButton" type="Button" parent="." unique_id=1902135896]
+custom_minimum_size = Vector2(120, 32)
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_top = -40.0
-offset_right = 1150.0
-offset_bottom = -10.0
+offset_left = 24.0
+offset_top = -58.0
+offset_right = 144.0
+offset_bottom = -24.0
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "Enter your name to host a game"
-horizontal_alignment = 1
+theme_type_variation = &"GhostButton"
+text = "BACK"

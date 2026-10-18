@@ -1,18 +1,28 @@
 extends Control
 
-@onready var host_list = $ContentRoot/VBoxContainer/HostListScroll
-@onready var host_list_vbox = $ContentRoot/VBoxContainer/HostListScroll/HostListVBox
-@onready var no_hosts_label = $ContentRoot/VBoxContainer/NoHostsLabel
-@onready var refresh_button = $ContentRoot/VBoxContainer/RefreshButton
-@onready var back_button = $ContentRoot/VBoxContainer/BackButton
-@onready var status_label = $StatusLabel
-@onready var search_spinner = $ContentRoot/VBoxContainer/SearchLabel
-@onready var name_input = $ContentRoot/VBoxContainer/NameInput
-@onready var lobby_id_input = $ContentRoot/VBoxContainer/LobbyIdInput
-@onready var join_lobby_button = $ContentRoot/VBoxContainer/JoinLobbyButton
+# Join a game: the same form card as Hosting (name, lobby ID, the gold primary)
+# beside a card listing the games found on the LAN as row cards, each with its
+# own JOIN. While the list is empty it says so - "Searching your network..." with
+# slow dots - next to REFRESH, so an empty list never looks broken.
 
-var host_items := {}  # host_key -> Button
+const SEARCH_TEXT := "Searching your network"
+const DOT_SECONDS := 0.6
+
+@onready var host_list = $CenterContainer/Columns/NetworkCard/VBox/List/HostListScroll
+@onready var host_list_vbox = $CenterContainer/Columns/NetworkCard/VBox/List/HostListScroll/HostListVBox
+@onready var no_hosts_label = $CenterContainer/Columns/NetworkCard/VBox/List/NoHostsLabel
+@onready var refresh_button = $CenterContainer/Columns/NetworkCard/VBox/SearchRow/RefreshButton
+@onready var back_button = $BackButton
+@onready var status_label = $StatusLabel
+@onready var search_spinner = $CenterContainer/Columns/NetworkCard/VBox/SearchRow/SearchLabel
+@onready var name_input = $CenterContainer/Columns/FormCard/VBox/NameInput
+@onready var lobby_id_input = $CenterContainer/Columns/FormCard/VBox/LobbyIdInput
+@onready var join_lobby_button = $CenterContainer/Columns/FormCard/VBox/JoinLobbyButton
+
+var host_items := {}  # host_key -> PanelContainer (one row card)
 var _search_timer: Timer
+var _dots := 0
+var _searching := true
 
 func _ready():
 	# Connect button signals
@@ -20,6 +30,7 @@ func _ready():
 	back_button.pressed.connect(_on_back_pressed)
 	join_lobby_button.pressed.connect(_on_join_lobby_pressed)
 	lobby_id_input.text_submitted.connect(_on_lobby_id_submitted)
+	lobby_id_input.text_changed.connect(_on_lobby_id_changed)
 	
 	# Connect to network discovery signals
 	Network.host_discovered.connect(_on_host_discovered)
@@ -30,7 +41,7 @@ func _ready():
 	name_input.text = Settings.suggested_name()
 
 	refresh_button.disabled = true
-	status_label.text = "Scanning for hosts on LAN..."
+	status_label.text = ""
 	
 	# Start LAN discovery automatically
 	Network.start_discovery()
@@ -44,6 +55,35 @@ func _ready():
 	_search_timer.one_shot = false
 	add_child(_search_timer)
 	_search_timer.timeout.connect(_on_search_timer_timeout)
+
+	# The empty state's dots: slow, and still (no motion) with reduce flashing on.
+	var dot_timer := Timer.new()
+	dot_timer.wait_time = DOT_SECONDS
+	dot_timer.autostart = true
+	add_child(dot_timer)
+	dot_timer.timeout.connect(_tick_dots)
+	_tick_dots()
+	name_input.grab_focus()
+
+func _tick_dots() -> void:
+	if not _searching:
+		return
+	_dots = (_dots + 1) % 4
+	search_spinner.text = SEARCH_TEXT + ("..." if Settings.reduce_flashing() else ".".repeat(_dots))
+
+# A lobby ID is four capitals: type it in any case, read it in capitals.
+func _on_lobby_id_changed(text: String) -> void:
+	var upper := text.to_upper()
+	if upper != text:
+		var caret: int = lobby_id_input.caret_column
+		lobby_id_input.text = upper
+		lobby_id_input.caret_column = caret
+
+# Esc means back, on every screen.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and not back_button.disabled:
+		get_viewport().set_input_as_handled()
+		_on_back_pressed()
 
 func _on_search_timer_timeout():
 	# Update the UI to match current discovered hosts
@@ -101,12 +141,12 @@ func _refresh_host_list():
 	if discovered.size() == 0:
 		# Nothing to list - show the "no hosts" message inside the list area instead of a long status line
 		_show_host_list(false)
-		search_spinner.visible = false
-		status_label.text = "Scanning for hosts on LAN..."
+		_searching = true
+		status_label.text = ""
 		return
 	
 	_show_host_list(true)
-	search_spinner.visible = false
+	_searching = false
 	
 	var hosts := []
 	var seen_lobbies := {}  # lobby_id (uppercase) -> true, UI-level dedupe
@@ -126,7 +166,8 @@ func _refresh_host_list():
 			"lobby_id": lobby_id,
 		})
 	
-	status_label.text = "Found %d host(s) on LAN - tap to join" % hosts.size()
+	status_label.text = "Found %d host(s) on LAN - press JOIN" % hosts.size()
+	search_spinner.text = "%d game%s found" % [hosts.size(), "" if hosts.size() == 1 else "s"]
 	
 	# Sort by host name for a clean list
 	hosts.sort_custom(func(a, b): return a["name"].to_lower() < b["name"].to_lower())
@@ -137,16 +178,40 @@ func _refresh_host_list():
 		var name = host_info["name"]
 		var lobby_id = host_info["lobby_id"]
 		
-		var button = Button.new()
-		button.custom_minimum_size = Vector2(420, 48)
-		button.text = name
-		if lobby_id != "":
-			button.text += "  [%s]" % lobby_id
-		button.tooltip_text = "Join %s (%s) - Lobby ID: %s" % [name, ip, lobby_id]
-		button.pressed.connect(_on_host_pressed.bind(host_key))
-		button.add_theme_font_size_override("font_size", 16)
-		host_list_vbox.add_child(button)
-		host_items[host_key] = button
+		var row := _host_row(name, lobby_id)
+		row.tooltip_text = "Join %s (%s) - Lobby ID: %s" % [name, ip, lobby_id]
+		row.get_node("Items/Join").pressed.connect(_on_host_pressed.bind(host_key))
+		host_list_vbox.add_child(row)
+		host_items[host_key] = row
+
+# One discovered game: its host's name, its lobby ID (the discovery packet does
+# not carry a player count) and a JOIN button at the right, where the eye ends.
+func _host_row(host_name: String, lobby_id: String) -> PanelContainer:
+	var row := PanelContainer.new()
+	row.theme_type_variation = &"PanelRow"
+	var items := HBoxContainer.new()
+	items.name = "Items"
+	items.add_theme_constant_override("separation", 8)
+	var name_label := Label.new()
+	name_label.text = host_name
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	items.add_child(name_label)
+	if lobby_id != "":
+		var code := Label.new()
+		code.text = lobby_id
+		code.theme_type_variation = &"MutedLabel"
+		code.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		items.add_child(code)
+	var join := Button.new()
+	join.name = "Join"
+	join.text = "JOIN"
+	join.theme_type_variation = &"SmallButton"
+	join.custom_minimum_size = UITokens.BUTTON_SMALL
+	items.add_child(join)
+	row.add_child(items)
+	return row
 
 func _show_host_list(has_hosts: bool):
 	# Swap between the scrollable host list and the "no hosts" message

@@ -1,92 +1,8 @@
 [gd_scene format=3 uid="uid://b8k2m3n4p5q6r"]
 
 [ext_resource type="Script" uid="uid://c3w2eintc3nrp" path="res://scripts/MainMenu.gd" id="1_main"]
-[ext_resource type="Texture2D" uid="uid://bakwmp077mkd6" path="res://Assets/title/Untitled94_20251102210923.png" id="2_0ykhv"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="3_font"]
-
-[sub_resource type="StyleBoxFlat" id="7"]
-bg_color = Color(0.03, 0.04, 0.08, 0.55)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.55, 0.6, 0.72, 0.35)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="1"]
-bg_color = Color(0.9, 0.85, 0.3, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.7, 0.65, 0.15, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="3"]
-bg_color = Color(0.75, 0.7, 0.2, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.6, 0.55, 0.1, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="2"]
-bg_color = Color(1, 0.95, 0.5, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.8, 0.75, 0.25, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="4"]
-bg_color = Color(0.15, 0.17, 0.25, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.3, 0.32, 0.4, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="6"]
-bg_color = Color(0.1, 0.12, 0.2, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.25, 0.27, 0.35, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="5"]
-bg_color = Color(0.2, 0.22, 0.32, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.4, 0.42, 0.5, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
+[ext_resource type="Texture2D" uid="uid://xno0bm25ol28" path="res://Assets/title/title_sky.png" id="2_sky"]
+[ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="3_ornament"]
 
 [node name="MainMenu" type="Control" unique_id=1590613013]
 layout_mode = 3
@@ -104,176 +20,134 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.04, 0.05, 0.1, 1)
+mouse_filter = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=215860464]
-position = Vector2(573.39, 326.01)
-scale = Vector2(4.6500807, 3.8453572)
-texture = ExtResource("2_0ykhv")
-
-[node name="TitlePanel" type="PanelContainer" parent="." unique_id=1712345671]
+[node name="Sky" type="TextureRect" parent="."]
 layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -411.0
-offset_top = 258.0
-offset_right = 449.0
-offset_bottom = 381.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
-theme_override_styles/panel = SubResource("7")
+texture = ExtResource("2_sky")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="Margin" type="MarginContainer" parent="TitlePanel" unique_id=1712345672]
-layout_mode = 2
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_bottom = 14
-metadata/_edit_lock_ = true
-
-[node name="TitleVBox" type="VBoxContainer" parent="TitlePanel/Margin" unique_id=1712345673]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 4
-
-[node name="TitleLabel" type="Label" parent="TitlePanel/Margin/TitleVBox" unique_id=1712345674]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.95, 0.78, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 52
-text = "BATHALA"
-horizontal_alignment = 1
-
-[node name="SubtitleLabel" type="Label" parent="TitlePanel/Margin/TitleVBox" unique_id=1712345675]
-visible = false
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.88, 0.5, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 18
-text = "Ang Laro ng mga diyos"
-horizontal_alignment = 1
-
-[node name="AltNameLabel" type="Label" parent="TitlePanel/Margin/TitleVBox" unique_id=1712345676]
-visible = false
-layout_mode = 2
-theme_override_colors/font_color = Color(0.78, 0.83, 0.95, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 12
-text = "(Bathala: the God Games)"
-horizontal_alignment = 1
-
-[node name="PrologueLabel" type="Label" parent="TitlePanel/Margin/TitleVBox" unique_id=1712345677]
-visible = false
-layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.87, 0.92, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 11
-text = "Bathala took the dearest of the mortals, convince him that they are ought to be released by getting FAVOR from God's challenges."
-horizontal_alignment = 1
-autowrap_mode = 3
+color = Color(0.043137256, 0.0627451, 0.1254902, 0.35)
 
 [node name="CenterContainer" type="CenterContainer" parent="." unique_id=1568447669]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 1.0
-offset_top = 346.0
-offset_right = 3.0
-offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=514316804]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
+
+[node name="Lockup" type="VBoxContainer" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/VBoxContainer/Lockup" unique_id=1712345674]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_type_variation = &"HeroLabel"
+text = "BATHALA"
+horizontal_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/VBoxContainer/Lockup" unique_id=1712345675]
+layout_mode = 2
+text = "Ang Laro ng mga diyos"
+horizontal_alignment = 1
+
+[node name="Rule" type="Control" parent="CenterContainer/VBoxContainer/Lockup"]
+custom_minimum_size = Vector2(320, 12)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+script = ExtResource("3_ornament")
+rule_only = true
+
+[node name="LockupGap" type="Control" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="HostButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1787189722]
 custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.08, 0.09, 0.15, 1)
-theme_override_colors/font_focus_color = Color(0.08, 0.09, 0.15, 1)
-theme_override_colors/font_pressed_color = Color(0.12, 0.13, 0.2, 1)
-theme_override_colors/font_hover_color = Color(0.05, 0.06, 0.12, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("1")
-theme_override_styles/pressed = SubResource("3")
-theme_override_styles/hover = SubResource("2")
-theme_override_styles/focus = SubResource("1")
+size_flags_horizontal = 4
+theme_type_variation = &"PrimaryButton"
 text = "HOST GAME"
 
 [node name="JoinButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=954221442]
 custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.08, 0.09, 0.15, 1)
-theme_override_colors/font_focus_color = Color(0.08, 0.09, 0.15, 1)
-theme_override_colors/font_pressed_color = Color(0.12, 0.13, 0.2, 1)
-theme_override_colors/font_hover_color = Color(0.05, 0.06, 0.12, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("1")
-theme_override_styles/pressed = SubResource("3")
-theme_override_styles/hover = SubResource("2")
-theme_override_styles/focus = SubResource("1")
+size_flags_horizontal = 4
+theme_type_variation = &"SecondaryButton"
 text = "JOIN GAME"
+
+[node name="PlayGap" type="Control" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="AlmanacButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=184902713]
 custom_minimum_size = Vector2(260, 44)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 14
-theme_override_styles/normal = SubResource("4")
-theme_override_styles/pressed = SubResource("6")
-theme_override_styles/hover = SubResource("5")
-theme_override_styles/focus = SubResource("4")
+size_flags_horizontal = 4
+theme_type_variation = &"SecondaryButton"
 text = "ALMANAC"
 
 [node name="OptionsButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=646522129]
 custom_minimum_size = Vector2(260, 44)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 14
-theme_override_styles/normal = SubResource("4")
-theme_override_styles/pressed = SubResource("6")
-theme_override_styles/hover = SubResource("5")
-theme_override_styles/focus = SubResource("4")
+size_flags_horizontal = 4
+theme_type_variation = &"SecondaryButton"
 text = "OPTIONS"
 
-[node name="QuitButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=868927048]
-custom_minimum_size = Vector2(260, 44)
+[node name="BrowseGap" type="Control" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 14
-theme_override_styles/normal = SubResource("4")
-theme_override_styles/pressed = SubResource("6")
-theme_override_styles/hover = SubResource("5")
-theme_override_styles/focus = SubResource("4")
+mouse_filter = 2
+
+[node name="QuitButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=868927048]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"GhostButton"
 text = "QUIT"
 
-[node name="StatusLabel" type="Label" parent="." unique_id=1590656144]
-visible = false
+[node name="Footer" type="PanelContainer" parent="."]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_top = -30.0
-offset_right = 400.0
-offset_bottom = -10.0
+offset_left = 16.0
+offset_top = -40.0
+offset_right = 56.0
+offset_bottom = -16.0
 grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"PanelHud"
+
+[node name="StatusLabel" type="Label" parent="Footer" unique_id=1590656144]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
 text = "Ready"
 horizontal_alignment = 1
+vertical_alignment = 1

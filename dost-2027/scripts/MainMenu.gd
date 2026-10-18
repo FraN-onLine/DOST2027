@@ -1,19 +1,21 @@
 extends Control
 
-# Title screen: the God Games' name on top, then the three doors into a run
-# (host, join, quit). The words come from the registry (Gods) so the title
-# screen and Bathala's own dialogue can never drift apart.
+# Title screen: the God Games' name on top, then the doors into a run. The words
+# come from the registry (Gods) so the title screen and Bathala's own dialogue
+# can never drift apart.
+#
+# Hick's law shapes the stack: three groups, 24 px apart - play (HOST, the one
+# gold primary, and JOIN), browse (ALMANAC, OPTIONS), and leave (QUIT, a quiet
+# ghost button) - so the eye picks a group first and a button second.
 
-@onready var title_label: Label = $TitlePanel/Margin/TitleVBox/TitleLabel
-@onready var subtitle_label: Label = $TitlePanel/Margin/TitleVBox/SubtitleLabel
-@onready var alt_name_label: Label = $TitlePanel/Margin/TitleVBox/AltNameLabel
-@onready var prologue_label: Label = $TitlePanel/Margin/TitleVBox/PrologueLabel
+@onready var title_label: Label = $CenterContainer/VBoxContainer/Lockup/TitleLabel
+@onready var subtitle_label: Label = $CenterContainer/VBoxContainer/Lockup/SubtitleLabel
 @onready var host_button = $CenterContainer/VBoxContainer/HostButton
 @onready var join_button = $CenterContainer/VBoxContainer/JoinButton
 @onready var almanac_button = $CenterContainer/VBoxContainer/AlmanacButton
 @onready var options_button = $CenterContainer/VBoxContainer/OptionsButton
 @onready var quit_button =$CenterContainer/VBoxContainer/QuitButton
-@onready var status_label = $StatusLabel
+@onready var status_label = $Footer/StatusLabel
 
 func _ready():
 	# Connect button signals
@@ -22,23 +24,21 @@ func _ready():
 	almanac_button.pressed.connect(_on_almanac_pressed)
 	options_button.pressed.connect(_on_options_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
-	
+
 	# Connect to network signals
 	Network.connected.connect(_on_network_connected)
-	
+
 	_brand_title()
 	status_label.text = "Ready to play!"
+	# Keyboard and pad players start on the primary action.
+	host_button.grab_focus()
 
 
-# BATHALA / Ang Laro ng mga diyos / (Bathala: the God Games) plus the story the
-# gods open with - straight out of the registry, never typed twice.
+# BATHALA / Ang Laro ng mga diyos - straight out of the registry, never typed
+# twice. The colours are the theme's (HeroLabel gold), not Bathala's raw grey.
 func _brand_title() -> void:
-	var bathala := Gods.bathala()
 	title_label.text = Gods.GAME_TITLE
-	title_label.add_theme_color_override("font_color", bathala.color)
-	subtitle_label.text = bathala.epithet
-	alt_name_label.text = "(%s)" % Gods.GAME_ALT_NAME
-	prologue_label.text = "%s\nFAVOR is the total points among all the challenges." % Gods.GAME_PROLOGUE
+	subtitle_label.text = Gods.bathala().epithet
 
 func _on_host_pressed():
 	# Go to the hosting screen where the player sets their name

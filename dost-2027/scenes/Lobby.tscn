@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://d0l4m5n6p7q8r"]
 
 [ext_resource type="Script" uid="uid://c8eqpyfprnd8" path="res://scripts/lobby.gd" id="1_lobby"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+[ext_resource type="Texture2D" uid="uid://xno0bm25ol28" path="res://Assets/title/title_sky.png" id="2_sky"]
 [ext_resource type="PackedScene" path="res://scenes/LobbyOptions.tscn" id="3_options"]
 
 [node name="Lobby" type="Control" unique_id=1409025947]
@@ -20,188 +20,226 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.04, 0.05, 0.1, 1)
+mouse_filter = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="." unique_id=492379206]
+[node name="Sky" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0.2)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 52.0
-offset_bottom = -44.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_sky")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=2096845604]
-custom_minimum_size = Vector2(420, 0)
+[node name="Page" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Page"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 16
 
-[node name="Title" type="Label" parent="CenterContainer/VBoxContainer" unique_id=2097095717]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 30
-text = "GAME LOBBY"
-horizontal_alignment = 1
-
-[node name="HSeparator" type="HSeparator" parent="CenterContainer/VBoxContainer" unique_id=157642551]
-custom_minimum_size = Vector2(420, 4)
-layout_mode = 2
-
-[node name="PlayerListLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=2126406599]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "PLAYERS"
-horizontal_alignment = 1
-
-[node name="PlayerListScroll" type="ScrollContainer" parent="CenterContainer/VBoxContainer" unique_id=1626868608]
-custom_minimum_size = Vector2(420, 160)
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="PlayerListVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/PlayerListScroll" unique_id=1722917240]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="RunSummaryLabel" type="Label" parent="CenterContainer/VBoxContainer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 11
-text = "4 trials + Bathala   |   Random order   |   90s"
-horizontal_alignment = 1
-
-[node name="HSeparator2" type="HSeparator" parent="CenterContainer/VBoxContainer" unique_id=1482708260]
-custom_minimum_size = Vector2(420, 4)
-layout_mode = 2
-
-[node name="NameLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=1585654928]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
-text = "YOUR NAME"
-horizontal_alignment = 1
-
-[node name="NameInput" type="LineEdit" parent="CenterContainer/VBoxContainer" unique_id=2075522905]
-custom_minimum_size = Vector2(420, 36)
-layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 16
-placeholder_text = "Enter your name"
-alignment = 1
-max_length = 16
-
-[node name="ChangeNameButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=86346851]
-custom_minimum_size = Vector2(420, 32)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "UPDATE NAME"
-
-[node name="GodIconRow" type="HBoxContainer" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(420, 44)
+[node name="Header" type="HBoxContainer" parent="Page/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="GodIconLabel" type="Label" parent="CenterContainer/VBoxContainer/GodIconRow"]
-custom_minimum_size = Vector2(102, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 10
-text = "GOD ICON"
-vertical_alignment = 1
-
-[node name="GodIconOption" type="OptionButton" parent="CenterContainer/VBoxContainer/GodIconRow"]
-custom_minimum_size = Vector2(0, 38)
+[node name="Title" type="Label" parent="Page/VBox/Header" unique_id=2097095717]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 11
+theme_type_variation = &"DisplayLabel"
+text = "GAME LOBBY"
+vertical_alignment = 1
 
-[node name="GodIconPreview" type="TextureRect" parent="CenterContainer/VBoxContainer/GodIconRow"]
-custom_minimum_size = Vector2(40, 40)
+[node name="LobbyIdBox" type="HBoxContainer" parent="Page/VBox/Header"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Caption" type="Label" parent="Page/VBox/Header/LobbyIdBox"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "LOBBY ID"
+vertical_alignment = 1
+
+[node name="LobbyIdLabel" type="Label" parent="Page/VBox/Header/LobbyIdBox" unique_id=845840231]
+layout_mode = 2
+tooltip_text = "Friends type this on their JOIN screen."
+mouse_filter = 1
+theme_type_variation = &"CodeLabel"
+text = "ABCD"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CopyButton" type="Button" parent="Page/VBox/Header/LobbyIdBox"]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Copy the lobby ID to the clipboard."
+theme_type_variation = &"SmallButton"
+text = "COPY"
+
+[node name="Scroll" type="ScrollContainer" parent="Page/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="Columns" type="HBoxContainer" parent="Page/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="Roster" type="PanelContainer" parent="Page/VBox/Scroll/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+size_flags_stretch_ratio = 0.9
+theme_type_variation = &"PanelCard"
+
+[node name="VBox" type="VBoxContainer" parent="Page/VBox/Scroll/Columns/Roster"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PlayerListLabel" type="Label" parent="Page/VBox/Scroll/Columns/Roster/VBox" unique_id=2126406599]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "MORTALS"
+
+[node name="PlayerListVBox" type="VBoxContainer" parent="Page/VBox/Scroll/Columns/Roster/VBox" unique_id=1722917240]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Side" type="VBoxContainer" parent="Page/VBox/Scroll/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.1
+theme_override_constants/separation = 16
+
+[node name="YouCard" type="PanelContainer" parent="Page/VBox/Scroll/Columns/Side"]
+layout_mode = 2
+theme_type_variation = &"PanelCard"
+
+[node name="VBox" type="VBoxContainer" parent="Page/VBox/Scroll/Columns/Side/YouCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NameLabel" type="Label" parent="Page/VBox/Scroll/Columns/Side/YouCard/VBox" unique_id=1585654928]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "YOU"
+
+[node name="NameRow" type="HBoxContainer" parent="Page/VBox/Scroll/Columns/Side/YouCard/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GodIconPreview" type="TextureRect" parent="Page/VBox/Scroll/Columns/Side/YouCard/VBox/NameRow"]
+custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="ButtonContainer" type="HBoxContainer" parent="CenterContainer/VBoxContainer" unique_id=2037791789]
+[node name="NameInput" type="LineEdit" parent="Page/VBox/Scroll/Columns/Side/YouCard/VBox/NameRow" unique_id=2075522905]
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
-theme_override_constants/separation = 10
+size_flags_horizontal = 3
+placeholder_text = "Enter your name"
+max_length = 16
 
-[node name="StartGameButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonContainer" unique_id=436921205]
-custom_minimum_size = Vector2(200, 44)
+[node name="ChangeNameButton" type="Button" parent="Page/VBox/Scroll/Columns/Side/YouCard/VBox/NameRow" unique_id=86346851]
+custom_minimum_size = Vector2(120, 44)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.68652165, 0.7156887, 0.8392816, 1)
-theme_override_colors/font_focus_color = Color(0.08, 0.09, 0.15, 1)
-theme_override_colors/font_pressed_color = Color(0.12, 0.13, 0.2, 1)
-theme_override_colors/font_hover_color = Color(0.05, 0.06, 0.12, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 15
-text = "START GAME"
+theme_type_variation = &"SecondaryButton"
+text = "UPDATE"
 
-[node name="OptionsButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonContainer"]
-custom_minimum_size = Vector2(200, 44)
+[node name="GodIconLabel" type="Label" parent="Page/VBox/Scroll/Columns/Side/YouCard/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.68652165, 0.7156887, 0.8392816, 1)
-theme_override_colors/font_focus_color = Color(0.08, 0.09, 0.15, 1)
-theme_override_colors/font_pressed_color = Color(0.12, 0.13, 0.2, 1)
-theme_override_colors/font_hover_color = Color(0.05, 0.06, 0.12, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 15
+theme_type_variation = &"MutedLabel"
+text = "YOUR GOD ICON"
+
+[node name="GodIconRow" type="HBoxContainer" parent="Page/VBox/Scroll/Columns/Side/YouCard/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RunCard" type="PanelContainer" parent="Page/VBox/Scroll/Columns/Side"]
+layout_mode = 2
+theme_type_variation = &"PanelCard"
+
+[node name="VBox" type="VBoxContainer" parent="Page/VBox/Scroll/Columns/Side/RunCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Heading" type="Label" parent="Page/VBox/Scroll/Columns/Side/RunCard/VBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "THE RUN"
+
+[node name="Row" type="HBoxContainer" parent="Page/VBox/Scroll/Columns/Side/RunCard/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RunSummaryLabel" type="Label" parent="Page/VBox/Scroll/Columns/Side/RunCard/VBox/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"MutedLabel"
+text = "4 trials + Bathala   |   Random order   |   90s"
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="OptionsButton" type="Button" parent="Page/VBox/Scroll/Columns/Side/RunCard/VBox/Row"]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"SmallButton"
 text = "OPTIONS"
 
-[node name="LeaveButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonContainer" unique_id=722802359]
-custom_minimum_size = Vector2(200, 44)
+[node name="BottomBar" type="HBoxContainer" parent="Page/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 15
+theme_override_constants/separation = 16
+
+[node name="LeaveButton" type="Button" parent="Page/VBox/BottomBar" unique_id=722802359]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+size_flags_vertical = 8
+theme_type_variation = &"GhostButton"
 text = "LEAVE"
 
-[node name="LobbyIdLabel" type="Label" parent="." unique_id=845840231]
-visible = false
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 16.0
-offset_top = 12.0
-offset_right = -16.0
-offset_bottom = 42.0
-grow_horizontal = 2
-theme_override_colors/font_color = Color(0.2, 1, 0.2, 1)
-theme_override_font_sizes/font_size = 20
-text = "Lobby ID: ABCD"
-horizontal_alignment = 1
+[node name="StatusLabel" type="Label" parent="Page/VBox/BottomBar" unique_id=2122739102]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_type_variation = &"MutedLabel"
+text = "Waiting for players..."
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="StartCaption" type="Label" parent="Page/VBox/BottomBar"]
+layout_mode = 2
+size_flags_vertical = 1
+theme_type_variation = &"MutedLabel"
+text = "Need 2+ players"
+horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="StatusLabel" type="Label" parent="." unique_id=2122739102]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_top = -30.0
-offset_right = 400.0
-offset_bottom = -10.0
-grow_vertical = 0
-theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "Waiting for players..."
-horizontal_alignment = 1
+[node name="StartGameButton" type="Button" parent="Page/VBox/BottomBar" unique_id=436921205]
+custom_minimum_size = Vector2(260, 52)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "START GAME"
 
 [node name="LobbyOptions" parent="." instance=ExtResource("3_options")]
 layout_mode = 1

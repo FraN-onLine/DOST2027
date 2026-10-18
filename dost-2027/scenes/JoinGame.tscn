@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dak3m4n5p6q7r"]
 
 [ext_resource type="Script" uid="uid://cn3rs6j8t561k" path="res://scripts/JoinGame.gd" id="1_join"]
-[ext_resource type="FontFile" uid="uid://drkkic2osaftg" path="res://Assets/fonts/Minecraftia-Regular.ttf" id="2_font"]
+[ext_resource type="Texture2D" uid="uid://xno0bm25ol28" path="res://Assets/title/title_sky.png" id="2_sky"]
 
 [node name="JoinGame" type="Control" unique_id=1229433607]
 layout_mode = 3
@@ -19,149 +19,150 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.04, 0.05, 0.1, 1)
+mouse_filter = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
-[node name="ContentRoot" type="VBoxContainer" parent="." unique_id=834632662]
+[node name="Sky" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0.25)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 20.0
-offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_sky")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -48.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="ContentRoot" unique_id=661341681]
-custom_minimum_size = Vector2(420, 0)
+[node name="Columns" type="HBoxContainer" parent="CenterContainer"]
 layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="FormCard" type="PanelContainer" parent="CenterContainer/Columns"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_type_variation = &"PanelCard"
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Columns/FormCard"]
+layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="TitleLabel" type="Label" parent="ContentRoot/VBoxContainer" unique_id=1301181396]
+[node name="TitleLabel" type="Label" parent="CenterContainer/Columns/FormCard/VBox" unique_id=1301181396]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 32
+theme_type_variation = &"HeadingLabel"
 text = "JOIN GAME"
-horizontal_alignment = 1
 
-[node name="SubtitleLabel" type="Label" parent="ContentRoot/VBoxContainer" unique_id=1291118270]
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/Columns/FormCard/VBox" unique_id=1291118270]
+custom_minimum_size = Vector2(288, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "Available hosts on your network"
-horizontal_alignment = 1
+theme_type_variation = &"MutedLabel"
+text = "Pick a game on your network, or type its lobby ID."
+autowrap_mode = 3
 
-[node name="SearchLabel" type="Label" parent="ContentRoot/VBoxContainer" unique_id=738116706]
+[node name="NameGap" type="Control" parent="CenterContainer/Columns/FormCard/VBox"]
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "Scanning for hosts..."
-horizontal_alignment = 1
+mouse_filter = 2
 
-[node name="NameLabel" type="Label" parent="ContentRoot/VBoxContainer" unique_id=1135631826]
+[node name="NameLabel" type="Label" parent="CenterContainer/Columns/FormCard/VBox" unique_id=1135631826]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
+theme_type_variation = &"MutedLabel"
 text = "YOUR NAME"
-horizontal_alignment = 1
 
-[node name="NameInput" type="LineEdit" parent="ContentRoot/VBoxContainer" unique_id=50169619]
-custom_minimum_size = Vector2(420, 36)
+[node name="NameInput" type="LineEdit" parent="CenterContainer/Columns/FormCard/VBox" unique_id=50169619]
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 16
 placeholder_text = "Enter your name"
-alignment = 1
 max_length = 16
 
-[node name="HSeparator" type="HSeparator" parent="ContentRoot/VBoxContainer" unique_id=461569023]
-custom_minimum_size = Vector2(420, 4)
+[node name="LobbyGap" type="Control" parent="CenterContainer/Columns/FormCard/VBox"]
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
+mouse_filter = 2
 
-[node name="LobbyIdLabel" type="Label" parent="ContentRoot/VBoxContainer" unique_id=1981016200]
+[node name="LobbyIdLabel" type="Label" parent="CenterContainer/Columns/FormCard/VBox" unique_id=1981016200]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "OR JOIN WITH A LOBBY ID"
-horizontal_alignment = 1
+theme_type_variation = &"MutedLabel"
+text = "LOBBY ID"
 
-[node name="LobbyIdInput" type="LineEdit" parent="ContentRoot/VBoxContainer" unique_id=2144258551]
-custom_minimum_size = Vector2(420, 36)
+[node name="LobbyIdInput" type="LineEdit" parent="CenterContainer/Columns/FormCard/VBox" unique_id=2144258551]
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 16
-placeholder_text = "Enter 4-letter lobby ID"
+theme_type_variation = &"CodeField"
+placeholder_text = "ABCD"
 alignment = 1
 max_length = 4
 
-[node name="JoinLobbyButton" type="Button" parent="ContentRoot/VBoxContainer" unique_id=850525342]
-custom_minimum_size = Vector2(420, 36)
+[node name="JoinLobbyButton" type="Button" parent="CenterContainer/Columns/FormCard/VBox" unique_id=850525342]
+custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.85, 0.4, 1)
-theme_override_colors/font_focus_color = Color(0.9, 0.85, 0.4, 1)
-theme_override_colors/font_pressed_color = Color(0.7, 0.65, 0.3, 1)
-theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"PrimaryButton"
 text = "JOIN BY LOBBY ID"
 
-[node name="HSeparator2" type="HSeparator" parent="ContentRoot/VBoxContainer" unique_id=1888312391]
-custom_minimum_size = Vector2(420, 4)
+[node name="NetworkCard" type="PanelContainer" parent="CenterContainer/Columns"]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
+theme_type_variation = &"PanelCard"
 
-[node name="HostListScroll" type="ScrollContainer" parent="ContentRoot/VBoxContainer" unique_id=927323239]
-custom_minimum_size = Vector2(420, 120)
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Columns/NetworkCard"]
 layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="HostListVBox" type="VBoxContainer" parent="ContentRoot/VBoxContainer/HostListScroll" unique_id=603734044]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="NoHostsLabel" type="Label" parent="ContentRoot/VBoxContainer" unique_id=508181956]
-custom_minimum_size = Vector2(420, 120)
+[node name="Heading" type="Label" parent="CenterContainer/Columns/NetworkCard/VBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "ON YOUR NETWORK"
+
+[node name="List" type="PanelContainer" parent="CenterContainer/Columns/NetworkCard/VBox"]
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "No hosts found on LAN.
-Make sure the host started the game
-and is on the same network."
+theme_type_variation = &"PanelInset"
+
+[node name="HostListScroll" type="ScrollContainer" parent="CenterContainer/Columns/NetworkCard/VBox/List" unique_id=927323239]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="HostListVBox" type="VBoxContainer" parent="CenterContainer/Columns/NetworkCard/VBox/List/HostListScroll" unique_id=603734044]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="NoHostsLabel" type="Label" parent="CenterContainer/Columns/NetworkCard/VBox/List" unique_id=508181956]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "No games yet. Make sure the host has started one and is on the same network."
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="RefreshButton" type="Button" parent="ContentRoot/VBoxContainer" unique_id=1864983492]
-custom_minimum_size = Vector2(420, 40)
+[node name="SearchRow" type="HBoxContainer" parent="CenterContainer/Columns/NetworkCard/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "REFRESH"
+theme_override_constants/separation = 8
 
-[node name="BackButton" type="Button" parent="ContentRoot/VBoxContainer" unique_id=2053588043]
-custom_minimum_size = Vector2(420, 36)
+[node name="SearchLabel" type="Label" parent="CenterContainer/Columns/NetworkCard/VBox/SearchRow" unique_id=738116706]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_focus_color = Color(0.7, 0.72, 0.8, 1)
-theme_override_colors/font_pressed_color = Color(0.6, 0.62, 0.7, 1)
-theme_override_colors/font_hover_color = Color(0.85, 0.87, 0.95, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "BACK"
+size_flags_horizontal = 3
+theme_type_variation = &"MutedLabel"
+text = "Searching your network..."
+vertical_alignment = 1
+
+[node name="RefreshButton" type="Button" parent="CenterContainer/Columns/NetworkCard/VBox/SearchRow" unique_id=1864983492]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+tooltip_text = "The list refreshes itself every 2 seconds."
+theme_type_variation = &"SmallButton"
+text = "REFRESH"
 
 [node name="StatusLabel" type="Label" parent="." unique_id=1607529792]
 layout_mode = 1
@@ -169,16 +170,28 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = -48.0
-offset_right = -20.0
-offset_bottom = -8.0
+offset_left = 160.0
+offset_top = -58.0
+offset_right = -160.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 13
-text = "Scanning for hosts on LAN..."
+theme_type_variation = &"MutedLabel"
+text = ""
 horizontal_alignment = 1
-vertical_alignment = 2
+vertical_alignment = 1
 autowrap_mode = 3
+
+[node name="BackButton" type="Button" parent="." unique_id=2053588043]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -58.0
+offset_right = 144.0
+offset_bottom = -24.0
+grow_vertical = 0
+theme_type_variation = &"GhostButton"
+text = "BACK"

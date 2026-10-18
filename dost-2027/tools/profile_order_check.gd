@@ -37,7 +37,9 @@ func _run() -> void:
 		lobby._on_god_icon_selected(apolaki_index)
 	_check(network.player_icons.get(local_id) == &"apolaki", "host selection is stored as the player's icon ID")
 	_check(lobby.god_icon_preview.texture == Gods.apolaki().icon, "lobby preview shows the selected god portrait")
-	_check(lobby.player_list_vbox.get_child(1).get_child(0).texture == Gods.apolaki().icon, "lobby roster shows the selected portrait")
+	var host_icon: TextureRect = lobby.player_list_vbox.get_child(0).find_child("Icon", true, false)
+	_check(host_icon != null and host_icon.texture == Gods.apolaki().icon, "lobby roster shows the selected portrait")
+	_check(lobby.player_list_vbox.get_child_count() == network.MAX_PLAYERS, "the roster always shows MAX_PLAYERS slots")
 	var options = lobby.lobby_options
 	_check(not options.visible, "the Lobby Options panel stays out of sight until OPTIONS asks for it")
 	_check(lobby.options_button.text == "OPTIONS" and lobby.options_button.visible, "the lobby carries an OPTIONS button")
@@ -170,9 +172,8 @@ func _run() -> void:
 
 
 func _god_option_index(lobby: Control, god_id: StringName) -> int:
-	var option: OptionButton = lobby.god_icon_option
-	for index in range(option.item_count):
-		if StringName(str(option.get_item_metadata(index))) == god_id:
+	for index in range(lobby.god_icon_buttons.size()):
+		if StringName(str(lobby.god_icon_buttons[index].get_meta("god_id"))) == god_id:
 			return index
 	return -1
 

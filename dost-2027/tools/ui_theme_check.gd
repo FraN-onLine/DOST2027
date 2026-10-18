@@ -13,23 +13,15 @@ extends SceneTree
 
 const VARIATIONS := [
 	"PrimaryButton", "SecondaryButton", "GhostButton", "SmallButton", "DangerButton",
-	"TabButton", "KeycapButton", "KeycapLabel", "PanelCard", "PanelInset", "PanelHud",
-	"Nameplate", "PanelEmpty", "ShrineTile", "SeedPacket", "HeroLabel", "DisplayLabel",
-	"HeadingLabel", "CaptionLabel", "MutedLabel",
+	"TabButton", "IconButton", "KeycapButton", "KeycapLabel", "PanelCard", "PanelInset", "PanelHud",
+	"Nameplate", "PanelEmpty", "PanelRow", "CodeField", "CodeLabel", "ShrineTile", "SeedPacket", "HeroLabel", "DisplayLabel",
+	"HeadingLabel", "CaptionLabel", "MutedLabel", "WarningLabel",
 ]
 const SCAN_DIRS := ["res://scenes", "res://UI", "res://scripts"]
 
 # path -> why it may keep its own styling / off-scale sizes.
 const ALLOW := {
 	"res://UI/Server and Lobby handlers/hosting.tscn": "unused leftover (see tools/lobby_check.gd); nothing loads it",
-	# Phase 2 converts the menus.
-	"res://scenes/MainMenu.tscn": "menus: converted in phase 2",
-	"res://scenes/Hosting.tscn": "menus: converted in phase 2",
-	"res://scenes/JoinGame.tscn": "menus: converted in phase 2",
-	"res://scenes/Lobby.tscn": "menus: converted in phase 2",
-	"res://scripts/lobby.gd": "menus: converted in phase 2",
-	"res://scenes/LobbyOptions.tscn": "menus: converted in phase 2",
-	"res://scenes/Options.tscn": "menus: converted in phase 2",
 	# Phase 3 rebuilds the Almanac.
 	"res://scenes/Almanac.tscn": "almanac: rebuilt in phase 3",
 	"res://scripts/Almanac.gd": "almanac: rebuilt in phase 3",

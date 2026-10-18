@@ -1,9 +1,13 @@
 extends Control
 
-@onready var name_input = $CenterContainer/VBoxContainer/NameInput
-@onready var start_button = $CenterContainer/VBoxContainer/StartButton
-@onready var back_button = $CenterContainer/VBoxContainer/BackButton
-@onready var status_label = $StatusLabel
+# Host a game: one form card (heading, a labelled field, the gold primary at the
+# bottom of the card) with BACK as a ghost in the bottom-left corner - the same
+# layout as the Join screen.
+
+@onready var name_input = $CenterContainer/Card/VBoxContainer/NameInput
+@onready var start_button = $CenterContainer/Card/VBoxContainer/StartButton
+@onready var back_button = $BackButton
+@onready var status_label = $CenterContainer/Card/VBoxContainer/StatusLabel
 
 func _ready():
 	# Connect button signals
@@ -30,6 +34,12 @@ func _on_name_submitted(_text: String):
 
 func _on_back_pressed():
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
+
+# Esc means back, on every screen.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_on_back_pressed()
 
 func _start_hosting():
 	var name = name_input.text.strip_edges()

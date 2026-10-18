@@ -44,7 +44,8 @@ func _run() -> void:
 	_check(button != null and button.text == "OPTIONS", "the main menu carries an OPTIONS button")
 	if button == null:
 		return _finish(settings)
-	var order := button.get_parent().get_children()
+	# Buttons only: the menu's group gaps are spacer Controls between them.
+	var order := button.get_parent().get_children().filter(func(node: Node) -> bool: return node is Button)
 	_check(order.find(button) == order.find(menu.get_node("CenterContainer/VBoxContainer/AlmanacButton")) + 1
 		and order.find(button) + 1 == order.find(menu.get_node("CenterContainer/VBoxContainer/QuitButton")),
 		"OPTIONS sits between ALMANAC and QUIT")

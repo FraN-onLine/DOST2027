@@ -12,27 +12,30 @@ extends PanelContainer
 # same rows with every control disabled, so they know what is about to be played.
 #
 # The panel is hidden until OPTIONS opens it, so it never sits over the
-# START / LEAVE row while closed. Only the custom order list scrolls.
+# START / LEAVE row while closed. It is a full-height sheet on the right (the
+# roster stays in view on the left); its rows are the same 44 px label/control
+# rows as the Options screen. The custom order list scrolls on its own, and the
+# whole body scrolls only when a large UI scale leaves too little height.
 
 signal closed
 
 const BATHALA_ROW_TEXT := "BATHALA (finale)"
-const REPEAT_COLOR := Color(1, 0.45, 0.4)
-const NUMBER_COLOR := Color(0.6, 0.65, 0.75)
+const REPEAT_COLOR := UITokens.EMBER
+const NUMBER_COLOR := UITokens.MUTED
 
-@onready var minus_button: Button = $Margin/VBox/Body/TrialsRow/Minus
-@onready var plus_button: Button = $Margin/VBox/Body/TrialsRow/Plus
-@onready var trials_value: Label = $Margin/VBox/Body/TrialsRow/Value
-@onready var run_line: Label = $Margin/VBox/Body/RunLine
-@onready var random_box: CheckBox = $Margin/VBox/Body/OrderRow/RandomBox
-@onready var custom_box: CheckBox = $Margin/VBox/Body/OrderRow/CustomBox
-@onready var order_scroll: ScrollContainer = $Margin/VBox/Body/OrderScroll
-@onready var order_list: VBoxContainer = $Margin/VBox/Body/OrderScroll/OrderList
-@onready var warning_label: Label = $Margin/VBox/Body/Warning
-@onready var time_option: OptionButton = $Margin/VBox/Body/TimeRow/TimeOption
-@onready var due_option: OptionButton = $Margin/VBox/Body/DueRow/DueOption
-@onready var intro_option: OptionButton = $Margin/VBox/Body/IntroRow/IntroOption
-@onready var host_note: Label = $Margin/VBox/Body/HostNote
+@onready var minus_button: Button = $Margin/VBox/Scroll/Body/TrialsRow/Minus
+@onready var plus_button: Button = $Margin/VBox/Scroll/Body/TrialsRow/Plus
+@onready var trials_value: Label = $Margin/VBox/Scroll/Body/TrialsRow/Value
+@onready var run_line: Label = $Margin/VBox/Scroll/Body/RunLine
+@onready var random_box: CheckBox = $Margin/VBox/Scroll/Body/OrderRow/RandomBox
+@onready var custom_box: CheckBox = $Margin/VBox/Scroll/Body/OrderRow/CustomBox
+@onready var order_scroll: ScrollContainer = $Margin/VBox/Scroll/Body/OrderScroll
+@onready var order_list: VBoxContainer = $Margin/VBox/Scroll/Body/OrderScroll/OrderList
+@onready var warning_label: Label = $Margin/VBox/Scroll/Body/Warning
+@onready var time_option: OptionButton = $Margin/VBox/Scroll/Body/TimeRow/TimeOption
+@onready var due_option: OptionButton = $Margin/VBox/Scroll/Body/DueRow/DueOption
+@onready var intro_option: OptionButton = $Margin/VBox/Scroll/Body/IntroRow/IntroOption
+@onready var host_note: Label = $Margin/VBox/Scroll/Body/HostNote
 @onready var reset_button: Button = $Margin/VBox/Buttons/ResetButton
 @onready var done_button: Button = $Margin/VBox/Buttons/DoneButton
 
@@ -123,7 +126,7 @@ func _rebuild_rows(settings: RunSettings) -> void:
 	var finale := Label.new()
 	finale.name = "BathalaRow"
 	finale.text = "%d.  %s" % [settings.custom_order.size() + 1, BATHALA_ROW_TEXT]
-	finale.add_theme_color_override("font_color", Gods.bathala().color)
+	finale.add_theme_color_override("font_color", UITokens.god_text(Gods.bathala()))
 	order_list.add_child(finale)
 
 
@@ -131,24 +134,29 @@ func _slot_row(slot: int, settings: RunSettings, playable: Array[StringName], re
 	var god_id: StringName = settings.custom_order[slot]
 	var row := HBoxContainer.new()
 	row.name = "Slot%d" % (slot + 1)
-	row.add_theme_constant_override("separation", 6)
+	row.add_theme_constant_override("separation", UITokens.SPACE_8)
 
 	var number := Label.new()
 	number.text = "%d." % (slot + 1)
-	number.custom_minimum_size = Vector2(26, 0)
+	number.custom_minimum_size = Vector2(UITokens.SPACE_32, 0)
+	number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	number.add_theme_color_override("font_color", REPEAT_COLOR if repeated else NUMBER_COLOR)
 	row.add_child(number)
 
 	var picker := OptionButton.new()
 	picker.name = "God"
 	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.custom_minimum_size.y = UITokens.FIELD_HEIGHT
 	for id in playable:
 		picker.add_item(Gods.by_id(id).display_name)
 	picker.select(playable.find(god_id))
 	var god := Gods.by_id(god_id)
 	if god != null:
-		picker.add_theme_color_override("font_color", god.color)
-		picker.add_theme_color_override("font_disabled_color", Color(god.color, 0.7))
+		# A god's colour as text goes through readable_on_dark (Tala's deep blue
+		# would vanish on the button's face).
+		var accent := UITokens.readable_on_dark(god.color, UITokens.NIGHT_600)
+		picker.add_theme_color_override("font_color", accent)
+		picker.add_theme_color_override("font_disabled_color", Color(accent, 0.7))
 	# Every god hosts at most one trial: a god already in another slot is greyed out.
 	for index in range(playable.size()):
 		var elsewhere := settings.custom_order.duplicate()
@@ -161,6 +169,9 @@ func _slot_row(slot: int, settings: RunSettings, playable: Array[StringName], re
 	var up := Button.new()
 	up.name = "Up"
 	up.text = "UP"
+	up.theme_type_variation = &"SmallButton"
+	up.custom_minimum_size = Vector2(64, UITokens.BUTTON_SMALL.y)
+	up.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	up.disabled = not editable or slot == 0
 	up.pressed.connect(_on_move_pressed.bind(slot, -1))
 	row.add_child(up)
@@ -168,6 +179,9 @@ func _slot_row(slot: int, settings: RunSettings, playable: Array[StringName], re
 	var down := Button.new()
 	down.name = "Down"
 	down.text = "DOWN"
+	down.theme_type_variation = &"SmallButton"
+	down.custom_minimum_size = Vector2(64, UITokens.BUTTON_SMALL.y)
+	down.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	down.disabled = not editable or slot == settings.custom_order.size() - 1
 	down.pressed.connect(_on_move_pressed.bind(slot, 1))
 	row.add_child(down)

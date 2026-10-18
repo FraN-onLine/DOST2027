@@ -14,16 +14,24 @@ extends SceneTree
 # Run: godot --headless --path <project> -s res://tools/build_theme.gd
 
 const OUT := "res://UI/theme/bathala_theme.tres"
-const FONT := preload("res://Assets/fonts/Minecraftia-Regular.ttf")
+const FONT := preload("res://Assets/fonts/Minecraftia-UI.ttf")
 
 
 var theme := Theme.new()
-var spaced := FontVariation.new()  # headings and buttons: uppercase, letter-spaced
+# Headings and buttons are letter-spaced; body text is not. FONT is Minecraftia
+# with its vertical metrics repaired (see Assets/fonts/README.md): the stock TTF
+# floats its glyphs 0.6 em above the baseline and declares no descent, so a 16 px
+# label came out 28 px tall with the text in its top half.
+var spaced := FontVariation.new()
+# Short codes (the lobby ID): wide letter spacing so "KXQP" reads out loud.
+var code := FontVariation.new()
 
 
 func _initialize() -> void:
 	spaced.base_font = FONT
 	spaced.spacing_glyph = 2
+	code.base_font = FONT
+	code.spacing_glyph = 8
 	theme.default_font = FONT
 	theme.default_font_size = UITokens.BODY
 
@@ -43,6 +51,7 @@ func _initialize() -> void:
 
 
 # --- helpers -------------------------------------------------------------------
+
 
 func _box(bg: Color, border: Color, options: Dictionary = {}) -> PixelStyleBox:
 	var box := PixelStyleBox.new()
@@ -141,6 +150,10 @@ func _labels() -> void:
 	theme.set_type_variation("MutedLabel", "Label")
 	theme.set_color("font_color", "MutedLabel", UITokens.MUTED)
 
+	# Why something cannot happen yet (START disabled, a repeated god).
+	theme.set_type_variation("WarningLabel", "Label")
+	theme.set_color("font_color", "WarningLabel", UITokens.readable_on_dark(UITokens.EMBER, UITokens.NIGHT_900))
+
 	theme.set_type_variation("CaptionLabel", "Label")
 	theme.set_font_size("font_size", "CaptionLabel", UITokens.CAPTION)
 	theme.set_color("font_color", "CaptionLabel", UITokens.MUTED)
@@ -150,6 +163,12 @@ func _labels() -> void:
 	theme.set_color("font_color", "KeycapLabel", UITokens.IVORY)
 	theme.set_stylebox("normal", "KeycapLabel", _box(UITokens.NIGHT_600, UITokens.LINE,
 		{"shadow": UITokens.LIP, "highlight": UITokens.HIGHLIGHT, "margin": Vector4(8, 4, 8, 4)}))
+
+	# The lobby ID, shown as a big key so it can be read across a room.
+	theme.set_type_variation("CodeLabel", "KeycapLabel")
+	theme.set_font("font", "CodeLabel", code)
+	theme.set_font_size("font_size", "CodeLabel", UITokens.DISPLAY)
+	theme.set_color("font_color", "CodeLabel", UITokens.GOLD)
 
 	theme.set_color("default_color", "RichTextLabel", UITokens.IVORY)
 	theme.set_stylebox("normal", "RichTextLabel", _empty())
@@ -186,6 +205,10 @@ func _buttons() -> void:
 	theme.set_stylebox("disabled", "GhostButton", _box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), {"margin": ghost_margin}))
 	theme.set_stylebox("focus", "GhostButton", _focus_ring())
 	_font_colors("GhostButton", UITokens.MUTED, UITokens.IVORY, UITokens.IVORY, UITokens.FAINT)
+	# A ghost button has no face, so over art (the title sky) its text keeps a
+	# dark rim to stay readable.
+	theme.set_constant("outline_size", "GhostButton", 4)
+	theme.set_color("font_outline_color", "GhostButton", UITokens.NIGHT_900)
 
 	theme.set_type_variation("SmallButton", "Button")
 	_button_styles("SmallButton", UITokens.NIGHT_600, Color("#30406E"), UITokens.LINE, UITokens.GOLD_LO, UITokens.LIP, Vector2(8, 4))
@@ -206,6 +229,14 @@ func _buttons() -> void:
 	theme.set_stylebox("disabled", "TabButton", _box(UITokens.NIGHT_800, UITokens.NIGHT_700, {"margin": tab_margin}))
 	theme.set_stylebox("focus", "TabButton", _focus_ring())
 	_font_colors("TabButton", UITokens.MUTED, UITokens.IVORY, UITokens.GOLD, UITokens.FAINT)
+
+	# IconButton: a toggle that is only a picture (the lobby's god icon picker):
+	# the TabButton look with 4 px of padding so the icon fills the 44 px square.
+	theme.set_type_variation("IconButton", "TabButton")
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var box: PixelStyleBox = theme.get_stylebox(state, "TabButton").duplicate()
+		box.set_content_margin_all(UITokens.SPACE_4)
+		theme.set_stylebox(state, "IconButton", box)
 
 	# A rebind button looks like the key it shows.
 	theme.set_type_variation("KeycapButton", "Button")
@@ -248,6 +279,11 @@ func _panels() -> void:
 	theme.set_stylebox("panel", "PanelEmpty", _box(Color(UITokens.NIGHT_900, 0.4), UITokens.LINE,
 		{"dash": 4, "margin": Vector4(8, 8, 8, 8)}))
 
+	# PanelRow: one row of a list (a LAN host, a lobby slot).
+	theme.set_type_variation("PanelRow", "PanelContainer")
+	theme.set_stylebox("panel", "PanelRow", _box(UITokens.NIGHT_700, UITokens.LINE, {"highlight": UITokens.HIGHLIGHT,
+		"margin": Vector4(12, 6, 6, 6)}))
+
 	# The Almanac's cards (and the God's Due packets that copy them). Their top
 	# band and frame take the god's accent at runtime.
 	theme.set_type_variation("ShrineTile", "PanelContainer")
@@ -283,6 +319,12 @@ func _fields() -> void:
 	theme.set_color("selection_color", "LineEdit", Color(UITokens.STAR, 0.35))
 	theme.set_color("font_selected_color", "LineEdit", UITokens.IVORY)
 	theme.set_constant("caret_width", "LineEdit", 2)
+
+	# CodeField: a short code (the lobby ID) - big, letter-spaced, centred, so
+	# "KXQP" reads at a glance and is easy to read out loud across a room.
+	theme.set_type_variation("CodeField", "LineEdit")
+	theme.set_font("font", "CodeField", code)
+	theme.set_font_size("font_size", "CodeField", UITokens.HEADING)
 
 	# OptionButton: a Secondary button with a pixel arrow.
 	_button_styles("OptionButton", UITokens.NIGHT_600, Color("#30406E"), UITokens.LINE, UITokens.GOLD_LO, UITokens.LIP, Vector2(12, 8))
