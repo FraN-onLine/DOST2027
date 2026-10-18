@@ -105,7 +105,7 @@ func _run() -> void:
 	langit.rules.time_left = 3.0
 	langit._taya_time = {1: 0.0, 2: 10.0, 3: 20.0}
 	langit._end_trial()
-	_check(langit.rules.mortal(1).favor == 1200, "nor is Langit Lupa's payout (%d)" % langit.rules.mortal(1).favor)
+	_check(langit.rules.mortal(1).favor == langit.payout_best, "nor is Langit Lupa's payout (%d)" % langit.rules.mortal(1).favor)
 	langit.queue_free()
 
 	# --- Kabiyak -----------------------------------------------------------------------------

@@ -1,9 +1,13 @@
 extends SceneTree
 
 # Validation: Hanan's Luksong Baka. The balance bar rises while the attack button
-# is held and falls when it is released; time in the box earns FAVOR and a clean
-# vault builds the combo; leaving the box past the grace time is a trip (FAVOR
-# lost, combo reset); the Baka gets smaller / faster as the levels climb.
+# is held and falls when it is released; every vault opens with a READY beat that
+# earns nothing and cannot trip; time in the box earns FAVOR and a clean vault
+# builds the combo and carries the mortal OVER the Baka to the far side (the next
+# vault goes back); leaving the box past the grace time is a trip that leaves them
+# on the approach side (FAVOR lost by level, combo reset, no teleport); two trips
+# in a row lower the level; the first-visit practice vault; the Baka gets smaller
+# / faster as the levels climb; and the labels never shake.
 # Run: godot --headless --path <project> -s res://tools/hanan_check.gd
 
 const DT := 1.0 / 60.0
@@ -34,6 +38,7 @@ func _run() -> void:
 		_arena.dialogue.advance()
 		guard += 1
 	_arena._phase = Arena.Phase.PLAYING
+	_arena._trial_time = 999.0  # the clock never runs out while the checks await physics frames
 	_arena.player.set_lock(false)
 	_arena.rules.local().favor = 500
 	_check(_arena.separate_players(), "Luksong Baka is a personal trial")
@@ -132,17 +137,178 @@ func _run() -> void:
 			break
 		_arena._tick_vault(DT)
 	_check(_arena._vault_state == HananArena.Vault.STUMBLE, "drifting out past the grace time trips the mortal")
-	_check(_arena.rules.local().favor <= 500 - _arena.trip_penalty + 40, "a trip costs FAVOR (%d)" % _arena.rules.local().favor)
+	_check(_arena.rules.local().favor <= 500 - _arena.trip_penalty() + 40, "a trip costs FAVOR (%d)" % _arena.rules.local().favor)
 	_check(is_equal_approx(_arena._combo, 1.0), "a trip resets the combo")
 	_arena._state_timer = 0.0
 	_arena._tick_hanan(DT)
 	_check(_arena._vault_state == HananArena.Vault.RUN, "after the stumble the next run starts")
 	# a short wobble outside the box is forgiven
 	_arena.begin_vault()
+	_arena._ready_left = 0.0
 	_arena._ind_pos = 1.0
 	_arena._box_center = 0.3
 	_arena._tick_vault(DT)
 	_check(_arena._vault_state == HananArena.Vault.VAULT, "a moment outside the box inside the grace time is no trip")
+
+	# --- the READY beat ---------------------------------------------------------------------
+	_arena._leave_vault()
+	_arena._enter_run()
+	_arena.rules.local().favor = 500
+	_arena.begin_vault()
+	_arena._holding = false
+	_arena._box_goal = _arena._box_center
+	_arena._box_timer = 999.0
+	_check(_arena.callout_label.text == "READY...", "a vault opens with READY...")
+	for step in range(int((_arena.ready_time - 0.05) / DT)):
+		_arena._tick_vault(DT)
+	_check(_arena._vault_state == HananArena.Vault.VAULT and _arena._pending_gain == 0.0 and _arena.rules.local().favor == 500,
+		"the READY beat earns nothing and never trips, even with the button let go")
+	_check(_arena._ind_pos == _arena._box_center and is_equal_approx(_arena._vault_left, _arena.vault_window),
+		"...the indicator is held in the box and the vault clock waits")
+	_check(_arena.player.scale.y < 1.0, "...and the mortal crouches")
+	for step in range(6):
+		_arena._tick_vault(DT)
+	_check(_arena._ready_left <= 0.0 and _arena.callout_label.text == "LEAP!" and _arena.player.scale == Vector2.ONE, "then LEAP! and the vault runs")
+	_arena._refresh_hud(0.0)
+	_check(_arena.rate_label.visible and _arena.rate_label.text == "+%d/s  x%.2f" % [int(round(_arena.favor_per_second * _arena._combo)), _arena._combo],
+		"inside the box the rate shows beside the bar (%s)" % _arena.rate_label.text)
+
+	# --- the leap carries the mortal over the Baka, back and forth -------------------------
+	_arena._leave_vault()
+	_arena._enter_run()
+	var centre: float = _arena.baka.global_position.x
+	var half_span: float = _arena.vault_span * 0.5
+	_check(centre - _arena.vault_trigger_distance - _arena._start_position.x >= 140.0 and _arena._start_position.x - 30.0 > Arena.UI_STRIP_WIDTH,
+		"the run-up from the spawn is short and clear of the UI strip (%.0fpx)" % (centre - _arena.vault_trigger_distance - _arena._start_position.x))
+	_arena.player.global_position = Vector2(centre - half_span - 5.0, _arena.baka.global_position.y)
+	_arena._tick_hanan(DT)
+	_check(_arena._vault_state == HananArena.Vault.RUN, "just outside the trigger nothing happens")
+	_arena.player.global_position.x = centre - _arena.vault_trigger_distance + 2.0
+	_arena._tick_hanan(DT)
+	_check(_arena._vault_state == HananArena.Vault.VAULT and is_equal_approx(_arena.player.global_position.x, centre - half_span),
+		"running into the Baka from the left starts the leap on the left side")
+	var mid := false
+	for step in range(400):
+		if _arena._vault_state != HananArena.Vault.VAULT:
+			break
+		_arena._holding = _arena._ind_pos < _arena._box_center
+		_arena._tick_vault(DT)
+		mid = mid or absf(_arena.player.global_position.x - centre) < 10.0
+	_check(_arena._vault_state == HananArena.Vault.RUN and mid, "the leap passes over the Baka")
+	_check(is_equal_approx(_arena.player.global_position.x, centre + half_span) and not _arena.player.locked,
+		"a clean vault lands the mortal on the far side, free to move (x %.0f)" % _arena.player.global_position.x)
+	_check(_arena.player.facing == -1, "...facing the Baka again")
+	_check(not _arena.player.global_position.is_equal_approx(_arena._start_position), "no teleport back to the start")
+	_arena._tick_hanan(DT)
+	_check(_arena._vault_state == HananArena.Vault.RUN, "landing does not start the next vault by itself")
+	_arena.player.global_position.x = centre + _arena.vault_trigger_distance - 2.0
+	_arena._tick_hanan(DT)
+	_check(_arena._vault_state == HananArena.Vault.VAULT and _arena._to_x < centre, "the trigger works from the right too, and the next vault goes back")
+	for step in range(400):
+		if _arena._vault_state != HananArena.Vault.VAULT:
+			break
+		_arena._holding = _arena._ind_pos < _arena._box_center
+		_arena._tick_vault(DT)
+	_check(is_equal_approx(_arena.player.global_position.x, centre - half_span), "...landing on the left side again")
+
+	# --- a trip leaves the mortal on the approach side --------------------------------------
+	_arena.player.global_position.x = centre - half_span - 20.0
+	_arena.begin_vault()
+	_arena._ready_left = 0.0
+	_arena._holding = false
+	_arena._box_goal = _arena._box_center
+	_arena._box_timer = 999.0
+	for step in range(400):
+		if _arena._vault_state != HananArena.Vault.VAULT:
+			break
+		_arena._tick_vault(DT)
+	_check(_arena._vault_state == HananArena.Vault.STUMBLE and is_equal_approx(_arena.player.global_position.x, centre - half_span),
+		"a trip drops the mortal at the Baka's feet, on the side they came from")
+	for step in range(20):
+		await physics_frame
+	var after_shove: float = _arena.player.global_position.x
+	_check(after_shove < centre - half_span - 5.0, "...the knockback pushes them back (x %.0f)" % after_shove)
+	_arena._state_timer = 0.0
+	_arena._tick_hanan(DT)
+	_check(_arena._vault_state == HananArena.Vault.RUN and is_equal_approx(_arena.player.global_position.x, after_shove),
+		"after the stumble they stay where they landed - no teleport")
+
+	# --- the trip penalty scales, and Hanan's mercy --------------------------------------------
+	var penalties := []
+	for level in range(1, 8):
+		_arena._level = level
+		penalties.append(_arena.trip_penalty())
+	_check(penalties == [40, 60, 80, 100, 120, 120, 120], "the trip penalty is 40 + 20 a level: 40 at Low Baka, 120 at Over the Moon (%s)" % str(penalties))
+	_arena._level = 3
+	_arena._clean_in_level = 0
+	_arena._trips_in_row = 0
+	_arena.rules.local().favor = 500
+	_arena.begin_vault()
+	_arena._trip()
+	_check(_arena.rules.local().favor == 420 and _arena._level == 3, "a trip at Standing Baka costs 80; one trip keeps the level")
+	_arena.begin_vault()
+	_arena._clean_vault()
+	_arena.begin_vault()
+	_arena._trip()
+	_check(_arena._level == 3, "a clean vault in between resets the count")
+	_arena.begin_vault()
+	_arena._trip()
+	_check(_arena._level == 2 and _arena.callout_label.text.contains("THE BAKA CROUCHES"), "two trips in a row drop the level by one: THE BAKA CROUCHES")
+	_arena._level = 1
+	_arena._trips_in_row = 0
+	for trip in range(3):
+		_arena.begin_vault()
+		_arena._trip()
+	_check(_arena._level == 1, "...never below Low Baka")
+
+	# --- the first-visit practice vault --------------------------------------------------------
+	_arena._enter_run()
+	_arena._level = 1
+	_arena._trips_in_row = 0
+	_arena.arena_round_reset()
+	_arena._phase = Arena.Phase.PLAYING
+	_arena.player.set_lock(false)
+	_check(_arena._practice == _arena.first_visit, "a first visit opens with a practice vault")
+	_arena._practice = true
+	var normal_box: float = _arena.current_box_size()
+	_arena.rules.local().favor = 500
+	_arena.begin_vault()
+	_check(is_equal_approx(_arena.current_box_size(), normal_box * _arena.practice_box_scale), "the practice box is 1.5x its size")
+	_arena._refresh_hud(0.0)
+	_check(_arena.hold_prompt.visible, "\"HOLD LEFT CLICK\" waits beside the bar")
+	var hold := InputEventMouseButton.new()
+	hold.button_index = MOUSE_BUTTON_LEFT
+	hold.pressed = true
+	_arena._input(hold)
+	_arena._refresh_hud(0.0)
+	_check(not _arena.hold_prompt.visible, "...until the button is first held")
+	_arena._trip()
+	_check(_arena.rules.local().favor == 500 and _arena._trips_in_row == 0, "a practice trip costs nothing and does not count for mercy")
+	_arena.begin_vault()
+	_check(not _arena._practice_vault and is_equal_approx(_arena.current_box_size(), normal_box), "only the first vault is practice")
+	_arena._leave_vault()
+	_arena._practice = true
+	_arena.begin_vault()
+	_arena._pending_gain = 20.0
+	_arena._clean_vault()
+	_check(_arena.rules.local().favor == 520, "a practice vault still pays FAVOR")
+
+	# --- Over the Moon shakes the field and the bar, never the labels ---------------------------
+	_arena._enter_run()
+	_arena._level = 5
+	_arena.begin_vault()
+	var shook := false
+	var still := true
+	for frame in range(10):
+		_arena._refresh_hud(0.0)
+		still = still and _arena.hud_layer.offset == Vector2.ZERO
+		shook = shook or _arena.bar_layer.offset != Vector2.ZERO or _arena.field_root.position != Vector2.ZERO
+	_check(still, "the HUD layer (status, callout, hint) never shakes")
+	_check(shook == _arena.screen_shake_allowed(), "level 5 shakes the field and the bar (when shaking is on)")
+	_arena._leave_vault()
+	_arena._enter_run()
+	_arena._refresh_hud(0.0)
+	_arena._level = 1
 
 	# --- the God's Due menu pauses a vault --------------------------------------------------
 	_arena._leave_vault()
@@ -150,6 +316,7 @@ func _run() -> void:
 	_arena._level = 3  # a box that moves on its own
 	_arena.rules.local().favor = 500
 	_arena.begin_vault()
+	_arena._ready_left = 0.0
 	for step in range(20):
 		_arena._holding = _arena._ind_pos < _arena._box_center
 		_arena._tick_vault(DT)

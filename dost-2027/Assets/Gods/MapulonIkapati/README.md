@@ -10,7 +10,7 @@ is needed.
 |---|---|---|---|
 | `MapulonIkapati-Icon.png` | the pair's portrait, 64 x 64 px like `Assets/Gods/Tala/Tala-Icon.png` | lobby god icon, sidebars, God's Due menu, Almanac | `res://icon.svg` (see the note below) |
 | `Arena-Background.png` | the field (the Lupa), ideally 1152 x 648 (it is stretched to fill the screen) | `Background` | Mayari's `AreanaTemp.png`, tinted green |
-| `Langit.png` | one sky platform (a cloud or a terraced rice-paddy block), centred, about 96 x 60 px. The shadow under it stays | `ArenaField/Langits/LangitN/Sprite` | the white `Body` rectangle (pale blue while claimed) |
+| `Langit.png` | one sky platform (a cloud or a terraced rice-paddy block), centred, about 96 x 60 px. The shadow under it stays | `ArenaField/Langits/LangitN/Sprite` | the white `Body` rectangle (greyed, with the `Lock` shape, on the screen of a runner it is closed to) |
 | `Langit-Crumble.png` | the crack / crumble animation, a horizontal strip of square-ish frames (the frame count is read from width / height). It plays over the platform during the warning before a crumble | `ArenaField/Langits/LangitN/Crumble` | the platform shakes and fades instead |
 | `Taya-Marker.png` | the marker floating over the Taya's head | `TayaMarker/Sprite` | the green ring (the "TAYA" tag shows either way) |
 | `MapulonIkapati-Overseer.png` | the pair watching the field, like `Assets/Gods/Tala/Tala-Overseer.png` (one image) | `ArenaField/Overseer` | hidden |

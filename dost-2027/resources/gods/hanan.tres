@@ -98,11 +98,11 @@ epithet = "Goddess of the Morning"
 color = Color(1, 0.62, 0.55, 1)
 icon = ExtResource("2_icon")
 game_name = "LUKSONG BAKA"
-game_blurb = "Run up to Hanan's Baka and hold left click to leap - release and you fall. Keep your jump inside the glowing box while it drifts, and every clean vault feeds your combo. Slip out of it and you trip."
+game_blurb = "Run into Hanan's Baka and hold left click to leap over it - release and you fall. Keep your jump inside the glowing box while it drifts: a clean vault lands you on the other side and feeds your combo, then turn and vault back. Slip out of the box and you trip."
 arena_scene = "res://scenes/gods/hanan/HananArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_favor")]([SubResource("Favor_the_dawn"), SubResource("Favor_even_playing_field"), SubResource("Favor_first_light"), SubResource("Favor_bagong_umaga"), SubResource("Favor_break_of_day"), SubResource("Favor_morning_chases_the_night"), SubResource("Favor_the_three_sisters")])
-intro_lines = Array[String](["Hanan greets you with the first light of morning.", "Luksong Baka is a leap, not a race. Hold to rise, let go to fall, and keep the Baka beneath you.", "Trip, and the dawn will still come for you."])
+intro_lines = Array[String](["Hanan greets you with the first light of morning.", "Luksong Baka is a leap, not a race. Hold to rise, let go to fall, keep the Baka beneath you - and land on the other side.", "Trip, and the dawn will still come for you."])
 trial_end_lines = Array[String](["The Baka rests and the morning moves on. Rise again with the Favor you earned."])
 transition_lines = {
 "mayari": ["Mayari, my sister, the night is yours. Be gentle with them - they are trying."],

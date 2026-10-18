@@ -53,6 +53,7 @@ signal arena_movement_override_received(caster_id, duration)
 signal arena_shock_requested(caster_id, origin)           # client -> host: I threw my attack
 signal arena_shock_received(caster_id, origin)            # host -> clients: draw this wave
 signal agawan_attack_requested(caster_id, origin)         # client -> host: my Agawan swing
+signal langit_chant_requested(peer_id, kind, value)       # client -> host: the Taya's chant, word by word
 signal player_name_changed(peer_id, name)  # anybody -> everybody: a mortal was renamed
 signal dialogue_released(dialogue_id)
 
@@ -1313,3 +1314,18 @@ func request_arena_score(amount: int, reason: String) -> void:
 	if sender == 0:
 		return
 	emit_signal("arena_score_requested", sender, amount, reason)
+
+
+# --- Langit Lupa: the Taya's chant -----------------------------------------------
+# The chant is played on the Taya's own machine (only it was shown the keys), so
+# it reports "start", each "step" (the words hit so far) and the "result" (1 for
+# ALIS!, 0 for a broken chant). The host checks the sender is the Taya and the
+# steps come in order before it acts, and shares the chant through the world tick.
+@rpc("any_peer", "reliable")
+func request_langit_chant(kind: String, value: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("langit_chant_requested", sender, kind, value)
