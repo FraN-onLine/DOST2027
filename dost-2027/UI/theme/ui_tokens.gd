@@ -121,14 +121,15 @@ static func readable_on_dark(color: Color, background: Color = NIGHT_800, ratio:
 # lightened only as far as a frame needs to be seen (3:1). Bathala, or no god at
 # all, falls back to the gold of the contest itself.
 static func god_accent(god: God) -> Color:
-	if god == null:
+	if god == null or god.id == &"bathala":
 		return GOLD
 	return readable_on_dark(god.color, NIGHT_800, ACCENT_CONTRAST)
 
 
-# A god's accent when it is TEXT (a nameplate's name, "Bestowed by ...").
+# A god's accent when it is TEXT (a nameplate's name, "Bestowed by ..."). Bathala's
+# dark grey would only lighten to a dull grey, so his text is the gold as well.
 static func god_text(god: God) -> Color:
-	if god == null:
+	if god == null or god.id == &"bathala":
 		return GOLD
 	return readable_on_dark(god.color)
 

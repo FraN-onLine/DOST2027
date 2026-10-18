@@ -96,8 +96,8 @@ func _run() -> void:
 	await _frames(1)
 	_check(options.order_list.get_child_count() == 4, "CUSTOM shows a row per trial plus Bathala (3 + 1)")
 	var finale: Label = options.order_list.get_child(options.order_list.get_child_count() - 1)
-	_check(finale.text.contains("BATHALA (finale)") and finale.get_theme_color("font_color") == Gods.bathala().color,
-		"the last row is BATHALA (finale), in Bathala's colour")
+	_check(finale.text.contains("BATHALA (finale)") and finale.get_theme_color("font_color") == UITokens.god_text(Gods.bathala()),
+		"the last row is BATHALA (finale), in Bathala's text colour")
 	var before: Array[StringName] = _settings().custom_order.duplicate()
 	options._step_trials(2)
 	_check(_settings().custom_order.size() == 5 and options.order_list.get_child_count() == 6, "two more trials, two more rows")
