@@ -49,7 +49,7 @@ var _hunt_left := 0.0
 var _hunt_timer := 0.0
 
 @onready var path: Line2D = get_node_or_null("Path")
-@onready var icon: Sprite2D = get_node_or_null("Icon")
+@onready var icon: AnimatedSprite2D = get_node_or_null("Icon")
 @onready var name_label: Label = get_node_or_null("Name")
 
 

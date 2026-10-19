@@ -1,9 +1,10 @@
-[gd_resource type="Resource" script_class="God" format=3]
+[gd_resource type="Resource" script_class="God" format=3 uid="uid://dk0ejghyobl6n"]
 
-[ext_resource type="Script" path="res://scripts/gods/god_favor.gd" id="1_favor"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
-[ext_resource type="Script" path="res://scripts/gods/god.gd" id="3_god"]
-[ext_resource type="Texture2D" path="res://Assets/Gods/Tala/Tala-Icon.png" id="4_portrait"]
+[ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
+[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
+[ext_resource type="Texture2D" uid="uid://cof0s5w2fy7v0" path="res://Assets/Gods/Tala/tala_portrait.png" id="4_pnj1g"]
+[ext_resource type="Texture2D" uid="uid://qhwimvi6gul2" path="res://Assets/Gods/Tala/Tala-Icon.png" id="4_portrait"]
 
 [sub_resource type="Resource" id="Favor_bountiful_e"]
 script = ExtResource("1_favor")
@@ -11,11 +12,11 @@ id = &"the_bountiful_e"
 god_id = &"tala"
 display_name = "The Bountiful (E)"
 description = "Your E skill's cooldown is permanently reduced by 10%."
-slot = 0
-kind = 0
 color = Color(0.2, 0.32, 0.62, 1)
 icon = ExtResource("2_icon")
-params = {"cooldown_multiplier": 0.9}
+params = {
+"cooldown_multiplier": 0.9
+}
 
 [sub_resource type="Resource" id="Favor_bountiful_q"]
 script = ExtResource("1_favor")
@@ -23,11 +24,11 @@ id = &"the_bountiful_q"
 god_id = &"tala"
 display_name = "The Bountiful (Q)"
 description = "Your Q skill's cooldown is permanently reduced by 10%."
-slot = 0
-kind = 0
 color = Color(0.2, 0.32, 0.62, 1)
 icon = ExtResource("2_icon")
-params = {"cooldown_multiplier": 0.9}
+params = {
+"cooldown_multiplier": 0.9
+}
 
 [sub_resource type="Resource" id="Favor_shining"]
 script = ExtResource("1_favor")
@@ -35,11 +36,11 @@ id = &"the_shining"
 god_id = &"tala"
 display_name = "The Shining"
 description = "Your movement speed is permanently increased by 10%."
-slot = 0
-kind = 0
 color = Color(0.2, 0.32, 0.62, 1)
 icon = ExtResource("2_icon")
-params = {"move_speed_multiplier": 1.1}
+params = {
+"move_speed_multiplier": 1.1
+}
 
 [sub_resource type="Resource" id="Favor_guidance"]
 script = ExtResource("1_favor")
@@ -47,11 +48,13 @@ id = &"the_guidance"
 god_id = &"tala"
 display_name = "The Guidance"
 description = "Near another mortal, gain 50% movement speed for one second. Incompatible with personal-arena trials."
-slot = 0
-kind = 0
 color = Color(0.2, 0.32, 0.62, 1)
 icon = ExtResource("2_icon")
-params = {"nearby_speed_multiplier": 1.5, "nearby_radius": 150.0, "duration": 1.0}
+params = {
+"duration": 1.0,
+"nearby_radius": 150.0,
+"nearby_speed_multiplier": 1.5
+}
 
 [sub_resource type="Resource" id="Favor_light_way"]
 script = ExtResource("1_favor")
@@ -91,15 +94,16 @@ game_blurb = "Throw slippers past Tala to knock down one of her guarded cans, th
 arena_scene = "res://scenes/gods/tala/TalaArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_favor")]([SubResource("Favor_bountiful_e"), SubResource("Favor_bountiful_q"), SubResource("Favor_shining"), SubResource("Favor_guidance"), SubResource("Favor_light_way"), SubResource("Favor_unbothered")])
+portrait = ExtResource("4_pnj1g")
 intro_lines = Array[String](["Tala watches the tin cans beneath the stars.", "Throw your slipper past me and strike a can. If I catch it, go fetch it from my side.", "Bring your slipper back to the line before you throw again."])
 trial_end_lines = Array[String](["The cans settle. Keep the Favor you earned; the next game is ready."])
-transition_lines = {
-"hanan": ["Hanan, the morning is yours. I will watch their leap from the stars."],
-"apolaki": ["Apolaki, the players are coming to your arena.", "I will watch the next throw from the stars."],
-"mayari": ["Mayari, the field belongs to you now.", "I will keep watch from above."],
-"tala": ["The next round begins. The cans are set again."],
-"bathala": ["Bathala, the mortals have played their games. Their Favor is yours to judge."],
-"mapulon_ikapati": ["Mapulon, Ikapati, the stars say it is planting season.", "The field is yours."]
-}
 success_lines = Array[String](["The game is done. The Favor you gathered will speak for you."])
 failure_lines = Array[String](["The game is done. The Favor you gathered will speak for you."])
+transition_lines = {
+"apolaki": ["Apolaki, the players are coming to your arena.", "I will watch the next throw from the stars."],
+"bathala": ["Bathala, the mortals have played their games. Their Favor is yours to judge."],
+"hanan": ["Hanan, the morning is yours. I will watch their leap from the stars."],
+"mapulon_ikapati": ["Mapulon, Ikapati, the stars say it is planting season.", "The field is yours."],
+"mayari": ["Mayari, the field belongs to you now.", "I will keep watch from above."],
+"tala": ["The next round begins. The cans are set again."]
+}

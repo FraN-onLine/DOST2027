@@ -1,8 +1,9 @@
-[gd_resource type="Resource" script_class="God" format=3]
+[gd_resource type="Resource" script_class="God" format=3 uid="uid://b6fvdh3xyvm3b"]
 
-[ext_resource type="Script" path="res://scripts/gods/god_favor.gd" id="1_favor"]
-[ext_resource type="Script" path="res://scripts/gods/god.gd" id="2_god"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="3_icon"]
+[ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
+[ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_god"]
+[ext_resource type="Texture2D" uid="uid://celskxwofnwhk" path="res://Assets/Gods/Bathala/bathala_portrait.png" id="3_a85m2"]
+[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="3_icon"]
 
 [sub_resource type="Resource" id="Favor_partnership_mayari"]
 script = ExtResource("1_favor")
@@ -100,13 +101,14 @@ script = ExtResource("2_god")
 id = &"bathala"
 display_name = "BATHALA"
 epithet = "Ang Laro ng mga diyos"
-color = Color(0.30, 0.31, 0.36, 1)
+color = Color(0.3, 0.31, 0.36, 1)
 icon = ExtResource("3_icon")
 game_name = "AGAWAN BASE"
 game_blurb = "Bathala watches all. Two bases, yours and his, split by a common field. Tag the gods who hunt you - the same swing thaws a frozen ally - and hold his base to catch it. Do not let them touch yours."
 arena_scene = "res://scenes/gods/bathala/BathalaArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_favor")]([SubResource("Favor_partnership_mayari"), SubResource("Favor_partnership_apolaki"), SubResource("Favor_bathala_na"), SubResource("Favor_si_batman"), SubResource("Favor_half_vision_sacrifice"), SubResource("Favor_siblings_compromise_bathala")])
+portrait = ExtResource("3_a85m2")
 intro_lines = Array[String](["Bathala took the dearest of the mortals. Now you stand in Agawan Base, the last of my trials.", "Two bases, yours and mine, split by a field we all share. Tag my gods to freeze them - the same swing thaws a frozen ally - and hold my base to catch it.", "My favors are about sacrifice. Give up what you hold, and I will give you more in return."])
 trial_end_lines = Array[String](["The bases fall quiet. Count what you have won, mortal - the judgment is close.", "Your FAVOR is weighed now."])
 success_lines = Array[String](["You defended your base and took mine. The gods keep their word. Your mortal goes free.", "Well played. Bathala is satisfied."])

@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://dqltvlxohlij3" path="res://Assets/Gods/Tala/Tala-Sheet.png" id="5_28pec"]
 [ext_resource type="Texture2D" uid="uid://beidyhoq1ofro" path="res://Assets/Gods/Tala/Cans.png" id="5_cans"]
-[ext_resource type="Texture2D" uid="uid://du3e4xxsj2xtm" path="res://Assets/Gods/Tala/Tala-Overseer.png" id="6_28pec"]
+[ext_resource type="Texture2D" uid="uid://dxwfrknleqjjs" path="res://Assets/Gods/Tala/Tala(updated)-Sheet.png" id="6_qbd8a"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kthyc"]
 atlas = ExtResource("5_28pec")
@@ -36,29 +36,29 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_8urks"]
-atlas = ExtResource("6_28pec")
+[sub_resource type="AtlasTexture" id="AtlasTexture_28pec"]
+atlas = ExtResource("6_qbd8a")
 region = Rect2(0, 0, 130, 99)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_yq6ct"]
-atlas = ExtResource("6_28pec")
+[sub_resource type="AtlasTexture" id="AtlasTexture_8urks"]
+atlas = ExtResource("6_qbd8a")
 region = Rect2(130, 0, 130, 99)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_cgjks"]
-atlas = ExtResource("6_28pec")
+[sub_resource type="AtlasTexture" id="AtlasTexture_yq6ct"]
+atlas = ExtResource("6_qbd8a")
 region = Rect2(260, 0, 130, 99)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_wpc2v"]
 animations = [{
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_28pec")
+}, {
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_8urks")
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_yq6ct")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_cgjks")
 }],
 "loop": 2,
 "name": &"default",
@@ -77,6 +77,10 @@ tala_max_y = 565.0
 can_repair_time = 3.0
 can_favor = 300
 tala_penalty = 100
+seek_chance = 0.45
+seek_speed = 260.0
+seek_time = 1.4
+seek_cooldown = 1.6
 god_id = &"tala"
 embedded = true
 dialogue_prefix = "tala"
@@ -142,14 +146,14 @@ position = Vector2(835.99994, 426)
 scale = Vector2(1.404091, 1.4874569)
 sprite_frames = SubResource("SpriteFrames_yf5fn")
 autoplay = "default"
-frame_progress = 0.38359016
+frame_progress = 0.14700226
 
 [node name="OverSeerGod" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="7" unique_id=287992503]
 position = Vector2(983.99994, 185)
 scale = Vector2(3.0846155, 3.2171717)
 sprite_frames = SubResource("SpriteFrames_wpc2v")
 autoplay = "default"
-frame_progress = 0.9160066
+frame_progress = 0.34917137
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(350, 420)
@@ -223,9 +227,9 @@ offset_top = -29.0
 offset_right = 532.0
 offset_bottom = -4.0
 grow_vertical = 0
+theme_type_variation = &"HudLabel"
 text = "THROW FROM THE LINE"
 horizontal_alignment = 1
-theme_type_variation = &"HudLabel"
 
 [node name="Hint" type="Label" parent="TalaHud" index="1" unique_id=1700730853]
 anchors_preset = 2
@@ -236,6 +240,6 @@ offset_top = -27.0
 offset_right = 807.0
 offset_bottom = -1.0
 grow_vertical = 0
+theme_type_variation = &"HudHint"
 text = "LEFT CLICK - THROW    WASD / ARROWS - MOVE    E / Q - FAVORS"
 horizontal_alignment = 1
-theme_type_variation = &"HudHint"

@@ -68,7 +68,7 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 16
 
-[node name="PortraitFrame" type="PanelContainer" parent="Box/Margin/HBox"]
+[node name="PortraitFrame" type="PanelContainer" parent="Box/Margin/HBox" unique_id=1332771529]
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
@@ -95,21 +95,19 @@ text = "A line of dialogue."
 vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="HintRow" type="HBoxContainer" parent="Box/Margin/HBox/VBox"]
+[node name="HintRow" type="HBoxContainer" parent="Box/Margin/HBox/VBox" unique_id=1399733272]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
 alignment = 2
 
-[node name="AdvanceKey" type="Label" parent="Box/Margin/HBox/VBox/HintRow"]
+[node name="AdvanceKey" type="Label" parent="Box/Margin/HBox/VBox/HintRow" unique_id=2100181008]
 layout_mode = 2
-mouse_filter = 2
 theme_type_variation = &"KeycapLabel"
 text = "Space"
 
 [node name="HintLabel" type="Label" parent="Box/Margin/HBox/VBox/HintRow" unique_id=1189323918]
 layout_mode = 2
-mouse_filter = 2
 theme_type_variation = &"MutedLabel"
 text = "NEXT"
 vertical_alignment = 1

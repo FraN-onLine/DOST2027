@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdrplfr3f8dr2"
-path="res://.godot/imported/bathala.png-dbcee4373aaf2b183cc53ea322f82c91.ctex"
+uid="uid://vns3qafqf82"
+path="res://.godot/imported/bathala-Sheet.png-9bd4985e51beb1eb97bd41ff10732ad5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Gods/bathala.png"
-dest_files=["res://.godot/imported/bathala.png-dbcee4373aaf2b183cc53ea322f82c91.ctex"]
+source_file="res://Assets/Gods/Bathala/bathala-Sheet.png"
+dest_files=["res://.godot/imported/bathala-Sheet.png-9bd4985e51beb1eb97bd41ff10732ad5.ctex"]
 
 [params]
 

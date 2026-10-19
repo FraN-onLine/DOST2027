@@ -1,7 +1,43 @@
 [gd_scene format=3 uid="uid://svxrl6j6aa6k"]
 
 [ext_resource type="Script" uid="uid://bqg47sp01iupr" path="res://scripts/gods/mayari/mayari_clone.gd" id="1_clone"]
-[ext_resource type="Texture2D" uid="uid://b8s5gvfm3yyh" path="res://Assets/Gods/Mayari/Mayari_Clone.png" id="3_d7r0a"]
+[ext_resource type="Texture2D" uid="uid://deex22f5n28n3" path="res://Assets/Gods/Mayari/Mayari-Clone-Sheet.png" id="2_365sk"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_80202"]
+atlas = ExtResource("2_365sk")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d7r0a"]
+atlas = ExtResource("2_365sk")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_55m28"]
+atlas = ExtResource("2_365sk")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bbn4k"]
+atlas = ExtResource("2_365sk")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_80202")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d7r0a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_55m28")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bbn4k")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="MayariClone" type="Node2D" unique_id=1921702138]
 script = ExtResource("1_clone")
@@ -12,16 +48,17 @@ points = PackedVector2Array(0, 0, 240, 0)
 width = 3.0
 default_color = Color(0.55, 0.85, 1, 0.22)
 
-[node name="Icon" type="Sprite2D" parent="." unique_id=2057490785]
+[node name="Icon" type="AnimatedSprite2D" parent="." unique_id=683970908]
 position = Vector2(-3.8146973e-06, 0)
 scale = Vector2(1.455625, 1.2837499)
-texture = ExtResource("3_d7r0a")
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+frame_progress = 0.61852175
 
 [node name="Name" type="Label" parent="." unique_id=832109828]
 offset_left = -55.0
-offset_top = -50.0
+offset_top = -67.0
 offset_right = 55.0
-offset_bottom = -32.0
+offset_bottom = -44.0
+theme_type_variation = &"WorldLabel"
 text = "MAYARI"
 horizontal_alignment = 1
-theme_type_variation = &"WorldLabel"
