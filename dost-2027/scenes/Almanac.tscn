@@ -67,7 +67,7 @@ horizontal_alignment = 1
 [node name="SubtitleLabel" type="Label" parent="Index/Center/VBox"]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
-text = "Every god of the contest, and every favor they bestow"
+text = "Every god of the contest, every favor they bestow, and every heirloom"
 horizontal_alignment = 1
 
 [node name="Rule" type="Control" parent="Index/Center/VBox"]
@@ -89,15 +89,21 @@ alignment = 1
 theme_override_constants/separation = 32
 
 [node name="GodsChoice" type="Button" parent="Index/Center/VBox/Choices"]
-custom_minimum_size = Vector2(320, 272)
+custom_minimum_size = Vector2(300, 272)
 layout_mode = 2
 tooltip_text = "Who hosts each trial, and what they ask of you."
 theme_type_variation = &"SecondaryButton"
 
 [node name="FavorsChoice" type="Button" parent="Index/Center/VBox/Choices"]
-custom_minimum_size = Vector2(320, 272)
+custom_minimum_size = Vector2(300, 272)
 layout_mode = 2
 tooltip_text = "Every boon a god can bestow."
+theme_type_variation = &"SecondaryButton"
+
+[node name="PamanaChoice" type="Button" parent="Index/Center/VBox/Choices"]
+custom_minimum_size = Vector2(300, 272)
+layout_mode = 2
+tooltip_text = "The heirlooms the Tindahan sells, and their history."
 theme_type_variation = &"SecondaryButton"
 
 [node name="BackButton" type="Button" parent="Index"]
@@ -230,6 +236,25 @@ theme_override_constants/v_separation = 8
 [node name="Description" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
 layout_mode = 2
 text = "Description"
+autowrap_mode = 3
+
+[node name="HistoryHeading" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9098039, 0.72156864, 0.2901961, 1)
+text = "KASAYSAYAN - HISTORY"
+
+[node name="HistoryMeta" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+visible = false
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Era · Origin"
+autowrap_mode = 3
+
+[node name="History" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]
+visible = false
+layout_mode = 2
+text = "History"
 autowrap_mode = 3
 
 [node name="Flavor" type="Label" parent="Page/VBox/Body/Detail/DetailScroll/VBox"]

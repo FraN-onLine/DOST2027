@@ -2,8 +2,10 @@ extends SceneTree
 
 # Validation: the Almanac is reachable from the main menu (its own button) and
 # its BACK button returns to the menu. Inside it:
-#   * both index choices (MGA DIYOS, MGA PABOR) open their pages
-#   * every god and every favor in the registry has exactly one card
+#   * all three index choices (MGA DIYOS, MGA PABOR, MGA PAMANA) open their pages,
+#     fit the screen and take keyboard focus in turn
+#   * every god, every favor and every Pamana in the registries has exactly one card
+#   * a Pamana's detail shows its cost, timing and needs, and its history
 #   * selecting a card fills the detail panel
 #   * a favor packet on a god's page jumps to that favor on the favors page
 # Run: godot --headless --path <project> -s res://tools/menu_almanac_check.gd
@@ -39,6 +41,21 @@ func _run() -> void:
 	if almanac == null:
 		return _finish()
 	_check(almanac.index_page.visible and not almanac.page.visible, "the almanac opens on its index")
+	var choices: Array = almanac.gods_choice.get_parent().get_children()
+	_check(choices.size() == 3 and choices[2] == almanac.pamana_choice, "the index offers three choices (%d)" % choices.size())
+	var width := 0.0
+	for choice in choices:
+		width += (choice as Control).size.x
+	width += (almanac.gods_choice.get_parent() as HBoxContainer).get_theme_constant("separation") * (choices.size() - 1)
+	_check(width <= 1152.0 - 2 * UITokens.SPACE_24, "the three choices fit the 1152-wide screen (%d px)" % int(width))
+	_check(almanac.gods_choice.find_next_valid_focus() == almanac.favors_choice
+		and almanac.favors_choice.find_next_valid_focus() == almanac.pamana_choice,
+		"keyboard focus moves through all three choices")
+	var caption := ""
+	for label in almanac.pamana_choice.find_children("*", "Label", true, false):
+		if (label as Label).text.ends_with("heirlooms"):
+			caption = (label as Label).text
+	_check(caption == "%d heirlooms" % Pamanas.all().size(), "MGA PAMANA counts its heirlooms (%s)" % caption)
 
 	# --- the gods ------------------------------------------------------------------
 	almanac.gods_choice.pressed.emit()
@@ -88,6 +105,37 @@ func _run() -> void:
 	_check(almanac.card_grid.get_child_count() == gods[0].favors.size(), "a filter chip shows only that god's favors")
 	almanac._set_filter(&"")
 	await _frames(2)
+
+	# --- the heirlooms ------------------------------------------------------------------
+	almanac.page_back.pressed.emit()
+	await _frames(2)
+	almanac.pamana_choice.pressed.emit()
+	await _frames(3)
+	_check(almanac.page_kind == "pamana" and almanac.page.visible and not almanac.filters.visible,
+		"MGA PAMANA opens the heirlooms page, with no filter chips")
+	var items := Pamanas.all()
+	_check(_one_card_each(almanac, items.map(func(item: Pamana) -> StringName: return item.id)),
+		"every Pamana has exactly one card (%d)" % items.size())
+	var jar := Pamanas.by_id(&"manunggul_jar")
+	almanac._card(jar.id).pressed.emit()
+	await _frames(2)
+	var chips: Array = almanac.detail_chips.get_children().map(func(chip: Label) -> String: return chip.text)
+	_check(almanac.detail_name.text == jar.display_name and almanac.detail_subtitle.text == "Sold at the Tindahan"
+		and almanac.detail_description.text == jar.effect, "selecting a Pamana fills the detail panel")
+	_check(chips == ["200 FAVOR", "NEXT TRIAL"], "its chips: cost and timing (%s)" % str(chips))
+	_check(almanac.history_heading.visible and almanac.history_heading.text == "KASAYSAYAN - HISTORY"
+		and almanac.history_meta.text == "%s · %s" % [jar.era, jar.origin] and almanac.history_label.text == jar.history,
+		"the detail shows its history: era, origin and story")
+	_check(almanac.detail_flavor.visible and almanac.detail_flavor.text.contains(jar.flavor), "...and its flavour line")
+	almanac._card(&"mighty_pen").pressed.emit()
+	await _frames(2)
+	chips = almanac.detail_chips.get_children().map(func(chip: Label) -> String: return chip.text)
+	_check(chips == ["100 FAVOR", "FIRST 30s", "NEEDS Q"], "a skill Pamana says what it needs (%s)" % str(chips))
+	almanac.page_back.pressed.emit()
+	await _frames(2)
+	almanac.gods_choice.pressed.emit()
+	await _frames(3)
+	_check(not almanac.history_heading.visible, "a god's page shows no history block")
 
 	almanac.page_back.pressed.emit()
 	await _frames(2)
