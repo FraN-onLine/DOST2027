@@ -441,7 +441,8 @@ func _tag(mortal_id: int) -> void:
 
 
 # FAVOR drained while Taya, banked through lose_favor once a second (so Waning
-# Moon, The Unmoving, Bagong Umaga and Apolaki's favors all see it).
+# Moon, The Unmoving, Bagong Umaga and Apolaki's favors all see it). It is a
+# DRAIN: The Agimat lets it through instead of spending a charge a second.
 func _bank_drain(everything := false) -> void:
 	for id in _drain_pending.keys():
 		var owed := float(_drain_pending[id])
@@ -450,7 +451,7 @@ func _bank_drain(everything := false) -> void:
 			continue
 		_drain_pending[id] = owed - float(amount)
 		if amount > 0 and rules.mortal(int(id)) != null:
-			lose_favor(amount, "Taya", int(id))
+			lose_favor(amount, "Taya", int(id), true)
 
 
 func taya_seconds(mortal_id: int) -> float:

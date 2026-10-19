@@ -6,6 +6,10 @@ extends Node
 # and the state of their E / Q skills. Arenas push events in and listen to the
 # signals, so the rules live in one place for when the other gods and the
 # network layer arrive.
+#
+# It also runs the Pamana (heirlooms, scripts/pamana/) a mortal buys at the
+# Tindahan between two trials: what they paid (spend_favor - never a loss), the
+# item waiting for the next trial, and every item's rule (THE PAMANA below).
 
 signal favor_changed(player_id: int, favor: int, delta: int, reason: String)
 signal due_changed(player_id: int, due: int)
@@ -17,6 +21,9 @@ signal notice(text: String)
 # A favor just did something other than sit there (Hanan's favors): the arena
 # turns this into a banner / event line in the favor's colour.
 signal favor_fired(player_id: int, favor: GodFavor, text: String)
+# A Pamana just did something (it awoke, cancelled a loss, recharged a skill...):
+# the arena turns it into a banner / event line in the item's colour.
+signal pamana_fired(player_id: int, pamana: Pamana, text: String)
 
 const MILESTONE_STEP := 1000  # default: every 1000 FAVOR hands out one God's Due
 const LOCAL_ID := 1
@@ -25,6 +32,9 @@ const LOSS_HISTORY_SECONDS := 10.0  # longest look-back any favor may ask for (B
 # their Kamalig (the granary): it is not a loss and not a gain, so the loss
 # listeners (The Sun God, The Ruler, the red popup) skip it.
 const TRANSFER_REASON := "Kamalig"
+# The reason on a favor_changed that SPENT FAVOR at the Tindahan (spend_favor). A
+# purchase is not a loss either: every loss listener skips it, like a transfer.
+const PURCHASE_REASON := "Tindahan"
 
 
 class Mortal:
@@ -60,6 +70,14 @@ class Mortal:
 	var apolaki_patches: int = 0       # how many Sun Patches that promise carries
 	var batman_shield: bool = false    # Si Batman: nothing can take FAVOR until the game ends
 	var bathala_regrowth: Array = []   # [seconds left, per_second, remaining] slow returns
+	# The Pamana (see THE PAMANA section below):
+	var pamana_next: StringName = &""  # bought at the Tindahan, waiting for the next trial
+	var pamana_active: StringName = &"" # live this trial
+	var pamana_window: float = 0.0     # a FIRST_WINDOW item: seconds of it left
+	var agimat_charges: int = 0        # The Agimat: losses it can still cancel
+	var jar_lost: int = 0              # Manunggul Jar: FAVOR lost this trial
+	var kampilan_ready: bool = false   # Kampilan: the first cast is still to come
+	var surigao_early: int = 0         # Surigao Gold: FAVOR early for the next God's Due (0 = none)
 
 	func favor_by_id(favor_id: StringName) -> GodFavor:
 		for favor in favors:
@@ -146,6 +164,8 @@ func gain_multiplier(m: Mortal) -> float:
 			mult *= favor.param("gain_mult_while_active", 1.0)
 		if favor.id == &"panahon_ng_anihan" and time_left <= favor.param("window", 15.0):
 			mult *= favor.param("gain_mult", 1.3)
+	if pamana_in_window(m, Pamanas.MUTYA):
+		mult *= Pamanas.by_id(Pamanas.MUTYA).param("gain_multiplier", 1.2)
 	return mult
 
 
@@ -189,7 +209,10 @@ func add_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 	return gained
 
 
-func lose_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
+# A DRAIN is a loss that ticks a little at a time (the Taya's once-a-second drain
+# in Langit Lupa, Tagtuyot's bites): The Agimat lets those through, or three
+# seconds of one would burn all of its charges. The Manunggul Jar still counts them.
+func lose_favor(amount: int, reason: String = "", player_id: int = -1, drain := false) -> int:
 	var m := _resolve(player_id)
 	if m == null or amount <= 0:
 		return 0
@@ -204,7 +227,14 @@ func lose_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 	lost = mini(lost, m.favor)
 	if lost <= 0:
 		return 0
+	# The Agimat: a loss that would really land is cancelled while charges last.
+	if not drain and m.pamana_active == Pamanas.AGIMAT and m.agimat_charges > 0:
+		m.agimat_charges -= 1
+		_fire_pamana(m, Pamanas.AGIMAT, "AGIMAT - LOSS CANCELLED (%d LEFT)" % m.agimat_charges)
+		return 0
 	_apply(m, -lost, reason)
+	if m.pamana_active == Pamanas.MANUNGGUL_JAR:
+		m.jar_lost += lost  # carried across: a share comes back at the trial's end
 	if m.duration_left(&"unang_ulan") > 0.0:
 		m.rain_lost += lost  # watered: it grows back once the rain stops
 	m.loss_history.append([_clock, lost])
@@ -221,14 +251,41 @@ func _apply(m: Mortal, delta: int, reason: String) -> void:
 
 func _check_milestones(m: Mortal) -> void:
 	# A God's Due is only ever awarded on the FIRST pass of a milestone.
-	var reached := int(floor(float(m.favor) / float(maxi(1, milestone_step))))
+	var step := maxi(1, milestone_step)
+	# Surigao Gold: the lowest milestone not claimed yet pays surigao_early FAVOR
+	# early, once. Every later milestone keeps its own number.
+	if m.surigao_early > 0:
+		var next := 1
+		while m.claimed_milestones.has(next):
+			next += 1
+		if m.favor >= next * step - m.surigao_early:
+			m.surigao_early = 0
+			_claim_milestone(m, next)
+			_fire_pamana(m, Pamanas.SURIGAO_GOLD, "SURIGAO GOLD - GOD'S DUE ARRIVES EARLY")
+	var reached := int(floor(float(m.favor) / float(step)))
 	for index in range(1, reached + 1):
-		if m.claimed_milestones.has(index):
-			continue
-		m.claimed_milestones[index] = true
-		m.due += 1
-		due_earned.emit(m.id, m.due, index * milestone_step)
-		due_changed.emit(m.id, m.due)
+		if not m.claimed_milestones.has(index):
+			_claim_milestone(m, index)
+
+
+func _claim_milestone(m: Mortal, index: int) -> void:
+	m.claimed_milestones[index] = true
+	m.due += 1
+	due_earned.emit(m.id, m.due, index * milestone_step)
+	due_changed.emit(m.id, m.due)
+
+
+# Spend FAVOR (the Tindahan): refused when the mortal holds too little. It is NOT
+# a loss - no multiplier, no Si Batman, no Agimat, no loss history, no Manunggul
+# Jar - and `reason` should be PURCHASE_REASON, which every loss listener skips.
+# A milestone already claimed stays claimed, and passing it again pays nothing.
+func spend_favor(amount: int, reason: String, player_id: int = -1) -> bool:
+	var m := _resolve(player_id)
+	if m == null or amount < 0 or m.favor < amount:
+		return false
+	if amount > 0:
+		_apply(m, -amount, reason)
+	return true
 
 
 func top_player_id() -> int:
@@ -437,8 +494,116 @@ func _tick_bathala_regrowth(m: Mortal, delta: float) -> void:
 
 
 
-# Host, at the start of every trial: First Light pays the mortals in last place.
+# --- THE PAMANA (heirlooms from the Tindahan) ----------------------------------
+# A mortal buys one at the Tindahan (buy_pamana); it waits in pamana_next and
+# wakes at the next trial's "GO!" (begin_trial). Each item's rule sits where the
+# rule it bends lives:
+#   Manunggul Jar  lose_favor counts jar_lost; end_trial returns a share of it
+#   The Agimat     lose_favor cancels the first `charges` losses (not drains)
+#   Torn Cedulas / The Mighty Pen   skill_cooldown, while the window lasts
+#   Banton Cloth   the arena's move speed (Arena._update_movement_favors)
+#   The Mutya      gain_multiplier, while the window lasts
+#   Kampilan       use_skill: the first cast recharges at once
+#   Surigao Gold   _check_milestones: the next God's Due comes early (it waits
+#                  for that milestone, not for a trial - surigao_early)
+# Everything but Surigao Gold expires at end_trial, used or not.
+
+func pamana_in_window(m: Mortal, pamana_id: StringName) -> bool:
+	return m.pamana_active == pamana_id and m.pamana_window > 0.0
+
+
+# Would `pamana` help this mortal at all? A skill item needs a skill in its slot,
+# and a second Surigao Gold is never offered while one is still waiting.
+func pamana_useful(pamana: Pamana, player_id: int = -1) -> bool:
+	var m := _resolve(player_id)
+	if m == null or pamana == null:
+		return false
+	var has_e := m.favor_in_slot(GodFavor.Slot.E) != null
+	var has_q := m.favor_in_slot(GodFavor.Slot.Q) != null
+	match pamana.needs:
+		Pamana.Needs.E_SKILL:
+			return has_e
+		Pamana.Needs.Q_SKILL:
+			return has_q
+		Pamana.Needs.ANY_SKILL:
+			return has_e or has_q
+	if pamana.id == Pamanas.SURIGAO_GOLD:
+		return m.surigao_early <= 0
+	return true
+
+
+# Buy `pamana` for this mortal: pays its cost (spend_favor) and puts it in
+# pamana_next - or, for Surigao Gold, starts waiting for the next milestone at
+# once. Refused when it cannot be paid for. Host only.
+func buy_pamana(pamana: Pamana, player_id: int = -1) -> bool:
+	var m := _resolve(player_id)
+	if m == null or pamana == null or not spend_favor(pamana.cost, PURCHASE_REASON, m.id):
+		return false
+	if pamana.id == Pamanas.SURIGAO_GOLD:
+		m.surigao_early = int(pamana.param("early_by", 200.0))
+		_check_milestones(m)  # already within reach of the next milestone
+	else:
+		m.pamana_next = pamana.id
+	return true
+
+
+# "GO!": every mortal's waiting item wakes for this trial.
+func _wake_pamana(m: Mortal) -> void:
+	m.pamana_active = m.pamana_next
+	m.pamana_next = &""
+	m.pamana_window = 0.0
+	m.agimat_charges = 0
+	m.jar_lost = 0
+	m.kampilan_ready = false
+	var pamana := Pamanas.by_id(m.pamana_active)
+	if pamana == null:
+		m.pamana_active = &""
+		return
+	if pamana.timing == Pamana.Timing.FIRST_WINDOW:
+		m.pamana_window = pamana.window
+	if pamana.id == Pamanas.AGIMAT:
+		m.agimat_charges = int(pamana.param("charges", 3.0))
+	m.kampilan_ready = pamana.id == Pamanas.KAMPILAN
+	_fire_pamana(m, pamana.id, "%s AWAKENS" % pamana.display_name.to_upper())
+
+
+func _fire_pamana(m: Mortal, pamana_id: StringName, text: String) -> void:
+	var pamana := Pamanas.by_id(pamana_id)
+	if pamana != null:
+		pamana_fired.emit(m.id, pamana, text)
+
+
+# What a mortal carries, for the HUD badges: [{pamana, text}], the live item (with
+# its seconds or charges), the one waiting for the next trial, and Surigao Gold.
+static func pamana_badges(m: Mortal) -> Array:
+	var out: Array = []
+	if m == null:
+		return out
+	var active := Pamanas.by_id(m.pamana_active)
+	if active != null:
+		var text := active.display_name
+		if active.timing == Pamana.Timing.FIRST_WINDOW:
+			text += " %ds" % int(ceil(m.pamana_window)) if m.pamana_window > 0.0 else " (spent)"
+		elif active.id == Pamanas.AGIMAT:
+			text += " x%d" % m.agimat_charges
+		elif active.id == Pamanas.KAMPILAN and not m.kampilan_ready:
+			text += " (spent)"
+		out.append({"pamana": active, "text": text})
+	var waiting := Pamanas.by_id(m.pamana_next)
+	if waiting != null:
+		out.append({"pamana": waiting, "text": "%s (next trial)" % waiting.display_name})
+	if m.surigao_early > 0:
+		var gold := Pamanas.by_id(Pamanas.SURIGAO_GOLD)
+		if gold != null:
+			out.append({"pamana": gold, "text": gold.display_name})
+	return out
+
+
+# Host, at the start of every trial: every mortal's Pamana wakes, and First Light
+# pays the mortals in last place.
 func begin_trial() -> void:
+	for m in mortals.values():
+		_wake_pamana(m)
 	# Kabiyak: an other half who left during an earlier trial is replaced now.
 	for m in mortals.values():
 		if m.has_favor(&"kabiyak") and not mortals.has(m.kabiyak):
@@ -582,7 +747,7 @@ func _tick_harvest(m: Mortal, delta: float) -> void:
 			var room := int(drought.param("max_total", 400.0)) - m.drought_total
 			var bite := mini(int(float(m.favor) * drought.param("percent_per_second", 0.03)), room)
 			if bite > 0:
-				m.drought_total += lose_favor(bite, "Tagtuyot", m.id)
+				m.drought_total += lose_favor(bite, "Tagtuyot", m.id, true)  # a drain
 	if not authority:
 		return
 	for index in range(m.regrowths.size() - 1, -1, -1):
@@ -708,6 +873,13 @@ func snapshot() -> Dictionary:
 			"kabiyak": m.kabiyak,
 			"granary": m.granary,
 			"batman": m.batman_shield,
+			"pamana_next": str(m.pamana_next),
+			"pamana_active": str(m.pamana_active),
+			"pamana_window": m.pamana_window,
+			"agimat": m.agimat_charges,
+			"jar_lost": m.jar_lost,
+			"kampilan": m.kampilan_ready,
+			"surigao": m.surigao_early,
 			}
 	return out
 
@@ -731,6 +903,18 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.batman_shield = bool(entry.get("batman", m.batman_shield))
 		var previous_granary := m.granary
 		m.granary = int(entry.get("granary", m.granary))
+		var previous_next := m.pamana_next
+		var previous_surigao := m.surigao_early
+		m.pamana_next = StringName(str(entry.get("pamana_next", m.pamana_next)))
+		m.pamana_active = StringName(str(entry.get("pamana_active", m.pamana_active)))
+		m.pamana_window = float(entry.get("pamana_window", m.pamana_window))
+		m.agimat_charges = int(entry.get("agimat", m.agimat_charges))
+		m.jar_lost = int(entry.get("jar_lost", m.jar_lost))
+		m.kampilan_ready = bool(entry.get("kampilan", m.kampilan_ready))
+		m.surigao_early = int(entry.get("surigao", m.surigao_early))
+		# A drop that came with a new Pamana was a purchase, not a loss.
+		var bought := (m.pamana_next != previous_next and m.pamana_next != &"") \
+			or (m.surigao_early > 0 and previous_surigao <= 0)
 		var owned: Array[GodFavor] = []
 		for favor_id in entry.get("favors", []):
 			var favor: GodFavor = Gods.favor_by_id(StringName(favor_id))
@@ -756,7 +940,7 @@ func apply_snapshot(state: Dictionary) -> void:
 			m.durations[favor_id] = float(durations[favor_id])
 		if m.is_local and m.favor != previous_favor:
 			# FAVOR that moved in or out of the granary is a transfer, not a loss.
-			var reason := TRANSFER_REASON if m.granary != previous_granary else ""
+			var reason := TRANSFER_REASON if m.granary != previous_granary else (PURCHASE_REASON if bought else "")
 			favor_changed.emit(m.id, m.favor, m.favor - previous_favor, reason)
 
 
@@ -789,6 +973,11 @@ func skill_cooldown(slot: int, player_id: int = -1) -> float:
 		multiplier *= m.favor_by_id(&"the_bountiful_e").param("cooldown_multiplier", 0.9)
 	if slot == GodFavor.Slot.Q and m.has_favor(&"the_bountiful_q"):
 		multiplier *= m.favor_by_id(&"the_bountiful_q").param("cooldown_multiplier", 0.9)
+	# Torn Cedulas (E) / The Mighty Pen (Q): shorter while their window lasts. A
+	# cast inside the window keeps the shorter cooldown it was given.
+	var paper: StringName = Pamanas.TORN_CEDULAS if slot == GodFavor.Slot.E else Pamanas.MIGHTY_PEN
+	if pamana_in_window(m, paper):
+		multiplier *= Pamanas.by_id(paper).param("cooldown_multiplier", 0.8)
 	return favor.cooldown * multiplier
 
 
@@ -816,6 +1005,11 @@ func use_skill(slot: int, player_id: int = -1) -> GodFavor:
 	var cooldown := skill_cooldown(slot, player_id)
 	if cooldown > 0.0:
 		m.cooldowns[favor.id] = cooldown
+	# Kampilan: the first cast of the trial recharges at once.
+	if m.kampilan_ready:
+		m.kampilan_ready = false
+		m.cooldowns[favor.id] = 0.0
+		_fire_pamana(m, Pamanas.KAMPILAN, "KAMPILAN - SKILL RECHARGED")
 	if favor.duration > 0.0:
 		m.durations[favor.id] = favor.duration
 	var immunity := favor.param("loss_immunity", 0.0)
@@ -848,7 +1042,12 @@ func _tick_mortal(m: Mortal, delta: float) -> void:
 				skill_recharged.emit(m.id, favor)
 	for favor_id in m.durations.keys():
 		m.durations[favor_id] = maxf(0.0, float(m.durations[favor_id]) - delta)
-	_tick_harvest(m, delta)
+	# Only a running trial ticks the per-second rules (the Harvest Pair's drought,
+	# weeds and regrowth) and a Pamana's window: the preparation area between two
+	# trials keeps trial_active false, so nothing there pays or takes FAVOR.
+	if trial_active:
+		m.pamana_window = maxf(0.0, m.pamana_window - delta)
+		_tick_harvest(m, delta)
 	_tick_bathala_regrowth(m, delta)
 
 
@@ -872,6 +1071,9 @@ func end_trial() -> Dictionary:
 	var harvest := {}
 	for m in mortals.values():
 		harvest[m.id] = _settle_harvest(m)
+		# The Manunggul Jar gives back its share of what was lost, before Favorable
+		# Outcome judges the top: straight to the total, so Full Moon cannot inflate it.
+		harvest[m.id] = int(harvest[m.id]) + _settle_jar(m)
 	var summary := {}
 	var top_id := top_player_id()
 	for m in mortals.values():
@@ -889,5 +1091,24 @@ func end_trial() -> Dictionary:
 			"bonus": bonus + int(harvest.get(m.id, 0)),
 			"is_local": m.is_local,
 		}
+		# A Pamana lasts one trial: unused charges and windows expire here (Surigao
+		# Gold is not one of them - it waits for its milestone).
+		m.pamana_active = &""
+		m.pamana_window = 0.0
+		m.agimat_charges = 0
+		m.kampilan_ready = false
+		m.jar_lost = 0
 	trial_active = false
 	return summary
+
+
+func _settle_jar(m: Mortal) -> int:
+	if m.pamana_active != Pamanas.MANUNGGUL_JAR or m.jar_lost <= 0:
+		return 0
+	var jar := Pamanas.by_id(Pamanas.MANUNGGUL_JAR)
+	var back := int(floor(float(m.jar_lost) * jar.param("return_share", 0.25)))
+	m.jar_lost = 0
+	if back > 0:
+		_apply(m, back, jar.display_name)
+		_fire_pamana(m, jar.id, "MANUNGGUL JAR - %d FAVOR CARRIED BACK" % back)
+	return back

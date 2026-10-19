@@ -280,6 +280,7 @@ func _ready() -> void:
 	rules.due_earned.connect(_on_due_earned)
 	rules.notice.connect(_on_notice)
 	rules.favor_fired.connect(_on_favor_fired)
+	rules.pamana_fired.connect(_on_pamana_fired)
 
 	hud = HUD_SCENE.instantiate()
 	ui_layer.add_child(hud)
@@ -560,6 +561,7 @@ func _process(delta: float) -> void:
 	_apply_blindness(delta)
 	_move_ghosts(delta)
 	_update_movement_favors(delta)
+	_watch_local_pamana()
 	_dash_cd = maxf(0.0, _dash_cd - delta)
 
 
@@ -674,12 +676,13 @@ func bank_favor(amount: int, reason: String, mortal_id := -1) -> int:
 
 # FAVOR taken away. The amount actually lost comes back (the rules cap it at
 # what the mortal holds, and a shield - loss_immunity - takes nothing at all).
-func lose_favor(amount: int, reason: String, mortal_id := -1) -> int:
+# `drain` marks a loss that ticks a little at a time (GodMatch.lose_favor).
+func lose_favor(amount: int, reason: String, mortal_id := -1, drain := false) -> int:
 	if rules == null or amount <= 0:
 		return 0
 	var target_id := rules.local_id if mortal_id < 0 else mortal_id
 	var adjusted := amount * (2 if float(_double_loss.get(target_id, 0.0)) > 0.0 else 1)
-	return rules.lose_favor(adjusted, reason, target_id)
+	return rules.lose_favor(adjusted, reason, target_id, drain)
 
 
 # The arena's one way to say "this mortal just earned (or lost) FAVOR", for the
@@ -999,7 +1002,10 @@ func _use_skill(slot: int) -> void:
 			return
 		var mortal := rules.local()
 		if mortal != null:
-			mortal.cooldowns[bound.id] = rules.skill_cooldown(slot)
+			# Predict the cooldown the host will set - none at all when the
+			# Kampilan recharges this first cast - so the bar does not flash.
+			mortal.cooldowns[bound.id] = 0.0 if mortal.kampilan_ready else rules.skill_cooldown(slot)
+			mortal.kampilan_ready = false
 		if _net != null and _net.has_multiplayer_peer():
 			_net.rpc_id(1, "request_god_skill", slot)
 		_skill_feedback(bound)
@@ -1199,6 +1205,9 @@ func _update_movement_favors(delta: float) -> void:
 			speed *= 1.5
 	else:
 		_guidance_time = 0.0
+	# Banton Burial Cloth: faster for the first seconds of the trial.
+	if rules.pamana_in_window(mortal, Pamanas.BANTON_CLOTH):
+		speed *= Pamanas.by_id(Pamanas.BANTON_CLOTH).param("speed_multiplier", 1.15)
 	player.move_speed = speed
 
 	if _movement_override_time > 0.0:
@@ -1822,6 +1831,9 @@ func _on_peer_left(peer_id: int) -> void:
 # --- MATCH SIGNALS ----------------------------------------------------------
 
 func _on_favor_changed(player_id: int, _total: int, delta: int, reason: String) -> void:
+	if reason == GodMatch.PURCHASE_REASON:
+		# FAVOR spent at the Tindahan: not a loss, so no sun patch, no red popup.
+		return
 	if reason == GodMatch.TRANSFER_REASON:
 		# Kamalig moving FAVOR in or out of the granary: not a loss, so no sun
 		# patch, no red popup - just say where it went.
@@ -1864,6 +1876,48 @@ func _on_favor_fired(player_id: int, favor: GodFavor, text: String) -> void:
 	_log(text, favor.color)
 	if player_id == _my_id:
 		_show_banner(favor.display_name.to_upper(), favor.color, 1.4)
+
+
+# A Pamana did something on the host: the event line for everyone, the banner for
+# its owner. A client sees its own item's banners through _watch_local_pamana.
+func _on_pamana_fired(player_id: int, pamana: Pamana, text: String) -> void:
+	var line := text if player_id == _my_id else "%s: %s" % [mortal_label(player_id), text]
+	_log(line, pamana.color)
+	if player_id == _my_id:
+		_show_banner(text, UICards.pamana_edge(pamana), 1.6)
+
+
+# Client: the host's Pamana banners are only for the host's own mortal, so a
+# client reads its item's moments off the snapshots instead - it woke, the Agimat
+# spent a charge, the Kampilan recharged, Surigao Gold paid.
+var _pamana_seen := {}
+
+
+func _watch_local_pamana() -> void:
+	var m := rules.local() if rules != null else null
+	if _authority or m == null:
+		return
+	var now := {"active": m.pamana_active, "agimat": m.agimat_charges, "kampilan": m.kampilan_ready, "surigao": m.surigao_early}
+	var before := _pamana_seen
+	_pamana_seen = now
+	if before.is_empty():
+		return
+	var text := ""
+	var item: Pamana = null
+	if now["active"] != &"" and now["active"] != before["active"]:
+		item = Pamanas.by_id(now["active"])
+		text = "%s AWAKENS" % item.display_name.to_upper() if item != null else ""
+	elif now["active"] == Pamanas.AGIMAT and int(now["agimat"]) < int(before["agimat"]):
+		item = Pamanas.by_id(Pamanas.AGIMAT)
+		text = "AGIMAT - LOSS CANCELLED (%d LEFT)" % int(now["agimat"])
+	elif now["active"] == Pamanas.KAMPILAN and before["kampilan"] and not now["kampilan"]:
+		item = Pamanas.by_id(Pamanas.KAMPILAN)
+		text = "KAMPILAN - SKILL RECHARGED"
+	elif int(before["surigao"]) > 0 and int(now["surigao"]) <= 0:
+		item = Pamanas.by_id(Pamanas.SURIGAO_GOLD)
+		text = "SURIGAO GOLD - GOD'S DUE ARRIVES EARLY"
+	if item != null and text != "":
+		_show_banner(text, UICards.pamana_edge(item), 1.6)
 
 
 func _on_notice(text: String) -> void:

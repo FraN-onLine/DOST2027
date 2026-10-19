@@ -101,6 +101,15 @@ static func badge_text(favor: GodFavor) -> String:
 	return "PASSIVE"
 
 
+# A Pamana's colour where it has to read on night indigo (a frame, a banner, a
+# tinted icon). Most items are already light enough; one too dark to read (the
+# Mighty Pen's ink) is drawn with an ivory edge instead.
+static func pamana_edge(pamana: Pamana) -> Color:
+	if UITokens.contrast(pamana.color, UITokens.NIGHT_800) >= UITokens.ACCENT_CONTRAST:
+		return pamana.color
+	return UITokens.IVORY
+
+
 static func set_selected(card: Control, on: bool) -> void:
 	card.set_meta("selected", on)
 	card.get_node("Ring").visible = on

@@ -308,7 +308,11 @@ func _next_trial() -> GodMatch:
 	return next
 
 
+# Seconds of a RUNNING trial (Arena._start_trial marks it at "GO!"): the Harvest
+# Pair's per-second rules only tick while one runs, never in the rest between
+# trials - and the tests above end a trial or two before they get here.
 func _advance(seconds: float) -> void:
+	_rules.trial_active = true
 	for step in range(int(round(seconds / DT))):
 		_rules._process(DT)
 
