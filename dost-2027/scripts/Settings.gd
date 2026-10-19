@@ -28,6 +28,7 @@ const ACTIONS := {
 	"skill_e": "Skill E", "skill_q": "Skill Q", "due_menu": "God's Due menu",
 	"advance_dialogue": "Advance dialogue", "dash": "Dash", "due_choice_1": "God's Due choice 1",
 	"due_choice_2": "God's Due choice 2", "due_choice_3": "God's Due choice 3",
+	"ready_up": "Ready (rest)",
 }
 const DEFAULTS := {
 	"audio": {"master": 100, "music": 80, "sfx": 100, "ui": 100, "mute_unfocused": false},

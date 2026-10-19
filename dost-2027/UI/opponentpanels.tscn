@@ -88,3 +88,27 @@ layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Q  --"
 show_percentage = false
+
+[node name="PamanaRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+mouse_filter = 0
+theme_override_constants/separation = 4
+
+[node name="PamanaIcon" type="TextureRect" parent="MarginContainer/VBoxContainer/PamanaRow"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("2_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PamanaLabel" type="Label" parent="MarginContainer/VBoxContainer/PamanaRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_type_variation = &"CaptionLabel"
+text = "PAMANA"
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3

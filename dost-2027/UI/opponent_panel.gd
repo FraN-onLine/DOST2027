@@ -1,7 +1,8 @@
 extends PanelContainer
 
 # One rival in the shell's column: icon and name, FAVOR and DUE, the two favor
-# bars. Framed in the accent of the god the rival wears (UITokens.god_accent).
+# bars, and the Pamana they carry (a small badge, hidden when none). Framed in
+# the accent of the god the rival wears (UITokens.god_accent).
 
 @onready var name_label = $MarginContainer/VBoxContainer/Header/NameLabel
 @onready var god_icon: TextureRect = $MarginContainer/VBoxContainer/Header/Icon
@@ -9,6 +10,9 @@ extends PanelContainer
 @onready var due_label = $MarginContainer/VBoxContainer/StatsLabel/DueBox/DueValue
 @onready var e_bar = $MarginContainer/VBoxContainer/SkillRow/EBar
 @onready var q_bar = $MarginContainer/VBoxContainer/SkillRow/QBar
+@onready var pamana_row: HBoxContainer = $MarginContainer/VBoxContainer/PamanaRow
+@onready var pamana_icon: TextureRect = $MarginContainer/VBoxContainer/PamanaRow/PamanaIcon
+@onready var pamana_label: Label = $MarginContainer/VBoxContainer/PamanaRow/PamanaLabel
 
 var player_id := 0
 
@@ -35,6 +39,22 @@ func set_god_icon(god_id: StringName) -> void:
 func update_stats(favor: int, due: int) -> void:
 	favor_label.text = str(favor)
 	due_label.text = str(due)
+
+
+# The rival's Pamana, the same badge as on our own panel (Game._show_pamana_badge).
+func update_pamana(mortal: GodMatch.Mortal) -> void:
+	var badges := GodMatch.pamana_badges(mortal)
+	pamana_row.visible = not badges.is_empty()
+	if badges.is_empty():
+		return
+	var first: Pamana = badges[0]["pamana"]
+	pamana_icon.texture = first.icon
+	pamana_icon.modulate = UICards.pamana_edge(first)
+	var texts: Array[String] = []
+	for badge in badges:
+		texts.append(str(badge["text"]))
+	pamana_label.text = "  ".join(texts)
+	pamana_row.tooltip_text = first.effect
 
 
 func update_skill_bar(match: GodMatch, mortal: GodMatch.Mortal) -> void:

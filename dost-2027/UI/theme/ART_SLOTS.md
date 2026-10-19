@@ -82,3 +82,28 @@ needed.
 - **Favor icons**: every favor still uses `res://icon.svg`, tinted with the
   favor's colour. When real icons arrive, set `icon` on each favor in
   `resources/gods/*.tres` and drop the tint (search for `PLACEHOLDER_ICON`).
+
+## The preparation area (scene art, also placeholders)
+
+The rest between two trials (`scenes/prep/PrepArea.tscn`) is drawn with coloured
+rects and `res://icon.svg` for now. Each slot is a node in that scene. Swap its
+texture or replace the rect with a `Sprite2D`, keeping its position, so the
+stall's reach and the layout stay where they are.
+
+| Slot (file name) | Node in `PrepArea.tscn` | Source size | Notes |
+|---|---|---|---|
+| `prep_ground.png` | `ArenaField/Ground` | 408x236 | The calm field under the camp, inside the drawn `Border`. Night tones only; it should read as rest, not as a game board. |
+| `campfire.png` (+ frames) | `Camp/Campfire` (`Logs`, `Flame`, `Glow`) | 32x32 | The centre of the camp. A looping 4-6 frame flame if animated. Keep the glow soft and small (comfort: no flashing). |
+| `altar.png` | `Camp/Altar/Stone` | 48x32 | A stone altar. The god who just hosted stands on it: `GodIcon` takes that god's `icon` at runtime, so leave room above the stone. |
+| `tindahan_stall.png` | `Camp/Stall` (`Awning`, `Counter`) | 80x48 | A sari-sari store front: an awning and a counter. The shop opens when a mortal stands within `stall_reach` of the stall's centre. |
+| `shopkeeper.png` | `Camp/Stall/Shopkeeper` | 24x32 | A neutral keeper behind the counter, not one of the gods. |
+
+## Pamana icons
+
+Every Pamana (`resources/pamana/*.tres`) still uses `res://icon.svg`, tinted with
+the item's colour (an item too dark to read on night indigo, the Mighty Pen, is
+tinted ivory). Draw one 24x24 source icon per item (`manunggul_jar.png`,
+`torn_cedulas.png`, `banton_cloth.png`, `agimat.png`, `mighty_pen.png`,
+`mutya.png`, `kampilan.png`, `surigao_gold.png`), set `icon` on the item, and
+drop the tint in `UICards.pamana_card` (search for `pamana_edge`). The same icon
+shows on the Tindahan's cards, the HUD badges and the Almanac's MGA PAMANA page.

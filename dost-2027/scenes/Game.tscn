@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://qhwimvi6gul2" path="res://Assets/Gods/Tala/Tala-Icon.png" id="3_78awf"]
 [ext_resource type="PackedScene" uid="uid://c8if6nvl5ehs" path="res://UI/opponentpanels.tscn" id="3_opponent"]
 [ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="4_ornament"]
+[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="5_icon"]
 
 [node name="Game" type="Control" unique_id=1698441976]
 layout_mode = 3
@@ -144,11 +145,35 @@ size_flags_vertical = 4
 tooltip_text = "Q  --"
 show_percentage = false
 
+[node name="PamanaRow" type="HBoxContainer" parent="TopLeft/VBoxContainer"]
+visible = false
+layout_mode = 2
+mouse_filter = 0
+theme_override_constants/separation = 4
+
+[node name="PamanaIcon" type="TextureRect" parent="TopLeft/VBoxContainer/PamanaRow"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("5_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PamanaLabel" type="Label" parent="TopLeft/VBoxContainer/PamanaRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_type_variation = &"CaptionLabel"
+text = "PAMANA"
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
 [node name="OtherPlayersPanel" type="PanelContainer" parent="." unique_id=110846096]
 z_index = 10
 layout_mode = 0
 offset_left = 8.0
-offset_top = 200.0
+offset_top = 224.0
 offset_right = 230.0
 offset_bottom = 640.0
 theme_type_variation = &"PanelHud"

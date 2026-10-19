@@ -137,15 +137,20 @@ func _run() -> void:
 
 	game._on_trial_complete()
 	await _frames(4)
+	_check(game.arena is PrepArea and game.arena.next_god_id == &"mayari", "Apolaki's trial hands over to the preparation area, naming Mayari")
+	await _through_rest(game)
 	_check(game.arena.god_id == &"mayari", "Apolaki transitions to the next selected god")
 	_check(game.get_node("OtherPlayersPanel").visible, "the shared-player sidebar stays on screen after the hand-over")
 	_check(not game.finale_panel.visible, "the run summary stays hidden after the first game")
 	game._on_trial_complete()
 	await _frames(4)
+	await _through_rest(game)
 	_check(game.arena.god_id == &"tala", "Mayari transitions to Tala")
 	_check(not game.finale_panel.visible, "the run summary stays hidden before Bathala's final trial")
 	game._on_trial_complete()
 	await _frames(4)
+	_check(game.arena is PrepArea and game.arena.next_god_id == &"bathala", "a rest comes right before Bathala's finale")
+	await _through_rest(game)
 	_check(game.arena.god_id == &"bathala", "Tala hands the field to Bathala's final arena")
 	_check(not game.finale_panel.visible, "the run summary stays hidden while Bathala's final trial plays")
 	game._on_trial_complete()
@@ -184,3 +189,10 @@ func _check(condition: bool, label: String) -> void:
 	else:
 		printerr("FAIL: %s" % label)
 		_problems += 1
+
+
+# The rest between two trials, closed the way READY closes it.
+func _through_rest(game: Node) -> void:
+	if game.arena is PrepArea:
+		game.arena._close_prep()
+		await _frames(4)

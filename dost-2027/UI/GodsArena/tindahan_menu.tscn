@@ -1,0 +1,108 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://UI/GodsArena/tindahan_menu.gd" id="1_shop"]
+[ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="2_ornament"]
+
+[node name="TindahanMenu" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_shop")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 0.6)
+
+[node name="SidePanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -344.0
+offset_top = -212.0
+offset_right = 344.0
+offset_bottom = 212.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"PanelCard"
+
+[node name="Ornament" type="Control" parent="SidePanel"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("2_ornament")
+inset = -8
+
+[node name="Margin" type="MarginContainer" parent="SidePanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="SidePanel/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="SidePanel/Margin/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HeadingLabel"
+text = "TINDAHAN"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="SidePanel/Margin/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"MutedLabel"
+text = "ONE PAMANA PER REST"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Rows" type="HBoxContainer" parent="SidePanel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="HintRow" type="HBoxContainer" parent="SidePanel/Margin/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="HintLabel" type="Label" parent="SidePanel/Margin/VBox/HintRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"MutedLabel"
+text = "Click a card or press its key"
+vertical_alignment = 1
+
+[node name="CloseKey" type="Label" parent="SidePanel/Margin/VBox/HintRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"KeycapLabel"
+text = "Esc"
+
+[node name="CloseLabel" type="Label" parent="SidePanel/Margin/VBox/HintRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"MutedLabel"
+text = "close"
+vertical_alignment = 1
