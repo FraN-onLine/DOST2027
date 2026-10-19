@@ -103,6 +103,7 @@ animations = [{
 size = Vector2(62, 23)
 
 [node name="Sunbursts" type="Node2D" unique_id=479780834]
+scale = Vector2(1.4226867, 1.5895153)
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1360331451]
 position = Vector2(0, -259)

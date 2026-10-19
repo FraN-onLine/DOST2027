@@ -67,7 +67,7 @@ extends Arena
 @export var sunburst_open_frame := 9       # the burst is live from this frame...
 @export var sunburst_close_frame := 11     # ...through this one
 @export var sunburst_hit_radius := 60.0    # how close the mortal must stand to be caught
-@export var sunburst_spawn_radius := 120.0 # how far from the mortal one may land
+@export var sunburst_spawn_radius := 40.0  # how far from the mortal one may land (kept inside hit_radius so bursts are a real threat)
 @export var sunburst_blitz_count := 5      # bursts that fall at once during blitz
 @export var blitz_marks := PackedFloat32Array([30.0, 10.0])  # seconds left that trigger one
 #
@@ -170,11 +170,7 @@ func arena_round_reset() -> void:
 	_swing_resolved = false
 	_guarding = false
 	_rng.randomize()
-	_clear_bursts()
-	_blitz_fired.clear()
-	for index in range(blitz_marks.size()):
-		_blitz_fired.append(false)
-	_burst_timer = _roll_burst_time()
+	_reset_hazards()
 	clear_sun_patches()
 	_reset_screen_impact()  # a new round starts with the screen at rest
 	player.play_animation(IDLE_ANIM)
@@ -404,7 +400,7 @@ func _tick_blitz_marks() -> void:
 
 
 func _spawn_blitz() -> void:
-	for _index in range(sunburst_blitz_count):
+	for _i in range(sunburst_blitz_count):
 		_spawn_burst()
 	_log("BLITZ - the sky falls!", Color(1.0, 0.6, 0.2))
 
@@ -444,14 +440,17 @@ func _check_bursts() -> void:
 		if sprite == null:
 			_bursts.remove_at(index)
 			continue
-		if not sprite.is_playing():
+		if not bool(burst.get("started", false)):
 			sprite.play()
+			burst["started"] = true
+			_bursts[index] = burst
 		if not bool(burst.get("hit", false)) and _burst_frame_live(sprite.frame):
 			if player != null and player.global_position.distance_to(node.global_position) <= sunburst_hit_radius:
 				burst["hit"] = true
 				_bursts[index] = burst
 				_resolve_burst(node.global_position)
-		if not sprite.is_playing():
+		var total_frames: int = sprite.sprite_frames.get_frame_count(sprite.animation)
+		if total_frames > 0 and (not sprite.is_playing() or sprite.frame >= total_frames - 1):
 			node.queue_free()
 			_bursts.remove_at(index)
 
@@ -487,6 +486,15 @@ func _clear_bursts() -> void:
 			child.queue_free()
 
 
+# Reset all hazard state at the start of a new round: no falling burst carries
+# over, the spawn timer is re-rolled and the blitz marks are unmarked.
+func _reset_hazards() -> void:
+	_clear_bursts()
+	_blitz_fired.clear()
+	for _i in range(blitz_marks.size()):
+		_blitz_fired.append(false)
+	_burst_timer = _roll_burst_time()
+
 # --- THE SUN PATCHES HIS SWING LEAVES ------------------------------------------
 # His landed swing blots part of THIS screen. The blots themselves are the
 # shared ones (Arena.show_sun_patch), so a blot he drops and a blot another
@@ -495,7 +503,7 @@ func _clear_bursts() -> void:
 # published - the duel is private, so nobody else's screen changes.
 
 func _drop_hit_patch() -> void:
-	for _index in range(hit_patch_count):
+	for _i in range(hit_patch_count):
 		show_sun_patch(hit_patch_time)
 
 

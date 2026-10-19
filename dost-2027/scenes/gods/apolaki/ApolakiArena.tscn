@@ -37,6 +37,15 @@ animations = [{
 
 [node name="ApolakiArena" unique_id=437979526 instance=ExtResource("1_base")]
 script = ExtResource("2_arena")
+sunburst_min_time = 8.0
+sunburst_max_time = 10.0
+sunburst_penalty = 250
+sunburst_open_frame = 9
+sunburst_close_frame = 11
+sunburst_hit_radius = 60.0
+sunburst_spawn_radius = 120.0
+sunburst_blitz_count = 5
+blitz_marks = null
 strike_favor = 100
 strike_defend_penalty = 50
 block_favor = 50
@@ -48,6 +57,11 @@ strike_reach_bonus = 26.0
 defend_cooldown = 1.0
 hit_patch_count = 1
 hit_patch_time = 3.0
+hit_shake_time = 0.3
+strike_shake_time = 0.22
+block_shake_time = 0.12
+strike_knock_force = 380.0
+block_knock_force = 150.0
 god_id = &"apolaki"
 embedded = true
 dialogue_prefix = "apolaki"
@@ -76,6 +90,8 @@ points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
 width = 4.0
 default_color = Color(0.54901963, 0.8509804, 1, 0)
 
+[node name="Sunbursts" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=479780834]
+
 [node name="Border" type="Line2D" parent="." index="3" unique_id=2116842975]
 position = Vector2(193.45038, 178.20657)
 scale = Vector2(0.8759542, 0.79619557)
@@ -99,8 +115,8 @@ offset_top = -129.0
 offset_right = 455.0
 offset_bottom = -105.0
 grow_vertical = 0
-text = "APOLAKI WATCHES"
 theme_type_variation = &"HudLabel"
+text = "APOLAKI WATCHES"
 
 [node name="Bars" type="VBoxContainer" parent="DuelHud" index="1" unique_id=1232068069]
 anchors_preset = 7
@@ -139,10 +155,10 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_type_variation = &"WorldLabel"
 text = "LEFT MOUSE  STRIKE  READY"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_type_variation = &"WorldLabel"
 
 [node name="DefendBar" type="PanelContainer" parent="DuelHud/Bars" index="1" unique_id=481221735]
 custom_minimum_size = Vector2(168, 34)
@@ -167,7 +183,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_type_variation = &"WorldLabel"
 text = "RIGHT MOUSE  DEFEND  READY"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_type_variation = &"WorldLabel"
