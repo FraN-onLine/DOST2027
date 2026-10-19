@@ -99,6 +99,67 @@ func _run() -> void:
 	_arena._strike_cd = 0.0
 	_arena._swinging = false
 
+	# --- WHAT A BLOW FEELS LIKE: shove, flare, shake, flash --------------------
+	# Neither direction has a shared hitbox to react to (both blows land in
+	# code), so the weight is built in the arena and the duelist: he is shoved
+	# away and lit up, the field jumps, the screen flashes. The shake only runs
+	# while the player's Screen shake option is on; the flash is a clock of its
+	# own that paints the rect on the duel HUD and takes it back down.
+	_arena._shake_left = 0.0
+	_arena._shake_span = 0.0
+	_arena._shake_power = 1.0
+	_arena._flash_left = 0.0
+	_arena.duelist._knock_velocity = Vector2.ZERO
+	_arena.duelist._hit_flash = 0.0
+	_arena.duelist._stagger = 0.0
+	_arena.duelist._enter(ApolakiDuelist.State.IDLE)
+	_arena.duelist.global_position = _arena.player.global_position + Vector2(80.0, 0.0)
+	_arena.rules.local().favor = 500
+	_arena._try_strike()
+	_arena._resolve_strike()
+	_check(is_equal_approx(_arena.duelist._knock_velocity.length(), _arena.strike_knock_force),
+		"a landed strike shoves him away at strike_knock_force")
+	_check(_arena.duelist._knock_velocity.x > 0.0, "the shove points away from the mortal")
+	_check(_arena.duelist._hit_flash > 0.0, "a landed strike lights him up")
+	_check(_arena.duelist.is_reeling(), "he reels for a moment after a clean hit")
+	_check((_arena._shake_left > 0.0) == _arena.screen_shake_allowed(),
+		"a landed strike shakes the field (whenever shaking is on)")
+	_check(_arena.hit_flash != null and _arena.hit_flash.visible,
+		"the screen flashes when your strike lands")
+	var shove_from := _arena.duelist.global_position
+	_arena.duelist._tick_knockback(0.1)
+	_check(_arena.duelist.global_position != shove_from, "the shove really moves him")
+	_arena.duelist._tick_knockback(5.0)
+	_check(_arena.duelist._knock_velocity == Vector2.ZERO, "the shove runs out of force")
+	# The shake and the flash each run down over their own clock and settle.
+	_arena._tick_shake(10.0)
+	_check(_arena.field_root.position == Vector2.ZERO, "the field settles back to rest")
+	_arena._tick_flash(10.0)
+	_check(_arena.hit_flash == null or not _arena.hit_flash.visible, "the screen flash fades out")
+	# A clash on his guard: the same feedback, softer - he only braces back.
+	_arena._shake_left = 0.0
+	_arena._shake_span = 0.0
+	_arena._flash_left = 0.0
+	_arena.duelist._knock_velocity = Vector2.ZERO
+	_arena.duelist._enter(ApolakiDuelist.State.DEFEND)
+	_arena.duelist.global_position = _arena.player.global_position + Vector2(80.0, 0.0)
+	_arena.rules.local().favor = 500
+	_arena._try_strike()
+	_arena._resolve_strike()
+	_check(is_equal_approx(_arena.duelist._knock_velocity.length(), _arena.block_knock_force),
+		"striking his guard only braces him back")
+	_check((_arena._shake_left > 0.0) == _arena.screen_shake_allowed(),
+		"a clash on his guard rings the field too (when shaking is on)")
+	_check(_arena.hit_flash != null and _arena.hit_flash.visible,
+		"a clash flickers the screen white")
+	# A new round starts with the screen at rest - no shake mid-flight and no
+	# flash left over from the last blow.
+	_arena.arena_round_reset()
+	_check(_arena._shake_left == 0.0 and _arena.field_root.position == Vector2.ZERO,
+		"a new round starts with the field at rest")
+	_check(_arena.hit_flash == null or not _arena.hit_flash.visible,
+		"and with no flash left over from the last blow")
+
 	# --- HIS SWING -> THE MORTAL: all three of the mortal's states --------------
 	# Idle and mid-swing both pay; only DEFENDING turns it into FAVOR.
 	_arena._guarding = false
@@ -143,6 +204,43 @@ func _run() -> void:
 	_check(_arena.active_sun_patches() == 0, "a defended swing leaves no sun patch")
 	_arena._guarding = false
 	_arena._invuln.clear()
+
+	# --- HIS SWING'S WEIGHT ON YOUR SCREEN --------------------------------------
+	# The mortal is shoved and its glow lights with the shove (knock_mortal ->
+	# ArenaMortal.hit); the field and the screen answer the blow too. A blocked
+	# swing still rings the field, but nothing is shoved.
+	_arena._shake_left = 0.0
+	_arena._shake_span = 0.0
+	_arena._flash_left = 0.0
+	_arena._guarding = false
+	_arena._swinging = false
+	_arena._invuln.clear()
+	_arena.player._knockback = Vector2.ZERO
+	_arena._on_duelist_attack_landed()
+	_check(_arena.player._knockback != Vector2.ZERO, "his swing shoves the mortal (again)")
+	_check(_arena.player._flash > 0.0, "his swing lights the mortal's glow")
+	_check((_arena._shake_left > 0.0) == _arena.screen_shake_allowed(),
+		"his swing shakes your screen (whenever shaking is on)")
+	_check(_arena.hit_flash != null and _arena.hit_flash.visible,
+		"his swing reddens your screen")
+	_arena._tick_shake(10.0)
+	_check(_arena.field_root.position == Vector2.ZERO, "the field settles after his swing")
+	_arena.clear_sun_patches()
+	_arena._shake_left = 0.0
+	_arena._flash_left = 0.0
+	_arena._invuln.clear()
+	_arena._guarding = true
+	_arena.player._knockback = Vector2.ZERO
+	_arena._on_duelist_attack_landed()
+	_check(_arena.player._knockback == Vector2.ZERO, "a blocked swing still does not shove")
+	_check((_arena._shake_left > 0.0) == _arena.screen_shake_allowed(),
+		"a blocked swing still rings the field (when shaking is on)")
+	_check(_arena.hit_flash != null and _arena.hit_flash.visible,
+		"a blocked swing flickers the screen white")
+	_arena._tick_flash(10.0)
+	_arena._guarding = false
+	_arena._invuln.clear()
+	_arena.clear_sun_patches()
 
 	# --- THE BLOTS THEMSELVES ----------------------------------------------------
 	# Every blot - the one his swing drops and the ones another player's favors

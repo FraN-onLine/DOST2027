@@ -22,6 +22,15 @@ extends Node2D
 # states) and Name. This script never draws. The three clips are the whole
 # tell: "default" is him watching, "hit" draws the ring that winds a swing up -
 # that ring IS the telegraph - and "defend" raises the stick.
+#
+# WHAT A BLOW DOES TO HIM - the duel has no shared hitbox, so the weight of a
+# landed strike is built right here: hit_from() shoves him away from the blow
+# (knock_force, decayed to a stop), lights him up for hit_flash_time and reels
+# him for hit_stagger_time - while he reels he walks nowhere and picks no new
+# move, but the shove and the flare keep running so the hit stays readable.
+# The flare follows the Reduce flashing option (a steady tint, never a strobe -
+# the same rule the mortal's own glow follows in scripts/gods/common/mortal.gd).
+# The field shaking around him belongs to the arena (apolaki_arena.gd).
 
 signal attack_landed()         # his swing connected - the arena scores it
 signal state_changed(new_state: int)
@@ -46,6 +55,12 @@ const ANIM_DEFEND := &"defend"  # the raised-stick guard
 # The sheet is drawn facing LEFT, so he is mirrored when the mortal stands to
 # his right. Flip this if a new sheet is drawn the other way round.
 @export var art_facing := -1
+# WHAT A LANDED STRIKE DOES TO HIM - the other half of the duel's weight (his
+# own swing on the mortal is scored in apolaki_arena.gd).
+@export var knock_force := 380.0      # how hard a landed strike shoves him
+@export var knock_stop := 1500.0      # px/s the shove sheds every second
+@export var hit_flash_time := 0.3     # seconds his flare stays up
+@export var hit_stagger_time := 0.18  # seconds he reels after a landed strike
 
 var state := State.IDLE
 var color := Color(1.0, 0.85, 0.25)
@@ -58,6 +73,9 @@ var _pulse := 0.0
 var _rng := RandomNumberGenerator.new()
 var _origin := Vector2.ZERO
 var _hit_resolved := false  # this swing has already been offered
+var _knock_velocity := Vector2.ZERO  # the shove a landed strike gave him
+var _hit_flash := 0.0               # seconds of flare left
+var _stagger := 0.0                 # seconds he still reels for
 
 @onready var icon: AnimatedSprite2D = get_node_or_null("Icon")
 @onready var name_label: Label = get_node_or_null("Name")
@@ -69,10 +87,14 @@ func _ready() -> void:
 	_enter(State.IDLE)
 
 
-# Back to the spot he was parked on, watching, as a round begins.
+# Back to the spot he was parked on, watching, as a round begins - with the
+# shove, the flare and the reel all spent.
 func restart() -> void:
 	global_position = _origin
 	target = _origin
+	_knock_velocity = Vector2.ZERO
+	_hit_flash = 0.0
+	_stagger = 0.0
 	_enter(State.IDLE)
 
 
@@ -106,12 +128,63 @@ func in_reach_with_bonus(point: Vector2, bonus: float) -> bool:
 	return global_position.distance_to(point) <= reach + bonus
 
 
+# --- WHAT A LANDED STRIKE DOES TO HIM ----------------------------------------
+# A blow landed on him comes from `from_position`: he is shoved away from it,
+# flares up and reels - the same weight ArenaMortal.hit gives the mortal on the
+# other side of the duel. `force` of 0 keeps his own knock_force, so a clash on
+# his guard can brace him back softer than a clean hit without a second rule.
+func hit_from(from_position: Vector2, force := 0.0) -> void:
+	var shove := global_position - from_position
+	if shove.length() < 0.01:
+		shove = Vector2.LEFT
+	_knock_velocity = shove.normalized() * (knock_force if force <= 0.0 else force)
+	_hit_flash = hit_flash_time
+	_stagger = hit_stagger_time
+
+
+# True while a landed strike is still reeling him (the arena's state label and
+# any future tells can read it).
+func is_reeling() -> bool:
+	return _stagger > 0.0
+
+
+# The shove itself. He is a plain node, not a body, so his knockback is his own
+# to run: it moves him every frame and sheds speed until it stops, kept inside
+# the field the same way his walk is.
+func _tick_knockback(delta: float) -> void:
+	if _knock_velocity.length() < 1.0:
+		_knock_velocity = Vector2.ZERO
+		return
+	global_position += _knock_velocity * delta
+	_knock_velocity = _knock_velocity.move_toward(Vector2.ZERO, knock_stop * delta)
+	if bounds.has_area():
+		global_position = global_position.clamp(bounds.position, bounds.end)
+
+
+# Player comfort options live in the Settings autoload and are looked up by
+# path, so scripts loaded before the autoloads exist (the tools/ checks) still
+# compile - the same trick Arena.reduce_flashing uses.
+func _reduce_flashing() -> bool:
+	var settings := get_node_or_null("/root/Settings")
+	return settings != null and bool(settings.call("reduce_flashing"))
+
+
 func _process(delta: float) -> void:
 	_pulse += delta
+	if _hit_flash > 0.0:
+		_hit_flash = maxf(0.0, _hit_flash - delta)
 	if not frozen:
-		_move(delta)
-		_advance(delta)
-		_tick_attack_window()
+		# The shove runs through the reel: he is flung back even while he is
+		# still recovering from the blow.
+		_tick_knockback(delta)
+		if _stagger > 0.0:
+			# REELING: no walk, no new move and no swing window until it passes,
+			# so a landed strike visibly interrupts him for a moment.
+			_stagger = maxf(0.0, _stagger - delta)
+		else:
+			_move(delta)
+			_advance(delta)
+			_tick_attack_window()
 	_refresh()
 
 
@@ -215,6 +288,16 @@ func _refresh() -> void:
 				icon.modulate = Color(color.r, color.g, color.b, 1.0)
 			_:
 				icon.modulate = Color(1, 1, 1, 1)
+		# A landed strike flares on top of the state tint and fades out over
+		# hit_flash_time. Under Reduce flashing the flare is a steady, softer
+		# ember tint for the whole window instead of a white one that pulses
+		# down - the hit still reads, nothing strobes.
+		if _hit_flash > 0.0:
+			if _reduce_flashing():
+				icon.modulate = icon.modulate.lerp(Color(1.0, 0.45, 0.35), 0.4)
+			else:
+				var strength := clampf(_hit_flash / maxf(hit_flash_time, 0.001), 0.0, 1.0)
+				icon.modulate = icon.modulate.lerp(Color(1.0, 1.0, 1.0), strength)
 	if name_label != null:
 		name_label.text = "APOLAKI"
 		name_label.modulate = Color(1, 1, 1, 0.55 + 0.4 * pulse)

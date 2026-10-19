@@ -3,9 +3,37 @@
 [ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://cknynasdvc8bu" path="res://scripts/gods/tala/tala_arena.gd" id="2_tala"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
+[ext_resource type="Texture2D" uid="uid://8kjnfw7bjul7" path="res://Assets/Gods/Tala/can2.png" id="4_28pec"]
+[ext_resource type="Texture2D" uid="uid://b6vjr6hvao45f" path="res://Assets/Gods/Tala/can1.png" id="5_8urks"]
 [ext_resource type="Texture2D" uid="uid://dqltvlxohlij3" path="res://Assets/Gods/Tala/Tala-Sheet.png" id="5_28pec"]
-[ext_resource type="Texture2D" uid="uid://beidyhoq1ofro" path="res://Assets/Gods/Tala/Cans.png" id="5_cans"]
 [ext_resource type="Texture2D" uid="uid://dxwfrknleqjjs" path="res://Assets/Gods/Tala/Tala(updated)-Sheet.png" id="6_qbd8a"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cgjks"]
+atlas = ExtResource("4_28pec")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_of5ke"]
+atlas = ExtResource("5_8urks")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cgjks")
+}],
+"loop": 1,
+"name": &"down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_of5ke")
+}],
+"loop": 1,
+"name": &"hittable",
+"speed": 5.0
+}]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kthyc"]
 atlas = ExtResource("5_28pec")
@@ -126,34 +154,40 @@ default_color = Color(0.2, 0.35, 0.65, 0.28)
 
 [node name="Cans" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="5" unique_id=497978850]
 
-[node name="Can0" type="Sprite2D" parent="ArenaField/Cans" index="0" unique_id=1476082999]
+[node name="Can0" type="AnimatedSprite2D" parent="ArenaField/Cans" index="0" unique_id=504453639]
 position = Vector2(985, 567)
 scale = Vector2(0.9, 0.9)
-texture = ExtResource("5_cans")
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"hittable"
+autoplay = "hittable"
 
-[node name="Can1" type="Sprite2D" parent="ArenaField/Cans" index="1" unique_id=487573914]
-position = Vector2(985, 410)
+[node name="Can1" type="AnimatedSprite2D" parent="ArenaField/Cans" index="1" unique_id=379799042]
+position = Vector2(985, 480)
 scale = Vector2(0.9, 0.9)
-texture = ExtResource("5_cans")
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"hittable"
+autoplay = "hittable"
 
-[node name="Can2" type="Sprite2D" parent="ArenaField/Cans" index="2" unique_id=1115544505]
-position = Vector2(985, 505)
+[node name="Can2" type="AnimatedSprite2D" parent="ArenaField/Cans" index="2" unique_id=1283493237]
+position = Vector2(985, 393.00003)
 scale = Vector2(0.9, 0.9)
-texture = ExtResource("5_cans")
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"hittable"
+autoplay = "hittable"
 
 [node name="Tala" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="6" unique_id=1560858802]
 position = Vector2(835.99994, 426)
 scale = Vector2(1.404091, 1.4874569)
 sprite_frames = SubResource("SpriteFrames_yf5fn")
 autoplay = "default"
-frame_progress = 0.14700226
+frame_progress = 0.29051828
 
 [node name="OverSeerGod" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="7" unique_id=287992503]
 position = Vector2(983.99994, 185)
 scale = Vector2(3.0846155, 3.2171717)
 sprite_frames = SubResource("SpriteFrames_wpc2v")
 autoplay = "default"
-frame_progress = 0.34917137
+frame_progress = 0.8245947
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(350, 420)

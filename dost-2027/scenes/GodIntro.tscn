@@ -1,9 +1,9 @@
-[gd_scene format=3 uid="uid://cbathala000001"]
+[gd_scene format=3 uid="uid://dkvn8mnqfk441"]
 
-[ext_resource type="Script" path="res://scripts/GodIntro.gd" id="1_intro"]
-[ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="2_ornament"]
+[ext_resource type="Script" uid="uid://bt73uvmo4ommx" path="res://scripts/GodIntro.gd" id="1_intro"]
+[ext_resource type="Script" uid="uid://c7k5x8rqao2o1" path="res://UI/theme/ornament_frame.gd" id="2_ornament"]
 
-[node name="GodIntro" type="Control"]
+[node name="GodIntro" type="Control" unique_id=203129965]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,7 +12,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_intro")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=1923574854]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -22,7 +22,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=2077129849]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -32,30 +32,30 @@ offset_bottom = -40.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="CenterContainer"]
+[node name="VBox" type="VBoxContainer" parent="CenterContainer" unique_id=547666353]
 custom_minimum_size = Vector2(660, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/VBox"]
+[node name="TitleLabel" type="Label" parent="CenterContainer/VBox" unique_id=1637567847]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 theme_type_variation = &"HeroLabel"
 text = "BATHALA"
 horizontal_alignment = 1
 
-[node name="SubtitleLabel" type="Label" parent="CenterContainer/VBox"]
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/VBox" unique_id=991301099]
 layout_mode = 2
 text = "Ang Laro ng mga diyos"
 horizontal_alignment = 1
 
-[node name="SubTitle2" type="Label" parent="CenterContainer/VBox"]
+[node name="SubTitle2" type="Label" parent="CenterContainer/VBox" unique_id=532913795]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "THE GOD GAMES"
 horizontal_alignment = 1
 
-[node name="Rule" type="Control" parent="CenterContainer/VBox"]
+[node name="Rule" type="Control" parent="CenterContainer/VBox" unique_id=2131992824]
 custom_minimum_size = Vector2(320, 12)
 layout_mode = 2
 size_flags_horizontal = 4
@@ -63,14 +63,14 @@ mouse_filter = 2
 script = ExtResource("2_ornament")
 rule_only = true
 
-[node name="StoryLabel" type="Label" parent="CenterContainer/VBox"]
+[node name="StoryLabel" type="Label" parent="CenterContainer/VBox" unique_id=992343751]
 layout_mode = 2
 theme_type_variation = &"FlavorLabel"
 text = "Bathala took the dearest of the mortals."
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Rule2" type="Control" parent="CenterContainer/VBox"]
+[node name="Rule2" type="Control" parent="CenterContainer/VBox" unique_id=1980241274]
 custom_minimum_size = Vector2(320, 12)
 layout_mode = 2
 size_flags_horizontal = 4
@@ -78,38 +78,38 @@ mouse_filter = 2
 script = ExtResource("2_ornament")
 rule_only = true
 
-[node name="GodsLabel" type="Label" parent="CenterContainer/VBox"]
+[node name="GodsLabel" type="Label" parent="CenterContainer/VBox" unique_id=1290158835]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "CHALLENGERS"
 horizontal_alignment = 1
 
-[node name="GodsList" type="VBoxContainer" parent="CenterContainer/VBox"]
+[node name="GodsList" type="VBoxContainer" parent="CenterContainer/VBox" unique_id=1856519365]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="PromptGap" type="Control" parent="CenterContainer/VBox"]
+[node name="PromptGap" type="Control" parent="CenterContainer/VBox" unique_id=2112777766]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="PromptRow" type="HBoxContainer" parent="CenterContainer/VBox"]
+[node name="PromptRow" type="HBoxContainer" parent="CenterContainer/VBox" unique_id=1317051662]
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="PromptKey" type="Label" parent="CenterContainer/VBox/PromptRow"]
+[node name="PromptKey" type="Label" parent="CenterContainer/VBox/PromptRow" unique_id=1267914920]
 layout_mode = 2
 theme_type_variation = &"KeycapLabel"
 text = "Space"
 
-[node name="PromptLabel" type="Label" parent="CenterContainer/VBox/PromptRow"]
+[node name="PromptLabel" type="Label" parent="CenterContainer/VBox/PromptRow" unique_id=1154871125]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
 text = "FACE THE GODS"
 vertical_alignment = 1
 
-[node name="StatusLabel" type="Label" parent="."]
+[node name="StatusLabel" type="Label" parent="." unique_id=681292070]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0

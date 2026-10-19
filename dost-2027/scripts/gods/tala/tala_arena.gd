@@ -15,6 +15,16 @@ extends Arena
 # her - running into the guard costs the same as her grabbing your footwear.
 @export var tala_penalty := 100
 
+@export_category("Impact")
+# The weight of a landed throw and of her touch: the FIELD jumps (never the
+# HUD, so its labels stay readable) and a wash flashes over the screen. The
+# shake and the wash themselves live in the base arena (scripts/gods/common/
+# arena.gd); only the timings are this game's own. Both comfort options in
+# Settings hold: screen shake off means no shake at all, reduce flashing halves
+# the wash so it reads as a wash, not a strobe.
+@export var can_hit_shake_time := 0.12    # YOUR slipper downs a can (a light kick)
+@export var tala_hit_shake_time := 0.15    # YOUR slipper reaches Tala (a light kick)
+
 # THE GUARD WHO CUTS YOU OFF. Every so often she hurries along her OWN route to
 # meet a slipper in the air: seek_chance is rolled when a slipper is thrown, and
 # she walks to the spot of her beat nearest where its path would reach her,
@@ -36,9 +46,25 @@ extends Arena
 @onready var slippers_root: Node2D = get_node_or_null("Slippers")
 @onready var status_label: Label = get_node_or_null("TalaHud/Status")
 @onready var hint_label: Label = get_node_or_null("TalaHud/Hint")
-@onready var slipper_texture: Texture2D = preload("res://Assets/Gods/Tala/Slipper-Vertical.png")
+# Slipper.tscn: the slipper's own scene. `toss` while it flies, `grounded`
+# once it lands - type 1 is your own, type 2 a rival's.
+const SLIPPER_SCENE := preload("res://scenes/gods/tala/Slipper.tscn")
+const SLIPPER_TOSS_SUFFIX := "toss"          # slipper-type-N-toss: the thrown clip
+const SLIPPER_GROUNDED_SUFFIX := "grounded"  # slipper-type-N-grounded: the landed one
 
-var _cans: Array[Sprite2D] = []
+var _cans: Array[AnimatedSprite2D] = []
+var _can_labels: Dictionary = {}   # can index -> the authored INACTIVE tag hanging over it
+var _can_hits := 0  # cans downed so far: the host's count, mirrored on the tick
+var _seen_can_hits := 0  # can hits this screen has already shaken for
+var _can_hit_owner := -1  # who threw the slipper that downed the last can
+var _tala_hits := 0  # slippers Tala has caught so far: the host's count, mirrored on the tick
+var _seen_tala_hits := 0  # catches this screen has already shaken for
+var _tala_hit_owner := -1  # whose slipper Tala caught last
+# A downed can keeps its place: it plays `down` instead of `hittable`, darkens,
+# and its INACTIVE tag shows until it stands back up.
+const CAN_ACTIVE_ANIM := &"hittable"
+const CAN_DOWN_ANIM := &"down"
+const CAN_INACTIVE_DIM := Color(0.55, 0.55, 0.62)
 var _slippers: Dictionary = {}
 var _slipper_nodes: Dictionary = {}
 var _modes: Dictionary = {}
@@ -80,15 +106,18 @@ func _connect_network() -> void:
 
 func collect_units() -> void:
 	_cans.clear()
+	_can_labels.clear()
 	if cans_root != null:
 		for child in cans_root.get_children():
-			if child is Sprite2D:
+			if child is AnimatedSprite2D:
+				_can_labels[_cans.size()] = child.get_node_or_null("InactiveTag")
 				_cans.append(child)
 	if barrier != null and barrier.points.size() > 0:
 		_shoot_x = barrier.to_global(barrier.points[0]).x
 	_read_tala_path()
 	for index in range(_cans.size()):
 		_can_repair.get_or_add(index, 0.0)
+		_refresh_can(index)
 	if _authority and rules != null:
 		for id in rules.mortals.keys():
 			_modes.get_or_add(int(id), "ready")
@@ -152,6 +181,12 @@ func arena_round_reset() -> void:
 	_slippers.clear()
 	_modes.clear()
 	_can_repair.clear()
+	_can_hits = 0
+	_seen_can_hits = 0
+	_can_hit_owner = -1
+	_tala_hits = 0
+	_seen_tala_hits = 0
+	_tala_hit_owner = -1
 	_tala_dir = 1.0
 	_tala_distance = 0.0
 	_seeking = false
@@ -165,14 +200,39 @@ func arena_round_reset() -> void:
 	_place_tala()
 	for id in rules.mortals.keys():
 		_modes[int(id)] = "ready"
-	for can in _cans:
-		can.visible = true
+	for index in range(_cans.size()):
+		_can_repair[index] = 0.0
+		_refresh_can(index)
+	_reset_screen_impact()  # a new round starts with the screen at rest
 	for slipper in _slipper_nodes.values():
 		if is_instance_valid(slipper):
 			slipper.queue_free()
 	_slipper_nodes.clear()
 	_local_mode = "ready"
 	_update_local_bounds()
+
+
+# A can is worth hitting while its repair clock reads zero.
+func is_can_active(can_index: int) -> bool:
+	if can_index < 0 or can_index >= _cans.size():
+		return false
+	return float(_can_repair.get(can_index, 0.0)) <= 0.0
+
+
+# Paint one can's state: active cans play `hittable` at full colour with no tag,
+# downed ones keep their place but play `down`, darken, and hang INACTIVE over
+# them until they stand back up.
+func _refresh_can(can_index: int) -> void:
+	if can_index < 0 or can_index >= _cans.size():
+		return
+	var can: AnimatedSprite2D = _cans[can_index]
+	var active := is_can_active(can_index)
+	if can.sprite_frames != null and can.sprite_frames.has_animation(CAN_ACTIVE_ANIM if active else CAN_DOWN_ANIM):
+		can.play(CAN_ACTIVE_ANIM if active else CAN_DOWN_ANIM)
+	can.modulate = Color.WHITE if active else CAN_INACTIVE_DIM
+	var tag: Node = _can_labels.get(can_index)
+	if tag != null and tag is CanvasItem:
+		(tag as CanvasItem).visible = not active
 
 
 func _process(delta: float) -> void:
@@ -400,7 +460,7 @@ func _move_slippers(delta: float) -> void:
 		var result := ""
 		var target_can := -1
 		for index in range(_cans.size()):
-			if not _cans[index].visible or float(_can_repair.get(index, 0.0)) > 0.0:
+			if not is_can_active(index):
 				continue
 			var hit_t := _segment_circle(start, finish, _cans[index].global_position, can_radius)
 			if hit_t < nearest_t:
@@ -434,21 +494,45 @@ func _move_slippers(delta: float) -> void:
 			_resolve_can(int(owner), target_can)
 			_slippers.erase(owner)
 		elif result == "tala":
-			lose_favor(tala_penalty, "Tala caught your slipper", int(owner))
-			_drop_slipper(int(owner), tala.global_position + Vector2(28.0, 18.0))
+			_resolve_tala_catch(int(owner))
 		else:
 			_drop_slipper(int(owner), landing)
+
+
+func _resolve_tala_catch(owner: int) -> void:
+	# Her catch lands with weight: the thrower's screen answers with the shared
+	# shake and wash. The host owns the count, so the thrower shakes on their
+	# own screen whichever peer hosts the round: a direct kick here covers the
+	# host's own screen, the mirrored count covers a client's (arena_read_tick).
+	if tala != null:
+		_drop_slipper(owner, tala.global_position + Vector2(28.0, 18.0))
+	lose_favor(tala_penalty, "Tala caught your slipper", owner)
+	_tala_hits += 1
+	_tala_hit_owner = owner
+	_seen_tala_hits = _tala_hits
+	if owner == _my_id:
+		_shake_tala_hit()
 
 
 func _resolve_can(owner: int, can_index: int) -> void:
 	if can_index < 0 or can_index >= _cans.size():
 		return
-	_cans[can_index].visible = false
 	_can_repair[can_index] = can_repair_time
+	_refresh_can(can_index)
 	bank_favor(can_favor, "knocking down a tin can", owner)
 	_modes[owner] = "ready"
 	if owner == _my_id:
 		_local_mode = "ready"
+	# A landed throw lands with weight: the thrower's screen answers with the
+	# shared shake and a white flicker. The host owns the count, so the thrower
+	# shakes on their own screen whichever peer hosts the round: a direct kick
+	# here covers the host's own screen, the mirrored count covers a client's
+	# (arena_read_tick).
+	_can_hits += 1
+	_can_hit_owner = owner
+	_seen_can_hits = _can_hits
+	if owner == _my_id:
+		_shake_can_hit()
 	_log("A tin can falls! +%d FAVOR" % can_favor, god.color)
 
 
@@ -495,7 +579,11 @@ func _check_tala_touch() -> void:
 			continue
 		set_mortal_invuln(mortal_id, invuln_time)
 		var lost := lose_favor(tala_penalty, "walking into Tala", mortal_id)
-		knock_mortal(mortal_id, tala.global_position)
+		# Her touch lands with weight: the shared shake answers on the victim's
+		# screen - here for us, across the wire for a rival (the same `impact`
+		# flag Mayari's clones raise). No light counter on top of it: the impact
+		# already shook that screen, and a second kick would double it.
+		knock_mortal(mortal_id, tala.global_position, 0.0, 0.0, true)
 		if mortal_id != _my_id:
 			if lost > 0:
 				_log("%s ran into Tala  (-%d FAVOR)" % [mortal_label(mortal_id), lost], Color(1, 0.6, 0.5))
@@ -511,7 +599,7 @@ func _repair_cans(delta: float) -> void:
 		var left := maxf(0.0, float(_can_repair[index]) - delta)
 		_can_repair[index] = left
 		if left <= 0.0 and index < _cans.size():
-			_cans[index].visible = true
+			_refresh_can(index)
 
 
 func _segment_circle(start: Vector2, finish: Vector2, center: Vector2, radius: float) -> float:
@@ -563,6 +651,12 @@ func arena_tick_fields() -> Dictionary:
 		"slippers": _slippers.duplicate(true),
 		"modes": _modes.duplicate(true),
 		"can_repairs": can_repairs,
+		# Who just got hit, so the thrower's / victim's own screen can answer with
+		# the shared shake and wash (the counts are the host's).
+		"can_hits": _can_hits,
+		"can_hit_owner": _can_hit_owner,
+		"tala_hits": _tala_hits,
+		"tala_hit_owner": _tala_hit_owner,
 	}
 
 
@@ -582,7 +676,20 @@ func arena_read_tick(state: Dictionary) -> void:
 	_can_repair = state.get("can_repairs", {}).duplicate(true)
 	_local_mode = str(_modes.get(_my_id, _local_mode))
 	for index in range(_cans.size()):
-		_cans[index].visible = float(_can_repair.get(index, 0.0)) <= 0.0
+		_refresh_can(index)
+	# A new hit meant for THIS screen lands with weight: the shared shake and a
+	# wash answer it - white for a landed throw, red for her touch. Runs on
+	# every peer (host and client alike), because the counts are the host's.
+	_can_hits = int(state.get("can_hits", _can_hits))
+	if _can_hits > _seen_can_hits:
+		_seen_can_hits = _can_hits
+		if int(state.get("can_hit_owner", -1)) == _my_id:
+			_shake_can_hit()
+	_tala_hits = int(state.get("tala_hits", _tala_hits))
+	if _tala_hits > _seen_tala_hits:
+		_seen_tala_hits = _tala_hits
+		if int(state.get("tala_hit_owner", -1)) == _my_id:
+			_shake_tala_hit()
 	_update_local_bounds()
 	_render_slippers()
 
@@ -597,26 +704,63 @@ func _update_local_bounds() -> void:
 		player.bounds = Rect2(_field.position, Vector2(maxf(1.0, _shoot_x - _field.position.x), _field.size.y))
 
 
+# THE FEEL OF A HIT. A slipper that lands rings the field lightly under a faint
+# white flicker - a can downed and Tala reached both kick the same small way.
+# (Her touch on US already shakes through knock_mortal's `impact` flag; this
+# covers hits OUR slipper lands, where there is no shove to carry it.)
+func _shake_can_hit() -> void:
+	_shake_screen(can_hit_shake_time, 0.45)
+	_flash_screen(Color(1.0, 1.0, 1.0), 0.1)
+
+
+func _shake_tala_hit() -> void:
+	_shake_screen(tala_hit_shake_time, 0.55)
+	_flash_screen(Color(1.0, 1.0, 1.0), 0.12)
+
+
 func _render_slippers() -> void:
 	if slippers_root == null:
 		return
+	# Owner keys arrive as ints from local throws and as strings off the wire
+	# (JSON dictionaries only carry string keys): normalise them here so every
+	# lookup below agrees and no slipper blinks out after a sync.
+	var owners: Dictionary = {}
+	for raw_owner in _slippers.keys():
+		owners[int(str(raw_owner))] = _slippers[raw_owner]
+	_slippers = owners
 	for owner in _slippers.keys():
 		var key := str(owner)
-		var node: Sprite2D = _slipper_nodes.get(key)
+		var node: Node2D = _slipper_nodes.get(key)
 		if not is_instance_valid(node):
-			node = Sprite2D.new()
-			node.texture = slipper_texture
-			node.scale = Vector2(0.34, 0.34)
+			node = SLIPPER_SCENE.instantiate()
 			slippers_root.add_child(node)
 			_slipper_nodes[key] = node
 		var slipper: Dictionary = _slippers[owner]
 		node.global_position = slipper["position"]
-		var direction: Vector2 = slipper.get("direction", Vector2.RIGHT)
-		node.rotation = direction.angle()
+		_set_slipper_anim(node, int(owner), str(slipper.get("state", "dropped")))
 	for key in _slipper_nodes.keys().duplicate():
 		if not _slippers.has(int(key)):
 			_slipper_nodes[key].queue_free()
 			_slipper_nodes.erase(key)
+
+
+# A slipper wears your scene's clips: `toss` while it flies (spun along its
+# flight), `grounded` once it lands. Type 1 is your own, type 2 a rival's.
+func _set_slipper_anim(node: Node2D, owner: int, state: String) -> void:
+	var sprite: AnimatedSprite2D = node.get_node_or_null("AnimatedSprite2D")
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	var variant := 1 if owner == _my_id else 2
+	var suffix := SLIPPER_TOSS_SUFFIX if state == "flying" else SLIPPER_GROUNDED_SUFFIX
+	var clip := StringName("slipper-type-%d-%s" % [variant, suffix])
+	if sprite.sprite_frames.has_animation(clip):
+		if sprite.animation != clip or not sprite.is_playing():
+			sprite.play(clip)
+	if state == "flying":
+		var direction: Vector2 = _slippers.get(owner, {}).get("direction", Vector2.RIGHT)
+		node.rotation = direction.angle()
+	else:
+		node.rotation = 0.0
 
 
 func _refresh_status() -> void:

@@ -17,8 +17,14 @@ extends Arena
 #     leave it.
 #   * every so often a clone stops patrolling and hunts the nearest mortal: it
 #     still walks its own line, it just walks it towards whoever is closest.
-#   * a clone touching a mortal costs that mortal FAVOR and knocks it back.
-#   * standing in the lit zone banks FAVOR until the clock runs out.
+#   * a clone touching a mortal costs that mortal FAVOR and knocks it back -
+#     rivals at rival_knock_mult the force, and the victim's own screen answers
+#     the touch with the shared shake and wash (knock_mortal's `impact` flag).
+#   * standing in the lit zone banks FAVOR until the clock runs out - favor_rate
+#     a second, cut to 65% of its first tuning.
+#   * BLITZ: for the last blitz_time seconds of the round the light jumps every
+#     blitz_switch_interval instead of goal_switch_interval and the lit zone
+#     pays blitz_gain_mult times as much - the last stand of the round.
 # That is the whole game. Everything else comes later, in due time.
 #
 # The arena owns no art: MayariArena.tscn holds the backdrop, the field, its
@@ -28,17 +34,28 @@ extends Arena
 # layout is the played one.
 
 @export_category("Patintero")
-@export var favor_rate := 82               # FAVOR banked per second in the lit zone
+@export var favor_rate := 53.3            # FAVOR per second in the lit zone (65% of 82)
 @export var clone_penalty := 50            # FAVOR lost when a clone touches a mortal
 @export_range(0, 3, 1) var starting_zone := 3  # the zone Mayari lights first
 @export var goal_switch_interval := 12.0   # seconds before the light moves on
+# Every knockback a rival takes - her touch or a shockwave - lands this much
+# harder than the one our own mortal takes (their screen simulates the shove).
+@export var rival_knock_mult := 2.5
+
+@export_category("Blitz")
+# The last stand of the round: for the last blitz_time seconds the light jumps
+# every blitz_switch_interval and the lit zone pays blitz_gain_mult times as
+# much. The clock is the shared round clock, so every screen enters it together.
+@export var blitz_time := 20.0             # seconds left on the clock when it starts
+@export var blitz_switch_interval := 2.5   # seconds the light holds during it
+@export var blitz_gain_mult := 2.0         # what the lit zone pays during it
 
 @export_category("Attack")
 @export var shock_radius := 130.0        # how far the attack's shockwave reaches
 @export var shock_expand_time := 0.45    # seconds the wave takes to reach full size
 @export var shock_cooldown := 1.2        # seconds between two attacks
 @export var shock_stun := 0.22           # control lost by a mortal the wave catches
-@export var shock_force := 320.0         # how hard the wave shoves them away
+@export var shock_force := 280.0         # how hard the wave shoves them away
 
 # The round clock (1:30), the countdown, the mercy seconds, the popup colours and
 # every network rate are NOT declared here: they come from the shared arena base
@@ -58,6 +75,7 @@ var _clones: Array = []
 var _zone_pending: Dictionary = {}    # mortal id -> fractional FAVOR not banked
 var _active_goal_index := 3
 var _goal_switch_timer := 0.0
+var _blitz := false  # the round's last stand - see _update_blitz()
 var _shock_cd := 0.0
 var _shocks: Array = []               # the waves the host is growing
 
@@ -77,6 +95,10 @@ func collect_units() -> void:
 func arena_rules_tick(delta: float) -> void:
 	# The host's frame of patintero: the light moves on, the clones walk, the lit
 	# zone pays and Mayari costs FAVOR to whoever she touches.
+	# BLITZ: once the round enters its last stand the light is on a short clock -
+	# including a long one left over from before it began.
+	if _blitz:
+		_goal_switch_timer = minf(_goal_switch_timer, blitz_switch_interval)
 	_goal_switch_timer -= delta
 	if _goal_switch_timer <= 0.0:
 		_advance_active_goal()
@@ -87,9 +109,35 @@ func arena_rules_tick(delta: float) -> void:
 	_tick_shocks(delta)
 
 
+# --- BLITZ - THE LAST STAND OF THE ROUND ----------------------------------------
+# For the last blitz_time seconds the light jumps every blitz_switch_interval
+# and the lit zone pays blitz_gain_mult times as much. It reads _trial_time -
+# the HOST's clock, mirrored to every screen - so every peer crosses into it on
+# the same second (the banner below lands on all of them at once); only the
+# rules it drives are the host's: the switch in arena_rules_tick above and the
+# doubled gain in _check_goals. The layout a switch publishes is what tells the
+# clients to move their light, exactly as it does outside blitz.
+
+func _update_blitz() -> void:
+	var active := _phase == Phase.PLAYING and blitz_time > 0.0 and _trial_time <= blitz_time
+	if active == _blitz:
+		return
+	_blitz = active
+	if active:
+		_log("BLITZ - the light moves fast and pays double", god.color)
+		_show_banner("BLITZ!", god.color, 1.5)
+
+
+# How long the light holds: a normal slice of the round, or blitz_switch_interval
+# through the last stand.
+func _goal_switch_interval_now() -> float:
+	return blitz_switch_interval if _blitz else goal_switch_interval
+
+
 func arena_round_reset() -> void:
 	# Both Mayaris back to the start of their paths, so every round begins the
-	# same way.
+	# same way - and so does the screen: no blitz left over from the last round,
+	# no shake or wash mid-flight.
 	for clone in _clones:
 		if is_instance_valid(clone) and clone.self_moving:
 			clone.restart()
@@ -99,6 +147,8 @@ func arena_round_reset() -> void:
 	if shocks_root != null:
 		for wave in shocks_root.get_children():
 			wave.queue_free()
+	_blitz = false
+	_reset_screen_impact()
 
 
 func arena_layout_fields() -> Dictionary:
@@ -187,7 +237,7 @@ func _advance_active_goal() -> void:
 	if _zones.is_empty():
 		return
 	_light_zone((_active_goal_index + 1) % _zones.size())
-	_goal_switch_timer = goal_switch_interval
+	_goal_switch_timer = _goal_switch_interval_now()
 	_log("Mayari's light moves to the %s" % str(_zones[_active_goal_index].zone_label), god.color)
 	_publish_layout()
 
@@ -243,8 +293,10 @@ func _check_goals(delta: float) -> void:
 		if best == null:
 			continue
 		# FAVOR is banked one whole unit at a time (bank_favor keeps the
-		# fraction), so the popup and the HUD count in whole FAVOR.
-		var pending := float(_zone_pending.get(mortal_id, 0.0)) + float(best.rate) * delta
+		# fraction), so the popup and the HUD count in whole FAVOR. Through
+		# BLITZ the same box pays blitz_gain_mult times as much.
+		var gain_rate := float(best.rate) * (blitz_gain_mult if _blitz else 1.0)
+		var pending := float(_zone_pending.get(mortal_id, 0.0)) + gain_rate * delta
 		while pending >= 1.0:
 			pending -= 1.0
 			bank_favor(best.favor_amount, "holding the %s" % str(best.zone_label), mortal_id)
@@ -265,12 +317,24 @@ func _check_clones() -> void:
 				break
 
 
+# The shove a knockback uses for `mortal_id`: our own mortal takes the force as
+# given, every OTHER mortal (patintero's rivals) takes rival_knock_mult of it -
+# the rival's screen is where the shove is simulated, so that is where the
+# heavier number is felt.
+func _knock_force_for(mortal_id: int, base := 0.0) -> float:
+	var force := knock_force if base <= 0.0 else base
+	return force if mortal_id == _my_id else force * rival_knock_mult
+
+
 func _on_clone_hit(clone: MayariClone, mortal_id: int) -> void:
 	set_mortal_invuln(mortal_id, invuln_time)
 	var lost := lose_favor(clone_penalty, "Mayari's clone", mortal_id)
 	# Shove the mortal away from the clone it ran into - on whichever screen
-	# simulates that mortal (the base does the local / remote split).
-	knock_mortal(mortal_id, clone.global_position)
+	# simulates that mortal (the base does the local / remote split) - and let
+	# that screen answer it with the shared shake and wash: knock_mortal's
+	# `impact` flag plays it here for us and across the wire for a rival. A
+	# rival eats rival_knock_mult of the shove.
+	knock_mortal(mortal_id, clone.global_position, 0.0, _knock_force_for(mortal_id), true)
 	if mortal_id != _my_id:
 		if lost > 0:
 			_log("%s was caught by a clone  (-%d FAVOR)" % [mortal_label(mortal_id), lost], Color(1, 0.6, 0.5))
@@ -296,6 +360,9 @@ func _on_clone_hit(clone: MayariClone, mortal_id: int) -> void:
 func _process(delta: float) -> void:
 	super._process(delta)
 	_tick_attack_ui(delta)
+	# Every screen decides the last stand from the shared round clock, so the
+	# banner lands on all of them on the same second.
+	_update_blitz()
 
 
 func _input(event: InputEvent) -> void:
@@ -348,7 +415,9 @@ func _tick_shocks(delta: float) -> void:
 			var contact_radius := maxf(0.0, (entry["pos"] as Vector2).distance_to(shock["origin"] as Vector2) - player.radius)
 			if contact_radius <= radius:
 				shock["hit"][mortal_id] = true
-				knock_mortal(mortal_id, shock["origin"], shock_stun, shock_force)
+				# A rival eats rival_knock_mult of the shove; our own mortal
+				# takes the wave at shock_force as authored.
+				knock_mortal(mortal_id, shock["origin"], shock_stun, _knock_force_for(mortal_id, shock_force))
 		if is_instance_valid(wave) and not wave.is_finished():
 			alive.append(shock)
 	_shocks = alive

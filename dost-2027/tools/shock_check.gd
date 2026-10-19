@@ -145,6 +145,13 @@ func _run() -> void:
 	if fake.hits.size() > 1:
 		printerr("shock_check: the wave shoved the same rival more than once")
 		problems += 1
+	# OTHER PLAYERS take rival_knock_mult of the shove our own mortal would.
+	if fake.hits.size() > 0 and not is_equal_approx(
+			float(fake.hits[0]["hit"]["force"]), _arena.shock_force * _arena.rival_knock_mult):
+		printerr("shock_check: a rival must take %sx the shove (got %s, want %s)" % [
+			str(_arena.rival_knock_mult), str(fake.hits[0]["hit"]["force"]),
+			str(_arena.shock_force * _arena.rival_knock_mult)])
+		problems += 1
 
 	# The wave is gone once it is full.
 	for i in range(60):

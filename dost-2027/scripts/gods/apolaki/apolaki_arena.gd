@@ -32,6 +32,23 @@ extends Arena
 #   block_favor instead.
 #   Both buttons run on their own cooldown, drawn as the two bars on the duel HUD.
 #
+# THE WEIGHT OF A HIT - there is no shared hitbox to react to (both blows land
+# in code), so the impact is BUILT here, and both directions get it:
+#   YOUR strike lands    -> he is shoved away from you and flares up
+#                           (ApolakiDuelist.hit_from), the field jumps, the
+#                           screen flashes gold.
+#   you strike his GUARD -> a clash: he braces back softer, a short jump, a
+#                           white flicker.
+#   HIS swing lands       -> the mortal is shoved (knock_mortal, which also
+#                           lights its glow - ArenaMortal.hit), the field jumps
+#                           hardest, the screen flashes red, the sun patch drops.
+#   you BLOCK his swing   -> a short jump and a white flicker, no shove.
+#   The SHAKE and the WASH are the shared ones in the base (scripts/gods/common/
+#   arena.gd): the field only ever moves (the HUD and its labels stay readable),
+#   the wash is the rect Arena.tscn authors, and both obey the two comfort
+#   options in Settings - screen shake off = no shake at all, reduce flashing =
+#   a soft, steady tint instead of a bright one.
+#
 # SUN PATCHES
 #   The Apolaki favors blot part of a mortal's own screen. The host owns the
 #   authoritative patch list and mirrors it with every arena tick, so each player
@@ -55,6 +72,19 @@ extends Arena
 @export var defend_cooldown := 1.0      # seconds before another guard
 @export var hit_patch_count := 1         # blots his landed swing leaves on screen
 @export var hit_patch_time := 3.0        # seconds each blot stays
+
+@export_category("Impact")
+# Every blow in the duel shakes the field and washes the screen - his swing on
+# you, your swing on him, and a clash on either guard (all four are wired up
+# below). The shake and the wash themselves live in the base arena
+# (scripts/gods/common/arena.gd); only the timings are this duel's own.
+@export var hit_shake_time := 0.3      # HIS swing lands on you (the hardest)
+@export var strike_shake_time := 0.22  # YOUR swing lands on him
+@export var block_shake_time := 0.12   # a clash on a guard, either way
+# How hard your own blows shove HIM (a clean hit, and the softer brace when you
+# strike his guard) - the mortal's own shove is the shared knock_stun/knock_force.
+@export var strike_knock_force := 380.0
+@export var block_knock_force := 150.0
 
 @onready var duelist: ApolakiDuelist = get_node_or_null("ArenaField/Apolaki")
 @onready var state_label: Label = get_node_or_null("DuelHud/State")
@@ -114,6 +144,7 @@ func arena_round_reset() -> void:
 	_swing_resolved = false
 	_guarding = false
 	clear_sun_patches()
+	_reset_screen_impact()  # a new round starts with the screen at rest
 	player.play_animation(IDLE_ANIM)
 	if duelist != null:
 		duelist.restart()
@@ -231,6 +262,8 @@ func _player_is_defending() -> bool:
 # The moment the mortal's swing connects. Two outcomes, and they cover all three
 # of his states: a hit pays while he is IDLE or ATTACKING and costs on his
 # DEFEND. It only reaches him at all inside his reach plus the bonus.
+# Both outcomes land with weight: he is shoved either way (a clean hit hard, a
+# clash on his guard softly), the field jumps and the screen flashes.
 func _resolve_strike() -> void:
 	if duelist == null:
 		return
@@ -240,9 +273,20 @@ func _resolve_strike() -> void:
 	if duelist.is_defending():
 		score_favor(-strike_defend_penalty, "%s's guard" % god.display_name)
 		_log("You struck his guard: -%d FAVOR" % strike_defend_penalty, Color(1, 0.5, 0.45))
+		# CLASH: his guard holds, but the blow lands on it - he braces back a
+		# step, the field rings once and the screen gives a white flicker.
+		duelist.hit_from(player.global_position, block_knock_force)
+		_shake_screen(block_shake_time, 0.55)
+		_flash_screen(Color(1.0, 1.0, 1.0), 0.16)
 	else:
 		score_favor(strike_favor, god.display_name)
 		_log("Strike landed: +%d FAVOR" % strike_favor, Color(0.7, 1, 0.8))
+		# A CLEAN HIT: he is shoved away, flares up and reels for a moment, the
+		# field jumps and the screen flashes gold - the same weight his own
+		# swing carries when it lands on you.
+		duelist.hit_from(player.global_position, strike_knock_force)
+		_shake_screen(strike_shake_time)
+		_flash_screen(Color(1.0, 0.95, 0.78), 0.28)
 
 
 # Pressing defend plays the guard clip. That clip RUNNING is the mortal's
@@ -269,6 +313,10 @@ func _on_duelist_attack_landed() -> void:
 	if _player_is_defending():
 		score_favor(block_favor, "Blocked %s's swing" % god.display_name)
 		_log("Blocked! +%d FAVOR" % block_favor, Color(0.7, 1, 0.8))
+		# A BLOCK still has to feel like two sticks meeting: the field rings once
+		# and the screen gives a white flicker - but nothing is shoved.
+		_shake_screen(block_shake_time, 0.55)
+		_flash_screen(Color(1.0, 1.0, 1.0), 0.16)
 		return
 	if is_mortal_invulnerable(_my_id):
 		return
@@ -277,6 +325,11 @@ func _on_duelist_attack_landed() -> void:
 	if duelist != null:
 		knock_mortal(_my_id, duelist.global_position)
 	_drop_hit_patch()
+	# HIS swing landed, in full: the mortal is shoved and its glow lights with
+	# the shove (knock_mortal -> ArenaMortal.hit), the field jumps hardest of
+	# all and the screen flashes red under the blot that drops on top.
+	_shake_screen(hit_shake_time, 1.25)
+	_flash_screen(Color(1.0, 0.32, 0.28), 0.4)
 	_log("His swing landed: -%d FAVOR" % hit_penalty, Color(1, 0.5, 0.45))
 
 
@@ -300,6 +353,8 @@ func _refresh_state_label() -> void:
 		text = "YOU STRIKE"
 	elif _player_is_defending():
 		text = "YOU GUARD"
+	elif duelist.is_reeling():
+		text = "APOLAKI REELS - PRESS IT"
 	elif duelist.is_attacking():
 		text = "APOLAKI SWINGS - GUARD!"
 	elif duelist.is_defending():

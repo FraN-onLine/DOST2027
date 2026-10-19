@@ -39,15 +39,19 @@ animations = [{
 
 [node name="MayariArena" unique_id=2127707221 instance=ExtResource("1_base")]
 script = ExtResource("2_arena")
-favor_rate = 82
+favor_rate = 53.3
 clone_penalty = 50
 starting_zone = 3
 goal_switch_interval = 12.0
+rival_knock_mult = 2.5
+blitz_time = 20.0
+blitz_switch_interval = 2.5
+blitz_gain_mult = 2.0
 shock_radius = 130.0
 shock_expand_time = 0.45
 shock_cooldown = 1.2
 shock_stun = 0.22
-shock_force = 320.0
+shock_force = 280.0
 embedded = true
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
@@ -139,7 +143,7 @@ position = Vector2(-81, -64.01219)
 scale = Vector2(1, 0.99593496)
 points = PackedVector2Array(0, 0, 0, 54.24623, 0, 240)
 
-[node name="Icon" parent="Clones/MayariVertical" index="1" unique_id=2057490785]
+[node name="Icon" parent="Clones/MayariVertical" index="1" unique_id=683970908]
 position = Vector2(-7.6293945e-06, 0)
 
 [node name="Player" parent="." index="7" unique_id=1489401219]

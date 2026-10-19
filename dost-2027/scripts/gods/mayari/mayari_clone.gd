@@ -247,14 +247,13 @@ func _pin_path() -> void:
 
 
 func _refresh_visual() -> void:
-	# Hunting burns brighter and pulses faster - the only warning a mortal gets.
-	# Mayari herself stays solid: the breathe used to drop her to 70% opacity,
-	# which read as "slightly transparent" rather than "alive". She now only ever
-	# pulses between nearly solid and fully solid, and a hunt takes her to full.
+	# THE SPRITE IS NEVER MODULATED: no colour wash and no breathing alpha - the
+	# glow is gone and Mayari's art is drawn exactly as it is authored. What is
+	# left of the tell is the path line, which burns brighter and pulses faster
+	# while she hunts (and the name tag keeps breathing above her).
 	var pulse := 0.5 + 0.5 * sin(_pulse * (7.0 if _hunting else 4.0))
 	if icon != null:
-		var alpha := 1.0 if _hunting else 0.92 + 0.08 * pulse
-		icon.modulate = Color(color.r, color.g, color.b, alpha)
+		icon.modulate = Color(1, 1, 1, 1)
 	if name_label != null:
 		name_label.text = "MAYARI"
 		name_label.modulate = Color(1, 1, 1, 0.5 + 0.4 * pulse)

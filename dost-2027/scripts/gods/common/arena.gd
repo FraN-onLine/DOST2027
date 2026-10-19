@@ -37,6 +37,11 @@ extends Node2D
 #     other players, the mercy seconds after a hit and the knockback that
 #     follows one - on every peer, host or client (see knock_mortal()).
 #
+#   * THE FEEL OF A HIT - the field's shake and the screen's wash that answer a
+#     landed blow (shake_pixels / flash_time, _shake_screen() / _flash_screen(),
+#     reset by _reset_screen_impact()). The HUD never shakes. A knockback
+#     flagged `impact` plays it on the victim's screen - here or across the wire.
+#
 #   * THE DIALOGUE AND THE MENUS: the god's intro lines, the closing lines, the
 #     God's Due menu and the handshake that keeps every peer on the same line.
 #
@@ -158,6 +163,15 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var knock_stun := 1.3
 @export var knock_force := 560.0
 
+@export_category("Screen Impact")
+# The weight a landed blow has on the screen it happens on: the FIELD jumps
+# (never the HUD, so its labels stay readable) and a wash flashes over it.
+# Every arena shares this - a god's arena only says WHEN (see _shake_screen(),
+# _flash_screen() and knock_mortal's `impact` flag).
+@export var shake_pixels := 7.0       # how far the field jumps on an impact
+@export var flash_time := 0.25        # seconds the screen flash fades over
+@export var impact_shake_time := 0.3  # seconds a flagged knockback shakes for
+
 @export_category("Network")
 @export var net_tick_rate := 10.0    # world state broadcasts per second
 @export var net_state_rate := 5.0    # FAVOR snapshots per second
@@ -195,6 +209,9 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var vision_mask: ColorRect = $VisionLayer/VisionMask
 @onready var sun_patch_layer: CanvasLayer = get_node_or_null("Patches")
+# The wash a landed hit paints over the screen (authored in Arena.tscn - this
+# script never builds nodes on the fly).
+@onready var hit_flash: ColorRect = get_node_or_null("FlashLayer/ScreenFlash")
 
 var god: God
 var rules: GodMatch
@@ -238,6 +255,14 @@ var _guidance_time := 0.0
 var _movement_override_caster := -1
 var _movement_override_time := 0.0
 var _dash_cd := 0.0
+# The impact currently running on THIS screen: seconds left of the field's
+# shake and of the flash, plus the numbers they fade over (see _shake_screen).
+var _shake_left := 0.0
+var _shake_span := 0.0
+var _shake_power := 1.0
+var _flash_left := 0.0
+var _flash_span := 0.0
+var _flash_tint := Color(1, 1, 1, 1)
 
 # --- multiplayer ---
 var _net: Node = null
@@ -488,6 +513,7 @@ func _start_countdown() -> void:
 	# back to their authored start, so every round begins the same way.
 	player.global_position = _start_position
 	arena_round_reset()
+	_reset_screen_impact()  # and the screen itself starts the round at rest
 
 
 func _start_trial() -> void:
@@ -562,6 +588,8 @@ func _process(delta: float) -> void:
 	_move_ghosts(delta)
 	_update_movement_favors(delta)
 	_watch_local_pamana()
+	_tick_shake(delta)
+	_tick_flash(delta)
 	_dash_cd = maxf(0.0, _dash_cd - delta)
 
 
@@ -727,17 +755,22 @@ func is_mortal_invulnerable(mortal_id: int) -> bool:
 # Shove a mortal away from whatever just hit it (the thing that hit it stands at
 # `from_position`). Leave `stun`/`force` at 0 to use the arena's exported
 # knock_stun / knock_force.
+# `impact` asks for the screen answer as well: the field shakes and the screen
+# flashes on the VICTIM's screen - here when that is ours, or across the wire
+# in _on_arena_hit_received when the host scores somebody else's mortal.
 #
 # Our own mortal is ours to move, so this is where it is shoved. A rival's
 # mortal is simulated on the rival's machine: the host only reports the hit and
 # the owner does the shoving (_on_arena_hit_received below), so a client feels
 # every hit the host scores, not just the ones it scored on itself.
-func knock_mortal(mortal_id: int, from_position: Vector2, stun := 0.0, force := 0.0) -> void:
+func knock_mortal(mortal_id: int, from_position: Vector2, stun := 0.0, force := 0.0, impact := false) -> void:
 	if mortal_id == _my_id:
 		var shove := player.global_position - from_position
 		if shove.length() < 0.01:
 			shove = Vector2.LEFT
 		_apply_knockback(shove, stun, force)
+		if impact:
+			_impact_hit()
 		return
 	if not (_authority and _networked and _net != null):
 		return
@@ -751,6 +784,7 @@ func knock_mortal(mortal_id: int, from_position: Vector2, stun := 0.0, force := 
 		"direction": direction.normalized(),
 		"stun": knock_stun if stun <= 0.0 else stun,
 		"force": knock_force if force <= 0.0 else force,
+		"impact": impact,
 	})
 
 
@@ -770,6 +804,99 @@ func _on_arena_hit_received(hit: Dictionary) -> void:
 	if direction.length() < 0.01:
 		direction = Vector2.LEFT
 	_apply_knockback(direction, float(hit.get("stun", 0.0)), float(hit.get("force", 0.0)))
+	# The host also asked for the screen answer (knock_mortal's `impact` flag):
+	# this is where a hit scored on OUR mortal shakes OUR field.
+	if bool(hit.get("impact", false)):
+		_impact_hit()
+
+
+# --- THE FEEL OF A HIT ----------------------------------------------------------
+# The weight a landed blow has on the screen it lands on: the FIELD jumps - the
+# HUD never moves, so its labels stay readable (the same rule as Hanan's Over the
+# Moon) - and a wash flashes over the screen. Both comfort options in Settings
+# hold: screen shake off means no shake at all, reduce flashing halves the wash
+# so it reads as a wash, not a strobe. Every arena owns this - Apolaki calls the
+# two entry points directly for each of the duel's four outcomes, and a
+# knockback flagged `impact` plays it wherever the victim's screen is.
+
+# Start a shake of `seconds` at `power` x shake_pixels. A new impact may extend
+# the one already running, never cut it short.
+func _shake_screen(seconds: float, power := 1.0) -> void:
+	if seconds <= 0.0 or not screen_shake_allowed():
+		return
+	_shake_left = maxf(_shake_left, seconds)
+	_shake_span = maxf(_shake_span, _shake_left)
+	_shake_power = maxf(_shake_power, power)
+
+
+# Every frame of the shake: a random offset that dies down over its span and
+# settles exactly back on rest (so nothing is left drifting afterwards).
+func _tick_shake(delta: float) -> void:
+	if field_root == null:
+		return
+	if _shake_left <= 0.0:
+		if field_root.position != Vector2.ZERO:
+			field_root.position = Vector2.ZERO
+		return
+	_shake_left = maxf(0.0, _shake_left - delta)
+	var ratio := 1.0 if _shake_span <= 0.0 else clampf(_shake_left / _shake_span, 0.0, 1.0)
+	var amplitude := shake_pixels * _shake_power * ratio
+	field_root.position = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * amplitude
+	if _shake_left <= 0.0:
+		field_root.position = Vector2.ZERO
+		_shake_span = 0.0
+		_shake_power = 1.0
+
+
+# Flash the screen in `tint`, peaking at `peak` alpha and fading over flash_time.
+# Under reduce flashing the peak is halved, so it reads as a wash, not a strobe.
+func _flash_screen(tint: Color, peak: float) -> void:
+	if peak <= 0.0:
+		return
+	var alpha := peak * (0.5 if reduce_flashing() else 1.0)
+	_flash_tint = Color(tint.r, tint.g, tint.b, alpha)
+	_flash_left = flash_time
+	_flash_span = flash_time
+	if hit_flash != null:
+		hit_flash.color = _flash_tint
+		hit_flash.visible = true
+
+
+func _tick_flash(delta: float) -> void:
+	if hit_flash == null:
+		return
+	if _flash_left <= 0.0:
+		if hit_flash.visible:
+			hit_flash.visible = false
+		return
+	_flash_left = maxf(0.0, _flash_left - delta)
+	var ratio := 1.0 if _flash_span <= 0.0 else clampf(_flash_left / _flash_span, 0.0, 1.0)
+	hit_flash.color = Color(_flash_tint.r, _flash_tint.g, _flash_tint.b, _flash_tint.a * ratio)
+	if _flash_left <= 0.0:
+		hit_flash.visible = false
+
+
+# The generic "you were hit" answer: what a knockback flagged `impact` plays on
+# the victim's screen. The same weight as taking Apolaki's swing - a hard shake
+# and a red wash.
+func _impact_hit() -> void:
+	_shake_screen(impact_shake_time, 1.25)
+	_flash_screen(Color(1.0, 0.32, 0.28), 0.4)
+
+
+# A new round starts with the screen at rest - no shake mid-flight and no wash
+# left over from the last blow. Called from the round flow and by any arena that
+# resets itself by hand.
+func _reset_screen_impact() -> void:
+	_shake_left = 0.0
+	_shake_span = 0.0
+	_shake_power = 1.0
+	_flash_left = 0.0
+	_flash_span = 0.0
+	if field_root != null:
+		field_root.position = Vector2.ZERO
+	if hit_flash != null:
+		hit_flash.visible = false
 
 
 # --- FAVOR POPUPS -----------------------------------------------------------

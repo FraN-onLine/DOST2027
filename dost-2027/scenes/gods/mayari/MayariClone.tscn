@@ -36,7 +36,7 @@ animations = [{
 }],
 "loop": 1,
 "name": &"default",
-"speed": 5.0
+"speed": 6.0
 }]
 
 [node name="MayariClone" type="Node2D" unique_id=1921702138]
@@ -52,7 +52,8 @@ default_color = Color(0.55, 0.85, 1, 0.22)
 position = Vector2(-3.8146973e-06, 0)
 scale = Vector2(1.455625, 1.2837499)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-frame_progress = 0.61852175
+autoplay = "default"
+frame_progress = 0.11915929
 
 [node name="Name" type="Label" parent="." unique_id=832109828]
 offset_left = -55.0

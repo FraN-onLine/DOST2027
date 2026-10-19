@@ -1,0 +1,218 @@
+[gd_scene format=3 uid="uid://17is2gcf8dxj"]
+
+[ext_resource type="Texture2D" uid="uid://bsiyp35kbqia1" path="res://Assets/Gods/Tala/slipper1-still.png" id="1_8jmir"]
+[ext_resource type="Texture2D" uid="uid://cssplwlukhfyc" path="res://Assets/Gods/Tala/slippers1-anim.png" id="2_ioicv"]
+[ext_resource type="Texture2D" uid="uid://b81asnaocxmt1" path="res://Assets/Gods/Tala/slipper2-still.png" id="3_0assr"]
+[ext_resource type="Texture2D" uid="uid://csoxsfcohr1rl" path="res://Assets/Gods/Tala/slippers2-anim.png" id="4_5ap3i"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h68rg"]
+atlas = ExtResource("1_8jmir")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cyqvn"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l0us3"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_oyor3"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0q0ax"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u7wou"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i3hao"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_splt0"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(192, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lmdvu"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(224, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gpx7o"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(256, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8bdsg"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(288, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g4m05"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(320, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gkj2j"]
+atlas = ExtResource("2_ioicv")
+region = Rect2(352, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_726sq"]
+atlas = ExtResource("3_0assr")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ki3a0"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tmbre"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_m6yhi"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_btgny"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ttugg"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rlpw8"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ll4me"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(192, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_m1wjf"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(224, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pj6ow"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(256, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6xqyo"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(288, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7hgv8"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(320, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lok4y"]
+atlas = ExtResource("4_5ap3i")
+region = Rect2(352, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h68rg")
+}],
+"loop": 1,
+"name": &"slipper-type-1-grounded",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cyqvn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l0us3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_oyor3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0q0ax")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u7wou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i3hao")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_splt0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lmdvu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gpx7o")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8bdsg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g4m05")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gkj2j")
+}],
+"loop": 1,
+"name": &"slipper-type-1-toss",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_726sq")
+}],
+"loop": 1,
+"name": &"slipper-type-2-grounded",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ki3a0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tmbre")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_m6yhi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_btgny")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ttugg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rlpw8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ll4me")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_m1wjf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pj6ow")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6xqyo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7hgv8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lok4y")
+}],
+"loop": 1,
+"name": &"slipper-type-2-toss",
+"speed": 12.0
+}]
+
+[node name="Slipper" type="Node2D" unique_id=319726073]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1505428585]
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"slipper-type-1-toss"
+autoplay = "slipper-type-1-toss"
