@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_8ywfo"]
+[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_4gvqq"]
+
+[resource]
+script = ExtResource("2_4gvqq")
+id = &"manunggul_jar"
+display_name = "Manunggul Jar"
+cost = 200
+effect = "Next trial: 25% of the FAVOR you lose comes back to you when the trial ends."
+params = {
+"return_share": 0.25
+}
+era = "c. 890–710 BC"
+origin = "Manunggul Cave, Tabon Caves, Palawan"
+history = "A burial jar from the Late Neolithic, found by National Museum archaeologists in the 1960s. On its lid, two souls sail a boat of the dead toward the afterlife: early Filipinos saw death as a journey, not an end. It is a National Treasure, kept at the National Museum in Manila."
+flavor = "What is lost is only carried across."
+color = Color(0.72156864, 0.4392157, 0.30980393, 1)
+icon = ExtResource("1_8ywfo")

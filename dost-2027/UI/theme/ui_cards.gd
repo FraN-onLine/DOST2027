@@ -10,6 +10,9 @@ extends RefCounted
 #                       god's accent as its top band, the icon in the middle,
 #                       the name under it and a corner badge (E, Q, PASSIVE,
 #                       ONCE, END)
+#   pamana_card(item)   a Pamana (heirloom), drawn like a seed packet: the
+#                       item's own colour on the band and its FAVOR cost in the
+#                       corner. The Tindahan and the Almanac share it.
 #
 # A card is a focusable CardButton (draws nothing) holding a SelectionRing and
 # the card Body. The body rests 2 px low; hovering lifts it 1 px and selecting
@@ -87,6 +90,49 @@ static func seed_packet(favor: GodFavor, size: Vector2 = Vector2(80, 100), with_
 	return card
 
 
+# A Pamana as a packet (80x100 like a favor's, the icon at 48x48): the item's
+# colour on the band (an item too dark to read gets an ivory edge - the Mighty
+# Pen's ink), the name under the icon and the cost in the corner. `with_name`
+# off draws the mini card the Almanac's index fans out.
+static func pamana_card(pamana: Pamana, size: Vector2 = Vector2(80, 100), with_name: bool = true) -> Button:
+	var card := _shell(size, &"SeedPacket")
+	card.tooltip_text = "%s\n%s" % [pamana.display_name, pamana.effect]
+	var body: PanelContainer = card.get_node("Body")
+	var edge := pamana_edge(pamana)
+	var style := UITokens.accent_box(body.get_theme_stylebox("panel", &"SeedPacket"), pamana.color, true)
+	if edge != pamana.color:
+		style = UITokens.accent_box(style, edge)
+	body.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon_side := floorf(minf(size.x - (32.0 if size.x >= 80.0 else 24.0), size.y * 0.48))
+	box.add_child(_icon(pamana.icon if pamana.icon != null else PLACEHOLDER_ICON, Vector2(icon_side, icon_side), edge))
+	if with_name:
+		var title := Label.new()
+		title.text = pamana.display_name
+		title.theme_type_variation = &"PacketTitle" if size.x >= 140.0 else &"PacketLabel"
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.custom_minimum_size.x = size.x - 8
+		box.add_child(title)
+	body.add_child(box)
+	if with_name:
+		var corner := HBoxContainer.new()
+		corner.name = "Badge"
+		corner.alignment = BoxContainer.ALIGNMENT_END
+		corner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		corner.position = Vector2(0, LIFT)
+		corner.size = Vector2(size.x, 0)
+		var badge := Label.new()
+		badge.text = str(pamana.cost)
+		badge.theme_type_variation = &"BadgeLabel"
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		corner.add_child(badge)
+		card.add_child(corner)
+	return card
+
+
 # The packet's corner: the key it binds to, or what kind of boon it is.
 static func badge_text(favor: GodFavor) -> String:
 	if favor.is_skill():
@@ -99,6 +145,15 @@ static func badge_text(favor: GodFavor) -> String:
 		GodFavor.Kind.ACTIVE:
 			return "ACTIVE"
 	return "PASSIVE"
+
+
+# A Pamana's colour where it has to read on night indigo (a frame, a banner, a
+# tinted icon). Most items are already light enough; one too dark to read (the
+# Mighty Pen's ink) is drawn with an ivory edge instead.
+static func pamana_edge(pamana: Pamana) -> Color:
+	if UITokens.contrast(pamana.color, UITokens.NIGHT_800) >= UITokens.ACCENT_CONTRAST:
+		return pamana.color
+	return UITokens.IVORY
 
 
 static func set_selected(card: Control, on: bool) -> void:

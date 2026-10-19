@@ -66,9 +66,11 @@ func _run() -> void:
 		str(rules.local().favors.map(func(f): return str(f.id))),
 		rules.local().favor, rules.local().due])
 
-	# End the trial exactly where the shell does when the arena reports it.
+	# End the trial exactly where the shell does when the arena reports it. The
+	# preparation area opens in between; leave it the way READY does.
 	_shell._on_trial_complete()
 	await _frames(8)
+	await _through_rest()
 
 	var problems := 0
 	if _shell.arena == null:
@@ -110,6 +112,7 @@ func _run() -> void:
 	_shell.run_snapshot = after.snapshot()
 	_shell._on_trial_complete()
 	await _frames(8)
+	await _through_rest()
 	if _shell.rules != null:
 		var later: GodMatch = _shell.rules
 		if not later.local().has_favor(&"the_great"):
@@ -123,6 +126,14 @@ func _run() -> void:
 	else:
 		printerr("trial buffs: %d problem(s)" % problems)
 	_done(problems)
+
+
+# The rest between two trials (scenes/prep/PrepArea.tscn): what the shell carries
+# must also survive it, so it is closed exactly like READY closes it.
+func _through_rest() -> void:
+	if _shell.arena is PrepArea:
+		_shell.arena._close_prep()
+		await _frames(8)
 
 
 func _done(problems := 0) -> void:

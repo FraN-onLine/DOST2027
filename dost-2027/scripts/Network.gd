@@ -54,6 +54,10 @@ signal arena_shock_requested(caster_id, origin)           # client -> host: I th
 signal arena_shock_received(caster_id, origin)            # host -> clients: draw this wave
 signal agawan_attack_requested(caster_id, origin)         # client -> host: my Agawan swing
 signal langit_chant_requested(peer_id, kind, value)       # client -> host: the Taya's chant, word by word
+# The preparation area's Tindahan: each player's own offers, and their purchases.
+signal prep_offers_received(offers)                  # host -> ONE client: your offers (pamana ids)
+signal prep_offers_requested(peer_id)                # client -> host: send me my offers again
+signal prep_purchase_requested(peer_id, pamana_id)   # client -> host: I buy this
 signal player_name_changed(peer_id, name)  # anybody -> everybody: a mortal was renamed
 signal dialogue_released(dialogue_id)
 
@@ -1127,6 +1131,12 @@ func dialogue_finished_count(dialogue_id: String) -> int:
 	return _dialogue_done.get(dialogue_id, {}).size()
 
 
+# Who has reported `dialogue_id` done (host). The preparation area's READY is this
+# same handshake, and it shows a tick on each ready player's name tag.
+func dialogue_finished_ids(dialogue_id: String) -> Array:
+	return _dialogue_done.get(dialogue_id, {}).keys()
+
+
 func _check_dialogue_complete(dialogue_id: String) -> void:
 	if not multiplayer.is_server():
 		return
@@ -1299,6 +1309,45 @@ func request_agawan_attack(origin: Vector2) -> void:
 	if sender == 0:
 		return
 	emit_signal("agawan_attack_requested", sender, origin)
+
+
+# --- the preparation area's Tindahan -------------------------------------------
+# The host rolls every player's offers and sends each client ONLY its own (so
+# nobody sees what the others were offered, and a reopened panel never rerolls).
+# A purchase is the host's to decide: the client asks, the host checks the item
+# is one of that player's offers, that they have not bought yet and can pay, and
+# the next FAVOR snapshot brings the result back.
+func send_prep_offers(peer_id: int, offers: Array) -> void:
+	if not has_multiplayer_peer() or peer_id == multiplayer.get_unique_id():
+		return
+	rpc_id(peer_id, "rpc_prep_offers", offers)
+
+
+@rpc("authority", "reliable")
+func rpc_prep_offers(offers: Array) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("prep_offers_received", offers)
+
+
+@rpc("any_peer", "reliable")
+func request_prep_offers() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("prep_offers_requested", sender)
+
+
+@rpc("any_peer", "reliable")
+func request_prep_purchase(pamana_id: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("prep_purchase_requested", sender, pamana_id)
 
 
 # --- arena score: a client's own game scored something for its mortal ---------

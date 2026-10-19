@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_som6j"]
+[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_ockug"]
+
+[resource]
+script = ExtResource("2_ockug")
+id = &"agimat"
+display_name = "The Agimat"
+cost = 100
+effect = "Next trial: your first three FAVOR losses are cancelled."
+params = {
+"charges": 3
+}
+era = "Pre-colonial times to today"
+origin = "Across the archipelago"
+history = "An agimat, or anting-anting, is an amulet believed to protect its wearer from blades, bullets, sickness and evil spirits. Pre-colonial charms later mixed with Catholic images and Latin prayers, and many Katipuneros went into battle wearing one. Some Filipinos still keep them today."
+flavor = "Hindi tinatablan."
+color = Color(0.70980394, 0.50980395, 0.23529412, 1)
+icon = ExtResource("1_som6j")

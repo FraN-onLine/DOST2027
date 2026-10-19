@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_i4jap"]
+[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_7vbyx"]
+
+[resource]
+script = ExtResource("2_7vbyx")
+id = &"banton_cloth"
+display_name = "Banton Burial Cloth"
+cost = 160
+effect = "Next trial: +15% move speed for the first 30 seconds."
+timing = 1
+window = 30.0
+params = {
+"speed_multiplier": 1.15
+}
+era = "13th–14th century"
+origin = "Banton Island, Romblon"
+history = "Found in 1936 in a burial cave on Banton Island, wrapped with human remains inside a wooden coffin. It is the oldest known ikat-dyed textile in the Philippines and one of the oldest in Southeast Asia, proof that weavers here mastered resist-dyeing long before the Spanish came. It is kept at the National Museum."
+flavor = "Woven to travel with the dead."
+color = Color(0.36862746, 0.49803922, 0.8392157, 1)
+icon = ExtResource("1_i4jap")

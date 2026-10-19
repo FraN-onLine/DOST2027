@@ -11,7 +11,8 @@ extends Control
 # Both panels only ever grow downwards inside that strip: the rival column is
 # sized so every rival of Network.MAX_PLAYERS (three) fits above the bottom of
 # the screen, and a lobby name is clipped to its own panel with an ellipsis
-# instead of being allowed to widen it.
+# instead of being allowed to widen it. The rival column starts low enough to
+# leave room for our own panel's Pamana badge row.
 #
 # Arena contract (scripts/gods/common/arena.gd): every arena scene is authored in
 # screen space exactly as it is played - the scene fills the screen and keeps
@@ -23,6 +24,18 @@ extends Control
 # Control), which is why the arena's own coordinates are already screen
 # coordinates.
 #
+# BETWEEN TWO TRIALS: once a trial has closed (its god's end lines and hand-over
+# are spoken) and before the next arena starts, the shell opens the PREPARATION
+# AREA (scenes/prep/PrepArea.tscn - an Arena too, so it sits in ArenaPanel the
+# same way): late God's Due for the god who just hosted, and the Tindahan's
+# Pamana. There is one before Bathala's finale, none after it. When it closes,
+# the shell snapshots its match and starts the next trial as before. The run's
+# one RandomNumberGenerator for the shop's offers (pamana_rng) lives here.
+#
+# Each panel also carries a small Pamana badge (icon + name, the effect as its
+# tooltip) for the heirloom that mortal carries, from its purchase until it
+# expires: seconds left for a FIRST 30s item, the Agimat's charges.
+#
 # Presentation (UI/theme): every panel is a translucent PanelHud framed in its
 # player's god accent; FAVOR is the biggest number on the card and counts up to
 # a new value instead of jumping; God's Due is a row of diamond pips; the E and
@@ -31,6 +44,7 @@ extends Control
 # only, never a flash.
 
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
+const PREP_SCENE := preload("res://scenes/prep/PrepArea.tscn")
 const LOW_TIME := 10.0          # seconds left when the clock turns EMBER
 const COUNT_RATE := 12.0        # FAVOR count-up speed (fraction of the gap per second)
 const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
@@ -44,6 +58,9 @@ const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
 @onready var due_pips: HBoxContainer = $TopLeft/VBoxContainer/StatsRow/DueBox/DueRow/DuePips
 @onready var e_bar: ProgressBar = $TopLeft/VBoxContainer/ERow/EBar
 @onready var q_bar: ProgressBar = $TopLeft/VBoxContainer/QRow/QBar
+@onready var pamana_row: HBoxContainer = $TopLeft/VBoxContainer/PamanaRow
+@onready var pamana_icon: TextureRect = $TopLeft/VBoxContainer/PamanaRow/PamanaIcon
+@onready var pamana_label: Label = $TopLeft/VBoxContainer/PamanaRow/PamanaLabel
 @onready var other_players_vbox: VBoxContainer = $OtherPlayersPanel/Margin/VBox
 @onready var opponent_placeholder: Control = $OtherPlayersPanel/Margin/VBox/OpponentPlaceholder
 @onready var timer_label: Label = $TrialTimer
@@ -60,9 +77,12 @@ var _visited_gods: Dictionary = {}   # god id -> true (its intro is spoken once)
 var _favor_target := 0               # the FAVOR the card is counting toward
 var _favor_shown := 0.0              # the FAVOR the card shows this frame
 var _pips_shown := -1                # God's Due drawn as pips (-1: not drawn yet)
+# The Tindahan's offers are rolled from this, once per run (Game is the run).
+var pamana_rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	pamana_rng.randomize()
 	_build_hud()
 	# A name is live data: the lobby's UPDATE NAME can land at any time, and so can
 	# a join or a leave, so the panels follow the roster instead of being written
@@ -254,7 +274,7 @@ func _on_arena_ready() -> void:
 	if round_length != null:
 		_on_trial_time_changed(float(round_length))
 	var arena_hud = arena.get("hud")
-	if arena_hud != null:
+	if arena_hud != null and not (arena is PrepArea):  # the rest is not a trial
 		arena_hud.set_trial(trial_index + 1, trial_order.size())
 	# The shell's two favor bars are the ones on screen in an embedded run, so
 	# they answer a click the way E and Q do - the arena claims the tap before
@@ -264,11 +284,16 @@ func _on_arena_ready() -> void:
 	if not run_snapshot.is_empty():
 		rules.apply_snapshot(run_snapshot)
 	_refresh_local_stats()
+	if arena is PrepArea:
+		# Only now do the mortals hold their favors - the offers are filtered by them.
+		arena.open_prep()
 
 
 func _on_trial_time_changed(seconds: float) -> void:
 	var clamped := maxf(0.0, seconds)
 	timer_label.text = "%d:%02d" % [int(clamped / 60.0), int(clamped) % 60]
+	if arena is PrepArea:
+		timer_label.text = "PAHINGA " + timer_label.text  # the rest between two trials
 	if clamped <= LOW_TIME:
 		timer_label.add_theme_color_override("font_color", UITokens.readable_on_dark(UITokens.EMBER, UITokens.NIGHT_900))
 	else:
@@ -279,6 +304,7 @@ func _process(delta: float) -> void:
 	_refresh_local_stats()
 	if rules != null:
 		_update_panel_stats()
+		_show_pamana_badge(rules.local())
 	_count_favor(delta)
 
 
@@ -337,6 +363,7 @@ func _update_panel_stats() -> void:
 			continue
 		other_player_panels[id].update_stats(other.favor, other.due)
 		other_player_panels[id].update_skill_bar(rules, other)
+		other_player_panels[id].update_pamana(other)
 
 
 func _update_skill_bar(bar: ProgressBar, slot: int, mortal: GodMatch.Mortal) -> void:
@@ -349,6 +376,25 @@ func _update_skill_bar(bar: ProgressBar, slot: int, mortal: GodMatch.Mortal) -> 
 	bar.value = ratio * 100.0
 	bar.tooltip_text = "%s  %s" % [("E" if slot == GodFavor.Slot.E else "Q"), favor.display_name]
 	bar.modulate = favor.color
+
+
+# The Pamana a mortal carries, as a small badge: the first item's icon, every
+# item's name (with its seconds or charges) and the effect as the tooltip.
+func _show_pamana_badge(mortal: GodMatch.Mortal) -> void:
+	var badges := GodMatch.pamana_badges(mortal)
+	pamana_row.visible = not badges.is_empty()
+	if badges.is_empty():
+		return
+	var first: Pamana = badges[0]["pamana"]
+	pamana_icon.texture = first.icon
+	pamana_icon.modulate = UICards.pamana_edge(first)
+	var texts: Array[String] = []
+	var tips: Array[String] = []
+	for badge in badges:
+		texts.append(str(badge["text"]))
+		tips.append("%s: %s" % [(badge["pamana"] as Pamana).display_name, (badge["pamana"] as Pamana).effect])
+	pamana_label.text = "  ".join(texts)
+	pamana_row.tooltip_text = "\n".join(tips)
 
 
 func _on_favor_changed(_player_id: int, _favor: int, _delta: int, _reason: String) -> void:
@@ -382,7 +428,40 @@ func _on_trial_complete() -> void:
 	if next_god.arena_scene == "" or not next_god.implemented:
 		_show_finale()
 	else:
-		_start_current_trial()
+		# A rest between the two trials - there is always a next one here, so
+		# there is one right before Bathala's finale and never one after it.
+		_start_prep()
+
+
+# The preparation area: hosted by the god whose trial just closed (its altar and
+# its God's Due menu), naming the god of the trial to come.
+func _start_prep() -> void:
+	var host_god: God = trial_order[trial_index - 1]
+	var prep: PrepArea = PREP_SCENE.instantiate()
+	prep.god_id = host_god.id
+	prep.next_god_id = trial_order[trial_index].id
+	prep.embedded = true
+	prep.due_step = Network.run_settings.due_step
+	prep.dialogue_prefix = "prep_%d" % trial_index
+	prep.rng = pamana_rng
+	$ArenaPanel.add_child(prep)
+	arena = prep
+	prep.tree_exited.connect(_on_arena_exited.bind(prep))
+	prep.prep_closed.connect(_on_prep_closed.bind(prep))
+	call_deferred("_on_arena_ready")
+
+
+# The rest is over: what everyone carries (the purchases included) rides into
+# the next trial exactly like the end of a trial's.
+func _on_prep_closed(prep: PrepArea) -> void:
+	if prep != arena:
+		return
+	if rules != null:
+		run_snapshot = rules.snapshot()
+	prep.queue_free()
+	arena = null
+	rules = null
+	_start_current_trial()
 
 
 func _show_finale() -> void:

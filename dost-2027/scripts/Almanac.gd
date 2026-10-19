@@ -1,21 +1,25 @@
 extends Control
 
-# The Almanac, after the Plants vs. Zombies one: an index of two big framed
-# choices - MGA DIYOS (the gods) and MGA PABOR (the favors) - each opening a page
-# laid out the same way:
+# The Almanac, after the Plants vs. Zombies one: an index of three big framed
+# choices - MGA DIYOS (the gods), MGA PABOR (the favors) and MGA PAMANA (the
+# heirlooms the Tindahan sells) - each opening a page laid out the same way:
 #
 #   left ~45%   a grid of cards on an inset "book page" (shrine tiles for gods,
-#               seed packets for favors), scrolling inside its own panel
+#               seed packets for favors, Pamana cards for heirlooms), scrolling
+#               inside its own panel
 #   right ~55%  the selected card in full: a framed portrait on a backdrop in
-#               the god's accent, the name, a subtitle, stat chips, the
-#               description and a muted flavour line
+#               the god's accent (an heirloom's own colour, in a gold frame), the
+#               name, a subtitle, stat chips, the description and a muted
+#               flavour line; an heirloom adds its history (KASAYSAYAN) - era,
+#               origin and the story - before the flavour line
 #
 # Progressive disclosure is the whole model: the grid is the summary, a card's
 # details appear only once it is selected (the first card is, on opening).
 #
-# It reads the gods themselves (Gods.all() -> each god's favors), so a god or a
-# favor is listed the moment it exists in a .tres - nobody has to remember to
-# add it to a page. Nothing here is authored by hand.
+# It reads the gods themselves (Gods.all() -> each god's favors) and the
+# heirlooms (Pamanas.all()), so a god, a favor or a Pamana is listed the moment
+# it exists in a .tres - nobody has to remember to add it to a page. Nothing
+# here is authored by hand.
 #
 # Keys: arrows move through the grid and a card is selected as it is reached
 # (Enter / click select too); Tab and Shift+Tab cycle the favor filter chips;
@@ -24,6 +28,7 @@ extends Control
 const MENU_SCENE := "res://scenes/MainMenu.tscn"
 const GODS := "gods"
 const FAVORS := "favors"
+const PAMANA := "pamana"
 const TILE_SIZE := Vector2(96, 112)
 const PACKET_SIZE := Vector2(80, 100)
 const MINI_PACKET := Vector2(48, 60)
@@ -33,6 +38,7 @@ const BACKDROP_TINT := 0.22  # how much of the god's accent the portrait backdro
 @onready var index_page: Control = $Index
 @onready var gods_choice: Button = $Index/Center/VBox/Choices/GodsChoice
 @onready var favors_choice: Button = $Index/Center/VBox/Choices/FavorsChoice
+@onready var pamana_choice: Button = $Index/Center/VBox/Choices/PamanaChoice
 @onready var back_button: Button = $Index/BackButton
 @onready var page: Control = $Page
 @onready var page_title: Label = $Page/VBox/PageTitle
@@ -48,6 +54,9 @@ const BACKDROP_TINT := 0.22  # how much of the god's accent the portrait backdro
 @onready var detail_subtitle: Label = $Page/VBox/Body/Detail/DetailScroll/VBox/Top/Info/Subtitle
 @onready var detail_chips: HFlowContainer = $Page/VBox/Body/Detail/DetailScroll/VBox/Top/Info/Chips
 @onready var detail_description: Label = $Page/VBox/Body/Detail/DetailScroll/VBox/Description
+@onready var history_heading: Label = $Page/VBox/Body/Detail/DetailScroll/VBox/HistoryHeading
+@onready var history_meta: Label = $Page/VBox/Body/Detail/DetailScroll/VBox/HistoryMeta
+@onready var history_label: Label = $Page/VBox/Body/Detail/DetailScroll/VBox/History
 @onready var detail_flavor: Label = $Page/VBox/Body/Detail/DetailScroll/VBox/Flavor
 @onready var detail_condition: Label = $Page/VBox/Body/Detail/DetailScroll/VBox/Condition
 @onready var detail_packets_label: Label = $Page/VBox/Body/Detail/DetailScroll/VBox/PacketsLabel
@@ -55,7 +64,7 @@ const BACKDROP_TINT := 0.22  # how much of the god's accent the portrait backdro
 @onready var page_back: Button = $Page/VBox/Footer/BackButton
 @onready var hint: Label = $Page/VBox/Footer/Hint
 
-var page_kind := ""            # "" on the index, GODS or FAVORS on a page
+var page_kind := ""            # "" on the index, GODS, FAVORS or PAMANA on a page
 var selected_id: StringName = &""
 var filter_god: StringName = &""  # favors page: "" = ALL
 var _filter_chips: Array[Button] = []
@@ -66,6 +75,7 @@ func _ready() -> void:
 	page_back.pressed.connect(_show_index)
 	gods_choice.pressed.connect(_open_page.bind(GODS))
 	favors_choice.pressed.connect(_open_page.bind(FAVORS))
+	pamana_choice.pressed.connect(_open_page.bind(PAMANA))
 	book_page.resized.connect(_fit_columns)
 	_build_index()
 	_show_index()
@@ -96,8 +106,16 @@ func _build_index() -> void:
 		packet.focus_mode = Control.FOCUS_NONE
 		packet.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		packets.append(packet)
+	var heirlooms := Pamanas.all()
+	var cards: Array[Control] = []
+	for item in heirlooms:
+		var card := UICards.pamana_card(item, MINI_PACKET, false)
+		card.focus_mode = Control.FOCUS_NONE
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cards.append(card)
 	_dress_choice(gods_choice, "MGA DIYOS", "The Gods", "%d gods" % gods.size(), god_icons, 36.0)
 	_dress_choice(favors_choice, "MGA PABOR", "The Favors", "%d favors" % favor_count, packets, 30.0)
+	_dress_choice(pamana_choice, "MGA PAMANA", "The Heirlooms", "%d heirlooms" % heirlooms.size(), cards, 24.0)
 
 
 # A choice is a big button holding an ornament frame, a fan of pictures and
@@ -163,7 +181,8 @@ func _open_page(kind: String, select_id: StringName = &"") -> void:
 	index_page.visible = false
 	page.visible = true
 	UITokens.reveal(page)
-	page_title.text = "MGA DIYOS  -  THE GODS" if kind == GODS else "MGA PABOR  -  THE FAVORS"
+	page_title.text = {GODS: "MGA DIYOS  -  THE GODS", FAVORS: "MGA PABOR  -  THE FAVORS",
+		PAMANA: "MGA PAMANA  -  THE HEIRLOOMS"}[kind]
 	filters.visible = kind == FAVORS
 	hint.text = "Arrows: move   Enter: select   Esc: back"
 	if kind == FAVORS:
@@ -219,6 +238,11 @@ func _build_cards(select_id: StringName) -> void:
 			var tile := UICards.shrine_tile(god, TILE_SIZE)
 			tile.set_meta("id", god.id)
 			card_grid.add_child(tile)
+	elif page_kind == PAMANA:
+		for item in Pamanas.all():
+			var card := UICards.pamana_card(item, PACKET_SIZE)
+			card.set_meta("id", item.id)
+			card_grid.add_child(card)
 	else:
 		for god in Gods.all():
 			if filter_god != &"" and god.id != filter_god:
@@ -261,8 +285,11 @@ func select(id: StringName) -> void:
 	selected_id = id
 	for card in card_grid.get_children():
 		UICards.set_selected(card, StringName(str(card.get_meta("id"))) == id)
+	_show_history(null)
 	if page_kind == GODS:
 		_show_god(Gods.by_id(id))
+	elif page_kind == PAMANA:
+		_show_pamana(Pamanas.by_id(id))
 	else:
 		_show_favor(Gods.favor_by_id(id))
 	detail_scroll.scroll_vertical = 0
@@ -271,7 +298,8 @@ func select(id: StringName) -> void:
 # --- the detail display ----------------------------------------------------------
 
 func _show_god(god: God) -> void:
-	_frame_portrait(god.portrait if god.portrait != null else god.icon, god, Color.WHITE)
+	var accent := UITokens.god_accent(god)
+	_frame_portrait(god.portrait if god.portrait != null else god.icon, accent, Color.WHITE, accent)
 	detail_name.text = god.display_name
 	detail_subtitle.text = god.epithet
 	detail_subtitle.add_theme_color_override("font_color", UITokens.god_text(god))
@@ -294,7 +322,8 @@ func _show_god(god: God) -> void:
 
 func _show_favor(favor: GodFavor) -> void:
 	var god := Gods.by_id(favor.god_id)
-	_frame_portrait(favor.icon if favor.icon != null else UICards.PLACEHOLDER_ICON, god, favor.color)
+	var accent := UITokens.god_accent(god)
+	_frame_portrait(favor.icon if favor.icon != null else UICards.PLACEHOLDER_ICON, accent, favor.color, accent)
 	detail_name.text = favor.display_name
 	detail_subtitle.text = "Bestowed by %s" % god.display_name
 	detail_subtitle.add_theme_color_override("font_color", UITokens.god_text(god))
@@ -313,16 +342,46 @@ func _show_favor(favor: GodFavor) -> void:
 	detail_packets.visible = false
 
 
-# The portrait sits on a backdrop washed with the god's accent, inside the
-# ornament frame in that accent. The wash is light: the accent stays an accent.
-func _frame_portrait(texture: Texture2D, god: God, tint: Color) -> void:
-	var accent := UITokens.god_accent(god)
+# An heirloom: what it does and costs, then its story - KASAYSAYAN, the era and
+# origin, the history - and its flavour quote at the bottom.
+func _show_pamana(item: Pamana) -> void:
+	_frame_portrait(item.icon if item.icon != null else UICards.PLACEHOLDER_ICON, UITokens.GOLD,
+		UICards.pamana_edge(item), item.color)
+	detail_name.text = item.display_name
+	detail_subtitle.text = "Sold at the Tindahan"
+	detail_subtitle.add_theme_color_override("font_color", UITokens.GOLD)
+	_set_chips(["%d FAVOR" % item.cost, item.timing_name(), item.needs_name()])
+	detail_description.text = item.effect
+	_show_history(item)
+	detail_flavor.text = "\"%s\"" % item.flavor if not item.flavor.is_empty() else ""
+	detail_flavor.visible = not detail_flavor.text.is_empty()
+	detail_condition.visible = false
+	detail_packets_label.visible = false
+	detail_packets.visible = false
+
+
+# The history block is an heirloom's only; a god or a favor page hides it.
+func _show_history(item: Pamana) -> void:
+	var shown := item != null
+	history_heading.visible = shown
+	history_meta.visible = shown
+	history_label.visible = shown
+	if shown:
+		history_heading.text = "KASAYSAYAN - HISTORY"
+		history_meta.text = "%s · %s" % [item.era, item.origin]
+		history_label.text = item.history
+
+
+# The portrait sits on a backdrop washed with `wash` (the god's accent, or an
+# heirloom's own colour), inside the ornament frame in `accent`. The wash is
+# light: the colour stays an accent.
+func _frame_portrait(texture: Texture2D, accent: Color, tint: Color, wash: Color) -> void:
 	portrait.texture = texture
 	portrait.modulate = tint
 	ornament.color = accent
 	var box := UITokens.accent_box(portrait_frame.get_theme_stylebox("panel", &"PanelInset"), accent)
 	if box is PixelStyleBox:
-		(box as PixelStyleBox).bg_color = UITokens.NIGHT_900.lerp(accent, BACKDROP_TINT)
+		(box as PixelStyleBox).bg_color = UITokens.NIGHT_900.lerp(wash, BACKDROP_TINT)
 	box.set_content_margin_all(UITokens.SPACE_16)
 	portrait_frame.add_theme_stylebox_override("panel", box)
 
