@@ -54,6 +54,23 @@ extends Arena
 #   authoritative patch list and mirrors it with every arena tick, so each player
 #   only ever sees the patches that fell on themselves.
 #
+# SUNBURSTS
+#   Every 8-10 seconds a sunburst falls ON or around the mortal: the spawned
+#   AnimatedSprite2D plays its one-shot clip (sunbursts.tscn) and frames 9..11
+#   are live - a mortal standing in its area on one of those frames loses
+#   sunburst_penalty FAVOR and is shoved away from its center (knock_mortal).
+#   At 30 seconds left and again at 10, BLITZ: five fall at once instead of one.
+@export_category("Sunbursts")
+@export var sunburst_min_time := 8.0       # seconds between falls, rolled fresh each time
+@export var sunburst_max_time := 10.0
+@export var sunburst_penalty := 250        # FAVOR lost standing in a live burst
+@export var sunburst_open_frame := 9       # the burst is live from this frame...
+@export var sunburst_close_frame := 11     # ...through this one
+@export var sunburst_hit_radius := 60.0    # how close the mortal must stand to be caught
+@export var sunburst_spawn_radius := 120.0 # how far from the mortal one may land
+@export var sunburst_blitz_count := 5      # bursts that fall at once during blitz
+@export var blitz_marks := PackedFloat32Array([30.0, 10.0])  # seconds left that trigger one
+#
 # The arena owns no art: ApolakiArena.tscn holds the sky, the board, the border
 # and the duelist (the patch quads are the shared layer in Arena.tscn). This
 # script only runs the rules.
@@ -96,12 +113,21 @@ extends Arena
 const IDLE_ANIM := &"default"
 const STRIKE_ANIM := &"hit-arnis"
 const DEFEND_ANIM := &"defend-arnis"
+# The hazard that falls around the mortal (scenes/gods/apolaki/sunbursts.tscn):
+# a one-shot AnimatedSprite2D whose frames 9..11 are live.
+const SUNBURST_SCENE := preload("res://scenes/gods/apolaki/sunbursts.tscn")
+
+@onready var bursts_root: Node2D = get_node_or_null("ArenaField/Sunbursts")
 
 var _strike_cd := 0.0
 var _defend_cd := 0.0
 var _swinging := false      # a strike clip is running
 var _swing_resolved := false # this swing has already landed its one hit
 var _guarding := false      # a guard clip is running
+var _rng := RandomNumberGenerator.new()
+var _burst_timer := 0.0        # seconds until the next sunburst falls
+var _bursts: Array = []        # the falling hazards: {node, hit}
+var _blitz_fired: Array = []   # blitz marks already spent this round
 
 
 func _ready() -> void:
@@ -143,6 +169,12 @@ func arena_round_reset() -> void:
 	_swinging = false
 	_swing_resolved = false
 	_guarding = false
+	_rng.randomize()
+	_clear_bursts()
+	_blitz_fired.clear()
+	for index in range(blitz_marks.size()):
+		_blitz_fired.append(false)
+	_burst_timer = _roll_burst_time()
 	clear_sun_patches()
 	_reset_screen_impact()  # a new round starts with the screen at rest
 	player.play_animation(IDLE_ANIM)
@@ -168,6 +200,7 @@ func _process(delta: float) -> void:
 	# sprite is on decides when the strike lands, and a finished clip returns the
 	# mortal to its idle. Runs on every screen, like the rest of the duel.
 	_tick_actions()
+	_tick_sunbursts(delta)
 	_refresh_bars()
 	if duelist == null:
 		return
@@ -331,6 +364,127 @@ func _on_duelist_attack_landed() -> void:
 	_shake_screen(hit_shake_time, 1.25)
 	_flash_screen(Color(1.0, 0.32, 0.28), 0.4)
 	_log("His swing landed: -%d FAVOR" % hit_penalty, Color(1, 0.5, 0.45))
+
+
+# --- SUNBURSTS ------------------------------------------------------------
+# The sky falls ON or around the mortal: every 8-10 seconds one burst lands
+# near them, and at the blitz marks (30s, 10s left) five land at once. The clip
+# is a warning AND the weapon: frames 9..11 are live, and a mortal standing in
+# the area on one of them loses sunburst_penalty FAVOR and is shoved away from
+# its center (knock_mortal - the same shove his swing deals). One hit per burst:
+# a burst that already caught the mortal spends itself. The duel is private, so
+# every peer runs its own sky off its own clock - nothing travels.
+func _tick_sunbursts(delta: float) -> void:
+	if _phase != Phase.PLAYING:
+		return
+	_tick_blitz_marks()
+	_burst_timer -= delta
+	if _burst_timer <= 0.0:
+		_spawn_burst()
+		_burst_timer = _roll_burst_time()
+	_check_bursts()
+
+
+func _roll_burst_time() -> float:
+	return _rng.randf_range(sunburst_min_time, sunburst_max_time)
+
+
+# The blitz marks: when the shared round clock crosses one, five bursts fall at
+# once around the mortal (sunburst_blitz_count) and the mark is spent - crossing
+# the same mark twice must never fire twice.
+func _tick_blitz_marks() -> void:
+	for index in range(blitz_marks.size()):
+		if index < _blitz_fired.size() and bool(_blitz_fired[index]):
+			continue
+		if _trial_time <= float(blitz_marks[index]):
+			while _blitz_fired.size() <= index:
+				_blitz_fired.append(false)
+			_blitz_fired[index] = true
+			_spawn_blitz()
+
+
+func _spawn_blitz() -> void:
+	for _index in range(sunburst_blitz_count):
+		_spawn_burst()
+	_log("BLITZ - the sky falls!", Color(1.0, 0.6, 0.2))
+
+
+# One burst, ON or around the mortal: at the mortal's feet or up to
+# sunburst_spawn_radius away, clamped inside the walking field. The clip plays
+# once and frees itself when it runs out; _check_bursts watches its frames.
+func _spawn_burst() -> void:
+	if player == null:
+		return
+	var offset := Vector2.RIGHT.rotated(_rng.randf_range(0.0, TAU)) * _rng.randf_range(0.0, sunburst_spawn_radius)
+	var spot := player.global_position + offset
+	if _field.size != Vector2.ZERO:
+		spot.x = clampf(spot.x, _field.position.x, _field.end.x)
+		spot.y = clampf(spot.y, _field.position.y, _field.end.y)
+	var burst: Node2D = SUNBURST_SCENE.instantiate()
+	if bursts_root != null:
+		bursts_root.add_child(burst)
+	else:
+		field_root.add_child(burst)
+	burst.global_position = spot
+	_bursts.append({"node": burst, "hit": false})
+
+
+# Every falling burst: read the frame its clip is on, and while it is live
+# (frames 9..11) catch a mortal standing in its area. A spent burst frees its
+# node and leaves the list; one whose clip ran out without catching anyone
+# simply burns itself out.
+func _check_bursts() -> void:
+	for index in range(_bursts.size() - 1, -1, -1):
+		var burst: Dictionary = _bursts[index]
+		var node: Node2D = burst.get("node")
+		if not is_instance_valid(node):
+			_bursts.remove_at(index)
+			continue
+		var sprite: AnimatedSprite2D = node.get_node_or_null("AnimatedSprite2D")
+		if sprite == null:
+			_bursts.remove_at(index)
+			continue
+		if not sprite.is_playing():
+			sprite.play()
+		if not bool(burst.get("hit", false)) and _burst_frame_live(sprite.frame):
+			if player != null and player.global_position.distance_to(node.global_position) <= sunburst_hit_radius:
+				burst["hit"] = true
+				_bursts[index] = burst
+				_resolve_burst(node.global_position)
+		if not sprite.is_playing():
+			node.queue_free()
+			_bursts.remove_at(index)
+
+
+func _burst_frame_live(frame: int) -> bool:
+	return frame >= sunburst_open_frame and frame <= sunburst_close_frame
+
+
+# A live burst caught the mortal: sunburst_penalty FAVOR taken, the mortal
+# shoved away from the burst's center, the mercy seconds started so the next
+# burst cannot charge the same hit twice. The full answer, like his swing: the
+# field jumps hardest and the screen flashes red.
+func _resolve_burst(burst_position: Vector2) -> void:
+	if is_mortal_invulnerable(_my_id):
+		return
+	score_favor(-sunburst_penalty, "a sunburst")
+	set_mortal_invuln(_my_id, invuln_time)
+	knock_mortal(_my_id, burst_position)
+	_shake_screen(hit_shake_time, 1.25)
+	_flash_screen(Color(1.0, 0.32, 0.28), 0.4)
+	_log("A sunburst caught you: -%d FAVOR" % sunburst_penalty, Color(1, 0.5, 0.45))
+
+
+# A new round starts with a clear sky: no falling burst carries over.
+func _clear_bursts() -> void:
+	for burst in _bursts:
+		var node: Node = burst.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_bursts.clear()
+	if bursts_root != null:
+		for child in bursts_root.get_children():
+			child.queue_free()
 
 
 # --- THE SUN PATCHES HIS SWING LEAVES ------------------------------------------
