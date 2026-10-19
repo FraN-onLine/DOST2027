@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_7i6wn"]
+[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_omqfe"]
+
+[resource]
+script = ExtResource("2_omqfe")
+id = &"mighty_pen"
+display_name = "The Mighty Pen"
+cost = 100
+effect = "Next trial: your Q skill's cooldown is 20% shorter for the first 30 seconds."
+timing = 1
+window = 30.0
+params = {
+"cooldown_multiplier": 0.8
+}
+era = "1880s–1890s"
+origin = "Manila, Madrid and Barcelona"
+history = "Before the revolution came the Propaganda Movement. Reformists like José Rizal, Marcelo H. del Pilar and Graciano López Jaena fought Spanish abuses with writing: Rizal's novels Noli Me Tangere (1887) and El Filibusterismo (1891), and the newspaper La Solidaridad (1889). Their words woke a nation and inspired the Katipunan."
+flavor = "Mas matalim ang panulat kaysa sa tabak."
+needs = 2
+color = Color(0.14901961, 0.15686275, 0.22745098, 1)
+icon = ExtResource("1_7i6wn")

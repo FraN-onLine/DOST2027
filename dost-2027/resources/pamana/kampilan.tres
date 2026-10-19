@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_4bp3t"]
+[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_2yxh4"]
+
+[resource]
+script = ExtResource("2_2yxh4")
+id = &"kampilan"
+display_name = "Kampilan"
+cost = 150
+effect = "Next trial: the first skill you cast recharges instantly."
+era = "27 April 1521"
+origin = "Mactan, Cebu"
+history = "The kampilan is a long, single-edged sword of the southern Philippines, with a forked tip. At the Battle of Mactan on 27 April 1521, the warriors of the chieftain Lapulapu defeated the Spanish expedition, and Ferdinand Magellan was killed. Lapulapu is often pictured with a kampilan and is honored as the first Filipino to resist foreign invaders."
+flavor = "Strike first, strike again."
+needs = 3
+color = Color(0.5568628, 0.60784316, 0.68235296, 1)
+icon = ExtResource("1_4bp3t")

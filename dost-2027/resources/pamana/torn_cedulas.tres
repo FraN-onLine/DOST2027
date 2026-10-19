@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_p5ctu"]
+[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_subj4"]
+
+[resource]
+script = ExtResource("2_subj4")
+id = &"torn_cedulas"
+display_name = "Torn Cedulas"
+cost = 100
+effect = "Next trial: your E skill's cooldown is 20% shorter for the first 30 seconds."
+timing = 1
+window = 30.0
+params = {
+"cooldown_multiplier": 0.8
+}
+era = "August 1896"
+origin = "Caloocan (Pugad Lawin / Balintawak)"
+history = "Under Spain, every Filipino had to carry a cedula, a tax and identity paper. In August 1896, Andrés Bonifacio and the Katipuneros tore their cedulas apart and cried out for freedom. The Cry of Pugad Lawin began the Philippine Revolution. Historians still debate its exact day and place."
+flavor = "Tear the paper, free the people."
+needs = 1
+color = Color(0.8901961, 0.827451, 0.65882355, 1)
+icon = ExtResource("1_p5ctu")

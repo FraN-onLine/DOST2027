@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_wj6fl"]
+[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_51m0a"]
+
+[resource]
+script = ExtResource("2_51m0a")
+id = &"mutya"
+display_name = "The Mutya"
+cost = 250
+effect = "Next trial: +20% FAVOR gained for the first 30 seconds."
+timing = 1
+window = 30.0
+params = {
+"gain_multiplier": 1.2
+}
+era = "Folklore"
+origin = "Tagalog and Visayan tales"
+history = "In Filipino folklore, a mutya is a magical charm, such as a pearl, a stone, or a drop that falls from a banana blossom at midnight, that gives its keeper strength, luck or charm. The tales say you must catch it before it touches the ground and guard it from the spirits who want it back. Today the word also names a muse or a beauty queen."
+flavor = "Catch it before it falls."
+color = Color(0.8627451, 0.8901961, 0.91764706, 1)
+icon = ExtResource("1_wj6fl")

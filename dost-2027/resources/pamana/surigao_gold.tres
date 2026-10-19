@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_0kpy3"]
+[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_beb4u"]
+
+[resource]
+script = ExtResource("2_beb4u")
+id = &"surigao_gold"
+display_name = "Surigao Gold"
+cost = 50
+effect = "Your next God's Due arrives 200 FAVOR before its milestone."
+timing = 2
+params = {
+"early_by": 200
+}
+era = "10th–13th century"
+origin = "Surigao del Sur, Mindanao"
+history = "In 1981, a hoard of gold was unearthed in Surigao del Sur: sashes, necklaces, rings and ornaments made by pre-colonial Filipino goldsmiths. The Surigao Treasure shows that polities like Butuan were rich and traded across Asia long before 1521. It is now in the collection of the Bangko Sentral ng Pilipinas."
+flavor = "The gods were not the only ones with gold."
+color = Color(0.9098039, 0.72156864, 0.2901961, 1)
+icon = ExtResource("1_0kpy3")
