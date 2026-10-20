@@ -63,13 +63,13 @@ extends Arena
 @export_category("Sunbursts")
 @export var sunburst_min_time := 8.0       # seconds between falls, rolled fresh each time
 @export var sunburst_max_time := 10.0
-@export var sunburst_penalty := 250        # FAVOR lost standing in a live burst
+@export var sunburst_penalty := 100        # FAVOR lost standing in a live burst
 @export var sunburst_open_frame := 9       # the burst is live from this frame...
 @export var sunburst_close_frame := 11     # ...through this one
 @export var sunburst_hit_radius := 60.0    # how close the mortal must stand to be caught
 @export var sunburst_spawn_radius := 40.0  # how far from the mortal one may land (kept inside hit_radius so bursts are a real threat)
 @export var sunburst_blitz_count := 5      # bursts that fall at once during blitz
-@export var blitz_marks := PackedFloat32Array([30.0, 10.0])  # seconds left that trigger one
+@export var blitz_marks := PackedFloat32Array([30.0, 25.0, 20.0, 15.0, 10.0, 8.0, 6.0, 4.0, 2.0])  # seconds left that trigger blitz waves
 #
 # The arena owns no art: ApolakiArena.tscn holds the sky, the board, the border
 # and the duelist (the patch quads are the shared layer in Arena.tscn). This
@@ -248,6 +248,9 @@ func _try_strike() -> void:
 	if duelist == null:
 		return
 	_strike_cd = strike_cooldown
+	# In the final 30 seconds Apolaki presses harder: strikes recharge faster.
+	if _trial_time <= 30.0:
+		_strike_cd *= 0.5
 	_swinging = true
 	_swing_resolved = false
 	_guarding = false
@@ -308,11 +311,15 @@ func _resolve_strike() -> void:
 		_shake_screen(block_shake_time, 0.55)
 		_flash_screen(Color(1.0, 1.0, 1.0), 0.16)
 	else:
-		score_favor(strike_favor, god.display_name)
-		_log("Strike landed: +%d FAVOR" % strike_favor, Color(0.7, 1, 0.8))
 		# A CLEAN HIT: he is shoved away, flares up and reels for a moment, the
 		# field jumps and the screen flashes gold - the same weight his own
-		# swing carries when it lands on you.
+		# swing carries when it lands on you. In the final 30 seconds the
+		# stake rises: landing a blow pays strike_favor plus a +50 bonus.
+		var favor_gain: int = strike_favor
+		if _trial_time <= 30.0:
+			favor_gain += 50
+		score_favor(favor_gain, god.display_name)
+		_log("Strike landed: +%d FAVOR" % favor_gain, Color(0.7, 1, 0.8))
 		duelist.hit_from(player.global_position, strike_knock_force)
 		_shake_screen(strike_shake_time)
 		_flash_screen(Color(1.0, 0.95, 0.78), 0.28)
@@ -385,9 +392,10 @@ func _roll_burst_time() -> float:
 	return _rng.randf_range(sunburst_min_time, sunburst_max_time)
 
 
-# The blitz marks: when the shared round clock crosses one, five bursts fall at
-# once around the mortal (sunburst_blitz_count) and the mark is spent - crossing
-# the same mark twice must never fire twice.
+# The blitz marks: at marks >= 10s, five bursts fall at once around the mortal
+# (sunburst_blitz_count). In the last 10 seconds, each mark drops a single
+# burst every 2 seconds. A mark is spent after firing once - crossing the same
+# mark twice must never fire twice.
 func _tick_blitz_marks() -> void:
 	for index in range(blitz_marks.size()):
 		if index < _blitz_fired.size() and bool(_blitz_fired[index]):
@@ -396,7 +404,11 @@ func _tick_blitz_marks() -> void:
 			while _blitz_fired.size() <= index:
 				_blitz_fired.append(false)
 			_blitz_fired[index] = true
-			_spawn_blitz()
+			var mark: float = float(blitz_marks[index])
+			var count: int = sunburst_blitz_count if mark >= 10.0 else 1
+			for _i in range(count):
+				_spawn_burst()
+			_log("BLITZ - the sky falls!", Color(1.0, 0.6, 0.2))
 
 
 func _spawn_blitz() -> void:
@@ -460,14 +472,10 @@ func _burst_frame_live(frame: int) -> bool:
 
 
 # A live burst caught the mortal: sunburst_penalty FAVOR taken, the mortal
-# shoved away from the burst's center, the mercy seconds started so the next
-# burst cannot charge the same hit twice. The full answer, like his swing: the
-# field jumps hardest and the screen flashes red.
+# shoved away from the burst's center (knock_mortal only - no freeze, no mercy).
+# The field jumps hardest and the screen flashes red.
 func _resolve_burst(burst_position: Vector2) -> void:
-	if is_mortal_invulnerable(_my_id):
-		return
 	score_favor(-sunburst_penalty, "a sunburst")
-	set_mortal_invuln(_my_id, invuln_time)
 	knock_mortal(_my_id, burst_position)
 	_shake_screen(hit_shake_time, 1.25)
 	_flash_screen(Color(1.0, 0.32, 0.28), 0.4)

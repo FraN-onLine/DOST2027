@@ -27,6 +27,8 @@ var custom_order: Array[StringName] = []  # one god per trial slot, Bathala excl
 var trial_time: float = DEFAULT_TRIAL_TIME
 var due_step: int = GodMatch.MILESTONE_STEP
 var intro_mode: String = INTRO_FULL
+# Each god's blitz (last-stand mode) can be switched off here; default is on.
+var god_blitz_mode: bool = true
 
 
 static func defaults() -> RunSettings:
@@ -46,6 +48,7 @@ func to_dict() -> Dictionary:
 		"trial_time": trial_time,
 		"due_step": due_step,
 		"intro_mode": intro_mode,
+		"god_blitz_mode": god_blitz_mode,
 	}
 
 
@@ -62,6 +65,7 @@ static func from_dict(data: Dictionary) -> RunSettings:
 	settings.trial_time = float(data.get("trial_time", DEFAULT_TRIAL_TIME))
 	settings.due_step = int(data.get("due_step", GodMatch.MILESTONE_STEP))
 	settings.intro_mode = str(data.get("intro_mode", INTRO_FULL))
+	settings.god_blitz_mode = bool(data.get("god_blitz_mode", true))
 	return settings
 
 

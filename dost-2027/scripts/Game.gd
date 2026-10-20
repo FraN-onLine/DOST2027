@@ -242,6 +242,10 @@ func _start_current_trial() -> void:
 	var fixed = arena_instance.get("fixed_trial_time")
 	arena_instance.trial_time = float(fixed) if fixed != null and float(fixed) > 0.0 else settings.trial_time
 	arena_instance.due_step = settings.due_step
+	# A god's blitz (last-stand) mode follows the lobby's god_blitz_mode (default on).
+	# Only arenas that declare `god_blitz_mode` (Mayari, and later others) honor it.
+	if arena_instance.get("god_blitz_mode") != null:
+		arena_instance.god_blitz_mode = settings.god_blitz_mode
 	# A god speaks its full intro only the first time it hosts in this run (FULL),
 	# or never (SHORT); either way the dialogue handshake still runs.
 	arena_instance.first_visit = settings.intro_mode == RunSettings.INTRO_FULL and not _visited_gods.has(god.id)

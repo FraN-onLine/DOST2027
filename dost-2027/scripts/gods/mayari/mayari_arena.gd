@@ -46,9 +46,12 @@ extends Arena
 # The last stand of the round: for the last blitz_time seconds the light jumps
 # every blitz_switch_interval and the lit zone pays blitz_gain_mult times as
 # much. The clock is the shared round clock, so every screen enters it together.
-@export var blitz_time := 20.0             # seconds left on the clock when it starts
+@export var blitz_time := 30.0             # seconds left on the clock when it starts (blitz at 30s or less)
 @export var blitz_switch_interval := 2.5   # seconds the light holds during it
 @export var blitz_gain_mult := 2.0         # what the lit zone pays during it
+# Each god's blitz can be switched off from the lobby (RunSettings.god_blitz_mode,
+# default on). When off the round never enters its last stand.
+@export var god_blitz_mode := true
 
 @export_category("Attack")
 @export var shock_radius := 130.0        # how far the attack's shockwave reaches
@@ -73,9 +76,12 @@ const SHOCK_SCENE := preload("res://scenes/gods/mayari/Shockwave.tscn")
 var _zones: Array = []
 var _clones: Array = []
 var _zone_pending: Dictionary = {}    # mortal id -> fractional FAVOR not banked
+var _blitz_loss_pending: Dictionary = {}  # mortal id -> fractional FAVOR not yet lost during blitz
 var _active_goal_index := 3
 var _goal_switch_timer := 0.0
 var _blitz := false  # the round's last stand - see _update_blitz()
+var _blitz_pulse := 0.0  # pulse phase for the bluish hue during blitz
+var _field_modulate: Color = Color.WHITE  # the field's original modulate, saved at blitz start
 var _shock_cd := 0.0
 var _shocks: Array = []               # the waves the host is growing
 
@@ -119,13 +125,21 @@ func arena_rules_tick(delta: float) -> void:
 # clients to move their light, exactly as it does outside blitz.
 
 func _update_blitz() -> void:
-	var active := _phase == Phase.PLAYING and blitz_time > 0.0 and _trial_time <= blitz_time
+	# If the lobby switched this god's blitz off, the round never enters it.
+	var blitz_allowed := god_blitz_mode
+	var active := blitz_allowed and _phase == Phase.PLAYING and blitz_time > 0.0 and _trial_time <= blitz_time
 	if active == _blitz:
 		return
 	_blitz = active
 	if active:
+		# Remember the field's natural colour so we can restore it when blitz ends.
+		_field_modulate = field_root.modulate
+		_blitz_pulse = 0.0
 		_log("BLITZ - the light moves fast and pays double", god.color)
 		_show_banner("BLITZ!", god.color, 1.5)
+	else:
+		# Blitz ended: the field goes back to its authored colours.
+		field_root.modulate = _field_modulate
 
 
 # How long the light holds: a normal slice of the round, or blitz_switch_interval
@@ -148,6 +162,10 @@ func arena_round_reset() -> void:
 		for wave in shocks_root.get_children():
 			wave.queue_free()
 	_blitz = false
+	_blitz_loss_pending.clear()
+	_field_modulate = Color.WHITE
+	if field_root != null:
+		field_root.modulate = Color.WHITE
 	_reset_screen_impact()
 
 
@@ -278,6 +296,9 @@ func _check_goals(delta: float) -> void:
 	for zone in _zones:
 		if is_instance_valid(zone):
 			zone.held = false
+	# Track who is on a lit favor field this frame: during BLITZ everyone else
+	# bleeds FAVOR for standing off it.
+	var on_lit_zone: Dictionary = {}
 	for entry in mortal_entries():
 		var mortal_id := int(entry["id"])
 		var position: Vector2 = entry["pos"]
@@ -292,6 +313,7 @@ func _check_goals(delta: float) -> void:
 				best = zone
 		if best == null:
 			continue
+		on_lit_zone[mortal_id] = true
 		# FAVOR is banked one whole unit at a time (bank_favor keeps the
 		# fraction), so the popup and the HUD count in whole FAVOR. Through
 		# BLITZ the same box pays blitz_gain_mult times as much.
@@ -301,6 +323,18 @@ func _check_goals(delta: float) -> void:
 			pending -= 1.0
 			bank_favor(best.favor_amount, "holding the %s" % str(best.zone_label), mortal_id)
 		_zone_pending[mortal_id] = pending
+
+	# During BLITZ, every mortal not on a favor field bleeds 5 FAVOR per second.
+	if _blitz:
+		for entry in mortal_entries():
+			var mortal_id := int(entry["id"])
+			if on_lit_zone.has(mortal_id):
+				continue
+			var pending := float(_blitz_loss_pending.get(mortal_id, 0.0)) + 5.0 * delta
+			while pending >= 1.0:
+				pending -= 1.0
+				lose_favor(1, "off the favor field in BLITZ", mortal_id)
+			_blitz_loss_pending[mortal_id] = pending
 
 
 func _check_clones() -> void:
@@ -363,6 +397,16 @@ func _process(delta: float) -> void:
 	# Every screen decides the last stand from the shared round clock, so the
 	# banner lands on all of them on the same second.
 	_update_blitz()
+	# During blitz the whole arena pulses a bluish hue. Only the host needs the
+	# favor loss, but the pulse is drawn on every screen.
+	if _blitz:
+		_blitz_pulse += delta * 3.0  # cycles about 3 times per second
+		var pulse := sin(_blitz_pulse) * 0.5 + 0.5  # 0..1
+		# A bluish tint that swells and fades: white -> pale blue -> white.
+		field_root.modulate = Color.WHITE.lerp(Color(0.35, 0.55, 1.0), pulse)
+	else:
+		# Restore the field's original modulate when blitz ends.
+		field_root.modulate = _field_modulate
 
 
 func _input(event: InputEvent) -> void:

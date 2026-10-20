@@ -35,6 +35,7 @@ const NUMBER_COLOR := UITokens.MUTED
 @onready var time_option: OptionButton = $Margin/VBox/Scroll/Body/TimeRow/TimeOption
 @onready var due_option: OptionButton = $Margin/VBox/Scroll/Body/DueRow/DueOption
 @onready var intro_option: OptionButton = $Margin/VBox/Scroll/Body/IntroRow/IntroOption
+@onready var blitz_box: CheckBox = $Margin/VBox/Scroll/Body/BlitzRow/BlitzBox
 @onready var host_note: Label = $Margin/VBox/Scroll/Body/HostNote
 @onready var reset_button: Button = $Margin/VBox/Buttons/ResetButton
 @onready var done_button: Button = $Margin/VBox/Buttons/DoneButton
@@ -63,6 +64,7 @@ func _ready() -> void:
 	due_option.item_selected.connect(func(index: int) -> void: _change("due_step", RunSettings.DUE_STEPS[index]))
 	intro_option.item_selected.connect(func(index: int) -> void:
 		_change("intro_mode", RunSettings.INTRO_FULL if index == 0 else RunSettings.INTRO_SHORT))
+	blitz_box.toggled.connect(_on_blitz_toggled)
 	reset_button.pressed.connect(_on_reset_pressed)
 	done_button.pressed.connect(close)
 	Network.run_settings_changed.connect(func(_settings: Dictionary) -> void: refresh())
@@ -99,6 +101,8 @@ func refresh() -> void:
 	time_option.select(RunSettings.TRIAL_TIMES.find(settings.trial_time))
 	due_option.select(RunSettings.DUE_STEPS.find(settings.due_step))
 	intro_option.select(0 if settings.intro_mode == RunSettings.INTRO_FULL else 1)
+	blitz_box.button_pressed = settings.god_blitz_mode
+	blitz_box.disabled = not editable
 	for option in [time_option, due_option, intro_option]:
 		option.disabled = not editable
 	reset_button.disabled = not editable
@@ -225,6 +229,10 @@ func _on_move_pressed(slot: int, step: int) -> void:
 func _on_reset_pressed() -> void:
 	if editable:
 		Network.set_run_settings(RunSettings.defaults().to_dict())
+
+
+func _on_blitz_toggled(pressed: bool) -> void:
+	_change("god_blitz_mode", pressed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
