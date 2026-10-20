@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="God" format=3 uid="uid://c0qlwqxqcn5fx"]
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_kov66"]
-[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_v7yr7"]
+[ext_resource type="Texture2D" uid="uid://bhbyur4t3ouvh" path="res://Assets/Gods/Mayari/Mayari-General-Favor.png" id="2_nlsjc"]
 [ext_resource type="Texture2D" uid="uid://dlf51behe325t" path="res://Assets/Gods/Apolaki/Apolaki-Icon.png" id="3_0nofr"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_nlsjc"]
 [ext_resource type="Texture2D" uid="uid://ic70yh8ivypb" path="res://Assets/Gods/Mayari/mayari.png" id="3_v7yr7"]
@@ -13,7 +13,7 @@ god_id = &"mayari"
 display_name = "Waning Moon"
 description = "Whenever FAVOR is lost in any way, you lose 50% less."
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("2_v7yr7")
+icon = ExtResource("2_nlsjc")
 params = {
 "loss_mult": 0.5
 }
@@ -25,7 +25,7 @@ god_id = &"mayari"
 display_name = "Full Moon"
 description = "Whenever FAVOR is gained, you gain 10% more."
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("2_v7yr7")
+icon = ExtResource("2_nlsjc")
 params = {
 "gain_mult": 1.1
 }
@@ -38,7 +38,7 @@ display_name = "Blind Spot"
 description = "Once per trial: immediately gain +100 FAVOR."
 kind = 2
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("2_v7yr7")
+icon = ExtResource("2_nlsjc")
 params = {
 "instant_favor": 100
 }
@@ -51,7 +51,7 @@ display_name = "Favorable Outcome"
 description = "At the end of a trial, if you hold the highest FAVOR, gain an extra +200."
 kind = 3
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("2_v7yr7")
+icon = ExtResource("2_nlsjc")
 params = {
 "bonus": 200
 }
@@ -67,7 +67,7 @@ kind = 1
 cooldown = 25.0
 duration = 1.5
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("2_v7yr7")
+icon = ExtResource("2_nlsjc")
 params = {
 "vision_radius": 0.16
 }
@@ -83,7 +83,7 @@ kind = 1
 cooldown = 30.0
 duration = 5.0
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("2_v7yr7")
+icon = ExtResource("2_nlsjc")
 params = {
 "gain_mult_while_active": 2.0
 }
@@ -96,7 +96,7 @@ display_name = "Sibling's Rivalry"
 description = "Fall 1000 FAVOR behind another mortal and Mayari blocks part of their screen for 5s (once per mortal, once per trial). Only offered while you hold an Apolaki favor."
 duration = 5.0
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("2_v7yr7")
+icon = ExtResource("2_nlsjc")
 params = {
 "behind_by": 1000,
 "requires_god": "apolaki"

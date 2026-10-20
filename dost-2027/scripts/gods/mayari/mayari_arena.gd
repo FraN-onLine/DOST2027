@@ -81,7 +81,7 @@ var _active_goal_index := 3
 var _goal_switch_timer := 0.0
 var _blitz := false  # the round's last stand - see _update_blitz()
 var _blitz_pulse := 0.0  # pulse phase for the bluish hue during blitz
-var _field_modulate: Color = Color.WHITE  # the field's original modulate, saved at blitz start
+var _field_modulate: Color = Color.WHITE  # the arena's original modulate, saved at blitz start
 var _shock_cd := 0.0
 var _shocks: Array = []               # the waves the host is growing
 
@@ -132,14 +132,14 @@ func _update_blitz() -> void:
 		return
 	_blitz = active
 	if active:
-		# Remember the field's natural colour so we can restore it when blitz ends.
-		_field_modulate = field_root.modulate
+		# Remember the arena's natural colour so we can restore it when blitz ends.
+		_field_modulate = modulate
 		_blitz_pulse = 0.0
 		_log("BLITZ - the light moves fast and pays double", god.color)
 		_show_banner("BLITZ!", god.color, 1.5)
 	else:
-		# Blitz ended: the field goes back to its authored colours.
-		field_root.modulate = _field_modulate
+		# Blitz ended: the arena goes back to its authored colours.
+		modulate = _field_modulate
 
 
 # How long the light holds: a normal slice of the round, or blitz_switch_interval
@@ -164,8 +164,7 @@ func arena_round_reset() -> void:
 	_blitz = false
 	_blitz_loss_pending.clear()
 	_field_modulate = Color.WHITE
-	if field_root != null:
-		field_root.modulate = Color.WHITE
+	modulate = Color.WHITE
 	_reset_screen_impact()
 
 
@@ -330,7 +329,7 @@ func _check_goals(delta: float) -> void:
 			var mortal_id := int(entry["id"])
 			if on_lit_zone.has(mortal_id):
 				continue
-			var pending := float(_blitz_loss_pending.get(mortal_id, 0.0)) + 5.0 * delta
+			var pending := float(_blitz_loss_pending.get(mortal_id, 0.0)) + 30.0 * delta
 			while pending >= 1.0:
 				pending -= 1.0
 				lose_favor(1, "off the favor field in BLITZ", mortal_id)
@@ -398,15 +397,16 @@ func _process(delta: float) -> void:
 	# banner lands on all of them on the same second.
 	_update_blitz()
 	# During blitz the whole arena pulses a bluish hue. Only the host needs the
-	# favor loss, but the pulse is drawn on every screen.
+	# favor loss, but the pulse is drawn on every screen. CanvasLayer UI
+	# (AttackHud, UILayer) is not affected by parent modulation.
 	if _blitz:
 		_blitz_pulse += delta * 3.0  # cycles about 3 times per second
 		var pulse := sin(_blitz_pulse) * 0.5 + 0.5  # 0..1
 		# A bluish tint that swells and fades: white -> pale blue -> white.
-		field_root.modulate = Color.WHITE.lerp(Color(0.35, 0.55, 1.0), pulse)
+		modulate = Color.WHITE.lerp(Color(0.35, 0.55, 1.0), pulse)
 	else:
-		# Restore the field's original modulate when blitz ends.
-		field_root.modulate = _field_modulate
+		# Restore the arena's original modulate when blitz ends.
+		modulate = _field_modulate
 
 
 func _input(event: InputEvent) -> void:
