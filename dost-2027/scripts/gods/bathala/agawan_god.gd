@@ -66,6 +66,7 @@ const ROLE_COLOR := {
 
 @export_category("Bathala - the watcher")
 @export var watcher_speed := 1.2       # his walk at a holder, as a multiple of move_speed (0 = off)
+@export var god_freeze_time := 10.0    # seconds a frozen god stays frozen (mortals: 5s)
 
 var god_id: StringName = &""
 var role: Role = Role.ATTACK

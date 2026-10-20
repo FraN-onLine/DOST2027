@@ -6,7 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://8kjnfw7bjul7" path="res://Assets/Gods/Tala/can2.png" id="4_28pec"]
 [ext_resource type="Texture2D" uid="uid://b6vjr6hvao45f" path="res://Assets/Gods/Tala/can1.png" id="5_8urks"]
 [ext_resource type="Texture2D" uid="uid://dqltvlxohlij3" path="res://Assets/Gods/Tala/Tala-Sheet.png" id="5_28pec"]
-[ext_resource type="Texture2D" uid="uid://dxwfrknleqjjs" path="res://Assets/Gods/Tala/Tala(updated)-Sheet.png" id="6_qbd8a"]
+[ext_resource type="Texture2D" uid="uid://c5faeg35jn743" path="res://Assets/Gods/Tala/TalaOverseer-Sheet.png" id="7_28pec"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cgjks"]
 atlas = ExtResource("4_28pec")
@@ -64,29 +64,29 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_28pec"]
-atlas = ExtResource("6_qbd8a")
+[sub_resource type="AtlasTexture" id="AtlasTexture_8urks"]
+atlas = ExtResource("7_28pec")
 region = Rect2(0, 0, 130, 99)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_8urks"]
-atlas = ExtResource("6_qbd8a")
+[sub_resource type="AtlasTexture" id="AtlasTexture_yq6ct"]
+atlas = ExtResource("7_28pec")
 region = Rect2(130, 0, 130, 99)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_yq6ct"]
-atlas = ExtResource("6_qbd8a")
+[sub_resource type="AtlasTexture" id="AtlasTexture_cfhsc"]
+atlas = ExtResource("7_28pec")
 region = Rect2(260, 0, 130, 99)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_wpc2v"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_28pec")
-}, {
-"duration": 1.0,
 "texture": SubResource("AtlasTexture_8urks")
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_yq6ct")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cfhsc")
 }],
 "loop": 2,
 "name": &"default",
@@ -105,6 +105,8 @@ tala_max_y = 565.0
 can_repair_time = 3.0
 can_favor = 300
 tala_penalty = 100
+can_hit_shake_time = 0.12
+tala_hit_shake_time = 0.15
 seek_chance = 0.45
 seek_speed = 260.0
 seek_time = 1.4
@@ -183,11 +185,11 @@ autoplay = "default"
 frame_progress = 0.29051828
 
 [node name="OverSeerGod" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="7" unique_id=287992503]
-position = Vector2(983.99994, 185)
-scale = Vector2(3.0846155, 3.2171717)
+position = Vector2(949.00006, 164)
+scale = Vector2(3.3423078, 3.5984848)
 sprite_frames = SubResource("SpriteFrames_wpc2v")
 autoplay = "default"
-frame_progress = 0.8245947
+frame_progress = 0.36153302
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(350, 420)

@@ -80,6 +80,15 @@ extends Arena
 # bases (and their Hold rings), the Stars and Marks layers and the HUD labels.
 
 const GOD_SCENE := preload("res://scenes/gods/bathala/AgawanGod.tscn")
+const SHOCK_SCENE := preload("res://scenes/gods/mayari/Shockwave.tscn")
+# Per-god scenes so each god can author its own animated sprite art.
+const GOD_SCENES := {
+	"apolaki": preload("res://scenes/gods/bathala/Apolaki.tscn"),
+	"tala": preload("res://scenes/gods/bathala/Tala.tscn"),
+	"mayari": preload("res://scenes/gods/bathala/Mayari.tscn"),
+	"hanan": preload("res://scenes/gods/bathala/Hanan.tscn"),
+	"bathala": preload("res://scenes/gods/bathala/Bathala.tscn"),
+}
 # The slots fill in this order, one per mortal (at least two); Bathala is added on top.
 const ROSTER := ["apolaki", "tala", "mayari", "hanan"]
 const OFFENSE := {"apolaki": true, "mayari": true}
@@ -90,7 +99,11 @@ const PITY_OFFSET := Vector2(-80.0, -96.0)
 @export_category("Agawan Base")
 @export var freeze_time := 5.0              # seconds a tagged god/mortal stays frozen
 @export var tag_radius := 34.0              # the mortal's attack reach
-@export var attack_cooldown := 0.6          # seconds between two swings
+@export var attack_cooldown := 0.6          # seconds between two attacks (shockwave cooldown)
+
+@export_category("Shockwave (replaces arnis)")
+@export var shock_radius := 130.0           # full radius of the attack wave
+@export var shock_expand_time := 0.45       # seconds the wave takes to reach full size
 @export var base_radius := 46.0             # how big a base zone reads, in pixels
 @export var thaw_touch := 40.0              # a live god this close to a frozen god thaws it
 @export var hold_to_capture := 1.0          # seconds one mortal holds Bathala's base to catch it
@@ -140,14 +153,16 @@ const PITY_OFFSET := Vector2(-80.0, -96.0)
 @onready var status_label: Label = get_node_or_null("AgawanHud/Status")
 @onready var hint_label: Label = get_node_or_null("AgawanHud/Hint")
 @onready var callout_label: Label = get_node_or_null("AgawanHud/Callout")
+@onready var shocks_root: Node2D = get_node_or_null("Shocks")
 
 var _gods: Array[AgawanGod] = []       # every god on the field, host-run
 var _my_base := Vector2.ZERO          # the mortal team's base (safe for mortals)
 var _bathala_base := Vector2.ZERO     # Bathala's base (safe for gods, the one to capture)
-var _attack_cd := 0.0
 var _round := 1
 var _frozen_mortals := {}             # mortal id -> seconds left frozen (host; mirrored)
 var _frozen_gods := {}                # god index -> seconds left frozen (host)
+var _shocks: Array = []               # the waves the host is growing: {origin, radius, caster, wave, hit}
+var _shock_cd := 0.0                  # shockwave cooldown
 var _hold_progress := 0.0             # 0..1, the mortals' hold on Bathala's base
 var _holders := 0                     # how many mortals are holding it
 var _holder_pos := Vector2.INF        # where the first holder stands (Bathala walks at it)
@@ -204,7 +219,8 @@ func _build_gods(roster: Array) -> void:
 	if gods_root == null or _bathala_base == Vector2.ZERO:
 		return
 	for id in roster + ["bathala"]:
-		var god_node: AgawanGod = GOD_SCENE.instantiate()
+		var god_scene = GOD_SCENES.get(id, GOD_SCENE)
+		var god_node: AgawanGod = god_scene.instantiate()
 		god_node.god_id = StringName(id)
 		god_node.role = AgawanGod.Role.ATTACK if OFFENSE.get(id, false) else AgawanGod.Role.DEFEND
 		god_node.set_stage(_bathala_base, _my_base, base_radius)
@@ -235,7 +251,7 @@ func _field_mortal_ids() -> Array:
 func arena_round_reset() -> void:
 	# Both sides back to their spawns, no freeze, no hold, no star in the air -
 	# every round starts the same way. The pity is weighed again here.
-	_attack_cd = 0.0
+	_shock_cd = 0.0
 	_hold_progress = 0.0
 	_holders = 0
 	_holder_pos = Vector2.INF
@@ -342,6 +358,7 @@ func arena_rules_tick(delta: float) -> void:
 		_thaw_gods_near(god_node)
 	_tick_dawn(delta)
 	_tick_stars(delta)
+	_tick_shocks(delta)
 	_tick_frozen_mortals(delta)
 	_check_capture(delta)
 	if _pause <= 0.0:
@@ -604,56 +621,110 @@ func _input(event: InputEvent) -> void:
 
 
 func _try_attack() -> void:
-	if _attack_cd > 0.0:
-		_log("Attack recharging  (%.1fs)" % _attack_cd, UITokens.GOLD)
+	if _shock_cd > 0.0:
+		_log("Attack recharging  (%.1fs)" % _shock_cd, UITokens.GOLD)
 		return
-	_attack_cd = attack_cooldown
-	player.play_animation(&"hit-arnis")
+	_shock_cd = attack_cooldown
+	var origin := player.global_position
+	var wave := _spawn_shockwave(origin)
 	if _authority:
-		_resolve_attack(_my_id, player.global_position)
+		_start_shock(origin, _my_id, wave)
+		if _net != null:
+			_net.send_arena_shock(_my_id, origin)
 	elif _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_agawan_attack", player.global_position)
+		_net.rpc_id(1, "request_arena_shock", origin)
 
 
-# The host resolves a swing from `caster_id` at `origin`: freeze a live god
-# outside Bathala's base, thaw a frozen ally mortal, break a star. A frozen
-# mortal's swing, or one while the field stands still, does nothing. Returns the
-# god index it froze, or -1.
-func _resolve_attack(caster_id: int, origin: Vector2) -> int:
-	if _is_frozen(caster_id) or _pause > 0.0 or _count > 0.0:
-		return -1
-	var hit_god := -1
-	for index in range(_gods.size()):
-		var god_node: AgawanGod = _gods[index]
-		if origin.distance_to(god_node.global_position) > maxf(tag_radius, 18.0):
-			continue
-		# Every god is the mortals' enemy, so a swing only ever freezes - and
-		# never one standing safe in Bathala's base.
-		if god_node.is_frozen() or _in_bathala_base(god_node.global_position):
-			continue
-		hit_god = index
-		god_node.freeze_for(freeze_time)
-		_frozen_gods[index] = freeze_time
-		break
-	# A frozen ally MORTAL in reach thaws on the same swing.
-	for entry in mortal_entries():
-		var mortal_id := int(entry["id"])
-		if mortal_id == caster_id:
-			continue
-		if _is_frozen(mortal_id) and (entry["pos"] as Vector2).distance_to(origin) <= tag_radius:
-			_thaw_mortal(mortal_id)
-			bank_favor(unfreeze_favor, "Unfroze an ally", caster_id)
-			spawn_popup("THAWED", Arena.POPUP_GAIN_COLOR, popup_origin(mortal_id))
-	# ...and so does a star of Tala's.
-	for at in range(_stars.size() - 1, -1, -1):
-		if (_stars[at]["pos"] as Vector2).distance_to(origin) <= tag_radius + star_radius:
-			_stars.remove_at(at)
-			bank_favor(star_break_favor, "Broke Tala's star", caster_id)
-	if hit_god >= 0:
-		bank_favor(tag_god_favor, "Tagged a god", caster_id)
-		_show_banner("GOD FROZEN!", UITokens.GOLD, 1.2)
-	# A swing that caught nothing simply pays nothing - its cooldown still ticks.
-	return hit_god
+# A live god's touch (or Hanan's dawn) thaws a frozen god at once.
+func _freeze_god(index: int, seconds: float, caster_id: int = -1) -> void:
+	var god_node: AgawanGod = _gods[index]
+	god_node.freeze_for(seconds)
+	_frozen_gods[index] = seconds
+	bank_favor(tag_god_favor, "Tagged a god", caster_id)
+	_show_banner("GOD FROZEN!", UITokens.GOLD, 1.2)
+
+# The host spawns a shockwave at `origin` and tracks its growth for hit checks.
+func _spawn_shockwave(origin: Vector2) -> MayariShockwave:
+	if shocks_root == null:
+		return null
+	var wave: MayariShockwave = SHOCK_SCENE.instantiate()
+	shocks_root.add_child(wave)
+	wave.global_position = origin
+	wave.expand_time = shock_expand_time
+	wave.max_scale = shock_radius / maxf(0.01, wave.base_radius)
+	return wave
+
+# The host's copy of a wave: it grows the real area and resolves hits.
+func _start_shock(origin: Vector2, caster_id: int, wave: MayariShockwave) -> void:
+	wave.set_manual_animation(true)
+	_shocks.append({"origin": origin, "radius": wave.reach(), "caster": caster_id, "wave": wave, "hit": {}})
+
+
+# Advance every tracked wave, resolving god freezes, mortal thaws and star breaks.
+# Runs on the host (authority) only; clients self-animate their own visual waves.
+func _tick_shocks(delta: float) -> void:
+	if _shocks.is_empty():
+		return
+	var alive: Array = []
+	for shock in _shocks:
+		var wave: MayariShockwave = shock.get("wave")
+		var radius := wave.advance(delta) if is_instance_valid(wave) else float(shock.get("radius", 0.0))
+		# Freeze enemy gods in reach (never one safe in Bathala's base).
+		for index in range(_gods.size()):
+			var god_node: AgawanGod = _gods[index]
+			if not is_instance_valid(god_node):
+				continue
+			var hit_key := str(god_node.god_id)
+			if shock.get("hit", {}).has(hit_key):
+				continue
+			if _in_bathala_base(god_node.global_position):
+				continue  # a god is safe on its own base
+			if god_node.is_frozen():
+				continue
+			if shock["origin"].distance_to(god_node.global_position) <= radius + 18.0:
+				shock.get("hit", {})[hit_key] = true
+				_freeze_god(index, god_node.god_freeze_time, int(shock["caster"]))
+		# Thaw frozen ally mortals in reach.
+		for entry in mortal_entries():
+			var mortal_id := int(entry["id"])
+			if shock.get("hit", {}).has(mortal_id):
+				continue
+			var pos = entry["pos"]
+			if pos == Vector2.INF:
+				continue
+			if _is_frozen(mortal_id) and pos.distance_to(shock["origin"]) <= radius + player.radius:
+				shock.get("hit", {})[mortal_id] = true
+				_thaw_mortal(mortal_id)
+				bank_favor(unfreeze_favor, "Unfroze an ally", int(shock["caster"]))
+				spawn_popup("THAWED", Arena.POPUP_GAIN_COLOR, popup_origin(mortal_id))
+		# Break Tala's stars in reach.
+		for at in range(_stars.size() - 1, -1, -1):
+			if (_stars[at]["pos"] as Vector2).distance_to(shock["origin"]) <= radius + star_radius:
+				_stars.remove_at(at)
+				bank_favor(star_break_favor, "Broke Tala's star", int(shock["caster"]))
+		if is_instance_valid(wave) and not wave.is_finished():
+			alive.append(shock)
+	_shocks = alive
+
+# A client attacked: the host grows the real wave here and shares it.
+func _on_arena_shock_requested(caster_id: int, origin: Vector2) -> void:
+	if not _authority or _phase != Phase.PLAYING:
+		return
+	var known := mortal_position(caster_id)
+	if known != Vector2.INF and known.distance_to(origin) > 90.0:
+		return  # the attack is nowhere near where the host last saw that mortal
+	var wave := _spawn_shockwave(known if known != Vector2.INF else origin)
+	if wave == null:
+		return
+	_start_shock(known if known != Vector2.INF else origin, caster_id, wave)
+	if _net != null:
+		_net.send_arena_shock(caster_id, known if known != Vector2.INF else origin)
+
+# The wave every screen draws. It uses the same size and timing as the rules.
+func _on_arena_shock_received(caster_id: int, origin: Vector2) -> void:
+	if caster_id == _my_id:
+		return
+	_spawn_shockwave(origin)
 
 
 # --- NETWORK (the gods and the freezes travel to every screen) ---------------
@@ -662,17 +733,12 @@ func _connect_network() -> void:
 	super._connect_network()
 	if _net == null:
 		return
-	if _net.has_signal("agawan_attack_requested") and _authority:
-		_net.connect("agawan_attack_requested", _on_agawan_attack_requested)
+	if _net.has_signal("arena_shock_received"):
+		_net.connect("arena_shock_received", _on_arena_shock_received)
+	if _authority and _net.has_signal("arena_shock_requested"):
+		_net.connect("arena_shock_requested", _on_arena_shock_requested)
 
 
-func _on_agawan_attack_requested(caster_id: int, origin: Vector2) -> void:
-	if not _authority or _phase != Phase.PLAYING or _is_frozen(caster_id):
-		return
-	var known := mortal_position(caster_id)
-	if known != Vector2.INF and known.distance_to(origin) > 90.0:
-		return  # the swing is nowhere near where the host last saw that mortal
-	_resolve_attack(caster_id, known if known != Vector2.INF else origin)
 
 
 # The fixed world that only travels once per round: where the two bases are, the
@@ -787,7 +853,7 @@ func arena_read_tick(state: Dictionary) -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
-	_attack_cd = maxf(0.0, _attack_cd - delta)
+	_shock_cd = maxf(0.0, _shock_cd - delta)
 	_refresh_lock()
 	_refresh_marks()
 	_refresh_hud(delta)
@@ -939,7 +1005,7 @@ func _refresh_hud(delta: float) -> void:
 		var here := player.global_position
 		var stance := "FROZEN %d" % int(ceil(float(_frozen_mortals[_my_id]))) if _is_frozen(_my_id) \
 			else ("DEFENDING" if _on_my_base(here) else ("CAPTURING!" if _in_bathala_base(here) else "ON THE FIELD"))
-		var swing := "ATTACK READY" if _attack_cd <= 0.0 else "ATTACK %.1fs" % _attack_cd
+		var swing := "ATTACK READY" if _shock_cd <= 0.0 else "ATTACK %.1fs" % _shock_cd
 		var judged := "     FINAL JUDGMENT" if _judgment else ""
 		status_label.text = "%s     %s     ROUND %d%s" % [stance, swing, _round, judged]
 		status_label.add_theme_color_override("font_color", UITokens.god_text(god))

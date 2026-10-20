@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="Pamana" format=3]
+[gd_resource type="Resource" script_class="Pamana" format=3 uid="uid://dm0chlqiaty85"]
 
-[ext_resource type="Texture2D" path="res://icon.svg" id="1_som6j"]
-[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_ockug"]
+[ext_resource type="Texture2D" uid="uid://dr2fgd3h7qd0g" path="res://Assets/Items/agimat.png" id="1_som6j"]
+[ext_resource type="Script" uid="uid://pylem8t2rgfm" path="res://scripts/pamana/pamana.gd" id="2_ockug"]
 
 [resource]
 script = ExtResource("2_ockug")
