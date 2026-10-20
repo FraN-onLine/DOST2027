@@ -329,10 +329,10 @@ func _check_goals(delta: float) -> void:
 			var mortal_id := int(entry["id"])
 			if on_lit_zone.has(mortal_id):
 				continue
-			var pending := float(_blitz_loss_pending.get(mortal_id, 0.0)) + 30.0 * delta
-			while pending >= 1.0:
-				pending -= 1.0
-				lose_favor(1, "off the favor field in BLITZ", mortal_id)
+			var pending := float(_blitz_loss_pending.get(mortal_id, 0.0)) + 20.0 * delta
+			while pending >= 10.0:
+				pending -= 10.0
+				lose_favor(10, "off the favor field in BLITZ", mortal_id)
 			_blitz_loss_pending[mortal_id] = pending
 
 
