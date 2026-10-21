@@ -446,6 +446,9 @@ func _start_prep() -> void:
 	prep.next_god_id = trial_order[trial_index].id
 	prep.embedded = true
 	prep.due_step = Network.run_settings.due_step
+	# The lobby's PREP TIME (RunSettings.prep_time); the scene's own export is
+	# only the fallback for a standalone rest.
+	prep.prep_time = Network.run_settings.prep_time
 	prep.dialogue_prefix = "prep_%d" % trial_index
 	prep.rng = pamana_rng
 	$ArenaPanel.add_child(prep)

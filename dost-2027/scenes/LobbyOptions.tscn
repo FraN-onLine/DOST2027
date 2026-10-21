@@ -138,6 +138,22 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="PrepRow" type="HBoxContainer" parent="Margin/VBox/Scroll/Body"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Caption" type="Label" parent="Margin/VBox/Scroll/Body/PrepRow"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Prep time"
+vertical_alignment = 1
+
+[node name="PrepOption" type="OptionButton" parent="Margin/VBox/Scroll/Body/PrepRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+
 [node name="DueRow" type="HBoxContainer" parent="Margin/VBox/Scroll/Body"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2

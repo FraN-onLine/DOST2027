@@ -5,8 +5,9 @@ extends Arena
 # scenes/prep)
 #
 # After every trial but the last, the Game shell opens this instead of the next
-# arena: every mortal lands on one small shared field for prep_time seconds,
-# around a campfire, between two things to do -
+# arena: every mortal lands on one small shared field for prep_time seconds (the
+# lobby's PREP TIME, RunSettings.prep_time, handed over by the shell), around a
+# campfire, between two things to do -
 #   * the ALTAR of the god who just hosted (god_id): F opens the normal God's Due
 #     menu for that god anywhere on the field, so a voucher left over can still be
 #     spent (the base's menu, vouchers and RPCs, unchanged);
@@ -41,7 +42,7 @@ const READY_MARK := " √"  # on a ready player's name tag (Minecraftia has no c
 const ALTAR_ICON_SIZE := 48.0  # the god on the altar, whatever size its icon is drawn at
 
 @export_category("Preparation Area")
-@export var prep_time := 20.0       # seconds of rest
+@export var prep_time := 20.0       # seconds of rest (the shell sets the lobby's; this is the standalone fallback)
 @export var max_purchases := 1      # Pamana each mortal may buy here (the anti-snowball rule)
 @export var offer_count := 3        # Pamana on each mortal's shelf
 @export var stall_reach := 90.0     # how close to the stall LEFT CLICK opens the Tindahan
