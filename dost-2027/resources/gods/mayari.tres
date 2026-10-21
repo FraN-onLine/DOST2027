@@ -115,15 +115,14 @@ arena_scene = "res://scenes/gods/mayari/MayariArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_kov66")]([SubResource("Resource_0nofr"), SubResource("Resource_ib605"), SubResource("Resource_yboih"), SubResource("Resource_su3vm"), SubResource("Resource_5h57l"), SubResource("Resource_t3u61"), SubResource("Resource_moon1")])
 portrait = ExtResource("3_v7yr7")
-intro_lines = Array[String](["Mayari watches you from the moon.", "Patintero was always a game of lines - mine are alive. Cross them, take my boxes and I will light your way.", "Do not make me send my clones twice."])
-trial_end_lines = Array[String](["The moonlight fades from the field. Your Favor travels with you."])
+intro_lines = Array[String](["Patintero is our game, Go and get my favor by Targeting the golden square.", "Simple? Remember, there is ONLY ONE VICTOR in the battlefields. But remember, No horseplay children~ wink wink-"])
+trial_end_lines = Array[String](["Well done! You have certainly entertained me. Love is such a beautiful thing to fight for, isn't it?", "But do be careful, little mortals. There's a difference between fighting for someone...", "...and fighting because you believe you must win them.", "Compromise is a wonderful thing. It is best practiced before anyone gets hurt. Wink wink-"])
 success_lines = Array[String](["You moved like moonlight on water. The moon remembers this."])
 failure_lines = Array[String](["Hm. The night is long - try again before the moon sets."])
 transition_lines = {
-"apolaki": ["Apolaki, the mortals are ready for your duel."],
-"bathala": ["Bathala, the trials are complete. The mortals await your judgment."],
-"hanan": ["Hanan, sister of the morning, the mortals are yours. Do not let them leap too lightly."],
-"mapulon_ikapati": ["Mapulon, Ikapati - the night is over and your field is waiting. Be kind to them; they have been running in the dark."],
-"mayari": ["The moon rises again. Let the next trial begin."],
-"tala": ["Tala, the players come to your cans. Watch their aim."]
+"apolaki": ["Alright.. Don’t hurt these poor souls now Apolaki"],
+"tala": ["Gentle now, sister Tala."],
+"hanan": ["Your next challenge should be easy, You rest your pretty little head now for Hanan"],
+"mapulon_ikapati": ["Uncle and Auntie, Do these two good now will you"],
+"bathala": ["Hmm.. Our Father is waiting for you, He’s never been fond of losing.. Goodluck~"]
 }

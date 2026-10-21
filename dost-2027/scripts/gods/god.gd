@@ -53,12 +53,41 @@ func transition_voices_for(next_god_id: StringName) -> Array:
 #                    data change and never a code change. The key "*" is the
 #                    fallback for a god with no line for the next one.
 #   success_lines /  spoken only at Bathala's final trial, where the run is
-#   failure_lines    finally judged.
+#   failure_lines    finally judged, AFTER his trial_end_lines (his own ending, which
+#                    leads straight into the scoreboard).
+#
+# A line written in [square brackets] is a stage direction, never shown: see
+# Arena._speech. (Voices stay index-aligned with the lines array, directions included.)
 @export var intro_lines: Array[String] = []
 @export var trial_end_lines: Array[String] = []
 @export var success_lines: Array[String] = []
 @export var failure_lines: Array[String] = []
 @export var transition_lines: Dictionary = {}  # next god id (String) -> Array[String]
+
+
+# --- SPEAKERS -----------------------------------------------------------------
+# A god that is really two (Mapulon & Ikapati) fills `speakers`: name ->
+# {color, portrait}. Any line that opens with "Name: " for one of those names is
+# spoken by that name, in its colour and with its portrait; the prefix is not
+# shown. A god without `speakers` behaves as always.
+@export var speakers: Dictionary = {}
+
+
+# The dialogue-box entry for one of this god's lines.
+func entry_for(line: String) -> Dictionary:
+	var entry := {"speaker": display_name, "color": color, "text": line}
+	if portrait != null:
+		entry["portrait"] = portrait
+	var cut := line.find(": ")
+	if cut > 0 and speakers.has(line.substr(0, cut)):
+		var who := line.substr(0, cut)
+		var info: Dictionary = speakers[who]
+		entry["speaker"] = who
+		entry["text"] = line.substr(cut + 2)
+		entry["color"] = info.get("color", color)
+		if info.get("portrait") is Texture2D:
+			entry["portrait"] = info["portrait"]
+	return entry
 
 
 func get_favor(favor_id: StringName) -> GodFavor:

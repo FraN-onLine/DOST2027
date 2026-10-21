@@ -107,3 +107,23 @@ tinted ivory). Draw one 24x24 source icon per item (`manunggul_jar.png`,
 `mutya.png`, `kampilan.png`, `surigao_gold.png`), set `icon` on the item, and
 drop the tint in `UICards.pamana_card` (search for `pamana_edge`). The same icon
 shows on the Tindahan's cards, the HUD badges and the Almanac's MGA PAMANA page.
+
+## The opening cutscene (scene art, also placeholders)
+
+`scenes/OpeningCutscene.tscn` plays once at the start of a run. Every slot is a
+node under `Stage`, drawn with coloured rects and `res://icon.svg` for now; swap
+the texture and keep the node's size, so the tweens in `scripts/OpeningCutscene.gd`
+(positions are set in code from the screen size) stay where they are.
+
+| Slot (file name) | Node | Source size | Notes |
+|---|---|---|---|
+| `cutscene_sky_day.png` | `Sky` | 576x324 | The daytime sky over the suitors. `Sky.color` is tweened to night, so a tintable (greyscale) sky works best. |
+| `cutscene_ground.png` | `Ground` | 576x123 | A meadow strip; it is dropped from under the suitors, so draw nothing below it. |
+| `cutscene_arena.png` | `Sky` / `Ground` colours | 576x324 | The celestial arena the suitors land in: a night sky and a floor, shown after the fall. |
+| `ines.png` | `Ines` | 36x48 | Ines standing, then small in Bathala's palm (the node is scaled to 0.5). |
+| `suitor_1.png`, `suitor_2.png` | `Suitor1`, `Suitor2` | 36x48 | The two boastful suitors. They are tinted with bandana colours 0 and 1 until there is art. |
+| `bathala_hand.png` | `Hand` (`Arm`) | 40x50 (arm 20x350) | The great hand: the arm runs off the top of the screen. |
+| `bathala_portrait.png` | `Bathala` | 90x90 | Already exists (`Assets/Gods/Bathala`); a shape that reads at 180x180. |
+| `ines_portrait.png` | `Cutscene.placeholder()` | 32x32 | Ines's small portrait in the dialogue box, and beside Bathala's at the end of the run. |
+| `suitor_portrait_1.png`, `_2.png` | `Cutscene.placeholder()` | 32x32 | The suitors' small portraits in the dialogue box. Mortals show no big photo. |
+| roll call | `GodRow` slots | 60x60 | Reuses each god's `portrait` (Mayari, Apolaki, Hanan, Tala, Mapulon & Ikapati); they stand as silhouettes, then slide in and light up as Bathala calls them. |

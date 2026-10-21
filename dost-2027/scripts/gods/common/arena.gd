@@ -1017,12 +1017,21 @@ func _flush_favor_popups(delta: float) -> void:
 
 func _speech(speaker: God, lines: Array, voices: Array = []) -> Array:
 	var out: Array = []
+	var beside: Texture2D = null
 	for i in lines.size():
-		var entry := {"speaker": speaker.display_name, "color": speaker.color, "text": str(lines[i])}
+		var text := str(lines[i])
+		# "[Bathala looks toward Ines.]" is a stage direction, never shown: from here
+		# on Ines's small portrait stands beside the speaker's photo. Any other
+		# direction (e.g. [FADE TO SCOREBOARD.]) is staged by the shell, not here.
+		if text.begins_with("[") and text.ends_with("]"):
+			if text.contains("Ines"):
+				beside = Cutscene.placeholder(Cutscene.NEUTRAL_SPEAKERS["INES"])
+			continue
+		var entry := speaker.entry_for(text)
+		if beside != null:
+			entry["beside"] = beside
 		if i < voices.size() and voices[i] is AudioStream:
 			entry["voice"] = voices[i]
-		if speaker.portrait != null:
-			entry["portrait"] = speaker.portrait
 		out.append(entry)
 	return out
 
@@ -1131,9 +1140,11 @@ func _results_from_mirror() -> Dictionary:
 
 func _show_closing_lines() -> void:
 	var lines: Array = []
+	lines.append_array(_speech(god, god.trial_end_lines, god.trial_end_voices))
 	if final_trial:
 		# Only Bathala's closing trial judges the run - a god's own trial never
-		# declares a winner, it just hands the field on.
+		# declares a winner, it just hands the field on. His own ending (trial_end_lines)
+		# is spoken first and leads straight into the results.
 		var mine := local_favor()
 		var success := mine >= success_favor
 		if success:
@@ -1141,7 +1152,6 @@ func _show_closing_lines() -> void:
 		else:
 			lines.append_array(_speech(god, god.failure_lines, god.failure_voices))
 	else:
-		lines.append_array(_speech(god, god.trial_end_lines, god.trial_end_voices))
 		if god.trial_end_lines.is_empty():
 			lines.append({"speaker": god.display_name, "color": god.color, "text": "The trial is complete. Your Favor carries onward.", "portrait": god.portrait if god.portrait != null else god.icon})
 
@@ -1150,7 +1160,7 @@ func _show_closing_lines() -> void:
 	# god's id, so nothing here needs to know who can follow whom.
 	var next_god: God = Gods.by_id(next_god_id) if next_god_id != &"" else Gods.next_god(god.id)
 	_free_grants = 0
-	if next_god != null:
+	if next_god != null and next_god.id != god.id:  # nobody follows Bathala: the scoreboard does
 		lines.append_array(_speech_transition(god, next_god.id, next_god.display_name))
 	dialogue.show_lines(lines, god.portrait if god.portrait != null else god.icon)
 

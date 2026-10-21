@@ -13,8 +13,6 @@ const FALLBACK_ARENA := "res://scenes/Game.tscn"
 
 
 func _ready() -> void:
-	var bathala := Gods.bathala()
-	story_label.text = "\n".join(bathala.intro_lines)
 	# The key as the player bound it, drawn as a key (recognition over recall).
 	prompt_key.text = UITokens.key_text(&"advance_dialogue")
 	prompt_label.text = "FACE THE GODS"

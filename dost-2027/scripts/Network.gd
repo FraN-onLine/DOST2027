@@ -93,6 +93,9 @@ var mortal_positions := {}  # peer_id -> Vector2 (host: latest reported position
 var _discovery_active := false
 var _is_host_broadcasting := false
 var _game_in_progress := false
+# True from START until the game shell begins the run: it is what tells Game.gd to
+# play the opening cutscene (a shell opened some other way - a check, a reload - never does).
+var opening_pending := false
 var _bandana_memory := {}  # host: player name -> the colour they last held (a rejoin gets it back)
 var _dialogue_done := {}
 
@@ -921,6 +924,7 @@ func start_game() -> void:
 	# A game session has started - stop advertising this lobby on the LAN so
 	# unrelated clients no longer see it or receive game RPC broadcasts.
 	_game_in_progress = true
+	opening_pending = true
 	stop_host_discovery()
 	_discovered_hosts.clear()
 	# The host may have picked the order in the lobby; with no custom order the run
@@ -942,6 +946,7 @@ func start_game() -> void:
 
 @rpc("any_peer", "reliable")
 func rpc_change_scene(scene_path: String) -> void:
+	opening_pending = scene_path.ends_with("Game.tscn")
 	if ResourceLoader.exists(scene_path):
 		get_tree().change_scene_to_file(scene_path)
 
@@ -1132,6 +1137,7 @@ func start_god_games(scene_path := "res://scenes/Game.tscn") -> void:
 		return
 	print("[Network] Starting the God's Games with %d player(s)" % players.size())
 	_game_in_progress = true
+	opening_pending = true
 	stop_host_discovery()
 	_discovered_hosts.clear()
 	# The host may have picked the order in the lobby; with no custom order the run

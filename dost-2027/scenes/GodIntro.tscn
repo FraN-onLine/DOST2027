@@ -66,7 +66,7 @@ rule_only = true
 [node name="StoryLabel" type="Label" parent="CenterContainer/VBox" unique_id=992343751]
 layout_mode = 2
 theme_type_variation = &"FlavorLabel"
-text = "Bathala took the dearest of the mortals."
+text = "Bathala took someone you and other mortals are courting; you face the gods to win her back."
 horizontal_alignment = 1
 autowrap_mode = 3
 

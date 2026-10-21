@@ -249,7 +249,7 @@ func step(delta: float, mortals: Array) -> void:
 	if shocking:
 		shock_left = maxf(0.0, shock_left - delta)
 		if shock_left <= 0.0:
-			shocking = False
+			shocking = false
 			_refresh_visual()
 	if frozen:
 		freeze_left = maxf(0.0, freeze_left - delta)

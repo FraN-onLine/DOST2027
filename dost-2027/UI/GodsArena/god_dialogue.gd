@@ -19,6 +19,9 @@ extends Control
 # VOICE: each entry may carry "voice" (AudioStream) and "portrait" (Texture2D).
 # "voice" plays alongside that line; "portrait" swaps the side photo for that
 # line only. Both optional - missing means silent / keep current photo.
+# Two more optional keys: "hide_photo" (no big photo for this line - a speaker with
+# no art yet) and "beside" (a Texture2D for the small portrait only, so a second
+# face stands next to the speaker's photo - Ines beside Bathala).
 
 signal finished()
 
@@ -129,6 +132,12 @@ func _render() -> void:
 	else:
 		photo.visible = photo.texture != null
 		portrait.visible = portrait.texture != null
+	if entry.get("hide_photo", false):
+		photo.visible = false
+	var beside = entry.get("beside", null)
+	if beside is Texture2D:
+		portrait.texture = beside
+		portrait.visible = true
 	portrait_frame.visible = portrait.visible
 	_play_voice(entry.get("voice", null))
 

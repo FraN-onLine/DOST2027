@@ -57,6 +57,7 @@ extends Control
 
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
 const PREP_SCENE := preload("res://scenes/prep/PrepArea.tscn")
+const OPENING_SCENE := preload("res://scenes/OpeningCutscene.tscn")
 const LOW_TIME := 10.0          # seconds left when the clock turns EMBER
 const COUNT_RATE := 12.0        # FAVOR count-up speed (fraction of the gap per second)
 const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
@@ -107,7 +108,7 @@ func _ready() -> void:
 	Network.player_name_changed.connect(_on_player_name_changed)
 	Network.player_god_icon_changed.connect(_on_player_god_icon_changed)
 	if _build_trial_order():
-		_start_current_trial()
+		_begin_run()
 	else:
 		# A client never draws its own run: until the host answers, there is no
 		# trial to open. Every player walks the same sequence of gods.
@@ -118,12 +119,28 @@ func _ready() -> void:
 
 func _on_host_trial_order_received(_ids: Array) -> void:
 	if _build_trial_order():
-		_start_current_trial()
+		_begin_run()
 		return
 	# Something else about the order changed (the run itself has not arrived
 	# yet): keep waiting - never improvise a run a client would not share.
 	Network.trial_order_changed.connect(_on_host_trial_order_received, CONNECT_ONE_SHOT)
 	Network.rpc_id(1, "request_trial_order")
+
+
+# The run opens with the story cutscene (once, when the lobby's START brought us
+# here and OPENING is not SKIP), then the first god's trial.
+func _begin_run() -> void:
+	var play: bool = Network.opening_pending and Network.run_settings.opening_cutscene == RunSettings.OPENING_FULL
+	Network.opening_pending = false
+	if play:
+		var cutscene: Node = OPENING_SCENE.instantiate()
+		# The host decides in multiplayer: only it may skip, and its skip skips for all.
+		cutscene.can_skip = not Network.has_multiplayer_peer() or multiplayer.is_server()
+		add_child(cutscene)
+		cutscene.play()
+		await cutscene.finished
+		cutscene.queue_free()
+	_start_current_trial()
 
 
 func _build_hud() -> void:
@@ -449,13 +466,14 @@ func _on_trial_complete() -> void:
 	trial_index += 1
 	if trial_index >= trial_order.size():
 		# The run is over (Bathala's final trial has just closed): clear the field
-		# and hand it to the scoreboard. The cutscene is still to come - for now it
-		# goes straight to the final judgment.
+		# and hand it to the scoreboard, which fades in out of black (Bathala's
+		# closing ends on [FADE TO SCOREBOARD.]).
 		if arena != null and is_instance_valid(arena):
 			arena.queue_free()
 		arena = null
 		rules = null
 		_show_finale()
+		_fade_in_from_black()
 		return
 	var next_god: God = trial_order[trial_index]
 	if arena != null and is_instance_valid(arena):
@@ -503,6 +521,20 @@ func _on_prep_closed(prep: PrepArea) -> void:
 	arena = null
 	rules = null
 	_start_current_trial()
+
+
+func _fade_in_from_black() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	var black := ColorRect.new()
+	black.color = Color.BLACK
+	black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(black)
+	add_child(layer)
+	var tween := create_tween()
+	tween.tween_property(black, "color:a", 0.0, 0.9)
+	tween.tween_callback(layer.queue_free)
 
 
 func _show_finale() -> void:

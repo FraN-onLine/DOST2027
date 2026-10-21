@@ -115,15 +115,14 @@ arena_scene = "res://scenes/gods/apolaki/ApolakiArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_dp3kp")]([SubResource("Resource_c8kc2"), SubResource("Resource_gj13w"), SubResource("Resource_q3nb1"), SubResource("Resource_vs2ev"), SubResource("Resource_mua1f"), SubResource("Resource_0jkg1"), SubResource("Resource_3ahhg")])
 portrait = ExtResource("4_nxm4o")
-intro_lines = Array[String](["Apolaki does not blink while the sun is up."])
-trial_end_lines = Array[String](["The duel is over. Your Favor carries on to the next game."])
+intro_lines = Array[String](["Arnis! Let's see if those arms of yours are good for anything other than boasting.", "Strike when you see an opening, defend when you must, and whatever you do, don't mistake my patience for weakness. Show me what makes you think you're worthy of Ines!"])
+trial_end_lines = Array[String](["Hah! Not bad, mortals. You've got some fight in you after all.", "But strength isn't simply about how hard you can strike. It's knowing when to hold back... and when there's something worth taking a hit for.", "Keep that in mind. You'll need more than a strong arm to win this game."])
 success_lines = Array[String](["You struck true. The sun saw it."])
 failure_lines = Array[String](["Not enough fire in you yet."])
 transition_lines = {
-"apolaki": ["Apolaki, another duel awaits."],
-"bathala": ["Bathala, the trials are complete. The mortals await your judgment."],
-"hanan": ["Hanan, the field is yours. See if they can leap as well as they fight."],
-"mapulon_ikapati": ["Mapulon, Ikapati, the sun has dried your field. Let them run on it."],
-"mayari": ["Mayari, the next arena is yours. Keep the mortals in your light."],
-"tala": ["Tala, take the field. Their next throw is yours to judge."]
+"mayari": ["Hmph. Don't let my sister's tricks get to your heads. Keep your eyes open, and your feet moving."],
+"tala": ["Try not to make this too easy on them, Tala. A little challenge never hurt anyone!"],
+"hanan": ["Give them a good fight, Hanan. They could use a little more practice."],
+"mapulon_ikapati": ["Uncle, Auntie. Try not to coddle them too much. Let's see if they've got any backbone."],
+"bathala": ["They're holding up better than I expected, Father. Let's see if they're still standing when they reach you."]
 }

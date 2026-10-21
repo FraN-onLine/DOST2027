@@ -1,0 +1,99 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/OpeningCutscene.gd" id="1_cutscene"]
+[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" uid="uid://celskxwofnwhk" path="res://Assets/Gods/Bathala/bathala_portrait.png" id="3_bathala"]
+
+[node name="OpeningCutscene" type="CanvasLayer"]
+layer = 45
+script = ExtResource("1_cutscene")
+
+[node name="Stage" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Sky" type="ColorRect" parent="Stage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.47, 0.72, 0.94, 1)
+
+[node name="Ground" type="ColorRect" parent="Stage"]
+layout_mode = 0
+mouse_filter = 2
+color = Color(0.37, 0.56, 0.31, 1)
+
+[node name="Ines" type="TextureRect" parent="Stage"]
+layout_mode = 0
+mouse_filter = 2
+texture = ExtResource("2_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Suitor1" type="TextureRect" parent="Stage"]
+layout_mode = 0
+mouse_filter = 2
+texture = ExtResource("2_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Suitor2" type="TextureRect" parent="Stage"]
+layout_mode = 0
+mouse_filter = 2
+texture = ExtResource("2_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="GodRow" type="Control" parent="Stage"]
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 2
+
+[node name="Bathala" type="TextureRect" parent="Stage"]
+layout_mode = 0
+mouse_filter = 2
+texture = ExtResource("3_bathala")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Hand" type="ColorRect" parent="Stage"]
+layout_mode = 0
+mouse_filter = 2
+color = Color(0.93, 0.78, 0.6, 1)
+
+[node name="Arm" type="ColorRect" parent="Stage/Hand"]
+layout_mode = 0
+mouse_filter = 2
+color = Color(0.93, 0.78, 0.6, 1)
+
+[node name="CallLabel" type="Label" parent="Stage"]
+layout_mode = 0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 72
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SkipHint" type="Label" parent="Stage"]
+layout_mode = 0
+mouse_filter = 2
+theme_type_variation = &"MutedLabel"
+horizontal_alignment = 2
+
+[node name="Fade" type="ColorRect" parent="Stage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0)
