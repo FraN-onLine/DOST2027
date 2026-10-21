@@ -94,6 +94,11 @@ func is_stunned() -> bool:
 	return _stun > 0.0
 
 
+# Seconds of stun left (the HUD's effect timers show them).
+func stun_left() -> float:
+	return _stun
+
+
 func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:
 	_stun = maxf(_stun, stun_time)
 	_knockback = direction.normalized() * force

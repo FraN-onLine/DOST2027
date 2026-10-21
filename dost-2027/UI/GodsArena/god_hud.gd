@@ -6,8 +6,15 @@ extends Control
 # The two bars are TAPPABLE: a click on one fires the favor it holds, the same
 # as its key (skill_pressed carries that to the arena).
 # Also carries the trial clock, the event line, the banner and the end-of-trial
-# results panel, and a small note (top right) for the favors that keep something
-# of the mortal's somewhere else: Kabiyak's other half and Kamalig's granary.
+# results panel, and the TOP-RIGHT COLUMN (top_right): first a small note for the favors
+# that keep something of the mortal's somewhere else - Kabiyak's other half and Kamalig's
+# granary - then, under it, the EFFECT TIMERS: one row (EffectRow) for each effect running
+# on the local mortal, with its icon, name and the seconds left on a shrinking bar,
+# removed the moment it ends. A buff (our own lasting skill, a Pamana's opening window)
+# is drawn in its own colour; a debuff a rival's skill or a knock put on us is EMBER.
+# What is running is the arena's to say (Arena.local_effects, handed over through
+# effect_source); this only draws it. An arena with a list of its own in the corner
+# (Langit Lupa's TAYA list) hangs it in the same column, so nothing covers anything.
 #
 # SKILL CARDS (UI/GodsArena/skill_card.tscn), in a stack at the side of the field, next
 # to the skill bars - never in the middle, and they never pause the game or take input
@@ -28,6 +35,7 @@ extends Control
 const COLOR_TIME_OK := UITokens.IVORY
 const COLOR_TIME_LOW := UITokens.EMBER
 const SKILL_CARD_SCENE := preload("res://UI/GodsArena/skill_card.tscn")
+const EFFECT_ROW_SCENE := preload("res://UI/GodsArena/effect_row.tscn")
 # Where the cards stand: right of the shell's left strip, just under its skill bars - or,
 # when this HUD draws its own stats panel (a standalone arena), just under that.
 const CARDS_LEFT := Arena.UI_STRIP_WIDTH + 8.0
@@ -50,7 +58,9 @@ signal skill_pressed(slot: int)   # one of the two favor bars was tapped
 @onready var results_title: Label = $ResultsPanel/Margin/VBox/ResultsTitle
 @onready var results_rows: VBoxContainer = $ResultsPanel/Margin/VBox/ResultsRows
 @onready var results_hint: Label = $ResultsPanel/Margin/VBox/ResultsHint
-@onready var favor_note: Label = $FavorNote
+@onready var top_right: VBoxContainer = $TopRight
+@onready var favor_note: Label = $TopRight/FavorNote
+@onready var effects_box: VBoxContainer = $TopRight/Effects
 @onready var card_stack: VBoxContainer = $SkillCards
 
 # How long a gain popup stays up, seconds.
@@ -65,6 +75,10 @@ var _popup_left := 0.0
 var _popup_queue: Array[Dictionary] = []  # gains waiting: {favor, replaced}
 var _info_cards: Dictionary = {}      # slot -> the info card on screen
 var _hover_slot := -1                 # the skill bar the mouse is over (-1: none)
+# What is running on the local mortal: a Callable returning Arena.effect() entries.
+var effect_source := Callable()
+var _effect_rows: Dictionary = {}     # effect key -> its EffectRow
+var _effect_totals: Dictionary = {}   # effect key -> the longest it has been seen to run (the bar's 100%)
 
 
 func _ready() -> void:
@@ -168,6 +182,7 @@ func _process(delta: float) -> void:
 		if _banner_time <= 0.0:
 			banner_label.visible = false
 	_tick_skill_cards(delta)
+	_sync_effects()
 	if _match == null:
 		return
 	var mortal := _match.local()
@@ -178,6 +193,44 @@ func _process(delta: float) -> void:
 	_sync_bar(bar_e, GodFavor.Slot.E)
 	_sync_bar(bar_q, GodFavor.Slot.Q)
 	_sync_favor_note(mortal)
+
+
+# --- EFFECT TIMERS ---------------------------------------------------------------------
+
+# Bring the stack in line with what is running now: a row appears when an effect starts,
+# counts down while it runs and goes when it ends. Buffs first, then debuffs.
+func _sync_effects() -> void:
+	var entries: Array = effect_source.call() if effect_source.is_valid() else []
+	var running := {}
+	for entry in entries:
+		if float(entry["left"]) <= 0.0:
+			continue
+		running[entry["key"]] = entry
+	for key in _effect_rows.keys().duplicate():
+		if not running.has(key):
+			var gone: EffectRow = _effect_rows[key]
+			effects_box.remove_child(gone)
+			gone.queue_free()
+			_effect_rows.erase(key)
+			_effect_totals.erase(key)
+	var position := 0
+	for harmful in [false, true]:
+		for key in running.keys():
+			var entry: Dictionary = running[key]
+			if bool(entry.get("harmful", false)) != harmful:
+				continue
+			var row: EffectRow = _effect_rows.get(key)
+			if row == null:
+				row = EFFECT_ROW_SCENE.instantiate()
+				effects_box.add_child(row)
+				_effect_rows[key] = row
+			# The bar is measured against the effect's own length when it is known, else
+			# against the longest it has been seen to run.
+			var total := maxf(float(_effect_totals.get(key, 0.0)), maxf(float(entry.get("total", 0.0)), float(entry["left"])))
+			_effect_totals[key] = total
+			row.show_effect(entry, total)
+			effects_box.move_child(row, position)
+			position += 1
 
 
 # --- SKILL CARDS ---------------------------------------------------------------------

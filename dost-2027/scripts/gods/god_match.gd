@@ -921,6 +921,11 @@ func snapshot() -> Dictionary:
 			"jar_lost": m.jar_lost,
 			"kampilan": m.kampilan_ready,
 			"surigao": m.surigao_early,
+			# The Harvest Pair's timers on this mortal, so its own screen can show them.
+			"weeds": m.weeds_time,
+			"weeds_caster": m.weeds_caster,
+			"drought": m.drought_time,
+			"drought_caster": m.drought_caster,
 			}
 	return out
 
@@ -956,6 +961,10 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.jar_lost = int(entry.get("jar_lost", m.jar_lost))
 		m.kampilan_ready = bool(entry.get("kampilan", m.kampilan_ready))
 		m.surigao_early = int(entry.get("surigao", m.surigao_early))
+		m.weeds_time = float(entry.get("weeds", 0.0))
+		m.weeds_caster = int(entry.get("weeds_caster", m.weeds_caster))
+		m.drought_time = float(entry.get("drought", 0.0))
+		m.drought_caster = int(entry.get("drought_caster", m.drought_caster))
 		# A drop that came with a new Pamana was a purchase, not a loss.
 		var bought := (m.pamana_next != previous_next and m.pamana_next != &"") \
 			or (m.surigao_early > 0 and previous_surigao <= 0)

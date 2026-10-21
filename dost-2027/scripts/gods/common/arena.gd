@@ -33,6 +33,14 @@ extends Node2D
 #     republished). The swap lives under the sprite's modulate, so a hit flash, a
 #     freeze or Mayari's blitz tint still shows on top of it.
 #
+#   * THE EFFECT TIMERS: local_effects() lists everything running on THIS screen's
+#     mortal - its own lasting skills and a Pamana's opening window (buffs), and what
+#     rivals, traps and knocks have put on it: Ligaw na Damo, Tagtuyot, Half Vision's
+#     blindness, Sun Patches, doubled losses, Tala's pull, a stun (debuffs). The HUD draws
+#     them as a stack in its top-right corner. An arena adds its own through
+#     arena_local_effects(); every number comes from where it already lives, so the stack
+#     never disagrees with the rule it shows.
+#
 #   * THE FOLLOW CAMERA (the lobby's CAMERA = FOLLOW PLAYER, follow_camera):
 #     off by default, and then nothing above changes - the whole authored field
 #     is on screen and world = screen. On, the LOCAL mortal carries a Camera2D
@@ -126,6 +134,7 @@ const DUE_MENU_SCENE := preload("res://UI/GodsArena/gods_due_menu.tscn")
 const MORTAL_SCENE := preload("res://scenes/gods/common/Mortal.tscn")
 const POPUP_SCENE := preload("res://UI/Popups/favor_popup.tscn")
 const TEMP_ICON := preload("res://icon.svg")
+const SUN_PATCH_ICON := preload("res://Assets/Gods/Apolaki/Sun-Patch.png")
 
 # The photo of the current god - taken from the god's .tres icon field (each
 # god's .tres carries its own portrait now, so we no longer need a shared icon).
@@ -292,6 +301,7 @@ var _base_move_speed := 215.0
 var _guidance_time := 0.0
 var _movement_override_caster := -1
 var _movement_override_time := 0.0
+var _double_loss_seen: Dictionary = {}  # what the host last said about doubled losses (a client's copy, for the HUD)
 var _dash_cd := 0.0
 # The impact currently running on THIS screen: seconds left of the field's
 # shake and of the flash, plus the numbers they fade over (see _shake_screen).
@@ -373,6 +383,7 @@ func _ready() -> void:
 	_read_field()
 	player.set_display_name(_mortal_name(), UITokens.god_text(god))
 	hud.bind(rules, god)
+	hud.effect_source = local_effects
 	rules.announce_gains = not embedded  # an embedded run's shell switches it on once the run's snapshot is in
 	_connect_network()
 	_sync_ghosts()
@@ -1903,6 +1914,7 @@ func _publish_arena_tick() -> void:
 		"event": hud.event_label.text,
 		"event_color": hud.event_label.get_theme_color("font_color"),
 		"sun_patches": _sun_patches.duplicate(true),
+		"double_loss": _double_loss.duplicate(),
 	}
 	state.merge(arena_tick_fields(), true)
 	_net.publish_arena_state(state)
@@ -1945,6 +1957,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	for id in mortals.keys():
 		_mortal_positions[int(id)] = mortals[id]
 	_sun_patches = state.get("sun_patches", {}).duplicate(true)
+	_double_loss_seen = state.get("double_loss", {}).duplicate()
 	var local_mortal := rules.local()
 	if local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		_erase_sun_patches(_my_id)
@@ -2117,6 +2130,74 @@ func _watch_local_pamana() -> void:
 
 func _on_notice(text: String) -> void:
 	_log(text, Color(0.85, 0.85, 0.9))
+
+
+# --- EFFECT TIMERS --------------------------------------------------------------
+# One entry per running effect, for the HUD's stack: {key, name, icon, color, left,
+# total, harmful}. `total` is how long the effect lasts when that is known (0: the HUD
+# measures the bar against the longest it has seen it run).
+
+func effect(key: StringName, label: String, icon: Texture2D, color: Color, left: float, total := 0.0, harmful := false) -> Dictionary:
+	return {"key": key, "name": label, "icon": icon, "color": color, "left": left, "total": total, "harmful": harmful}
+
+
+# An effect named after a favor: its name, icon and colour.
+func favor_effect(key: StringName, favor_id: StringName, left: float, total := 0.0, harmful := false) -> Dictionary:
+	var favor := Gods.favor_by_id(favor_id)
+	if favor == null:
+		return effect(key, str(favor_id).to_upper(), null, UITokens.EMBER, left, total, harmful)
+	return effect(key, effect_name(favor), favor.icon, favor.color, left, total if total > 0.0 else favor.duration, harmful)
+
+
+# A favor's name for a row: upper case, without the "(Mapulon)" a favor's name can carry
+# for the Almanac - the row is narrow and the icon says whose it is.
+func effect_name(favor: GodFavor) -> String:
+	return favor.display_name.split(" (")[0].to_upper()
+
+
+func local_effects() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var mortal := rules.local() if rules != null else null
+	if mortal == null:
+		return out
+	# Buffs: our own skills that are still running...
+	for favor_id in mortal.durations.keys():
+		var favor := mortal.favor_by_id(favor_id)
+		var left := mortal.duration_left(favor_id)
+		if favor != null and left > 0.0:
+			out.append(effect(StringName("skill_%s" % favor_id), effect_name(favor), favor.icon, favor.color, left, favor.duration))
+	# ...and a Pamana's opening window (its charges and "spent" stay on the badge: no timer).
+	var pamana := Pamanas.by_id(mortal.pamana_active)
+	if pamana != null and pamana.timing == Pamana.Timing.FIRST_WINDOW and mortal.pamana_window > 0.0:
+		out.append(effect(StringName("pamana_%s" % pamana.id), pamana.display_name.to_upper(), pamana.icon, UICards.pamana_edge(pamana), mortal.pamana_window, pamana.window))
+	# Debuffs: what has been put on us.
+	if rules.trial_active:  # the Harvest Pair's clocks only run in a trial
+		if mortal.weeds_time > 0.0:
+			out.append(favor_effect(&"weeds", &"ligaw_na_damo", mortal.weeds_time, 0.0, true))
+		if mortal.drought_time > 0.0:
+			out.append(favor_effect(&"drought", &"tagtuyot", mortal.drought_time, 0.0, true))
+	if _blind_time > 0.0:
+		out.append(favor_effect(&"blind", &"half_vision", _blind_time, 0.0, true))
+	var patches: Array = _sun_patches.get(_my_id, [])
+	if not patches.is_empty():
+		var longest := 0.0
+		for seconds in patches:
+			longest = maxf(longest, float(seconds))
+		out.append(effect(&"sun_patches", "SUN PATCHES" if patches.size() > 1 else "SUN PATCH", SUN_PATCH_ICON, UITokens.EMBER, longest, 0.0, true))
+	var doubled := float((_double_loss if _authority else _double_loss_seen).get(_my_id, 0.0))
+	if doubled > 0.0:
+		out.append(effect(&"double_loss", "DOUBLE LOSS", Gods.favor_by_id(&"siblings_compromise_sun").icon, UITokens.EMBER, doubled, 0.0, true))
+	if _movement_override_time > 0.0 and _movement_override_caster != _my_id:
+		out.append(favor_effect(&"pulled", &"let_us_light_your_way", _movement_override_time, 0.0, true))
+	if player != null and player.stun_left() > 0.0:
+		out.append(effect(&"stun", "STUNNED", null, UITokens.EMBER, player.stun_left(), 0.0, true))
+	out.append_array(arena_local_effects())
+	return out
+
+
+# A god's arena lists its own effects here (Langit Lupa: ALIS, a closed Langit).
+func arena_local_effects() -> Array[Dictionary]:
+	return []
 
 
 # --- A CAST, SEEN BY EVERYONE ---------------------------------------------------
