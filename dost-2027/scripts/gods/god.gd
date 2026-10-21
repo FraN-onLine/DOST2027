@@ -53,7 +53,11 @@ func transition_voices_for(next_god_id: StringName) -> Array:
 #                    data change and never a code change. The key "*" is the
 #                    fallback for a god with no line for the next one.
 #   success_lines /  spoken only at Bathala's final trial, where the run is
-#   failure_lines    finally judged.
+#   failure_lines    finally judged, AFTER his trial_end_lines (his own ending, which
+#                    leads straight into the scoreboard).
+#
+# A line written in [square brackets] is a stage direction, never shown: see
+# Arena._speech. (Voices stay index-aligned with the lines array, directions included.)
 @export var intro_lines: Array[String] = []
 @export var trial_end_lines: Array[String] = []
 @export var success_lines: Array[String] = []

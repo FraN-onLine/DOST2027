@@ -466,13 +466,14 @@ func _on_trial_complete() -> void:
 	trial_index += 1
 	if trial_index >= trial_order.size():
 		# The run is over (Bathala's final trial has just closed): clear the field
-		# and hand it to the scoreboard. The cutscene is still to come - for now it
-		# goes straight to the final judgment.
+		# and hand it to the scoreboard, which fades in out of black (Bathala's
+		# closing ends on [FADE TO SCOREBOARD.]).
 		if arena != null and is_instance_valid(arena):
 			arena.queue_free()
 		arena = null
 		rules = null
 		_show_finale()
+		_fade_in_from_black()
 		return
 	var next_god: God = trial_order[trial_index]
 	if arena != null and is_instance_valid(arena):
@@ -520,6 +521,20 @@ func _on_prep_closed(prep: PrepArea) -> void:
 	arena = null
 	rules = null
 	_start_current_trial()
+
+
+func _fade_in_from_black() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	var black := ColorRect.new()
+	black.color = Color.BLACK
+	black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(black)
+	add_child(layer)
+	var tween := create_tween()
+	tween.tween_property(black, "color:a", 0.0, 0.9)
+	tween.tween_callback(layer.queue_free)
 
 
 func _show_finale() -> void:

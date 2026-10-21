@@ -61,6 +61,46 @@ func _run() -> void:
 			str(god.id), god.game_name, god.favors.size(),
 			god.intro_lines.size(), god.trial_end_lines.size(), god.transition_lines.size()])
 
+	# --- 1b. every playable god says what it must -------------------------------
+	print("--- dialogue ---")
+	var playable := RunSettings.playable_ids()
+	for god in Gods.all():
+		var host := god.id == Gods.BATHALA or playable.has(god.id)
+		if not host:
+			continue
+		if god.intro_lines.is_empty():
+			printerr("god_audit: %s has no intro lines" % god.id)
+			problems += 1
+		if god.trial_end_lines.is_empty():
+			printerr("god_audit: %s has no trial-end lines" % god.id)
+			problems += 1
+		if god.id != Gods.BATHALA:
+			# Every god that can follow it (any other playable god, then Bathala).
+			var followers: Array[StringName] = []
+			for other in playable:
+				if other != god.id:
+					followers.append(other)
+			followers.append(Gods.BATHALA)
+			for next_id in followers:
+				if god.transition_lines.get(str(next_id), []).is_empty() and god.transition_lines.get("*", []).is_empty():
+					printerr("god_audit: %s has no transition line for %s (and no '*')" % [god.id, next_id])
+					problems += 1
+		# A god with two speakers: every prefixed line names one of them.
+		if not god.speakers.is_empty():
+			var every: Array = god.intro_lines + god.trial_end_lines
+			for lines in god.transition_lines.values():
+				every += lines
+			for line in every:
+				if god.entry_for(str(line))["speaker"] == god.display_name:
+					printerr("god_audit: a line of %s names no speaker: %s" % [god.id, line])
+					problems += 1
+	var cutscene: Cutscene = load("res://resources/opening_cutscene.tres")
+	var cutscene_problems := cutscene.problems(load("res://scripts/OpeningCutscene.gd").ACTIONS) if cutscene != null else ["the cutscene data will not load"]
+	for issue in cutscene_problems:
+		printerr("god_audit: opening cutscene: %s" % issue)
+		problems += 1
+	print("  opening cutscene: %d steps, %d problem(s)" % [cutscene.steps.size() if cutscene != null else 0, cutscene_problems.size()])
+
 	# --- 2. every arena loads, runs and pays FAVOR ------------------------------
 	print("--- arenas ---")
 	for path in ARENAS:

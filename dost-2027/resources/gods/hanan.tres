@@ -110,16 +110,15 @@ arena_scene = "res://scenes/gods/hanan/HananArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_favor")]([SubResource("Favor_the_dawn"), SubResource("Favor_even_playing_field"), SubResource("Favor_first_light"), SubResource("Favor_bagong_umaga"), SubResource("Favor_break_of_day"), SubResource("Favor_morning_chases_the_night"), SubResource("Favor_the_three_sisters")])
 portrait = ExtResource("3_ftwwg")
-intro_lines = Array[String](["Hanan greets you with the first light of morning.", "Luksong Baka is a leap, not a race. Hold to rise, let go to fall, keep the Baka beneath you - and land on the other side.", "Trip, and the dawn will still come for you."])
-trial_end_lines = Array[String](["The Baka rests and the morning moves on. Rise again with the Favor you earned."])
+intro_lines = Array[String](["Luksong Baka! A game of timing, courage, and knowing when to take the leap.", "The higher the jump, the harder the landing. So don't be afraid to stumble, little mortals. Every morning begins anew.", "Now, take a deep breath... and jump!"])
+trial_end_lines = Array[String](["Well done! Even when you stumbled, you found your footing again.", "Love can be much the same. Sometimes you leap without knowing where you'll land.", "And sometimes, the bravest thing you can do is begin again."])
 success_lines = Array[String](["You leapt like the morning itself. Father should be proud."])
 failure_lines = Array[String](["You tripped, but every dawn gets another try."])
 transition_lines = {
 "*": ["The morning is done. Go well, mortals."],
-"apolaki": ["Apolaki, brother, the sun is high. Let them stand in it a little."],
-"bathala": ["Father, the mortals have leapt as far as they can. Their Favor is yours to judge, and I am on their side."],
-"hanan": ["Another morning, another Baka. Rise with me again."],
-"mapulon_ikapati": ["Mapulon, Ikapati, the morning is up and the field is wet with dew. They are yours."],
-"mayari": ["Mayari, my sister, the night is yours. Be gentle with them - they are trying."],
-"tala": ["Tala, my sister, the stars are yours. Teach them to aim true."]
+"mayari": ["Mayari, do keep an eye on these mortals. They may need a little guidance when the lights go out."],
+"apolaki": ["Apolaki, please try not to push them too hard. They have already come a long way."],
+"tala": ["Tala, I'll leave them to you. May they find their aim, even if they stumble along the way."],
+"mapulon_ikapati": ["Uncle, Auntie, I hope you'll give them a chance to catch their breath. They've certainly earned one."],
+"bathala": ["Father is waiting for you now. Whatever happens next, I hope they find what their hearts are looking for."]
 }

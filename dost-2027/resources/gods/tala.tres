@@ -95,15 +95,14 @@ arena_scene = "res://scenes/gods/tala/TalaArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_favor")]([SubResource("Favor_bountiful_e"), SubResource("Favor_bountiful_q"), SubResource("Favor_shining"), SubResource("Favor_guidance"), SubResource("Favor_light_way"), SubResource("Favor_unbothered")])
 portrait = ExtResource("4_pnj1g")
-intro_lines = Array[String](["Tala watches the tin cans beneath the stars.", "Throw your slipper past me and strike a can. If I catch it, go fetch it from my side.", "Bring your slipper back to the line before you throw again."])
-trial_end_lines = Array[String](["The cans settle. Keep the Favor you earned; the next game is ready."])
+intro_lines = Array[String](["Tumbang Preso! A simple game of aim, timing, and a little bit of luck.", "Knock down the cans, but mind where you throw. I would hate to see you hit something... or someone... you didn't intend to.", "Now then, let's see if you can hit what you mean to hit, little mortals!"])
+trial_end_lines = Array[String](["Splendid! Your aim has improved quite nicely.", "You know, the stars are rather particular about where they shine. Not everything that catches your eye is meant to be yours.", "Sometimes, you must learn to look carefully before you reach for something."])
 success_lines = Array[String](["The game is done. The Favor you gathered will speak for you."])
 failure_lines = Array[String](["The game is done. The Favor you gathered will speak for you."])
 transition_lines = {
-"apolaki": ["Apolaki, the players are coming to your arena.", "I will watch the next throw from the stars."],
-"bathala": ["Bathala, the mortals have played their games. Their Favor is yours to judge."],
-"hanan": ["Hanan, the morning is yours. I will watch their leap from the stars."],
-"mapulon_ikapati": ["Mapulon, Ikapati, the stars say it is planting season.", "The field is yours."],
-"mayari": ["Mayari, the field belongs to you now.", "I will keep watch from above."],
-"tala": ["The next round begins. The cans are set again."]
+"mayari": ["Sister, do try to keep the darkness manageable. I'd hate for them to lose their way before they've had their fun."],
+"apolaki": ["Brother, do mind your temper. These mortals are rather fragile compared to you."],
+"hanan": ["Hanan, I'll leave them in your capable hands. Perhaps a little fresh air will do them good."],
+"mapulon_ikapati": ["Uncle, Auntie, I'll leave these mortals to you. Do take good care of them."],
+"bathala": ["Father awaits you now, little mortals. May the stars guide your steps... wherever they may lead."]
 }
