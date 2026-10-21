@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="Cutscene" format=3]
+
+[ext_resource type="Script" path="res://scripts/cutscene.gd" id="1_cutscene"]
+
+[resource]
+script = ExtResource("1_cutscene")
+steps = Array[Dictionary]([
+{"action": "ines_and_suitors"},
+{"speaker": "SUITOR 1", "text": "Ines! I am the strongest among your suitors! I could rival even the Gods themselves!"},
+{"speaker": "SUITOR 2", "text": "And I am the wisest! Why, I wager I could outwit Mayari herself!"},
+{"speaker": "INES", "text": "Calm yourselves, my suitors. For I have yet to—"},
+{"action": "hand_seizes"},
+{"speaker": "INES", "text": "W-WHAT?!"},
+{"speaker": "SUITOR 1", "text": "INES!"},
+{"speaker": "SUITOR 2", "text": "What manner of trickery is this?!"},
+{"action": "bathala_appears"},
+{"speaker": "BATHALA", "text": "The strongest, you say? The wisest?"},
+{"action": "regards"},
+{"speaker": "BATHALA", "text": "Then surely, you have no reason to fear a little game."},
+{"speaker": "SUITOR 1", "text": "Release her, you coward!"},
+{"speaker": "BATHALA", "text": "Oh? And what will you do if I refuse?"},
+{"action": "suitors_fall"},
+{"speaker": "BATHALA", "text": "Here is my proposition, mortals."},
+{"speaker": "BATHALA", "text": "Win the FAVOR of my children. Survive their trials. Prove that your boasts are worth more than mere breath."},
+{"action": "gods_appear"},
+{"speaker": "BATHALA", "text": "And when all is said and done, I shall declare which of you is most worthy of Ines."},
+{"speaker": "BATHALA", "text": "Come out-"},
+{"speaker": "BATHALA", "text": "MAYARI!", "call": "mayari"},
+{"speaker": "BATHALA", "text": "APOLAKI!", "call": "apolaki"},
+{"speaker": "BATHALA", "text": "HANAN!", "call": "hanan"},
+{"speaker": "BATHALA", "text": "TALA-", "call": "tala"},
+{"speaker": "BATHALA", "text": "MAPULON AND IKAPATI", "call": "mapulon_ikapati"},
+{"speaker": "BATHALA", "text": "And ME", "call": "bathala"},
+{"speaker": "MAYARI", "text": "Bring It."},
+{"speaker": "APOLAKI", "text": "A Challenger?"},
+{"speaker": "HANAN", "text": "Sound plan."},
+{"speaker": "TALA", "text": "Splendid"},
+{"speaker": "MAPULON & IKAPATI", "text": "Okay."},
+{"action": "fade"}
+])

@@ -3,7 +3,8 @@ extends RefCounted
 
 # Everything the host sets up in the lobby before pressing START: how many trials,
 # in what order, how long each lasts, how long the rest between two trials lasts,
-# how often FAVOR pays a God's Due, how much the gods say when they open a trial
+# how often FAVOR pays a God's Due, how much the gods say when they open a trial,
+# whether the story cutscene opens the run
 # and what the camera shows.
 #
 # One object for all of it so the lobby, the network sync, the saved
@@ -18,6 +19,8 @@ const ORDER_RANDOM := "random"
 const ORDER_CUSTOM := "custom"
 const INTRO_FULL := "full"    # a god's full intro on its first visit, the short line after
 const INTRO_SHORT := "short"  # always the short "take your place" line
+const OPENING_FULL := "full"  # the story cutscene plays before the first trial
+const OPENING_SKIP := "skip"  # straight to the first god
 const TRIAL_TIMES := [60.0, 90.0, 120.0, 150.0]
 const PREP_TIMES := [10.0, 20.0, 30.0, 45.0, 60.0]  # the preparation area (PAHINGA)
 const DUE_STEPS := [750, 1000, 1500]
@@ -33,6 +36,7 @@ var trial_time: float = DEFAULT_TRIAL_TIME
 var prep_time: float = DEFAULT_PREP_TIME
 var due_step: int = GodMatch.MILESTONE_STEP
 var intro_mode: String = INTRO_FULL
+var opening_cutscene: String = OPENING_FULL
 # Each god's blitz (last-stand mode) can be switched off here; default is on.
 var god_blitz_mode: bool = true
 # Only what this screen draws: the host's rules never read the camera.
@@ -57,6 +61,7 @@ func to_dict() -> Dictionary:
 		"prep_time": prep_time,
 		"due_step": due_step,
 		"intro_mode": intro_mode,
+		"opening_cutscene": opening_cutscene,
 		"god_blitz_mode": god_blitz_mode,
 		"camera_mode": camera_mode,
 	}
@@ -76,6 +81,7 @@ static func from_dict(data: Dictionary) -> RunSettings:
 	settings.prep_time = float(data.get("prep_time", DEFAULT_PREP_TIME))
 	settings.due_step = int(data.get("due_step", GodMatch.MILESTONE_STEP))
 	settings.intro_mode = str(data.get("intro_mode", INTRO_FULL))
+	settings.opening_cutscene = str(data.get("opening_cutscene", OPENING_FULL))
 	settings.god_blitz_mode = bool(data.get("god_blitz_mode", true))
 	settings.camera_mode = str(data.get("camera_mode", CAMERA_ARENA))
 	return settings
@@ -97,6 +103,8 @@ func validate(fix_repeats := true) -> Array[String]:
 		order_mode = ORDER_RANDOM
 	if intro_mode != INTRO_SHORT:
 		intro_mode = INTRO_FULL
+	if opening_cutscene != OPENING_SKIP:
+		opening_cutscene = OPENING_FULL
 	if not TRIAL_TIMES.has(trial_time):
 		trial_time = DEFAULT_TRIAL_TIME
 	if not PREP_TIMES.has(prep_time):

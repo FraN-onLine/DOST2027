@@ -57,6 +57,7 @@ extends Control
 
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
 const PREP_SCENE := preload("res://scenes/prep/PrepArea.tscn")
+const OPENING_SCENE := preload("res://scenes/OpeningCutscene.tscn")
 const LOW_TIME := 10.0          # seconds left when the clock turns EMBER
 const COUNT_RATE := 12.0        # FAVOR count-up speed (fraction of the gap per second)
 const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
@@ -107,7 +108,7 @@ func _ready() -> void:
 	Network.player_name_changed.connect(_on_player_name_changed)
 	Network.player_god_icon_changed.connect(_on_player_god_icon_changed)
 	if _build_trial_order():
-		_start_current_trial()
+		_begin_run()
 	else:
 		# A client never draws its own run: until the host answers, there is no
 		# trial to open. Every player walks the same sequence of gods.
@@ -118,12 +119,28 @@ func _ready() -> void:
 
 func _on_host_trial_order_received(_ids: Array) -> void:
 	if _build_trial_order():
-		_start_current_trial()
+		_begin_run()
 		return
 	# Something else about the order changed (the run itself has not arrived
 	# yet): keep waiting - never improvise a run a client would not share.
 	Network.trial_order_changed.connect(_on_host_trial_order_received, CONNECT_ONE_SHOT)
 	Network.rpc_id(1, "request_trial_order")
+
+
+# The run opens with the story cutscene (once, when the lobby's START brought us
+# here and OPENING is not SKIP), then the first god's trial.
+func _begin_run() -> void:
+	var play: bool = Network.opening_pending and Network.run_settings.opening_cutscene == RunSettings.OPENING_FULL
+	Network.opening_pending = false
+	if play:
+		var cutscene: Node = OPENING_SCENE.instantiate()
+		# The host decides in multiplayer: only it may skip, and its skip skips for all.
+		cutscene.can_skip = not Network.has_multiplayer_peer() or multiplayer.is_server()
+		add_child(cutscene)
+		cutscene.play()
+		await cutscene.finished
+		cutscene.queue_free()
+	_start_current_trial()
 
 
 func _build_hud() -> void:
