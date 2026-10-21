@@ -28,6 +28,11 @@ extends Arena
 #   from the runner to the Taya; every second as Taya costs taya_drain FAVOR. The
 #   Taya can never stand on a Langit: walking into one pushes it back to the edge.
 #
+# THE FIELD
+#   Sized for the mortals playing (field_size_2p / _3p / _4p), centred where the
+#   Border is drawn: the host picks it when the arena loads and again at the
+#   countdown, and sends it with the layout; every screen redraws the Border.
+#
 # LANGIT
 #   langit_count() spots: one more than there are mortals, so every runner can be
 #   safe at once. A runner is safe while inside a Langit's rect grown by
@@ -94,15 +99,22 @@ const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down"
 @export var tagback_immunity := 1.0      # seconds a new Taya cannot tag
 @export var tagged_mercy := 1.0          # seconds the old Taya cannot be tagged back
 @export var tag_steal := 60              # FAVOR a tag moves from the runner to the Taya
-@export var taya_clearance := 120.0      # no Langit lands this close to the Taya
+@export var taya_clearance := 100.0      # no Langit lands this close to the Taya
 @export var taya_drain := 10             # FAVOR per second as Taya
 @export var payout_best := 600           # least time as Taya
 @export var payout_worst := 100          # most time as Taya
 @export var tie_window := 0.25           # Taya times this close are a tie
 @export var langit_size := Vector2(96.0, 60.0)
 @export var langit_safe_margin := 6.0    # standing on the edge still counts
-@export var langit_spacing := 180.0      # least distance between two Langit centres
+@export var langit_spacing := 120.0      # least distance between two Langit centres
 @export var langit_fade_in := 0.3        # seconds a new Langit takes to appear
+
+@export_category("Field")
+# The field's size for 2, 3 and 4 mortals, centred where the Border is drawn. A 0
+# keeps the drawn Border's width or height (the art decides the strip's height).
+@export var field_size_2p := Vector2(560.0, 0.0)
+@export var field_size_3p := Vector2(640.0, 0.0)
+@export var field_size_4p := Vector2(720.0, 0.0)
 
 @export_category("Seasons")
 @export var season_interval := 12.0      # seconds between two crumbles
@@ -123,7 +135,7 @@ const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down"
 @export_category("Crossing FAVOR")
 @export var crossing_favor := 40
 @export var close_call_bonus := 40
-@export var close_call_radius := 110.0
+@export var close_call_radius := 90.0
 @export var streak_step := 10
 @export var streak_cap := 50
 
@@ -135,8 +147,8 @@ const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down"
 @export var bot_speed := 175.0           # solo bots (the player walks 215)
 @export var bot_reaction_max := 0.4      # a bot reacts to a chant 0.1 - this many seconds late
 @export var bot_dare_chance := 0.08      # per second on a Langit: hop to another for FAVOR
-@export var bot_dash_radius := 90.0      # a bot dashes when the Taya is this close
-@export var bot_flee_radius := 170.0     # a bot veers away from a Taya this close
+@export var bot_dash_radius := 75.0      # a bot dashes when the Taya is this close
+@export var bot_flee_radius := 140.0     # a bot veers away from a Taya this close
 @export var bot_chant_success := 0.7
 @export var bot_chant_beat := 0.5        # seconds per prompt when a bot chants
 
@@ -156,6 +168,7 @@ const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down"
 @onready var rules_card: Control = get_node_or_null("LangitHud/RulesCard")
 @onready var taya_tip: Control = get_node_or_null("LangitHud/TayaTip")
 
+var _drawn := Rect2()                 # the Border as the scene draws it
 var _taya := -1
 var _tagback := 0.0
 var _taya_time: Dictionary = {}      # mortal id -> seconds spent as Taya
@@ -214,6 +227,46 @@ func _ready() -> void:
 	_spawn_bots()
 
 
+# --- THE FIELD ----------------------------------------------------------------
+
+# The base reads the drawn Border; the host then sizes the field for the mortals
+# playing and sends it on with the layout, so every screen walks the same field.
+func _read_field() -> void:
+	super._read_field()
+	if _authority:
+		_size_field()
+
+
+func field_size_for(mortals: int) -> Vector2:
+	if mortals <= 2:
+		return field_size_2p
+	return field_size_3p if mortals == 3 else field_size_4p
+
+
+func _size_field() -> void:
+	if not _drawn.has_area():
+		_drawn = field_root.authored_rect()  # once: the Border is redrawn below
+	var wanted := field_size_for(rules.mortals.size())
+	var size := Vector2(wanted.x if wanted.x > 0.0 else _drawn.size.x, wanted.y if wanted.y > 0.0 else _drawn.size.y)
+	_field = Rect2(_drawn.get_center() - size * 0.5, size)
+	_draw_border()
+	player.bounds = _field
+	_fit_camera()
+	_publish_layout()
+
+
+# The Border line is redrawn around the field (it may be scaled in the scene, so
+# the corners go through its own transform).
+func _draw_border() -> void:
+	var line := field_root.border
+	if line == null:
+		return
+	var points := PackedVector2Array()
+	for corner in [_field.position, Vector2(_field.end.x, _field.position.y), _field.end, Vector2(_field.position.x, _field.end.y), _field.position]:
+		points.append(line.to_local(corner))
+	line.points = points
+
+
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
 
 func collect_units() -> void:
@@ -244,6 +297,8 @@ func edge_targets() -> Array:
 
 
 func arena_round_reset() -> void:
+	if _authority:
+		_size_field()  # the roster may have changed during the intro
 	_taya = -1
 	_tagback = 0.0
 	_taya_time.clear()
@@ -300,6 +355,10 @@ func arena_tick_fields() -> Dictionary:
 		"closed": _closed.duplicate(),
 		"streak": _streak.duplicate(),
 	}
+
+
+func arena_read_layout(_layout: Dictionary) -> void:
+	_draw_border()  # the host's field (the base already took _field and the bounds)
 
 
 func arena_read_tick(state: Dictionary) -> void:
@@ -891,8 +950,11 @@ func _spawn_bots() -> void:
 		_mortal_positions[m.id] = bot.global_position
 
 
+# Spread over the field: left and right of the middle, top to bottom by id.
 func _bot_start(id: int) -> Vector2:
-	return _field.get_center() + Vector2(160.0 * (1 if id % 2 == 0 else -1), -90.0 + 60.0 * float(id))
+	var x := _field.size.x * 0.28 * (1.0 if id % 2 == 0 else -1.0)
+	var y := lerpf(-0.35, 0.35, float(id % 3) / 2.0) * _field.size.y
+	return _field.get_center() + Vector2(x, y)
 
 
 func _move_bots(delta: float) -> void:
