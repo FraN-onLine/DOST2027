@@ -20,13 +20,29 @@ extends Arena
 #   the dare of the crossing.
 #
 # THE TAYA
-#   The countdown is the counting rhyme ("LANGIT... LUPA... IMPYERNO!") and it
-#   lands on the mortal with the most FAVOR (ties: random). The Taya passes on a
-#   touch (tag_radius) to any runner on the Lupa; the new Taya cannot tag for
-#   tagback_immunity seconds (its marker blinks) and the runner who just passed it
-#   on cannot be tagged back for tagged_mercy seconds. A tag moves tag_steal FAVOR
-#   from the runner to the Taya; every second as Taya costs taya_drain FAVOR. The
-#   Taya can never stand on a Langit: walking into one pushes it back to the edge.
+#   The countdown is the counting rhyme ("LANGIT... LUPA... IMPYERNO!") and at GO
+#   the GODS are Taya: one host-run body for Mapulon & Ikapati (GOD_TAYA), so the
+#   pair play in their own arena and no mortal starts behind. It plays by the
+#   Taya's rules - tags only on the Lupa, never stands on a Langit, chants
+#   (god_chant_success, god_chant_beat) - with the solo bots' chase-and-chant AI
+#   at god_speed. It is not a GodMatch mortal: no FAVOR, no drain, no time as
+#   Taya, no place in the payout. Its tag moves no FAVOR: that mortal is simply
+#   the Taya from then on, and the gods leave the field ("Ikaw na!", a fade over
+#   god_leave_time) - they never stay as an extra hunter.
+#   SAFETY VALVE: after god_taya_max_time seconds without a tag the gods pick the
+#   runner with the most FAVOR on the Lupa (the nearest of a tie; anyone, if all
+#   are safe) and hunt only them at god_hunt_speed. A round that ends with the
+#   gods still Taya pays by the mortals' times as usual (all zero: a tie).
+#   god_starts_as_taya = false brings back the old rule: the rhyme lands on the
+#   mortal with the most FAVOR (ties: random).
+#   Between mortals the Taya passes on a touch (tag_radius) to any runner on the
+#   Lupa; the new Taya cannot tag for tagback_immunity seconds (its marker blinks)
+#   and the runner who just passed it on cannot be tagged back for tagged_mercy
+#   seconds. A tag moves tag_steal FAVOR from the runner to the Taya; every second
+#   as Taya costs taya_drain FAVOR. The Taya can never stand on a Langit: walking
+#   into one pushes it back to the edge.
+#   Network: the gods' position, fade and hunted runner ride the arena tick; the
+#   chant rides the same chant fields as a mortal Taya's. Clients only draw them.
 #
 # THE FIELD
 #   Sized for the mortals playing (field_size_2p / _3p / _4p), centred where the
@@ -78,7 +94,8 @@ extends Arena
 # run when a chant reaches its fourth word, hop now and then for the crossing
 # FAVOR, and chase (or chant) when they are it.
 #
-# The art is drop-in (see Assets/Gods/MapulonIkapati/README.md): each file is used
+# The art is drop-in (see Assets/Gods/MapulonIkapati/README.md; the gods' body is
+# God-Taya.png): each file is used
 # when it exists and the placeholder stays when it does not. Every number is an
 # @export - tune it in the inspector. The dash itself lives in the base (Dash).
 
@@ -92,6 +109,9 @@ const CHANT_WORDS: Array[String] = ["LANGIT", "LUPA", "IMPYERNO", "SAKSAK PUSO",
 const RHYME: Array[String] = ["LANGIT...", "LUPA...", "IMPYERNO!"]
 # A prompt's direction, clockwise from up (the arrow is turned a quarter per step).
 const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down", &"move_left"]
+# The Taya id while Mapulon & Ikapati are it (-1 is "no Taya"; mortals are >= 1).
+const GOD_TAYA := -2
+const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are Taya first!"
 
 @export_category("Langit Lupa")
 @export var fixed_trial_time := 60.0     # the round length here (0 = the lobby's)
@@ -151,6 +171,16 @@ const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down"
 @export var bot_flee_radius := 140.0     # a bot veers away from a Taya this close
 @export var bot_chant_success := 0.7
 @export var bot_chant_beat := 0.5        # seconds per prompt when a bot chants
+
+@export_category("God Taya")
+@export var god_starts_as_taya := true   # false: the mortal with the most FAVOR starts as Taya
+@export var god_speed := 175.0           # the gods' walk (the player walks 215)
+@export var god_chant_success := 0.7
+@export var god_chant_beat := 0.5        # seconds per prompt when the gods chant
+@export var god_taya_max_time := 15.0    # seconds without a tag before the gods hunt one runner
+@export var god_hunt_speed := 230.0      # their walk while hunting
+@export var god_leave_time := 0.8        # seconds the gods take to fade out after their tag
+@export var god_tag_line := "MAPULON: \"IKAW NA!\""
 
 @onready var langits_root: Node2D = get_node_or_null("ArenaField/Langits")
 @onready var taya_marker: Node2D = get_node_or_null("TayaMarker")
@@ -212,6 +242,13 @@ var _callout_time := 0.0
 var _taya_tip_left := 0.0
 var _taya_tip_done := false
 var _paid := false
+# The gods as Taya (host-run; clients mirror _god_at, _god_leave and _god_hunt):
+var _god_body: ArenaMortal
+var _god_at := Vector2.INF           # where the gods stand (INF: off the field)
+var _god_time := 0.0                 # host: seconds the gods have been Taya
+var _god_hunt := -1                  # the runner the safety valve hunts (-1: none)
+var _god_leave := 0.0                # seconds left of the fade after their tag
+var _god_said := false               # this screen showed their line over the body
 
 
 func _ready() -> void:
@@ -225,6 +262,10 @@ func _ready() -> void:
 		taya_list.custom_minimum_size.x = 250.0
 		taya_list.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_spawn_bots()
+	_spawn_god()
+	var lupa_rule := get_node_or_null("LangitHud/RulesCard/Lines/Lupa") as Label
+	if lupa_rule != null and god_starts_as_taya:
+		lupa_rule.text = RULES_LUPA_GODS
 
 
 # --- THE FIELD ----------------------------------------------------------------
@@ -311,6 +352,10 @@ func arena_round_reset() -> void:
 	_my_chanting = false
 	_my_stumble = 0.0
 	_rooted = false  # the base keeps the mortal locked through the countdown
+	_god_at = Vector2.INF
+	_god_time = 0.0
+	_god_hunt = -1
+	_god_leave = 0.0
 	for runners in [_swap, _closed, _shoving, _on, _last_left, _close_call, _streak, _bot_goal, _bot_react, _bot_chant]:
 		runners.clear()
 	if _authority:
@@ -322,16 +367,18 @@ func arena_round_reset() -> void:
 
 func arena_rules_tick(delta: float) -> void:
 	_move_bots(delta)
+	_move_god(delta)
 	_tick_season(delta)
-	if _taya == -1 or rules.mortal(_taya) == null:
+	if _taya == -1 or (_taya != GOD_TAYA and rules.mortal(_taya) == null):
 		_choose_taya(_highest_favor_ids())
 	_tick_chant(delta)
 	_tick_swaps(delta)
 	_tick_crossings()
 	_tagback = maxf(0.0, _tagback - delta)
-	if _taya != -1:
+	if _taya >= 0:  # the gods keep no time and pay no drain
 		_taya_time[_taya] = float(_taya_time.get(_taya, 0.0)) + delta
 		_drain_pending[_taya] = float(_drain_pending.get(_taya, 0.0)) + float(taya_drain) * delta
+	if _taya != -1:
 		_check_tag()
 	_drain_tick -= delta
 	if _drain_tick <= 0.0:
@@ -354,6 +401,9 @@ func arena_tick_fields() -> Dictionary:
 		"swap": _swap.duplicate(),
 		"closed": _closed.duplicate(),
 		"streak": _streak.duplicate(),
+		"god_at": _god_at,
+		"god_leave": _god_leave,
+		"god_hunt": _god_hunt,
 	}
 
 
@@ -379,6 +429,9 @@ func arena_read_tick(state: Dictionary) -> void:
 	_swap = state.get("swap", _swap).duplicate()
 	_closed = state.get("closed", _closed).duplicate()
 	_streak = state.get("streak", _streak).duplicate()
+	_god_at = state.get("god_at", _god_at)
+	_god_leave = float(state.get("god_leave", _god_leave))
+	_god_hunt = int(state.get("god_hunt", _god_hunt))
 	if _taya != previous:
 		_announce_taya(_taya)
 
@@ -390,14 +443,19 @@ func _show_banner(text: String, color: Color, duration := 2.0) -> void:
 	super._show_banner(text, color, duration)
 
 
-# The first Taya is chosen once begin_trial() has paid (First Light), so the
-# "most FAVOR" it reads is the real one - and the rhyme's pointer lands on them.
+# At GO the rhyme's pointer lands on the gods (or, with god_starts_as_taya off,
+# on the mortal with the most FAVOR - read once begin_trial() has paid First
+# Light, so it is the real one).
 func _start_trial() -> void:
 	super._start_trial()
-	if _authority:
+	if not _authority:
+		return
+	if god_starts_as_taya:
+		_gods_take_taya()
+	else:
 		_choose_taya(_highest_favor_ids())
-		if _taya != -1:
-			_show_banner("TAYA: %s!" % mortal_label(_taya).to_upper(), god.color, 1.4)
+	if _taya != -1:
+		_show_banner("TAYA: %s!" % taya_label().to_upper(), god.color, 1.4)
 
 
 # The payout is banked BEFORE the base settles the trial (rules.end_trial()
@@ -470,8 +528,11 @@ func _choose_taya(candidates: Array[int]) -> void:
 # Taya passes to `mortal_id`, who cannot tag for tagback_immunity seconds; the
 # runner who passed it on cannot be tagged back for tagged_mercy seconds. A chant
 # in progress is cancelled (only a disconnect can change the Taya mid-chant).
+# When it passes from the gods, they leave the field.
 func set_taya(mortal_id: int) -> void:
 	var old := _taya
+	if old == GOD_TAYA and mortal_id != GOD_TAYA:
+		_gods_leave()
 	_taya = mortal_id
 	_tagback = tagback_immunity
 	_reset_chant()
@@ -487,6 +548,9 @@ func set_taya(mortal_id: int) -> void:
 
 
 func _announce_taya(mortal_id: int) -> void:
+	if mortal_id == GOD_TAYA:
+		_log("%s are the Taya" % god.display_name, god.color)
+		return
 	if mortal_id < 0:
 		return
 	if mortal_id == _my_id:
@@ -502,16 +566,27 @@ func taya_id() -> int:
 	return _taya
 
 
+# Where the Taya stands - the gods' body or a mortal (Vector2.INF: unknown).
+func taya_position() -> Vector2:
+	return _god_at if _taya == GOD_TAYA else mortal_position(_taya)
+
+
+func taya_label() -> String:
+	return god.display_name if _taya == GOD_TAYA else mortal_label(_taya)
+
+
 func _check_tag() -> void:
 	if _tagback > 0.0 or _chanting or _root_left > 0.0:
 		return
-	var from := mortal_position(_taya)
+	var from := taya_position()
 	if from == Vector2.INF:
 		return
 	for entry in mortal_entries():
 		var id := int(entry["id"])
 		if id == _taya or is_safe(id) or is_mortal_invulnerable(id):
 			continue
+		if _taya == GOD_TAYA and _god_hunt >= 0 and id != _god_hunt:
+			continue  # the hunt is for one runner only
 		if from.distance_to(entry["pos"]) <= tag_radius:
 			_tag(id)
 			return
@@ -521,6 +596,12 @@ func _check_tag() -> void:
 # to the Taya, the runner's streak ends, and they are it.
 func _tag(mortal_id: int) -> void:
 	var catcher := _taya
+	if catcher == GOD_TAYA:
+		# Nobody to give tag_steal to: the runner is simply the Taya from now on
+		# (and set_taya sends the gods off the field).
+		_streak[mortal_id] = 0
+		set_taya(mortal_id)
+		return
 	var lost := lose_favor(tag_steal, "Tagged", mortal_id)
 	if lost > 0:
 		bank_favor(lost, "Taya's catch", catcher)
@@ -710,9 +791,9 @@ func _yell_alis() -> void:
 		_swap[id] = swap_time
 		_closed[id] = index
 		forced += 1
-	if forced > 0:
+	if forced > 0 and _taya >= 0:  # the gods are not paid
 		bank_favor(chant_favor * forced, "Chant", _taya)
-	_log("%s yells ALIS! - %d must change places" % [mortal_label(_taya), forced], god.color)
+	_log("%s yells ALIS! - %d must change places" % [taya_label(), forced], god.color)
 
 
 func swap_left(mortal_id: int) -> float:
@@ -729,7 +810,7 @@ func _tick_swaps(delta: float) -> void:
 		else:
 			_swap.erase(id)
 			_shoving[id] = 0.0
-	var from := mortal_position(_taya)
+	var from := taya_position()
 	for id in _shoving.keys():
 		var at := mortal_position(int(id))
 		if at == Vector2.INF or not _inside(int(_closed.get(id, -1)), at):
@@ -755,7 +836,7 @@ func _shove(mortal_id: int, from: Vector2) -> void:
 # Host, every frame: who stepped off a Langit, who reached one, and whether the
 # Taya came close on the way.
 func _tick_crossings() -> void:
-	var taya_at := mortal_position(_taya)
+	var taya_at := taya_position()
 	for entry in mortal_entries():
 		var id := int(entry["id"])
 		if id == _taya:
@@ -850,7 +931,7 @@ func _place_langits() -> void:
 	var area := Rect2(_field.position + half, _field.size - langit_size)
 	var left := maxf(area.position.x, UI_STRIP_WIDTH + half.x)
 	area = Rect2(left, area.position.y, area.end.x - left, area.size.y)
-	var taya_at := mortal_position(_taya)
+	var taya_at := taya_position()
 	for index in range(langit_count(rules.mortals.size())):
 		_langits.append(_find_spot(area, taya_at))
 	_season += 1
@@ -1000,7 +1081,7 @@ func _bot_heading(id: int, here: Vector2, delta: float) -> Vector2:
 	var heading := Vector2.ZERO
 	if goal >= 0 and not is_crumbling():
 		heading = (_langits[goal] - here).normalized()
-	var chaser := mortal_position(_taya)
+	var chaser := taya_position()
 	if chaser != Vector2.INF and here.distance_to(chaser) < bot_flee_radius:
 		heading += (here - chaser).normalized() * 1.3
 		if here.distance_to(chaser) < bot_dash_radius and float(_bot_dash.get(id, 0.0)) <= 0.0 and heading.length() > 0.01:
@@ -1009,26 +1090,31 @@ func _bot_heading(id: int, here: Vector2, delta: float) -> Vector2:
 	return heading
 
 
-# Taya: chase the nearest runner on the Lupa. When everybody is safe, walk up to
-# a Langit and chant.
-func _bot_taya_heading(id: int, here: Vector2) -> Vector2:
+# Taya (a bot, or the gods): chase the nearest runner on the Lupa - only `only`
+# when it is set (the gods' hunt). When the prey is safe, walk up to a Langit
+# (the hunted runner's) and chant.
+func _bot_taya_heading(id: int, here: Vector2, only := -1) -> Vector2:
 	var prey := Vector2.INF
 	for entry in mortal_entries():
 		var other := int(entry["id"])
-		if other == id or is_safe(other) or is_mortal_invulnerable(other):
+		if other == id or is_safe(other) or is_mortal_invulnerable(other) or (only >= 0 and other != only):
 			continue
 		if prey == Vector2.INF or here.distance_to(entry["pos"]) < here.distance_to(prey):
 			prey = entry["pos"]
 	if prey != Vector2.INF:
 		return prey - here
 	var near := _nearest_langit(id, here)
+	var hunted_at := mortal_position(only) if only >= 0 else Vector2.INF
+	if hunted_at != Vector2.INF:
+		near = _nearest_langit(only, hunted_at)
 	if near < 0:
 		return Vector2.ZERO
 	var gap := _langits[near] - here
 	if gap.length() > langit_size.length() * 0.5 + 40.0:
 		return gap
 	if _bot_chant.is_empty() and not _chanting and _chant_cd <= 0.0 and _root_left <= 0.0 and not is_crumbling():
-		_bot_chant = {"left": bot_chant_beat, "fail_at": -1 if randf() < bot_chant_success else randi() % chant_length}
+		var success := god_chant_success if id == GOD_TAYA else bot_chant_success
+		_bot_chant = {"left": _bot_beat(), "fail_at": -1 if randf() < success else randi() % chant_length}
 		_on_chant_message(id, "start", 0)
 	return Vector2.ZERO
 
@@ -1038,13 +1124,13 @@ func _bot_taya_heading(id: int, here: Vector2) -> Vector2:
 func _tick_bot_chant(delta: float) -> void:
 	if _bot_chant.is_empty():
 		return
-	if not _chanting or not _bots.has(_taya):
+	if not _chanting or not (_bots.has(_taya) or _taya == GOD_TAYA):
 		_bot_chant.clear()
 		return
 	_bot_chant["left"] = float(_bot_chant["left"]) - delta
 	if float(_bot_chant["left"]) > 0.0:
 		return
-	_bot_chant["left"] = bot_chant_beat
+	_bot_chant["left"] = _bot_beat()
 	if _chant_step == int(_bot_chant["fail_at"]):
 		_bot_chant.clear()
 		_on_chant_message(_taya, "result", 0)
@@ -1053,6 +1139,118 @@ func _tick_bot_chant(delta: float) -> void:
 	if _chant_step >= chant_length:
 		_bot_chant.clear()
 		_on_chant_message(_taya, "result", 1)
+
+
+func _bot_beat() -> float:
+	return god_chant_beat if _taya == GOD_TAYA else bot_chant_beat
+
+
+# --- THE GODS AS TAYA ----------------------------------------------------------
+
+# The gods' body: a mortal body in the pair's accent, with God-Taya.png over it
+# when the art exists and the god's icon otherwise. Hidden until GO.
+func _spawn_god() -> void:
+	_god_body = MORTAL_SCENE.instantiate()
+	(bots_root if bots_root != null else self).add_child(_god_body)
+	_god_body.set_lock(true)  # moved by this script on the host, mirrored elsewhere
+	_ghostly(_god_body)
+	_god_body.ring_color = UITokens.god_accent(god)
+	_god_body.set_display_name(god.display_name, UITokens.god_text(god))
+	var look := Sprite2D.new()
+	look.name = "GodLook"
+	var drawn := art("God-Taya.png")
+	look.texture = drawn if drawn != null else god.icon
+	if drawn == null:
+		look.scale = Vector2.ONE * (28.0 / maxf(1.0, float(god.icon.get_height())))
+		look.position = Vector2(0.0, -46.0)  # the icon floats over a placeholder body
+	_god_body.add_child(look)
+	_god_body.visible = false
+
+
+# Host: Mapulon & Ikapati are the Taya.
+func _gods_take_taya() -> void:
+	_taya = GOD_TAYA
+	_tagback = tagback_immunity
+	_reset_chant()
+	_bot_chant.clear()
+	_god_time = 0.0
+	_god_hunt = -1
+	_god_leave = 0.0
+	_god_at = _push_out(_field.get_center())
+	_announce_taya(GOD_TAYA)
+
+
+# Host: the gods have tagged someone - they say so and fade off the field.
+func _gods_leave() -> void:
+	_god_hunt = -1
+	_god_leave = god_leave_time
+	_show_banner(god_tag_line, god.color, 1.4)
+	_log("%s hand the Taya on" % god.display_name, god.color)
+
+
+# Host, every frame of play: the gods walk (chasing, or hunting one runner once
+# the safety valve fires), or fade out after their tag.
+func _move_god(delta: float) -> void:
+	if _god_leave > 0.0:
+		_god_leave = maxf(0.0, _god_leave - delta)
+		if _god_leave <= 0.0:
+			_god_at = Vector2.INF
+		return
+	if _taya != GOD_TAYA or _god_at == Vector2.INF:
+		return
+	_god_time += delta
+	if _god_hunt >= 0 and rules.mortal(_god_hunt) == null:
+		_god_hunt = -1  # the hunted runner left the game: pick again
+	if _god_hunt < 0 and _god_time >= god_taya_max_time:
+		_god_hunt = hunt_target()
+	var step := Vector2.ZERO
+	if not _chanting and _root_left <= 0.0:
+		step = _bot_taya_heading(GOD_TAYA, _god_at, _god_hunt)
+	if step.length() > 0.01:
+		_god_at += step.normalized() * (god_hunt_speed if _god_hunt >= 0 else god_speed) * delta
+	var body := Vector2.ONE * (_god_body.radius if _god_body != null else 13.0)
+	_god_at = _push_out(_god_at).clamp(_field.position + body, _field.end - body)
+
+
+# The safety valve's prey: the runner with the most FAVOR on the Lupa, the
+# nearest of a tie - or, when everyone is safe, the richest runner anywhere.
+func hunt_target() -> int:
+	var best := -1
+	var best_key := Vector2(-INF, -INF)  # (on the Lupa, FAVOR), then the nearest
+	var best_gap := INF
+	for entry in mortal_entries():
+		var id := int(entry["id"])
+		var mortal := rules.mortal(id)
+		if mortal == null:
+			continue
+		var key := Vector2(0.0 if is_safe(id) else 1.0, float(mortal.favor))
+		var gap := _god_at.distance_to(entry["pos"])
+		if key > best_key or (key == best_key and gap < best_gap):
+			best = id
+			best_key = key
+			best_gap = gap
+	return best
+
+
+func god_hunt_id() -> int:
+	return _god_hunt
+
+
+# Every screen: the gods' body where the host says (a client glides to it).
+func _draw_god(delta: float) -> void:
+	if _god_body == null:
+		return
+	var shown := _god_at != Vector2.INF and _phase == Phase.PLAYING
+	if shown and (_authority or not _god_body.visible or _god_body.global_position.distance_to(_god_at) > ghost_snap_distance):
+		_god_body.global_position = _god_at
+	elif shown:
+		_god_body.global_position = _god_body.global_position.lerp(_god_at, minf(1.0, ghost_smoothing * delta))
+	_god_body.visible = shown
+	_god_body.modulate.a = _god_leave / maxf(0.01, god_leave_time) if _god_leave > 0.0 else 1.0
+	# Their line over the body too: the tagged mortal's own banner says YOU ARE TAYA.
+	if _god_leave > 0.0 and not _god_said and shown:
+		_god_body.show_floating_text(god_tag_line, UITokens.god_text(god), god_leave_time + 0.6)
+	_god_said = _god_leave > 0.0
 
 
 # --- INPUT -------------------------------------------------------------------
@@ -1084,6 +1282,7 @@ func _process(delta: float) -> void:
 	if _taya == _my_id and _phase == Phase.PLAYING:
 		player.global_position = _push_out(player.global_position)
 	_draw_langits(delta)
+	_draw_god(delta)
 	_place_marker()
 	_draw_chant()
 	_draw_guides()
@@ -1129,9 +1328,11 @@ func _draw_langits(delta: float) -> void:
 func _place_marker() -> void:
 	if taya_marker == null:
 		return
-	var at := mortal_position(_taya) if _taya != -1 and _phase == Phase.PLAYING else Vector2.INF
+	var at := taya_position() if _taya != -1 and _phase == Phase.PLAYING else Vector2.INF
 	if at != Vector2.INF and _ghosts.has(_taya) and is_instance_valid(_ghosts[_taya]):
 		at = (_ghosts[_taya] as Node2D).global_position  # where the rival is drawn
+	elif at != Vector2.INF and _taya == GOD_TAYA and _god_body != null:
+		at = _god_body.global_position  # where the gods are drawn
 	taya_marker.visible = at != Vector2.INF
 	if at == Vector2.INF:
 		return
@@ -1277,10 +1478,12 @@ func _refresh_hud(delta: float) -> void:
 		var ids: Array = rules.mortals.keys()
 		ids.sort_custom(func(a, b): return taya_seconds(int(a)) < taya_seconds(int(b)))
 		var rows: Array[String] = ["TIME AS TAYA"]
+		if _taya == GOD_TAYA:
+			rows.append("> %s" % god.display_name)
 		for id in ids:
 			rows.append("%s%s  %.1fs" % ["> " if int(id) == _taya else "", mortal_label(int(id)), taya_seconds(int(id))])
 		taya_list.text = "\n".join(rows)
-	var taya_at := mortal_position(_taya)
+	var taya_at := taya_position()
 	if status_label != null:
 		var dash := "DASH READY" if dash_cooldown_left() <= 0.0 else "DASH %.1fs" % dash_cooldown_left()
 		var stance := "ON THE LUPA"

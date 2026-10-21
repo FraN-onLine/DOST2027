@@ -13,6 +13,7 @@ is needed.
 | `Langit.png` | one sky platform (a cloud or a terraced rice-paddy block), centred, about 96 x 60 px. The shadow under it stays | `ArenaField/Langits/LangitN/Sprite` | the white `Body` rectangle (greyed, with the `Lock` shape, on the screen of a runner it is closed to) |
 | `Langit-Crumble.png` | the crack / crumble animation, a horizontal strip of square-ish frames (the frame count is read from width / height). It plays over the platform during the warning before a crumble | `ArenaField/Langits/LangitN/Crumble` | the platform shakes and fades instead |
 | `Taya-Marker.png` | the marker floating over the Taya's head | `TayaMarker/Sprite` | the green ring (the "TAYA" tag shows either way) |
+| `God-Taya.png` | Mapulon & Ikapati on the field as the opening Taya, centred on the body, about 32 x 48 px | `GodLook` on the gods' body (made in code, `_spawn_god`) | the god's `icon`, small, floating over a mortal body ringed in the pair's accent |
 | `MapulonIkapati-Overseer.png` | the pair watching the field, like `Assets/Gods/Tala/Tala-Overseer.png` (one image) | `ArenaField/Overseer` | hidden |
 
 The platform size the rules use is `langit_size` on the arena (96 x 60). If the
