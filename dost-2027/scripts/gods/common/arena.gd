@@ -26,6 +26,21 @@ extends Node2D
 #     dialogue_prefix. What the designer sees in the arena scene is what every
 #     player gets.
 #
+#   * THE BANDANAS: every mortal (the local one, the ghosts, a solo bot) wears the
+#     same sprite, and only the bandana tells the players apart: set_bandana() on
+#     the mortal, with the colour the host gave that player in the lobby
+#     (Network.bandana_of, painted by _paint_bandanas() whenever the roster is
+#     republished). The swap lives under the sprite's modulate, so a hit flash, a
+#     freeze or Mayari's blitz tint still shows on top of it.
+#
+#   * THE EFFECT TIMERS: local_effects() lists everything running on THIS screen's
+#     mortal - its own lasting skills and a Pamana's opening window (buffs), and what
+#     rivals, traps and knocks have put on it: Ligaw na Damo, Tagtuyot, Half Vision's
+#     blindness, Sun Patches, doubled losses, Tala's pull, a stun (debuffs). The HUD draws
+#     them as a stack in its top-right corner. An arena adds its own through
+#     arena_local_effects(); every number comes from where it already lives, so the stack
+#     never disagrees with the rule it shows.
+#
 #   * THE FOLLOW CAMERA (the lobby's CAMERA = FOLLOW PLAYER, follow_camera):
 #     off by default, and then nothing above changes - the whole authored field
 #     is on screen and world = screen. On, the LOCAL mortal carries a Camera2D
@@ -119,6 +134,7 @@ const DUE_MENU_SCENE := preload("res://UI/GodsArena/gods_due_menu.tscn")
 const MORTAL_SCENE := preload("res://scenes/gods/common/Mortal.tscn")
 const POPUP_SCENE := preload("res://UI/Popups/favor_popup.tscn")
 const TEMP_ICON := preload("res://icon.svg")
+const SUN_PATCH_ICON := preload("res://Assets/Gods/Apolaki/Sun-Patch.png")
 
 # The photo of the current god - taken from the god's .tres icon field (each
 # god's .tres carries its own portrait now, so we no longer need a shared icon).
@@ -134,6 +150,11 @@ const GUIDANCE_RADIUS := 150.0
 # How long a favor blot the host hands us stays up when the favor's own
 # patch_duration is not carried across the wire (the favors themselves say 1.5s).
 const FAVOR_PATCH_TIME := 1.5
+# How long a cast's name stays over the mortal that used it, seconds, and how readable
+# its colour is made (the favor's own, lightened until it reads this well on the night
+# - a dark favor like Tala's blue would otherwise sink into the grass).
+const CAST_TEXT_TIME := 1.6
+const CAST_TEXT_CONTRAST := 7.0
 
 enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 
@@ -280,6 +301,7 @@ var _base_move_speed := 215.0
 var _guidance_time := 0.0
 var _movement_override_caster := -1
 var _movement_override_time := 0.0
+var _double_loss_seen: Dictionary = {}  # what the host last said about doubled losses (a client's copy, for the HUD)
 var _dash_cd := 0.0
 # The impact currently running on THIS screen: seconds left of the field's
 # shake and of the flash, plus the numbers they fade over (see _shake_screen).
@@ -332,6 +354,7 @@ func _ready() -> void:
 	rules.notice.connect(_on_notice)
 	rules.favor_fired.connect(_on_favor_fired)
 	rules.pamana_fired.connect(_on_pamana_fired)
+	rules.skill_used.connect(_on_skill_used)
 
 	hud = HUD_SCENE.instantiate()
 	ui_layer.add_child(hud)
@@ -360,8 +383,11 @@ func _ready() -> void:
 	_read_field()
 	player.set_display_name(_mortal_name(), UITokens.god_text(god))
 	hud.bind(rules, god)
+	hud.effect_source = local_effects
+	rules.announce_gains = not embedded  # an embedded run's shell switches it on once the run's snapshot is in
 	_connect_network()
 	_sync_ghosts()
+	_paint_bandanas()
 	_collect_sun_patch_rects()
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_start_intro()
@@ -1764,6 +1790,8 @@ func _connect_network() -> void:
 	if _net.has_signal("arena_movement_override_received"):
 		_net.connect("arena_movement_override_received", _on_movement_override_received)
 	_net.player_left.connect(_on_peer_left)
+	if _net.has_signal("arena_cast_received"):
+		_net.connect("arena_cast_received", _on_arena_cast_received)
 	if _net.has_signal("dialogue_released"):
 		_net.connect("dialogue_released", _on_dialogue_released)
 	if _authority:
@@ -1779,8 +1807,9 @@ func _connect_network() -> void:
 func _on_player_list_updated(_players: Dictionary) -> void:
 	# The roster can arrive after this arena was built (a client always races the
 	# first list) and it can change mid-trial, so the rivals on the field are
-	# built from it every time instead of once at start-up.
+	# built from it every time instead of once at start-up. The colours ride with it.
 	_sync_ghosts()
+	_paint_bandanas()
 
 
 func _on_player_name_changed(peer_id: int, name: String) -> void:
@@ -1820,11 +1849,28 @@ func _sync_ghosts() -> void:
 		ghost.set_lock(true)
 		ghost.ring_color = UITokens.god_accent(god)
 		ghost.set_display_name(str(names[pid]), UITokens.god_text(god))
+		ghost.set_bandana(bandana_of(id))
 		_ghosts[id] = ghost
 	for id in _ghosts.keys().duplicate():
 		if not names.has(int(id)):
 			_ghosts[id].queue_free()
 			_ghosts.erase(id)
+
+
+# The bandana colour (an index into UITokens.BANDANA_COLORS) a mortal wears: the
+# one the host gave that player in the lobby, or - a solo rival, a bot - a free one.
+func bandana_of(mortal_id: int) -> int:
+	return _net.bandana_of(mortal_id) if _net != null and _net.has_method("bandana_of") else 0
+
+
+# Put every mortal on this field in the colour its player holds. Safe to call as
+# often as the roster is republished.
+func _paint_bandanas() -> void:
+	if player != null:
+		player.set_bandana(bandana_of(_my_id))
+	for id in _ghosts.keys():
+		if is_instance_valid(_ghosts[id]):
+			(_ghosts[id] as ArenaMortal).set_bandana(bandana_of(int(id)))
 
 
 func _move_ghosts(delta: float) -> void:
@@ -1868,6 +1914,7 @@ func _publish_arena_tick() -> void:
 		"event": hud.event_label.text,
 		"event_color": hud.event_label.get_theme_color("font_color"),
 		"sun_patches": _sun_patches.duplicate(true),
+		"double_loss": _double_loss.duplicate(),
 	}
 	state.merge(arena_tick_fields(), true)
 	_net.publish_arena_state(state)
@@ -1910,6 +1957,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	for id in mortals.keys():
 		_mortal_positions[int(id)] = mortals[id]
 	_sun_patches = state.get("sun_patches", {}).duplicate(true)
+	_double_loss_seen = state.get("double_loss", {}).duplicate()
 	var local_mortal := rules.local()
 	if local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		_erase_sun_patches(_my_id)
@@ -2082,6 +2130,108 @@ func _watch_local_pamana() -> void:
 
 func _on_notice(text: String) -> void:
 	_log(text, Color(0.85, 0.85, 0.9))
+
+
+# --- EFFECT TIMERS --------------------------------------------------------------
+# One entry per running effect, for the HUD's stack: {key, name, icon, color, left,
+# total, harmful}. `total` is how long the effect lasts when that is known (0: the HUD
+# measures the bar against the longest it has seen it run).
+
+func effect(key: StringName, label: String, icon: Texture2D, color: Color, left: float, total := 0.0, harmful := false) -> Dictionary:
+	return {"key": key, "name": label, "icon": icon, "color": color, "left": left, "total": total, "harmful": harmful}
+
+
+# An effect named after a favor: its name, icon and colour.
+func favor_effect(key: StringName, favor_id: StringName, left: float, total := 0.0, harmful := false) -> Dictionary:
+	var favor := Gods.favor_by_id(favor_id)
+	if favor == null:
+		return effect(key, str(favor_id).to_upper(), null, UITokens.EMBER, left, total, harmful)
+	return effect(key, effect_name(favor), favor.icon, favor.color, left, total if total > 0.0 else favor.duration, harmful)
+
+
+# A favor's name for a row: upper case, without the "(Mapulon)" a favor's name can carry
+# for the Almanac - the row is narrow and the icon says whose it is.
+func effect_name(favor: GodFavor) -> String:
+	return favor.display_name.split(" (")[0].to_upper()
+
+
+func local_effects() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var mortal := rules.local() if rules != null else null
+	if mortal == null:
+		return out
+	# Buffs: our own skills that are still running...
+	for favor_id in mortal.durations.keys():
+		var favor := mortal.favor_by_id(favor_id)
+		var left := mortal.duration_left(favor_id)
+		if favor != null and left > 0.0:
+			out.append(effect(StringName("skill_%s" % favor_id), effect_name(favor), favor.icon, favor.color, left, favor.duration))
+	# ...and a Pamana's opening window (its charges and "spent" stay on the badge: no timer).
+	var pamana := Pamanas.by_id(mortal.pamana_active)
+	if pamana != null and pamana.timing == Pamana.Timing.FIRST_WINDOW and mortal.pamana_window > 0.0:
+		out.append(effect(StringName("pamana_%s" % pamana.id), pamana.display_name.to_upper(), pamana.icon, UICards.pamana_edge(pamana), mortal.pamana_window, pamana.window))
+	# Debuffs: what has been put on us.
+	if rules.trial_active:  # the Harvest Pair's clocks only run in a trial
+		if mortal.weeds_time > 0.0:
+			out.append(favor_effect(&"weeds", &"ligaw_na_damo", mortal.weeds_time, 0.0, true))
+		if mortal.drought_time > 0.0:
+			out.append(favor_effect(&"drought", &"tagtuyot", mortal.drought_time, 0.0, true))
+	if _blind_time > 0.0:
+		out.append(favor_effect(&"blind", &"half_vision", _blind_time, 0.0, true))
+	var patches: Array = _sun_patches.get(_my_id, [])
+	if not patches.is_empty():
+		var longest := 0.0
+		for seconds in patches:
+			longest = maxf(longest, float(seconds))
+		out.append(effect(&"sun_patches", "SUN PATCHES" if patches.size() > 1 else "SUN PATCH", SUN_PATCH_ICON, UITokens.EMBER, longest, 0.0, true))
+	var doubled := float((_double_loss if _authority else _double_loss_seen).get(_my_id, 0.0))
+	if doubled > 0.0:
+		out.append(effect(&"double_loss", "DOUBLE LOSS", Gods.favor_by_id(&"siblings_compromise_sun").icon, UITokens.EMBER, doubled, 0.0, true))
+	if _movement_override_time > 0.0 and _movement_override_caster != _my_id:
+		out.append(favor_effect(&"pulled", &"let_us_light_your_way", _movement_override_time, 0.0, true))
+	if player != null and player.stun_left() > 0.0:
+		out.append(effect(&"stun", "STUNNED", null, UITokens.EMBER, player.stun_left(), 0.0, true))
+	out.append_array(arena_local_effects())
+	return out
+
+
+# A god's arena lists its own effects here (Langit Lupa: ALIS, a closed Langit).
+func arena_local_effects() -> Array[Dictionary]:
+	return []
+
+
+# --- A CAST, SEEN BY EVERYONE ---------------------------------------------------
+# The host sees every skill any mortal uses (GodMatch.skill_used) and puts its name over
+# that mortal's head - in the favor's colour, rising and fading like the mortal's other
+# floating text - on every screen, so a rival learns what was just used on them.
+
+func _on_skill_used(player_id: int, favor: GodFavor) -> void:
+	_show_cast(player_id, favor)
+	if _authority and _networked and _net != null:
+		_net.send_arena_cast(player_id, favor.id)
+
+
+func _on_arena_cast_received(caster_id: int, favor_id: StringName) -> void:
+	if _authority:
+		return
+	var favor := Gods.favor_by_id(favor_id)
+	if favor != null:
+		_show_cast(caster_id, favor)
+
+
+func _show_cast(mortal_id: int, favor: GodFavor) -> void:
+	var body := mortal_node(mortal_id)
+	if body != null:
+		body.show_floating_text(favor.display_name.to_upper(), UITokens.readable_on_dark(favor.color, UITokens.NIGHT_900, CAST_TEXT_CONTRAST), CAST_TEXT_TIME)
+
+
+# The body of a mortal on this screen: our own, or a rival's ghost (null when unknown).
+func mortal_node(mortal_id: int) -> ArenaMortal:
+	if mortal_id == _my_id:
+		return player
+	if _ghosts.has(mortal_id) and is_instance_valid(_ghosts[mortal_id]):
+		return _ghosts[mortal_id]
+	return null
 
 
 # --- BLINDNESS / INPUT ------------------------------------------------------
@@ -2276,6 +2426,12 @@ func _tap_panel_click(event: InputEvent) -> bool:
 		return false
 	if event.button_index != MOUSE_BUTTON_LEFT:
 		return false
+	# A click on the skill popup closes it - and is never a swing, whatever the phase.
+	if hud != null and hud.click_skill_popup(event.position):
+		var popup_viewport := get_viewport()
+		if popup_viewport != null:
+			popup_viewport.set_input_as_handled()
+		return true
 	if _phase != Phase.PLAYING or dialogue.is_active() or due_menu.is_open():
 		return false
 	for slot in _tap_panels.keys():

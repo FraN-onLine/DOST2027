@@ -83,6 +83,13 @@ layout_mode = 2
 [node name="SkillBarQ" parent="StatsPanel/Margin/VBox/SkillRow" instance=ExtResource("4_bar")]
 layout_mode = 2
 
+[node name="SkillCards" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 246.0
+offset_top = 132.0
+mouse_filter = 2
+theme_override_constants/separation = 8
+
 [node name="TrialPanel" type="PanelContainer" parent="."]
 layout_mode = 1
 anchors_preset = 5
@@ -149,8 +156,7 @@ theme_type_variation = &"HudCallout"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="FavorNote" type="Label" parent="."]
-visible = false
+[node name="TopRight" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -158,11 +164,21 @@ anchor_right = 1.0
 offset_left = -330.0
 offset_top = 12.0
 offset_right = -16.0
-offset_bottom = 48.0
 grow_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="FavorNote" type="Label" parent="TopRight"]
+visible = false
+layout_mode = 2
 mouse_filter = 2
 theme_type_variation = &"HudLabel"
 horizontal_alignment = 2
+
+[node name="Effects" type="VBoxContainer" parent="TopRight"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
 
 [node name="ResultsPanel" type="PanelContainer" parent="."]
 visible = false
@@ -203,12 +219,11 @@ theme_type_variation = &"DisplayLabel"
 text = "TRIAL COMPLETE"
 horizontal_alignment = 1
 
-[node name="ResultsLabel" type="Label" parent="ResultsPanel/Margin/VBox"]
+[node name="ResultsRows" type="VBoxContainer" parent="ResultsPanel/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 3
+theme_override_constants/separation = 8
+alignment = 1
 
 [node name="ResultsHint" type="Label" parent="ResultsPanel/Margin/VBox"]
 layout_mode = 2

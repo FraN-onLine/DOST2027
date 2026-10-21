@@ -28,12 +28,14 @@ const ACTIONS := {
 	"skill_e": "Skill E", "skill_q": "Skill Q", "due_menu": "God's Due menu",
 	"advance_dialogue": "Advance dialogue", "dash": "Dash", "due_choice_1": "God's Due choice 1",
 	"due_choice_2": "God's Due choice 2", "due_choice_3": "God's Due choice 3",
-	"ready_up": "Ready (rest)",
+	"ready_up": "Ready (rest)", "skill_info": "Skill info (hold)",
 }
 const DEFAULTS := {
 	"audio": {"master": 100, "music": 80, "sfx": 100, "ui": 100, "mute_unfocused": false},
 	"video": {"window_mode": 0, "resolution": Vector2i(1152, 648), "vsync": true, "max_fps": 0, "ui_scale": 100},
-	"gameplay": {"player_name": "", "reduce_flashing": false, "screen_shake": true, "show_fps": false},
+	# bandana_color: the player's last pick in the lobby (UITokens.BANDANA_COLORS),
+	# asked for again next time and given if it is free.
+	"gameplay": {"player_name": "", "reduce_flashing": false, "screen_shake": true, "show_fps": false, "bandana_color": 0},
 }
 
 var config_path := "user://settings.cfg"
@@ -153,6 +155,8 @@ func _clean(section: String, key: String, value: Variant) -> Variant:
 			return value if value.x >= 640 and value.y >= 360 else fallback
 		"player_name":
 			return (value as String).strip_edges().left(20)
+		"bandana_color":
+			return value if value in range(UITokens.BANDANA_COLORS.size()) else fallback
 	return value
 
 

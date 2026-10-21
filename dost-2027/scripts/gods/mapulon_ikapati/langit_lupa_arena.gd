@@ -205,6 +205,12 @@ func _ready() -> void:
 	if fixed_trial_time > 0.0:
 		trial_time = fixed_trial_time
 	super._ready()
+	# The TAYA list lives in the HUD's top-right column, under the effect timers, so the
+	# two never cover each other whichever has rows.
+	if taya_list != null and hud != null:
+		taya_list.reparent(hud.top_right, false)
+		taya_list.custom_minimum_size.x = 250.0
+		taya_list.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_spawn_bots()
 
 
@@ -212,6 +218,23 @@ func _ready() -> void:
 
 func collect_units() -> void:
 	_apply_art()
+
+
+# The effect timers (Arena.local_effects) this game adds: the ALIS clock when we are told
+# to change places, the closed Langit we cannot stand on until the season turns, and the
+# tag-back buffer of a new Taya.
+func arena_local_effects() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if _phase != Phase.PLAYING:
+		return out
+	var swapping := swap_left(_my_id)
+	if swapping > 0.0:
+		out.append(effect(&"alis", "ALIS - CHANGE PLACES", null, UITokens.EMBER, swapping, swap_time, true))
+	if _closed.has(_my_id) and _season_timer > 0.0:
+		out.append(effect(&"closed", "YOUR LANGIT IS CLOSED", null, UITokens.EMBER, _season_timer, season_interval, true))
+	if _taya == _my_id and _tagback > 0.0:
+		out.append(effect(&"tagback", "CANNOT TAG YET", null, UITokens.EMBER, _tagback, tagback_immunity, true))
+	return out
 
 
 # The follow camera's edge arrow: the Taya (its marker is shown only while there
@@ -862,6 +885,7 @@ func _spawn_bots() -> void:
 		_ghostly(bot)
 		bot.ring_color = god.color
 		bot.set_display_name(m.display_name, god.color)
+		bot.set_bandana(bandana_of(m.id))  # the free colours, after the player's
 		bot.global_position = _bot_start(m.id)
 		_bots[m.id] = bot
 		_mortal_positions[m.id] = bot.global_position

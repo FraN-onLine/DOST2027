@@ -7,10 +7,19 @@ extends CharacterBody2D
 # interrupts them.
 #
 # Every visual lives in Mortal.tscn (Sprite, Glow, NameTag, FloatingStatus) -
-# this script never draws and never builds nodes on the fly. Sprite is an
+# this script never draws and never builds nodes on the fly. (The one thing it
+# gives each mortal is its own copy of the Sprite's bandana material, below.) Sprite is an
 # AnimatedSprite2D and carries the authored clips (the idle walk, plus the arnis
 # strike and guard): an arena plays them and reads the running frame back, so the
 # body holds the art while the arena keeps the rules.
+#
+# BANDANA: every mortal wears the same sprite, so what tells the players apart is
+# the colour of the bandana - the headband and its two tails. The Sprite carries
+# bandana_swap.gdshader, which turns the two reds the art draws it in into the
+# player's colour (UITokens.bandana_color) and touches nothing else, and
+# set_bandana() gives the mortal its own material so each one keeps its own. It
+# sits UNDER the node's modulate, so every hit flash, freeze or fade an arena puts
+# on a mortal still shows on top of it.
 #
 # FACING: the authored art faces right, so a move to the left mirrors the sprite
 # (AnimatedSprite2D.flip_h) and slides the attack area + standing collision to
@@ -26,6 +35,8 @@ var locked := false
 var bounds := Rect2()
 var ring_color := Color(1, 0.95, 0.8)
 var radius := 13.0
+# Which of UITokens.BANDANA_COLORS this mortal's bandana wears (0 = the drawn red).
+var bandana_index := 0
 
 # Which way the mortal faces: 1 = right (the way the art is drawn), -1 = left.
 var facing := 1
@@ -62,10 +73,30 @@ func _ready() -> void:
 	_collision_offset_x = body_collision.position.x if body_collision != null else 0.0
 	_last_position = global_position
 	_apply_facing()
+	set_bandana(bandana_index)  # its own material, from the first frame
+
+
+# Put the player's bandana colour on this mortal (and only this one: the material
+# is copied the first time, so mortals never share a colour by accident).
+func set_bandana(index: int) -> void:
+	bandana_index = posmod(index, UITokens.BANDANA_COLORS.size())
+	if sprite == null or not (sprite.material is ShaderMaterial):
+		return
+	if not sprite.material.has_meta("own_bandana"):
+		sprite.material = sprite.material.duplicate()
+		sprite.material.set_meta("own_bandana", true)
+	var swap := sprite.material as ShaderMaterial
+	swap.set_shader_parameter("bandana_color", UITokens.bandana_color(bandana_index))
+	swap.set_shader_parameter("bandana_shadow", UITokens.bandana_shadow(bandana_index))
 
 
 func is_stunned() -> bool:
 	return _stun > 0.0
+
+
+# Seconds of stun left (the HUD's effect timers show them).
+func stun_left() -> float:
+	return _stun
 
 
 func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:

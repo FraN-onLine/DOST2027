@@ -1,0 +1,58 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://UI/GodsArena/effect_row.gd" id="1_row"]
+[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
+
+[node name="EffectRow" type="PanelContainer"]
+custom_minimum_size = Vector2(314, 0)
+mouse_filter = 2
+theme_type_variation = &"PanelHud"
+script = ExtResource("1_row")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Icon" type="TextureRect" parent="Row"]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("2_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Body" type="VBoxContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Line" type="HBoxContainer" parent="Row/Body"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="NameLabel" type="Label" parent="Row/Body/Line"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+text = "EFFECT"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="SecondsLabel" type="Label" parent="Row/Body/Line"]
+layout_mode = 2
+mouse_filter = 2
+text = "0s"
+horizontal_alignment = 2
+
+[node name="Bar" type="ProgressBar" parent="Row/Body"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+mouse_filter = 2
+max_value = 1.0
+step = 0.001
+value = 1.0
+show_percentage = false

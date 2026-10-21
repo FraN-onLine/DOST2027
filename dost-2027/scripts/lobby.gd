@@ -4,8 +4,12 @@ extends Control
 #
 #   Left:  the roster - MAX_PLAYERS fixed slots, so the table's size reads at a
 #          glance. A filled slot shows the mortal's god icon in a frame of that
-#          god's accent, the name, and a gold HOST nameplate for peer 1; an empty
-#          one is a dashed outline still "Waiting for a mortal...".
+#          god's accent, a swatch of the bandana colour that player wears on the
+#          field, the name, and a gold HOST nameplate for peer 1; an empty one is a
+#          dashed outline still "Waiting for a mortal...". YOUR slot also carries
+#          the bandana picker: one swatch per colour, a colour another player holds
+#          greyed out with a padlock; pressing a free one asks the host for it
+#          (Network.choose_bandana_color) and the roster comes back with the answer.
 #   Right: "You" (name + UPDATE, the god icon picker as a row of icon buttons)
 #          and "The run" (the run summary and OPTIONS).
 #   Top right: the lobby ID as a big key, with COPY (host only).
@@ -244,6 +248,10 @@ func _player_slot(player_id) -> PanelContainer:
 	frame.add_child(icon_rect)
 	hbox.add_child(frame)
 
+	var bandana := BandanaSwatch.mark(int(Network.player_bandanas.get(player_id, 0)))
+	bandana.name = "Bandana"
+	hbox.add_child(bandana)
+
 	var label = Label.new()
 	label.text = str(connected_players[player_id])
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -261,8 +269,46 @@ func _player_slot(player_id) -> PanelContainer:
 		host_label.add_theme_color_override("font_color", UITokens.GOLD)
 		plate.add_child(host_label)
 		hbox.add_child(plate)
-	slot.add_child(hbox)
+	if int(player_id) == multiplayer.get_unique_id():
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", UITokens.SPACE_8)
+		column.add_child(hbox)
+		column.add_child(_bandana_picker(int(player_id)))
+		slot.add_child(column)
+	else:
+		slot.add_child(hbox)
 	return slot
+
+
+# YOUR bandana: one swatch per colour. A colour another player holds is locked
+# (greyed, a padlock, tooltip says who); the one you wear has the gold frame.
+func _bandana_picker(player_id: int) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.name = "BandanaPicker"
+	row.add_theme_constant_override("separation", UITokens.SPACE_8)
+	var caption := Label.new()
+	caption.text = "BANDANA"
+	caption.theme_type_variation = &"CaptionLabel"
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(caption)
+	var mine := int(Network.player_bandanas.get(player_id, 0))
+	for index in range(UITokens.BANDANA_COLORS.size()):
+		var holder := 0
+		for other in Network.player_bandanas.keys():
+			if int(Network.player_bandanas[other]) == index:
+				holder = int(other)
+		var taken := holder != 0 and holder != player_id
+		var swatch := BandanaSwatch.new()
+		swatch.name = "Color%d" % index
+		swatch.setup(index, taken, index == mine, str(connected_players.get(holder, "another player")))
+		swatch.focus_mode = Control.FOCUS_ALL
+		swatch.pressed.connect(_on_bandana_picked.bind(index))
+		row.add_child(swatch)
+	return row
+
+
+func _on_bandana_picked(index: int) -> void:
+	Network.choose_bandana_color(index)
 
 
 func _empty_slot() -> PanelContainer:

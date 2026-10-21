@@ -15,6 +15,11 @@ signal favor_changed(player_id: int, favor: int, delta: int, reason: String)
 signal due_changed(player_id: int, due: int)
 signal due_earned(player_id: int, due: int, milestone: int)
 signal favor_granted(player_id: int, favor: GodFavor)
+# An E / Q skill just took its slot - from a God's Due, a boon or a god's gift here on
+# the host, or read off the host's snapshot on a client (see announce_gains). `replaced`
+# is the skill it pushed out of the slot, null when the slot was empty. The HUD's gain
+# popup listens to this.
+signal skill_gained(player_id: int, favor: GodFavor, replaced: GodFavor)
 signal skill_used(player_id: int, favor: GodFavor)
 signal skill_recharged(player_id: int, favor: GodFavor)
 signal notice(text: String)
@@ -116,6 +121,11 @@ var milestone_step: int = MILESTONE_STEP
 # False on a client: it mirrors the host and must never run a rule that changes
 # FAVOR on its own (Tagtuyot's bites, Unang Ulan's regrowth).
 var authority := true
+# A client learns of a new skill only through the host's snapshots, which also carry the
+# favors a mortal already had when the trial began. The shell switches this on once the
+# run's carried snapshot is in (Game._on_arena_ready), so only what changes after that
+# is announced - never what the mortal simply arrived with.
+var announce_gains := false
 # Seconds left on the trial clock, kept up to date by the host's arena (INF when no
 # clock is running). Panahon ng Anihan reads it; the arena puts it back to INF
 # before the end-of-trial payouts so they never count as the harvest.
@@ -342,9 +352,11 @@ func bestow_favor(favor: GodFavor, player_id: int = -1) -> bool:
 		return false
 	# E and Q are single slots. A newly chosen skill replaces the old skill
 	# while passive and end-of-trial favors remain owned for the whole run.
+	var replaced: GodFavor = null
 	if favor.is_skill():
 		for index in range(m.favors.size() - 1, -1, -1):
 			if m.favors[index].slot == favor.slot:
+				replaced = m.favors[index]
 				m.cooldowns.erase(m.favors[index].id)
 				m.durations.erase(m.favors[index].id)
 				m.favors.remove_at(index)
@@ -352,6 +364,8 @@ func bestow_favor(favor: GodFavor, player_id: int = -1) -> bool:
 	if favor.cooldown > 0.0:
 		m.cooldowns[favor.id] = 0.0
 	favor_granted.emit(m.id, favor)
+	if favor.is_skill():
+		skill_gained.emit(m.id, favor, replaced)
 	if favor.kind == GodFavor.Kind.INSTANT:
 		var instant := int(favor.param("instant_favor", 0.0))
 		if instant != 0:
@@ -907,6 +921,11 @@ func snapshot() -> Dictionary:
 			"jar_lost": m.jar_lost,
 			"kampilan": m.kampilan_ready,
 			"surigao": m.surigao_early,
+			# The Harvest Pair's timers on this mortal, so its own screen can show them.
+			"weeds": m.weeds_time,
+			"weeds_caster": m.weeds_caster,
+			"drought": m.drought_time,
+			"drought_caster": m.drought_caster,
 			}
 	return out
 
@@ -942,6 +961,10 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.jar_lost = int(entry.get("jar_lost", m.jar_lost))
 		m.kampilan_ready = bool(entry.get("kampilan", m.kampilan_ready))
 		m.surigao_early = int(entry.get("surigao", m.surigao_early))
+		m.weeds_time = float(entry.get("weeds", 0.0))
+		m.weeds_caster = int(entry.get("weeds_caster", m.weeds_caster))
+		m.drought_time = float(entry.get("drought", 0.0))
+		m.drought_caster = int(entry.get("drought_caster", m.drought_caster))
 		# A drop that came with a new Pamana was a purchase, not a loss.
 		var bought := (m.pamana_next != previous_next and m.pamana_next != &"") \
 			or (m.surigao_early > 0 and previous_surigao <= 0)
@@ -950,7 +973,13 @@ func apply_snapshot(state: Dictionary) -> void:
 			var favor: GodFavor = Gods.favor_by_id(StringName(favor_id))
 			if favor != null:
 				owned.append(favor)
+		var held_before := {GodFavor.Slot.E: m.favor_in_slot(GodFavor.Slot.E), GodFavor.Slot.Q: m.favor_in_slot(GodFavor.Slot.Q)}
 		m.favors = owned
+		if announce_gains:
+			for skill_slot in held_before.keys():
+				var now := m.favor_in_slot(skill_slot)
+				if now != null and now != held_before[skill_slot]:
+					skill_gained.emit(m.id, now, held_before[skill_slot])
 		# Outside a trial (the preparation area) a drop that came with a new favor
 		# was a boon bought at the altar - not a loss either.
 		if not trial_active and m.favor < previous_favor:
