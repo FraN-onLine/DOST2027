@@ -368,6 +368,7 @@ func arena_rules_tick(delta: float) -> void:
 	_tick_dawn(delta)
 	_tick_stars(delta)
 	_tick_shocks(delta)
+	_tick_god_shocks(delta)
 	_tick_frozen_mortals(delta)
 	_check_capture(delta)
 	if _pause <= 0.0:
@@ -714,6 +715,58 @@ func _tick_shocks(delta: float) -> void:
 		if is_instance_valid(wave) and not wave.is_finished():
 			alive.append(shock)
 	_shocks = alive
+
+# A god releases a shockwave on a 5s cooldown: it tags (freezes) enemy gods
+# not at Bathala's base, and thaws (unfreezes) frozen ally gods within reach.
+# Runs on the host (authority) only.
+func _tick_god_shocks(delta: float) -> void:
+	for index in range(_gods.size()):
+		var god_node: AgawanGod = _gods[index]
+		if not is_instance_valid(god_node) or god_node.is_frozen():
+			continue
+		god_node._shock_timer = maxf(0.0, god_node._shock_timer - delta)
+		if god_node._shock_timer > 0.0:
+			continue
+		# Look for any target: an enemy god to freeze (not at Bathala's base)
+		# or a frozen ally god to thaw.
+		var has_target := false
+		for other_index in range(_gods.size()):
+			var other: AgawanGod = _gods[other_index]
+			if not is_instance_valid(other) or other == god_node:
+				continue
+			if god_node.global_position.distance_to(other.global_position) > god_node.shock_radius:
+				continue
+			if other.is_frozen():
+				if god_node.role == other.role:
+					has_target = true
+					break
+			else:
+				if god_node.role != other.role and not _in_bathala_base(other.global_position):
+					has_target = true
+					break
+		if has_target:
+			god_node.release_shock()
+			_resolve_god_shock(god_node, index)
+
+# Resolve a fired god shockwave: freeze enemy gods, thaw ally gods.
+func _resolve_god_shock(god_node: AgawanGod, caster_index: int) -> void:
+	var radius := god_node.shock_radius + 18.0
+	for other_index in range(_gods.size()):
+		var other: AgawanGod = _gods[other_index]
+		if not is_instance_valid(other) or other == god_node:
+			continue
+		if god_node.global_position.distance_to(other.global_position) > radius:
+			continue
+		if other.is_frozen():
+			# Thaw a frozen ally god.
+			if god_node.role == other.role:
+				other.unfreeze()
+				_frozen_gods.erase(other_index)
+		else:
+			# Freeze an enemy god, never one safe at Bathala's base.
+			if god_node.role != other.role and not _in_bathala_base(other.global_position):
+				_freeze_god(other_index, other.god_freeze_time, -1)
+
 
 # A client attacked: the host grows the real wave here and shares it.
 func _on_arena_shock_requested(caster_id: int, origin: Vector2) -> void:

@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="Pamana" format=3]
+[gd_resource type="Resource" script_class="Pamana" format=3 uid="uid://k5wafoqxnon2"]
 
-[ext_resource type="Texture2D" path="res://icon.svg" id="1_i4jap"]
-[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_7vbyx"]
+[ext_resource type="Texture2D" uid="uid://7b74532owwe3" path="res://Assets/Items/burial-cloth.png" id="1_i4jap"]
+[ext_resource type="Script" uid="uid://pylem8t2rgfm" path="res://scripts/pamana/pamana.gd" id="2_7vbyx"]
 
 [resource]
 script = ExtResource("2_7vbyx")

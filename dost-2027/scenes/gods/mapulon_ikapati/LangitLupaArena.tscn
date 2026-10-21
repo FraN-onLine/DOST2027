@@ -199,11 +199,11 @@ width = 2.0
 default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=632666614]
-position = Vector2(693.00006, 188.99998)
+position = Vector2(693, 189)
 scale = Vector2(3.6833231, 3.2276123)
 sprite_frames = SubResource("SpriteFrames_4he5h")
 autoplay = "default"
-frame_progress = 0.09296131
+frame_progress = 0.26349792
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(420, 440)

@@ -3,19 +3,19 @@
 [ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://c3lilpohgea6w" path="res://scripts/gods/bathala/bathala_arena.gd" id="2_arena"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
-[ext_resource type="Texture2D" uid="uid://vns3qafqf82" path="res://Assets/Gods/Bathala/bathala-Sheet.png" id="4_pvjnw"]
+[ext_resource type="Texture2D" uid="uid://cdkt78lh7iqvd" path="res://Assets/Gods/Bathala/bathalaoverseer-Sheet.png" id="4_pvjnw"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cet4o"]
 atlas = ExtResource("4_pvjnw")
-region = Rect2(0, 0, 130, 100)
+region = Rect2(0, 0, 130, 99)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_mwcwi"]
 atlas = ExtResource("4_pvjnw")
-region = Rect2(130, 0, 130, 100)
+region = Rect2(130, 0, 130, 99)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jybcx"]
 atlas = ExtResource("4_pvjnw")
-region = Rect2(260, 0, 130, 100)
+region = Rect2(260, 0, 130, 99)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_y7s8a"]
 animations = [{
@@ -39,6 +39,8 @@ script = ExtResource("2_arena")
 freeze_time = 5.0
 tag_radius = 34.0
 attack_cooldown = 0.6
+shock_radius = 130.0
+shock_expand_time = 0.45
 base_radius = 46.0
 thaw_touch = 40.0
 hold_to_capture = 1.0
@@ -97,11 +99,11 @@ width = 2.0
 default_color = Color(0.78, 0.78, 0.82, 0.35)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1242689336]
-position = Vector2(963.00006, 150)
+position = Vector2(962, 155)
 scale = Vector2(3.6833231, 3.2276123)
 sprite_frames = SubResource("SpriteFrames_y7s8a")
 autoplay = "default"
-frame_progress = 0.81268317
+frame_progress = 0.519802
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(360, 470)
@@ -176,9 +178,6 @@ z_index = 3
 [node name="Shocks" type="Node2D" parent="." index="11" unique_id=999111000]
 z_index = 6
 
-[node name="Stars" type="Node2D" parent="." index="12" unique_id=467062211]
-z_index = 4
-
 [node name="Marks" type="Node2D" parent="." index="12" unique_id=326382904]
 z_index = 5
 
@@ -229,3 +228,6 @@ offset_bottom = 150.0
 grow_horizontal = 2
 theme_type_variation = &"HudCallout"
 horizontal_alignment = 1
+
+[node name="Stars" type="Node2D" parent="." index="14" unique_id=467062211]
+z_index = 4

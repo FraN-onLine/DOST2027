@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="Pamana" format=3]
+[gd_resource type="Resource" script_class="Pamana" format=3 uid="uid://bd5h40vbe8i7c"]
 
-[ext_resource type="Texture2D" path="res://icon.svg" id="1_0kpy3"]
-[ext_resource type="Script" path="res://scripts/pamana/pamana.gd" id="2_beb4u"]
+[ext_resource type="Texture2D" uid="uid://c5m1hsbsyk710" path="res://Assets/Items/surigao-gold.png" id="1_0kpy3"]
+[ext_resource type="Script" uid="uid://pylem8t2rgfm" path="res://scripts/pamana/pamana.gd" id="2_beb4u"]
 
 [resource]
 script = ExtResource("2_beb4u")

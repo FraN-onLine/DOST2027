@@ -68,6 +68,10 @@ const ROLE_COLOR := {
 @export var watcher_speed := 1.2       # his walk at a holder, as a multiple of move_speed (0 = off)
 @export var god_freeze_time := 10.0    # seconds a frozen god stays frozen (mortals: 5s)
 
+@export_category("Shockwave")
+@export var shock_cd := 5.0            # seconds between god shockwaves (0 = off)
+@export var shock_radius := 36.0       # how far the god's shockwave reaches
+
 var god_id: StringName = &""
 var role: Role = Role.ATTACK
 var base_center := Vector2.ZERO       # Bathala's base (the one every god defends)
@@ -95,6 +99,11 @@ var _wander := Vector2.ZERO
 var _pulse := 0.0
 var _lunge_cd := 0.0
 var _chasing := false                 # the goal this frame is a mortal
+
+# Shockwave (mirrored to the clients).
+var _shock_timer := 0.0               # cooldown until next shockwave
+var shocking := false                 # visual: shockwave active this frame
+var shock_left := 0.0                 # visual: seconds left showing shock ring
 
 @onready var icon: Sprite2D = get_node_or_null("Icon")
 @onready var ring: Line2D = get_node_or_null("Ring")
@@ -148,6 +157,19 @@ func unfreeze() -> void:
 	frozen = false
 	freeze_left = 0.0
 
+# Is the shockwave off cooldown and able to fire?
+func shock_ready() -> bool:
+	return not frozen and _shock_timer <= 0.0 and shock_cd > 0.0
+
+# Fire the shockwave: sets the visual and starts the cooldown.
+func release_shock() -> void:
+	if not shock_ready():
+		return
+	_shock_timer = shock_cd
+	shocking = true
+	shock_left = 0.25
+	_refresh_visual()
+
 
 # Back to the start of a round: no freeze, no lunge half-way through.
 func reset_round() -> void:
@@ -155,6 +177,9 @@ func reset_round() -> void:
 	windup = 0.0
 	lunge_left = 0.0
 	pulse_flash = 0.0
+	shocking = false
+	shock_left = 0.0
+	_shock_timer = 0.0
 	watch_target = Vector2.INF
 	_lunge_cd = lunge_interval
 
@@ -219,6 +244,13 @@ func _within_ring(point: Vector2) -> Vector2:
 func step(delta: float, mortals: Array) -> void:
 	_pulse += delta
 	pulse_flash = maxf(0.0, pulse_flash - delta)
+	# Shockwave cooldown and visual.
+	_shock_timer = maxf(0.0, _shock_timer - delta)
+	if shocking:
+		shock_left = maxf(0.0, shock_left - delta)
+		if shock_left <= 0.0:
+			shocking = False
+			_refresh_visual()
 	if frozen:
 		freeze_left = maxf(0.0, freeze_left - delta)
 		if freeze_left <= 0.0:
