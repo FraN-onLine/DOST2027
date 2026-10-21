@@ -1,7 +1,12 @@
 extends SceneTree
 
-# Validation: Mapulon & Ikapati's Langit Lupa. The rhyme picks the richest mortal
-# as Taya (ties random); mortals + 1 Langit, shared by any number of runners for
+# Validation: Mapulon & Ikapati's Langit Lupa. The field is sized for the mortals
+# playing (and a client draws the host's). At GO the gods are the Taya: their tag
+# hands Taya to that mortal and moves no FAVOR, they leave after it, they keep no
+# time, pay no drain and earn nothing from a chant, they never stand on a Langit,
+# the safety valve hunts the richest runner on the Lupa (and re-picks when that
+# mortal leaves), and their state rides the arena tick. With god_starts_as_taya
+# off the rhyme picks the richest mortal as Taya (ties random); mortals + 1 Langit, shared by any number of runners for
 # as long as they like; the Taya's chant roots it and blocks tags, breaks on a
 # wrong key or a missed beat, and on ALIS! closes each runner's Langit to them
 # only, shoves off whoever stays and pays the Taya; the host ignores chant
@@ -47,6 +52,28 @@ func _run() -> void:
 	_check(is_equal_approx(_arena.trial_time, 60.0), "a standalone round lasts 60s")
 	_check(_arena._bots.size() == 2 and not _rules.simulate_rivals, "solo: two bots take the rivals' places (and the quiet FAVOR trickle is off)")
 
+	# --- the field is sized for the mortals playing -------------------------------------
+	var drawn: Rect2 = _arena.field_root.authored_rect()
+	_check(is_equal_approx(_arena._field.size.x, _arena.field_size_3p.x) and _arena._field.get_center().is_equal_approx(drawn.get_center()),
+		"three mortals play on the 3-mortal field, centred where the Border is drawn (%s)" % str(_arena._field))
+	_check(drawn.is_equal_approx(_arena._field), "the Border is redrawn around it (%s)" % str(drawn))
+	_check(_arena.player.bounds == _arena._field, "the mortal walks inside it")
+	for count in [2, 3, 4]:
+		var wanted: Vector2 = _arena.field_size_for(count)
+		_check(wanted.x == [0, 0, 560.0, 640.0, 720.0][count], "%d mortals -> %d wide" % [count, int(wanted.x)])
+	_arena.field_size_3p = Vector2(600, 200)
+	_arena._size_field()
+	_check(_arena._field.size == Vector2(600, 200), "a height in field_size_Np replaces the drawn one (%s)" % str(_arena._field.size))
+	_arena.field_size_3p = Vector2(640, 0)
+	_arena._size_field()
+	_check(is_equal_approx(_arena._field.size.y, drawn.size.y), "...and 0 keeps the drawn Border's height")
+	# a client takes the host's field and redraws its Border
+	var client_field := Rect2(400, 360, 500, 200)
+	_arena._apply_layout({"field": client_field})
+	_check(_arena.field_root.authored_rect().is_equal_approx(client_field) and _arena.player.bounds == client_field,
+		"a client draws and walks the host's field (%s)" % str(_arena.field_root.authored_rect()))
+	_arena._size_field()
+
 	# --- the countdown is the rhyme, and the rules card shows on a first visit ----------
 	_arena._start_countdown()
 	_check(_arena._langits.size() == 4, "(the countdown lays out the Langit: 3 mortals -> 4)")
@@ -60,10 +87,24 @@ func _run() -> void:
 	_arena._refresh_hud(0.0)
 	_check(_arena.rules_card.visible, "the rules card shows through the countdown of a first visit")
 
-	# --- the first Taya ----------------------------------------------------------
+	# --- the gods start as Taya ----------------------------------------------------
+	_check(_arena.god_starts_as_taya, "by default the gods start as Taya")
+	_check((_arena.get_node("LangitHud/RulesCard/Lines/Lupa") as Label).text == LangitLupaArena.RULES_LUPA_GODS,
+		"the rules card says Mapulon & Ikapati are Taya first")
 	_set_favor(100, 500, 200)
 	_arena._start_trial()
-	_check(_arena.taya_id() == 2, "the mortal with the most FAVOR starts as Taya")
+	_check(_arena.taya_id() == LangitLupaArena.GOD_TAYA, "at GO Mapulon & Ikapati are the Taya, not a mortal (%d)" % _arena.taya_id())
+	_check(_arena.hud.banner_label.text == "TAYA: MAPULON & IKAPATI!", "the rhyme lands on the gods (%s)" % _arena.hud.banner_label.text)
+	_check(_rules.mortal(LangitLupaArena.GOD_TAYA) == null and _arena._field.has_point(_arena._god_at),
+		"the gods stand on the field, but are no GodMatch mortal")
+	_arena._process(0.0)
+	_check(_arena._god_body.visible and _arena.taya_marker.visible, "their body is drawn, wearing the Taya marker")
+
+	# --- the first Taya, the old rule ------------------------------------------------
+	_arena.god_starts_as_taya = false
+	_set_favor(100, 500, 200)
+	_arena._start_trial()
+	_check(_arena.taya_id() == 2, "god_starts_as_taya = false: the mortal with the most FAVOR starts as Taya")
 	_check(_arena.hud.banner_label.text == "TAYA: MORTAL 2!", "the rhyme lands on them: \"TAYA: MORTAL 2!\" (%s)" % _arena.hud.banner_label.text)
 	_arena._refresh_hud(0.0)
 	_check(not _arena.rules_card.visible, "the rules card is gone at GO")
@@ -279,6 +320,133 @@ func _run() -> void:
 	_arena._place_marker()
 	_check(_arena.taya_marker.visible, "the Taya wears a marker")
 
+	# --- the gods as Taya ------------------------------------------------------------------
+	_reset(1, [spot, other_spot])
+	_set_favor(1000, 1000, 1000)
+	_arena._gods_take_taya()
+	_arena._tagback = 0.0
+	_put(1, spot)                   # safe
+	_put(2, Vector2(660, 450))      # on the Lupa
+	_put(3, FAR)
+	_arena._god_at = Vector2(650, 450)
+	_arena._check_tag()
+	_check(_arena.taya_id() == 2, "the gods' touch on the Lupa makes that mortal the Taya")
+	_check(_rules.mortal(1).favor == 1000 and _rules.mortal(2).favor == 1000 and _rules.mortal(3).favor == 1000,
+		"a god tag moves no FAVOR")
+	_check(is_equal_approx(_arena._tagback, _arena.tagback_immunity), "the new Taya still gets the tag-back buffer")
+	_check(_arena._god_leave > 0.0 and _arena.hud.banner_label.text == _arena.god_tag_line,
+		"the gods say their line and start to fade (%s)" % _arena.hud.banner_label.text)
+	_arena._move_god(_arena.god_leave_time + 0.01)
+	_arena._process(0.0)
+	_check(_arena._god_at == Vector2.INF and not _arena._god_body.visible, "...then they leave the field")
+	_arena._move_god(1.0)
+	_check(_arena._god_at == Vector2.INF and _arena.taya_id() == 2, "they never come back as an extra hunter")
+	# a runner on a Langit is safe from the gods too; the gods never stand on one
+	_reset(1, [spot, other_spot])
+	_arena._gods_take_taya()
+	_arena._tagback = 0.0
+	_put(2, spot + Vector2(0, 20))
+	_put(1, FAR)
+	_put(3, FAR)
+	_arena._god_at = spot + Vector2(0, 40)
+	_arena._check_tag()
+	_check(_arena.taya_id() == LangitLupaArena.GOD_TAYA, "a runner on a Langit is safe from the gods")
+	_arena._god_at = spot + Vector2(4, 2)
+	_arena._move_god(0.01)
+	_check(not _arena.langit_rect(0).has_point(_arena._god_at), "the gods are pushed off a Langit like any Taya (%s)" % str(_arena._god_at))
+	# no time as Taya, no drain
+	_reset(1, [spot, other_spot])
+	_set_favor(1000, 1000, 1000)
+	_arena._gods_take_taya()
+	_arena._god_at = Vector2(400, 380)
+	_put(1, Vector2(1080, 380))
+	_put(2, FAR)
+	_put(3, Vector2(1080, 470))
+	_arena._taya_time.clear()
+	_arena._drain_pending.clear()
+	for step in range(8):
+		_arena.arena_rules_tick(DT)
+	_check(_arena.taya_id() == LangitLupaArena.GOD_TAYA and _arena._taya_time.is_empty() and _arena._drain_pending.is_empty(),
+		"the gods keep no time as Taya and owe no drain")
+	_check(_rules.mortal(1).favor == 1000 and _rules.mortal(2).favor == 1000 and _rules.mortal(3).favor == 1000,
+		"...and nobody pays for them (2s)")
+	_check(_arena._god_at.x > 400.0 + _arena.god_speed * 1.5, "the gods chase at god_speed (%s)" % str(_arena._god_at))
+	# the gods' chant: everyone safe -> they walk up to a Langit and chant; ALIS pays nobody
+	_reset(1, [spot, other_spot])
+	_set_favor(1000, 1000, 1000)
+	_arena._gods_take_taya()
+	_put(1, spot)
+	_put(2, other_spot)
+	_put(3, spot + Vector2(10, 0))
+	_arena._god_at = spot + Vector2(0, 70)
+	_arena._bot_taya_heading(LangitLupaArena.GOD_TAYA, _arena._god_at)
+	_check(_arena._chanting and not _arena._bot_chant.is_empty(), "with every runner safe the gods walk to a Langit and chant")
+	_arena._bot_chant["fail_at"] = -1
+	for word in range(_arena.chant_length + 1):
+		_arena._tick_bot_chant(_arena.god_chant_beat + 0.01)
+	_check(not _arena._chanting and is_equal_approx(_arena.swap_left(1), _arena.swap_time), "a full chant yells ALIS (one word every god_chant_beat)")
+	_check(_rules.mortal(1).favor == 1000 and _rules.mortal(2).favor == 1000, "...and nobody is paid chant_favor for it")
+	# the safety valve
+	_reset(1, [spot, other_spot])
+	_set_favor(300, 900, 500)
+	_arena._gods_take_taya()
+	_arena._tagback = 0.0
+	_put(1, Vector2(450, 450))
+	_put(2, Vector2(950, 450))
+	_put(3, Vector2(700, 450))
+	_arena._god_at = Vector2(650, 380)
+	_arena._god_time = _arena.god_taya_max_time - 0.05
+	_arena._move_god(0.01)
+	_check(_arena.god_hunt_id() == -1, "no hunt before god_taya_max_time")
+	_arena._move_god(0.05)
+	_check(_arena.god_hunt_id() == 2, "after god_taya_max_time the gods hunt the richest runner on the Lupa (%d)" % _arena.god_hunt_id())
+	var from: Vector2 = _arena._god_at
+	_arena._move_god(0.1)
+	_check(absf(from.distance_to(_arena._god_at) - _arena.god_hunt_speed * 0.1) < 0.5 and _arena._god_at.x > from.x,
+		"...at god_hunt_speed, straight at them (%.1f px in 0.1s)" % from.distance_to(_arena._god_at))
+	_arena._god_at = Vector2(700, 440)
+	_arena._check_tag()
+	_check(_arena.taya_id() == LangitLupaArena.GOD_TAYA, "while hunting, the gods tag nobody else")
+	_arena._god_at = Vector2(940, 450)
+	_arena._check_tag()
+	_check(_arena.taya_id() == 2, "...and their tag on the hunted runner hands them the Taya")
+	_reset(1, [spot, other_spot])
+	_arena._gods_take_taya()
+	_put(1, Vector2(450, 450))
+	_put(2, spot)                   # the richest, but safe
+	_put(3, Vector2(700, 450))
+	_arena._god_at = Vector2(650, 380)
+	_check(_arena.hunt_target() == 3, "a safe runner (900) is passed over for the richest one on the Lupa (500) (%d)" % _arena.hunt_target())
+	_put(1, other_spot)
+	_put(3, spot + Vector2(10, 0))
+	_check(_arena.hunt_target() == 2, "...and with everyone safe the richest runner anywhere is hunted (%d)" % _arena.hunt_target())
+	# a hunted mortal who leaves: the gods pick again
+	_put(1, Vector2(450, 450))
+	_put(3, Vector2(700, 450))
+	_put(2, Vector2(950, 450))
+	_arena._god_hunt = 2
+	_arena._god_time = _arena.god_taya_max_time + 1.0
+	_rules.remove_mortal(2)
+	_arena._mortal_positions.erase(2)
+	_arena._move_god(0.01)
+	_check(_arena.god_hunt_id() == 3, "when the hunted mortal leaves, the gods pick the next one (%d)" % _arena.god_hunt_id())
+	_rules.ensure_mortal(2, "MORTAL 2")
+	# the network: the gods ride the arena tick, a client only mirrors them
+	var tick: Dictionary = _arena.arena_tick_fields()
+	_check(tick.get("taya") == LangitLupaArena.GOD_TAYA and tick.has("god_at") and tick.has("god_leave") and tick.has("god_hunt"),
+		"the gods' Taya, position, fade and hunt ride the arena tick")
+	tick["god_at"] = Vector2(600, 400)
+	tick["god_hunt"] = 1
+	_arena.arena_read_tick(tick)
+	_check(_arena._god_at == Vector2(600, 400) and _arena.god_hunt_id() == 1, "a client mirrors them from the tick")
+	# a round that ends with the gods still Taya: a tie on time
+	_arena._taya_time.clear()
+	var rates := {}
+	for amount in _arena.payouts().values():
+		rates[amount] = true
+	_check(rates.size() == 1 and rates.has(_arena.payout_best), "a round ending with the gods still Taya pays every mortal payout_best (all zero is a tie)")
+	_arena._god_at = Vector2.INF
+
 	# --- seasons ------------------------------------------------------------------------------------------
 	_reset(1, [])
 	_arena._place_langits()
@@ -297,8 +465,10 @@ func _run() -> void:
 	var spaced := 0
 	var layouts := 0
 	_rules.ensure_mortal(4, "MORTAL 4")
+	_arena._size_field()  # (the host sizes the field for four, as at a real countdown)
+	_check(is_equal_approx(_arena._field.size.x, _arena.field_size_4p.x), "four mortals play on the 4-mortal field (%s)" % str(_arena._field.size))
 	for attempt in range(60):
-		var taya_at := Vector2(randf_range(270, 1120), randf_range(100, 580))
+		var taya_at := Vector2(randf_range(_arena._field.position.x, _arena._field.end.x), randf_range(_arena._field.position.y, _arena._field.end.y))
 		_put(_arena.taya_id(), taya_at)
 		_arena._place_langits()
 		layouts += 1
@@ -317,6 +487,7 @@ func _run() -> void:
 		spaced += int(all_spaced)
 	_check(_arena._langits.size() == 5, "with four mortals the field holds five Langit")
 	_rules.remove_mortal(4)
+	_arena._size_field()
 	_check(placement_ok, "a Langit never lands near the Taya, off the field, in the UI strip or on another Langit")
 	_check(spaced * 10 >= layouts * 9, "...and they are spread langit_spacing apart (%d of %d layouts)" % [spaced, layouts])
 
@@ -453,6 +624,11 @@ func _reset(taya: int, langits: Array) -> void:
 		runners.clear()
 	_arena._season_timer = 1000.0
 	_arena.set_taya(taya)
+	_arena._god_at = Vector2.INF
+	_arena._god_leave = 0.0
+	_arena._god_hunt = -1
+	_arena._god_time = 0.0
+	_arena._bot_chant.clear()
 	_arena._tagback = 0.0
 	_arena._chant_cd = 0.0
 	_arena._invuln.clear()
