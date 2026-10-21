@@ -26,6 +26,20 @@ extends Node2D
 #     dialogue_prefix. What the designer sees in the arena scene is what every
 #     player gets.
 #
+#   * THE FOLLOW CAMERA (the lobby's CAMERA = FOLLOW PLAYER, follow_camera):
+#     off by default, and then nothing above changes - the whole authored field
+#     is on screen and world = screen. On, the LOCAL mortal carries a Camera2D
+#     (zoomed in, smoothed, held inside the field plus follow_margin, aimed so
+#     the mortal stands in the middle of what the UI strip leaves visible). It
+#     is only this screen's view: positions, bounds, ghosts, bots and every rule
+#     keep the same world coordinates and the host never reads it. What belongs
+#     to the screen stays there - every HUD lives on a CanvasLayer (the shell's
+#     panels too), a click is taken into the world through the canvas
+#     transform (Tala's aim) and the vision mask is placed through
+#     get_global_transform_with_canvas(). What the camera hides, an arena
+#     lists in edge_targets(): a small arrow on the HUD's edge points at each
+#     of them that is out of view.
+#
 #   * THE ROUND: trial_time (the round clock - 1:30), countdown_time (the
 #     "3 - 2 - 1"), the INTRO -> COUNTDOWN -> PLAYING -> RESULTS flow, the clock
 #     signal the shell reads, the results panel and the closing dialogue. Every
@@ -172,6 +186,16 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var flash_time := 0.25        # seconds the screen flash fades over
 @export var impact_shake_time := 0.3  # seconds a flagged knockback shakes for
 
+@export_category("Follow Camera")
+# Set by the shell from the lobby's CAMERA (RunSettings.camera_mode); a standalone
+# arena shows the whole field.
+@export var follow_camera := false
+@export var follow_zoom := 1.6          # how close the camera sits (2D zoom)
+@export var follow_margin := 24.0       # world pixels the view may show past the field's border
+@export var follow_smoothing := 8.0     # Camera2D.position_smoothing_speed
+@export var edge_arrow_size := 14.0     # the off-screen pointers (edge_targets)
+@export var edge_arrow_inset := 18.0    # how far inside the visible edge they sit
+
 @export_category("Network")
 @export var net_tick_rate := 10.0    # world state broadcasts per second
 @export var net_state_rate := 5.0    # FAVOR snapshots per second
@@ -218,6 +242,8 @@ var rules: GodMatch
 var hud: Control
 var dialogue: Control
 var due_menu: Control
+var camera: Camera2D = null      # the follow camera (null: the whole field, world = screen)
+var _edge_arrows: Control = null  # draws the off-screen pointers, on the HUD layer
 
 # The mortal's walking field and its authored spawn (every round starts on the
 # spot the designer drew).
@@ -330,6 +356,7 @@ func _ready() -> void:
 	# the drawn spot (never from arithmetic on a rect).
 	_start_position = player.global_position
 	_base_move_speed = player.move_speed
+	_build_camera()
 	_read_field()
 	player.set_display_name(_mortal_name(), UITokens.god_text(god))
 	hud.bind(rules, god)
@@ -376,7 +403,9 @@ func _mortal_name() -> String:
 
 func _on_viewport_resized() -> void:
 	# Nothing in the arena is laid out by code, so a resize only re-shapes the
-	# blindness mask - the field stays exactly where the designer drew it.
+	# blindness mask (and the follow camera's limits) - the field stays exactly
+	# where the designer drew it.
+	_fit_camera()
 	_apply_vision_mask()
 
 
@@ -393,6 +422,7 @@ func _read_field() -> void:
 	field_root.apply_tint(tint)
 	player.bounds = _field
 	player.ring_color = UITokens.god_accent(god)
+	_fit_camera()
 	_apply_vision_mask()
 	collect_units()
 	if _authority:
@@ -474,6 +504,7 @@ func _apply_layout(layout: Dictionary) -> void:
 	var tint: Color = god.color if god != null else Color.WHITE
 	field_root.apply_tint(tint)
 	player.bounds = _field
+	_fit_camera()
 	collect_units()
 	arena_read_layout(layout)
 
@@ -512,6 +543,8 @@ func _start_countdown() -> void:
 	# Back to the spot the designer drew the mortal on, and the arena's own units
 	# back to their authored start, so every round begins the same way.
 	player.global_position = _start_position
+	if camera != null:
+		camera.reset_smoothing()  # a new round cuts to the spawn, it does not pan there
 	arena_round_reset()
 	_reset_screen_impact()  # and the screen itself starts the round at rest
 
@@ -2059,7 +2092,7 @@ func _apply_vision_mask() -> void:
 		return
 	var view := get_viewport_rect().size
 	material.set_shader_parameter("aspect", view.x / maxf(1.0, view.y))
-	material.set_shader_parameter("radius", _blind_radius)
+	material.set_shader_parameter("radius", _blind_radius * view_zoom())
 	vision_mask.visible = false
 
 
@@ -2081,10 +2114,131 @@ func _apply_blindness(delta: float) -> void:
 		return
 	_vision_fade = minf(1.0, _vision_fade + delta / 0.3)
 	material.set_shader_parameter("fade", _vision_fade)
+	# The mask is drawn in screen space: the mortal's SCREEN position (the same as
+	# its world position without the follow camera), and a circle round the same
+	# piece of the world - the camera's zoom draws it bigger on screen.
 	var view := vision_mask.size
-	var mortal_pos := player.global_position
+	var mortal_pos := player.get_global_transform_with_canvas().origin
 	material.set_shader_parameter("center", Vector2(mortal_pos.x / maxf(1.0, view.x), mortal_pos.y / maxf(1.0, view.y)))
-	material.set_shader_parameter("radius", _blind_radius)
+	material.set_shader_parameter("radius", _blind_radius * view_zoom())
+
+
+# --- FOLLOW CAMERA ------------------------------------------------------------
+# Only built when the shell asks for it (follow_camera). It hangs on the local
+# mortal, so it follows them with no code of its own; its LIMITS keep the view
+# inside the field (plus follow_margin), and the UI strip is allowed for on the
+# left. The aim point sits left of the mortal by half the strip: a node position
+# rather than Camera2D.offset, because the offset is applied after the limits
+# and could show past them.
+
+func _build_camera() -> void:
+	if not follow_camera or player == null:
+		return
+	camera = Camera2D.new()
+	camera.name = "FollowCamera"
+	camera.zoom = Vector2.ONE * follow_zoom
+	camera.position_smoothing_enabled = true
+	camera.position_smoothing_speed = follow_smoothing
+	player.add_child(camera)
+	# Set in world pixels: a mortal can be drawn scaled up (Apolaki's duelist size),
+	# and a local offset would scale with it.
+	camera.global_position = player.global_position + Vector2(-UI_STRIP_WIDTH * 0.5 / follow_zoom, 0.0)
+	# The arena this one replaces is freed at the end of the frame and its camera
+	# may still hold the view: take it now.
+	camera.make_current()
+	camera.reset_smoothing()  # start on the mortal, not panning in from the origin
+	_build_edge_arrows()
+
+
+# The camera's limits from the field (called again when a host layout arrives or
+# the window is resized). The left one reaches further by the strip, so the
+# field's left border shows right of the strip, never under it. A field smaller
+# than the view in one direction (most trials are wide and flat) gets the spare
+# room split evenly on both sides of it, so it sits in the middle of the view
+# instead of against one edge.
+func _fit_camera() -> void:
+	if camera == null:
+		return
+	var view := get_viewport_rect().size / follow_zoom  # the screen, in world pixels
+	var strip := UI_STRIP_WIDTH / follow_zoom
+	var held := _field.grow(follow_margin)
+	var spare := ((view - Vector2(strip, 0.0)) - held.size).max(Vector2.ZERO) * 0.5
+	camera.limit_left = floori(held.position.x - spare.x - strip)
+	camera.limit_top = floori(held.position.y - spare.y)
+	camera.limit_right = ceili(held.end.x + spare.x)
+	camera.limit_bottom = ceili(held.end.y + spare.y)
+
+
+# How much bigger the world is drawn than it was authored (1.0 without the camera).
+func view_zoom() -> float:
+	return camera.zoom.y if camera != null else 1.0
+
+
+func _exit_tree() -> void:
+	# A Camera2D that leaves the tree leaves the view where it last put it: give
+	# the screen back to whatever comes next (the finale, the lobby) unless the
+	# next arena's camera has already taken it.
+	if camera == null:
+		return
+	var viewport := get_viewport()
+	if viewport != null and (viewport.get_camera_2d() == null or viewport.get_camera_2d() == camera):
+		viewport.canvas_transform = Transform2D.IDENTITY
+
+
+# What a trial depends on that the follow camera can hide (the Taya, a god that
+# moves, a base): an arena returns those nodes here, and each one that is out of
+# view gets a small arrow on the edge of the visible screen pointing at it.
+# Nothing is drawn without the follow camera - the whole field is on screen then.
+func edge_targets() -> Array:
+	return []
+
+
+func _build_edge_arrows() -> void:
+	_edge_arrows = Control.new()
+	_edge_arrows.name = "EdgeArrows"
+	_edge_arrows.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_edge_arrows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_edge_arrows.draw.connect(_draw_edge_arrows)
+	ui_layer.add_child(_edge_arrows)
+	ui_layer.move_child(_edge_arrows, 0)  # under the HUD's menus and the dialogue
+	# Redrawn every frame from here: not every arena's _process calls the base's.
+	get_tree().process_frame.connect(_edge_arrows.queue_redraw)
+
+
+# Every edge target that is out of view: where its arrow sits (on the border of
+# the visible area - the screen right of the UI strip, inset) and the way it
+# points. Public so the checks can read it.
+func edge_arrows() -> Array[Dictionary]:
+	var arrows: Array[Dictionary] = []
+	if camera == null or _edge_arrows == null:
+		return arrows
+	var view := _edge_arrows.size
+	var shown := Rect2(Vector2(UI_STRIP_WIDTH, 0.0), view - Vector2(UI_STRIP_WIDTH, 0.0)).grow(-edge_arrow_inset)
+	var centre := shown.get_center()
+	var half := shown.size * 0.5
+	for target in edge_targets():
+		if not is_instance_valid(target) or not (target is Node2D) or not (target as Node2D).is_visible_in_tree():
+			continue
+		var at := (target as Node2D).get_global_transform_with_canvas().origin
+		if shown.has_point(at):
+			continue
+		var way := (at - centre).normalized()
+		var reach := minf(half.x / maxf(absf(way.x), 0.001), half.y / maxf(absf(way.y), 0.001))
+		arrows.append({"node": target, "tip": centre + way * reach, "way": way})
+	return arrows
+
+
+func _draw_edge_arrows() -> void:
+	var tint := UITokens.god_accent(god) if god != null else UITokens.GOLD
+	for arrow in edge_arrows():
+		var tip: Vector2 = arrow["tip"]
+		var way: Vector2 = arrow["way"]
+		var side := way.orthogonal() * edge_arrow_size * 0.6
+		var back := tip - way * edge_arrow_size
+		var points := PackedVector2Array([tip, back + side, back - side])
+		_edge_arrows.draw_colored_polygon(points, tint)
+		points.append(tip)
+		_edge_arrows.draw_polyline(points, UITokens.NIGHT_900, 2.0)
 
 
 # --- TAPPABLE FAVOR PANELS ---------------------------------------------------

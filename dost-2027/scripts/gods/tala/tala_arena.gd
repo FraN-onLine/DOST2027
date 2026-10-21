@@ -104,6 +104,11 @@ func _connect_network() -> void:
 		_net.tala_throw_requested.connect(_on_throw_requested)
 
 
+# The follow camera's edge arrow: Tala, who walks her path guarding the cans.
+func edge_targets() -> Array:
+	return [tala] if tala != null else []
+
+
 func collect_units() -> void:
 	_cans.clear()
 	_can_labels.clear()
@@ -250,7 +255,9 @@ func _input(event: InputEvent) -> void:
 		return
 	if _phase != Phase.PLAYING or player.locked or dialogue.is_active() or due_menu.is_open():
 		return
-	_try_throw(event.position)
+	# The click is on the screen; the throw is aimed in the world (the follow
+	# camera can put the two apart - without it the two are the same point).
+	_try_throw(get_canvas_transform().affine_inverse() * event.position)
 	var viewport := get_viewport()
 	if viewport != null:
 		viewport.set_input_as_handled()

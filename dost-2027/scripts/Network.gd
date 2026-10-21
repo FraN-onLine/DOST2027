@@ -58,6 +58,7 @@ signal langit_chant_requested(peer_id, kind, value)       # client -> host: the 
 signal prep_offers_received(offers)                  # host -> ONE client: your offers (pamana ids)
 signal prep_offers_requested(peer_id)                # client -> host: send me my offers again
 signal prep_purchase_requested(peer_id, pamana_id)   # client -> host: I buy this
+signal boon_purchase_requested(peer_id, favor_id)    # client -> host: I buy this boon at the altar
 signal player_name_changed(peer_id, name)  # anybody -> everybody: a mortal was renamed
 signal dialogue_released(dialogue_id)
 
@@ -1348,6 +1349,19 @@ func request_prep_purchase(pamana_id: String) -> void:
 	if sender == 0:
 		return
 	emit_signal("prep_purchase_requested", sender, pamana_id)
+
+
+# The altar's boon (a favor of the god who just hosted, for FAVOR instead of a
+# voucher): the client asks, the host checks it (PrepArea.try_buy_boon ->
+# GodMatch.buy_boon) and the next FAVOR snapshot brings the result back.
+@rpc("any_peer", "reliable")
+func request_boon_purchase(favor_id: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("boon_purchase_requested", sender, favor_id)
 
 
 # --- arena score: a client's own game scored something for its mortal ---------

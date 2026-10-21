@@ -88,7 +88,8 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @export var box_sizes := PackedFloat32Array([0.42, 0.30, 0.26, 0.15, 0.13])
 @export var drift_speeds := PackedFloat32Array([0.14, 0.18, 0.38, 0.30, 0.50])
 @export var burst_multiplier := 3.2        # level 4: how much faster the box moves in a burst
-@export var shake_pixels := 5.0            # level 5+: how hard the field and the bar shake
+# Over the Moon's shake (level 5+) is the base's shake_pixels (Arena, Screen
+# Impact), set to 5 in HananArena.tscn - redeclaring it here is a parse error.
 @export var bar_offset := Vector2(36.0, 0.0)  # where the bar hangs, from the mortal's feet
 
 @onready var baka: Node2D = get_node_or_null("ArenaField/Baka")
@@ -155,6 +156,11 @@ func shares_mortal_positions() -> bool:
 # The Guidance reads "another mortal is nearby" - there is nobody else on this field.
 func nearby_movement_favors_enabled() -> bool:
 	return false
+
+
+# The follow camera's edge arrow: the Baka, which the mortal has to run into.
+func edge_targets() -> Array:
+	return [baka] if baka != null else []
 
 
 func collect_units() -> void:

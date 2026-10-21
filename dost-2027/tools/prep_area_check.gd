@@ -11,6 +11,12 @@ extends SceneTree
 #     refused; a bought card reads BINILI and the others lock
 #   * READY ends the rest early, and the clock ends it too
 #   * the God's Due menu there offers the previous god's favors
+#   * the altar: a voucher is spent first (as in a trial); without one a favor
+#     of that god is a BOON for 750 FAVOR - priced cards, too poor is refused
+#     (the price in EMBER), one boon per rest (then the cards lock) on top of the
+#     one Pamana, only that god's favors, a skill boon replaces the old skill and
+#     its card says so, and everyone hears "<name> bought <favor>"
+#   * in a trial the God's Due menu stays voucher-only
 #   * what was bought rides into the next trial and wakes at its "GO!"
 # Run: godot --headless --path <project> -s res://tools/prep_area_check.gd
 
@@ -152,6 +158,7 @@ func _run() -> void:
 		from_host = from_host and favor.god_id == &"apolaki"
 	_check(prep.due_menu.is_open() and from_host, "F opens the God's Due menu with Apolaki's favors")
 	prep._toggle_due_menu()
+	await _altar_boons(prep, me)
 
 	# --- READY ends the rest, the purchase rides on -----------------------------------------
 	prep._ready_up()
@@ -160,6 +167,7 @@ func _run() -> void:
 	var carried: GodMatch.Mortal = game.rules.local()
 	if item.id != Pamanas.SURIGAO_GOLD:
 		_check(carried.pamana_next == item.id, "the purchase rides into the next trial")
+		await _trial_menu_unchanged(game.arena)
 		game.arena._start_trial()
 		_check(carried.pamana_active == item.id, "...and wakes at its GO!")
 	else:
@@ -232,6 +240,23 @@ func _networked_rest(view: SubViewport, network: Node) -> void:
 	_check(client.rules.local().favor == 1000 - item.cost and client.bought_by(2) == [item.id], "the client mirrors what it paid and bought")
 	_check(client.popups_root.get_child_count() == popups, "the client shows no loss popup for its purchase")
 
+	# The altar's boon, asked for over the (simulated) wire.
+	var boon := _plain_favor(Gods.tala().favors, host.rules.mortal(2))
+	var client_favor := host.rules.mortal(2).favor
+	host._on_boon_purchase_requested(2, str(boon.id))
+	_check(host.rules.mortal(2).has_favor(boon.id) and host.rules.mortal(2).favor == client_favor - host.boon_cost,
+		"the host sells a client its boon (%s) for %d FAVOR" % [boon.display_name, host.boon_cost])
+	host.rules.mortal(2).favor = 5000
+	host._on_boon_purchase_requested(2, str(_plain_favor(Gods.tala().favors, host.rules.mortal(2)).id))
+	_check(host.boons_bought_by(2) == [boon.id], "...and refuses its second one")
+	host.rules.mortal(2).favor = client_favor - host.boon_cost
+	popups = client.popups_root.get_child_count()
+	client._on_god_state_received(host.rules.snapshot())
+	client.arena_read_tick(host.arena_tick_fields())
+	_check(client.rules.local().has_favor(boon.id) and client.boons_bought_by(2) == [boon.id] and client.boons_left(2) == 0,
+		"the client mirrors its boon and that it has none left")
+	_check(client.popups_root.get_child_count() == popups, "...with no loss popup for the FAVOR it spent")
+
 	host._ready_ids = [1, 2]
 	_check(host.ready_count() == Vector2i(2, 3) and not host._all_ready(), "READY 2/3: the rest waits for the third mortal")
 	client.arena_read_tick(host.arena_tick_fields())
@@ -243,6 +268,143 @@ func _networked_rest(view: SubViewport, network: Node) -> void:
 	network.players = players_before
 	host.queue_free()
 	client.queue_free()
+
+
+# The altar of the god who just hosted (Apolaki here), solo. Called after the
+# Tindahan purchase, so the boon below is bought on top of a Pamana.
+func _altar_boons(prep: PrepArea, me: GodMatch.Mortal) -> void:
+	var menu = prep.due_menu
+	var paid_pamana := me.pamana_next != &"" or me.surigao_early > 0
+	_check(prep.altar_hint.text.ends_with("GOD'S DUE / BOON"), "the altar says what F does there (%s)" % prep.altar_hint.text)
+
+	# A voucher is spent first, exactly as in a trial.
+	me.due = 1
+	var favor_before := me.favor
+	prep._toggle_due_menu()
+	await _frames(2)
+	_check(menu.due_label.text == "GOD'S DUE VOUCHERS: 1" and (_price(menu, 0).begins_with("COST: 1 GOD'S DUE") or _price(menu, 0).begins_with("REPLACES")),
+		"with a voucher the cards cost a God's Due, as today (%s / %s)" % [menu.due_label.text, _price(menu, 0)])
+	var index := _plain_index(menu)
+	var granted: GodFavor = menu._shown[index]
+	menu._choose(index)
+	_check(me.has_favor(granted.id) and me.due == 0 and me.favor == favor_before and prep.boons_bought_by(me.id).is_empty(),
+		"the voucher pays for %s: no FAVOR spent, no boon used" % granted.display_name)
+
+	# No voucher, too little FAVOR: the price in EMBER on a greyed card, refused.
+	me.favor = prep.boon_cost - 1
+	prep._toggle_due_menu()
+	await _frames(2)
+	_check(menu.due_label.text == "BUY A BOON - 750 FAVOR", "with no voucher the altar sells boons (%s)" % menu.due_label.text)
+	var price := _price_label(menu, 0)
+	_check(price.text == "750 FAVOR" and price.get_theme_color("font_color") == UITokens.readable_on_dark(UITokens.EMBER, UITokens.NIGHT_800)
+		and is_equal_approx(menu.rows.get_child(0).modulate.a, 0.5), "too poor: the card is greyed and its price is EMBER (%s)" % price.text)
+	var wanted: GodFavor = menu._shown[_plain_index(menu)]
+	menu._choose(_plain_index(menu))
+	_check(menu.is_open() and not me.has_favor(wanted.id) and me.favor == prep.boon_cost - 1, "...and choosing it does nothing")
+	_check(not prep.try_buy_boon(me.id, wanted.id), "the host refuses a boon it cannot be paid for")
+	menu.close()
+
+	# Enough FAVOR: bought, paid with spend_favor, heard by everyone.
+	me.favor = 1000
+	prep._toggle_due_menu()
+	await _frames(2)
+	price = _price_label(menu, 0)
+	_check(price.text == "750 FAVOR" and price.get_theme_color("font_color") == UITokens.readable_on_dark(UITokens.JADE, UITokens.NIGHT_800),
+		"affordable: the price reads 750 FAVOR in JADE")
+	var popups := prep.popups_root.get_child_count()
+	index = _plain_index(menu)
+	var boon: GodFavor = menu._shown[index]
+	menu._choose(index)
+	_check(me.has_favor(boon.id) and me.favor == 1000 - prep.boon_cost and prep.boons_bought_by(me.id) == [boon.id],
+		"a boon is bought: %s for %d FAVOR" % [boon.display_name, prep.boon_cost])
+	_check(paid_pamana and (me.pamana_next != &"" or me.surigao_early > 0), "...on top of the Pamana bought at the Tindahan")
+	_check(prep.hud.event_label.text == "%s bought %s" % [me.display_name, boon.display_name], "everyone hears it (%s)" % prep.hud.event_label.text)
+	_check(prep.popups_root.get_child_count() == popups, "spending is not a loss: no red popup")
+
+	# One boon per rest: refused, and the cards lock.
+	var second := _plain_favor(Gods.apolaki().favors, me)
+	_check(second != null and not prep.try_buy_boon(me.id, second.id) and me.favor == 1000 - prep.boon_cost, "a second boon is refused")
+	prep._toggle_due_menu()
+	await _frames(2)
+	_check(_price(menu, 0) == "750 FAVOR - LOCKED", "...and the altar's cards lock (%s)" % _price(menu, 0))
+	menu.close()
+
+	# Only this god's favors, never one already held.
+	var mayari_favor: GodFavor = Gods.mayari().favors[0]
+	_check(not prep.rules.can_buy_boon(mayari_favor, me.id) and not prep.try_buy_boon(me.id, mayari_favor.id),
+		"a favor of another god is not for sale at Apolaki's altar")
+	_check(not prep.rules.can_buy_boon(boon, me.id), "nor one the mortal already holds")
+
+	# A skill boon takes its slot: the card warns, and the old skill goes. (The Q
+	# slot is cleared first - the voucher above may have filled it with Apolaki's.)
+	for at in range(me.favors.size() - 1, -1, -1):
+		if me.favors[at].slot == GodFavor.Slot.Q:
+			me.favors.remove_at(at)
+	var old_q: GodFavor = null
+	for favor in Gods.mayari().favors:
+		if favor.slot == GodFavor.Slot.Q and prep.rules.is_favor_eligible(favor, me.id):
+			old_q = favor
+	var new_q: GodFavor = null
+	for favor in Gods.apolaki().favors:
+		if favor.slot == GodFavor.Slot.Q and not me.has_favor(favor.id) and prep.rules.is_favor_eligible(favor, me.id):
+			new_q = favor
+	if old_q != null and new_q != null:
+		prep.rules.bestow_favor(old_q, me.id)
+		var card: Control = menu._make_row(1, new_q, 0)
+		var warning := card.get_node_or_null("Replaces") as Label
+		_check(warning != null and warning.text == "REPLACES %s" % old_q.display_name,
+			"a skill boon's card warns what it replaces (%s)" % (warning.text if warning != null else "none"))
+		card.free()
+		me.favor = 1000
+		_check(prep.rules.buy_boon(new_q, me.id, prep.boon_cost) and me.favor_in_slot(GodFavor.Slot.Q) == new_q and not me.has_favor(old_q.id),
+			"...and buying it puts %s in Q in place of %s" % [new_q.display_name, old_q.display_name])
+	else:
+		_check(false, "a Q skill of Mayari and of Apolaki to swap (%s, %s)" % [str(old_q), str(new_q)])
+	me.favor = 1000
+
+
+# In a trial the God's Due menu stays voucher-only: no prices, nothing for FAVOR.
+func _trial_menu_unchanged(arena: Arena) -> void:
+	var me := arena.rules.local()
+	me.due = 0
+	me.favor = 5000
+	arena._toggle_due_menu()
+	await _frames(2)
+	var menu = arena.due_menu
+	_check(menu._boon_cost == 0 and menu.due_label.text == "GOD'S DUE VOUCHERS: 0"
+		and (_price(menu, 0) in ["NEEDS 1 GOD'S DUE", ""] or _price(menu, 0).begins_with("REPLACES")),
+		"in a trial the God's Due menu is voucher-only (%s / %s)" % [menu.due_label.text, _price(menu, 0)])
+	var held := me.favors.size()
+	menu._choose(0)
+	_check(me.favors.size() == held and me.favor == 5000, "...and no FAVOR buys a favor there")
+	menu.close()
+
+
+# The card at `index`: its price (or cost) line.
+func _price_label(menu: Control, index: int) -> Label:
+	if index >= menu.rows.get_child_count():
+		return null
+	return menu.rows.get_child(index).get_node_or_null("Price") as Label
+
+
+func _price(menu: Control, index: int) -> String:
+	var label := _price_label(menu, index)
+	return label.text if label != null else ""
+
+
+# A shown favor that is not an INSTANT one (whose own FAVOR would blur the sums).
+func _plain_index(menu: Control) -> int:
+	for index in range(menu._shown.size()):
+		if (menu._shown[index] as GodFavor).kind != GodFavor.Kind.INSTANT:
+			return index
+	return 0
+
+
+func _plain_favor(favors: Array, mortal: GodMatch.Mortal) -> GodFavor:
+	for favor in favors:
+		if favor.kind != GodFavor.Kind.INSTANT and not mortal.has_favor(favor.id) and favor.requires_god_id() == &"" and favor.requires_any_god_ids().is_empty():
+			return favor
+	return null
 
 
 func _check(condition: bool, label: String) -> void:

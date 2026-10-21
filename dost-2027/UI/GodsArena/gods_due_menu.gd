@@ -5,8 +5,17 @@ extends Control
 # packets - to pick which one. The offer is three seed packets side by side,
 # drawn exactly like the Almanac's (UICards), each under its key.
 # If a god intervenes between trials you get a free grant instead of a voucher.
+#
+# THE ALTAR (the preparation area only, open(..., boon_cost, boons_left)): with
+# no voucher left the same cards are a boon shop - each one priced at boon_cost
+# FAVOR (greyed, the price in EMBER, when it cannot be paid; locked once the
+# player's boons here are bought), a skill that would take an occupied slot warns
+# REPLACES <old skill>, and the choice is only ASKED for (boon_chosen): the arena
+# - the host - decides. A voucher is always spent first, exactly as in a trial.
+# In a trial boon_cost is 0 and nothing of this shows.
 
 signal favor_chosen(favor: GodFavor, free_grants_left: int)
+signal boon_chosen(favor: GodFavor)
 
 const MAX_ROWS := 3
 const PACKET_SIZE := Vector2(160, 150)
@@ -21,6 +30,8 @@ var _god: God = null
 var _match: GodMatch = null
 var _free_grants := 0
 var _remote := false  # multiplayer client: only ask, never change local rules
+var _boon_cost := 0   # > 0 at the altar: no voucher means the cards are for sale
+var _boons_left := 0  # boons this player may still buy here
 var _shown: Array[GodFavor] = []
 
 
@@ -32,11 +43,13 @@ func is_open() -> bool:
 	return visible
 
 
-func open(host_god: God, host_match: GodMatch, free_grants := 0, remote := false) -> void:
+func open(host_god: God, host_match: GodMatch, free_grants := 0, remote := false, boon_cost := 0, boons_left := 0) -> void:
 	_god = host_god
 	_match = host_match
 	_free_grants = free_grants
 	_remote = remote
+	_boon_cost = boon_cost
+	_boons_left = boons_left
 	_rebuild()
 	visible = true
 	UITokens.reveal(self)
@@ -64,6 +77,8 @@ func _rebuild() -> void:
 		due = mortal.due
 	if _free_grants > 0:
 		due_label.text = "A GOD INTERVENES - ONE FAVOR IS FREE"
+	elif selling(due):
+		due_label.text = "BUY A BOON - %d FAVOR" % _boon_cost
 	else:
 		due_label.text = "GOD'S DUE VOUCHERS: %d" % due
 
@@ -88,6 +103,11 @@ func _rebuild() -> void:
 		rows.add_child(_make_note("You already hold every favor %s can give." % _god.display_name))
 
 
+# The cards are for sale: at the altar, with no voucher and no free grant.
+func selling(due: int) -> bool:
+	return _boon_cost > 0 and due <= 0 and _free_grants <= 0
+
+
 func _make_note(text: String) -> Label:
 	var note := Label.new()
 	note.text = text
@@ -99,14 +119,22 @@ func _make_note(text: String) -> Label:
 
 
 # One offered favor: its key, its seed packet - the same packet the Almanac
-# shows, so it is recognised at a glance - what it does, and what it costs.
+# shows, so it is recognised at a glance - what it does, and what it costs: a
+# God's Due, or at the altar with none (selling) its price in FAVOR - JADE, EMBER
+# on a greyed card that cannot be paid, FAINT and locked once the boons here are
+# bought - plus a REPLACES warning for a skill that would take an occupied slot.
 func _make_row(number: int, favor: GodFavor, due: int) -> VBoxContainer:
+	var mortal := _match.local()
+	var for_sale := selling(due)
 	var affordable := _free_grants > 0 or due > 0
+	if for_sale:
+		affordable = mortal != null and mortal.favor >= _boon_cost
+	var current_skill: GodFavor = mortal.favor_in_slot(favor.slot) if mortal != null and favor.is_skill() else null
 
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", UITokens.SPACE_8)
 	column.custom_minimum_size.x = COLUMN_WIDTH
-	column.modulate.a = 1.0 if affordable else 0.5
+	column.modulate.a = 1.0 if affordable and not (for_sale and _boons_left <= 0) else 0.5
 
 	var key := Label.new()
 	key.text = UITokens.key_text(StringName("due_choice_%d" % number))
@@ -127,36 +155,51 @@ func _make_row(number: int, favor: GodFavor, due: int) -> VBoxContainer:
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(desc)
 
-	var cost := Label.new()
-	var mortal := _match.local()
-	var current_skill: GodFavor = mortal.favor_in_slot(favor.slot) if mortal != null and favor.is_skill() else null
 	var cost_color := UITokens.JADE if affordable else UITokens.EMBER
-	if current_skill != null:
-		cost.text = "REPLACES: %s" % current_skill.display_name
+	var cost_text := ""
+	if for_sale and _boons_left <= 0:
+		cost_text = "%d FAVOR - LOCKED" % _boon_cost
+		cost_color = UITokens.FAINT
+	elif for_sale:
+		cost_text = "%d FAVOR" % _boon_cost
+	elif current_skill != null:
+		cost_text = "REPLACES: %s" % current_skill.display_name
 		cost_color = UITokens.GOLD
 	elif _free_grants > 0:
-		cost.text = "FREE - GIFT OF %s" % _god.display_name
+		cost_text = "FREE - GIFT OF %s" % _god.display_name
 	elif due > 0:
-		cost.text = "COST: 1 GOD'S DUE"
+		cost_text = "COST: 1 GOD'S DUE"
 	else:
-		cost.text = "NEEDS 1 GOD'S DUE"
-	cost.theme_type_variation = &"CaptionLabel"
-	cost.add_theme_color_override("font_color", UITokens.readable_on_dark(cost_color, UITokens.NIGHT_800))
-	cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cost.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cost_text = "NEEDS 1 GOD'S DUE"
+	var cost := _caption(cost_text, cost_color)
+	cost.name = "Price"
 	column.add_child(cost)
+	if for_sale and current_skill != null:
+		var warning := _caption("REPLACES %s" % current_skill.display_name, UITokens.GOLD)
+		warning.name = "Replaces"
+		column.add_child(warning)
 
 	# The whole column is the tap target: it takes the mouse (its contents stay
 	# see-through) and answers it the way its number key does. Under the mouse
 	# the packet is picked up - lifted, with the gold ring - so it reads as
 	# something you can press.
 	column.mouse_filter = Control.MOUSE_FILTER_STOP
-	for child in [key, packet, desc, cost]:
+	for child in column.get_children():
 		child.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.gui_input.connect(_on_row_input.bind(number - 1))
 	column.mouse_entered.connect(UICards.set_selected.bind(packet, true))
 	column.mouse_exited.connect(UICards.set_selected.bind(packet, false))
 	return column
+
+
+func _caption(text: String, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.theme_type_variation = &"CaptionLabel"
+	label.add_theme_color_override("font_color", UITokens.readable_on_dark(color, UITokens.NIGHT_800))
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return label
 
 
 # A click on a row claims the favor it shows, exactly like its number key.
@@ -179,6 +222,15 @@ func _choose(index: int) -> void:
 	if index < 0 or index >= _shown.size():
 		return
 	var favor: GodFavor = _shown[index]
+	var mortal := _match.local()
+	if selling(mortal.due if mortal != null else 0):
+		# A boon: asked for, never decided here - the arena (the host) checks it
+		# and the next snapshot brings it back.
+		if _boons_left <= 0 or mortal == null or mortal.favor < _boon_cost:
+			return
+		boon_chosen.emit(favor)
+		close()
+		return
 	if _remote:
 		# Multiplayer client: the host decides. Emit straight away - the arena
 		# forwards the request and the next snapshot updates our favor list.

@@ -153,6 +153,11 @@ func nearby_movement_favors_enabled() -> bool:
 	return false
 
 
+# The follow camera's edge arrow: Apolaki himself, who comes for the mortal.
+func edge_targets() -> Array:
+	return [duelist] if duelist != null else []
+
+
 func collect_units() -> void:
 	# One Apolaki per screen - the same authored node on every peer. He is told
 	# where the mortal is every frame (arena_rules_tick); nothing about him is

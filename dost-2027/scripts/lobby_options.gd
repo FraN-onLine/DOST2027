@@ -33,9 +33,11 @@ const NUMBER_COLOR := UITokens.MUTED
 @onready var order_list: VBoxContainer = $Margin/VBox/Scroll/Body/OrderScroll/OrderList
 @onready var warning_label: Label = $Margin/VBox/Scroll/Body/Warning
 @onready var time_option: OptionButton = $Margin/VBox/Scroll/Body/TimeRow/TimeOption
+@onready var prep_option: OptionButton = $Margin/VBox/Scroll/Body/PrepRow/PrepOption
 @onready var due_option: OptionButton = $Margin/VBox/Scroll/Body/DueRow/DueOption
 @onready var intro_option: OptionButton = $Margin/VBox/Scroll/Body/IntroRow/IntroOption
 @onready var blitz_box: CheckBox = $Margin/VBox/Scroll/Body/BlitzRow/BlitzBox
+@onready var camera_option: OptionButton = $Margin/VBox/Scroll/Body/CameraRow/CameraOption
 @onready var host_note: Label = $Margin/VBox/Scroll/Body/HostNote
 @onready var reset_button: Button = $Margin/VBox/Buttons/ResetButton
 @onready var done_button: Button = $Margin/VBox/Buttons/DoneButton
@@ -56,14 +58,21 @@ func _ready() -> void:
 	plus_button.pressed.connect(_step_trials.bind(1))
 	for seconds in RunSettings.TRIAL_TIMES:
 		time_option.add_item("%d seconds" % int(seconds))
+	for seconds in RunSettings.PREP_TIMES:
+		prep_option.add_item(clock_text(seconds))
 	for step in RunSettings.DUE_STEPS:
 		due_option.add_item("%d FAVOR" % step)
 	intro_option.add_item("FULL (first visit)")
 	intro_option.add_item("SHORT (always)")
+	camera_option.add_item("WHOLE ARENA")
+	camera_option.add_item("FOLLOW PLAYER")
 	time_option.item_selected.connect(func(index: int) -> void: _change("trial_time", RunSettings.TRIAL_TIMES[index]))
+	prep_option.item_selected.connect(func(index: int) -> void: _change("prep_time", RunSettings.PREP_TIMES[index]))
 	due_option.item_selected.connect(func(index: int) -> void: _change("due_step", RunSettings.DUE_STEPS[index]))
 	intro_option.item_selected.connect(func(index: int) -> void:
 		_change("intro_mode", RunSettings.INTRO_FULL if index == 0 else RunSettings.INTRO_SHORT))
+	camera_option.item_selected.connect(func(index: int) -> void:
+		_change("camera_mode", RunSettings.CAMERA_ARENA if index == 0 else RunSettings.CAMERA_FOLLOW))
 	blitz_box.toggled.connect(_on_blitz_toggled)
 	reset_button.pressed.connect(_on_reset_pressed)
 	done_button.pressed.connect(close)
@@ -99,11 +108,13 @@ func refresh() -> void:
 	random_box.disabled = not editable
 	custom_box.disabled = not editable
 	time_option.select(RunSettings.TRIAL_TIMES.find(settings.trial_time))
+	prep_option.select(RunSettings.PREP_TIMES.find(settings.prep_time))
 	due_option.select(RunSettings.DUE_STEPS.find(settings.due_step))
 	intro_option.select(0 if settings.intro_mode == RunSettings.INTRO_FULL else 1)
+	camera_option.select(0 if settings.camera_mode == RunSettings.CAMERA_ARENA else 1)
 	blitz_box.button_pressed = settings.god_blitz_mode
 	blitz_box.disabled = not editable
-	for option in [time_option, due_option, intro_option]:
+	for option in [time_option, prep_option, due_option, intro_option, camera_option]:
 		option.disabled = not editable
 	reset_button.disabled = not editable
 	host_note.visible = not editable
@@ -190,6 +201,11 @@ func _slot_row(slot: int, settings: RunSettings, playable: Array[StringName], re
 	down.pressed.connect(_on_move_pressed.bind(slot, 1))
 	row.add_child(down)
 	return row
+
+
+# Seconds as the clock pill shows them: 20 -> "0:20".
+static func clock_text(seconds: float) -> String:
+	return "%d:%02d" % [int(seconds) / 60, int(seconds) % 60]
 
 
 # --- edits (the host's only) ---------------------------------------------------
