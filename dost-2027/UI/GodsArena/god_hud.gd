@@ -9,6 +9,17 @@ extends Control
 # results panel, and a small note (top right) for the favors that keep something
 # of the mortal's somewhere else: Kabiyak's other half and Kamalig's granary.
 #
+# SKILL CARDS (UI/GodsArena/skill_card.tscn), in a stack at the side of the field, next
+# to the skill bars - never in the middle, and they never pause the game or take input
+# that is not a click on the card itself:
+#   * a POPUP for ~popup_seconds when the local mortal gains an E / Q skill (God's Due,
+#     a boon, a god's gift): the key, icon, name, description, cooldown and what it
+#     REPLACES. A click on it, or the skill's own key, closes it early; two gains
+#     close together queue and show one after the other.
+#   * INFO while the mouse is over a skill bar (the shell's two bars in an embedded
+#     run, or this HUD's own), and, for both skills at once, while skill_info (Tab by
+#     default) is held.
+#
 # Presentation (UI/theme): translucent PanelHud panels; every colour a god or a
 # favor hands in is drawn through UITokens.readable_on_dark, since the HUD's
 # words sit on night plates and dark rims. The banner sits high, under the
@@ -16,6 +27,12 @@ extends Control
 
 const COLOR_TIME_OK := UITokens.IVORY
 const COLOR_TIME_LOW := UITokens.EMBER
+const SKILL_CARD_SCENE := preload("res://UI/GodsArena/skill_card.tscn")
+# Where the cards stand: right of the shell's left strip, just under its skill bars - or,
+# when this HUD draws its own stats panel (a standalone arena), just under that.
+const CARDS_LEFT := Arena.UI_STRIP_WIDTH + 8.0
+const CARDS_TOP := 132.0
+const CARDS_GAP := 8.0
 
 signal skill_pressed(slot: int)   # one of the two favor bars was tapped
 
@@ -34,11 +51,20 @@ signal skill_pressed(slot: int)   # one of the two favor bars was tapped
 @onready var results_rows: VBoxContainer = $ResultsPanel/Margin/VBox/ResultsRows
 @onready var results_hint: Label = $ResultsPanel/Margin/VBox/ResultsHint
 @onready var favor_note: Label = $FavorNote
+@onready var card_stack: VBoxContainer = $SkillCards
+
+# How long a gain popup stays up, seconds.
+@export var popup_seconds := 4.0
 
 var _match: GodMatch = null
 var _god: God = null
 var _bar_favor: Dictionary = {}
 var _banner_time := 0.0
+var _popup: SkillCard = null          # the gain popup on screen (null: none)
+var _popup_left := 0.0
+var _popup_queue: Array[Dictionary] = []  # gains waiting: {favor, replaced}
+var _info_cards: Dictionary = {}      # slot -> the info card on screen
+var _hover_slot := -1                 # the skill bar the mouse is over (-1: none)
 
 
 func _ready() -> void:
@@ -46,6 +72,8 @@ func _ready() -> void:
 	bar_q.setup("Q")
 	bar_e.pressed.connect(_on_bar_pressed.bind(GodFavor.Slot.E))
 	bar_q.pressed.connect(_on_bar_pressed.bind(GodFavor.Slot.Q))
+	bar_e.hovered.connect(func(on: bool) -> void: set_hover_slot(GodFavor.Slot.E if on else -1))
+	bar_q.hovered.connect(func(on: bool) -> void: set_hover_slot(GodFavor.Slot.Q if on else -1))
 	results_panel.visible = false
 	banner_label.visible = false
 	event_label.text = ""
@@ -66,6 +94,7 @@ func hit_skill_bar(slot: int, point: Vector2) -> bool:
 func bind(match_ref: GodMatch, god_ref: God) -> void:
 	_match = match_ref
 	_god = god_ref
+	_match.skill_gained.connect(_on_skill_gained)
 	if _god != null:
 		god_label.text = _god.display_name
 		god_label.add_theme_color_override("font_color", UITokens.god_text(_god))
@@ -138,6 +167,7 @@ func _process(delta: float) -> void:
 		_banner_time = maxf(0.0, _banner_time - delta)
 		if _banner_time <= 0.0:
 			banner_label.visible = false
+	_tick_skill_cards(delta)
 	if _match == null:
 		return
 	var mortal := _match.local()
@@ -148,6 +178,116 @@ func _process(delta: float) -> void:
 	_sync_bar(bar_e, GodFavor.Slot.E)
 	_sync_bar(bar_q, GodFavor.Slot.Q)
 	_sync_favor_note(mortal)
+
+
+# --- SKILL CARDS ---------------------------------------------------------------------
+
+func _on_skill_gained(player_id: int, favor: GodFavor, replaced: GodFavor) -> void:
+	if _match != null and player_id == _match.local_id:
+		queue_skill_popup(favor, replaced)
+
+
+# Show the card of a skill the mortal just got - now, or after the ones before it.
+func queue_skill_popup(favor: GodFavor, replaced: GodFavor = null) -> void:
+	_popup_queue.append({"favor": favor, "replaced": replaced})
+	if _popup == null:
+		_next_skill_popup()
+
+
+func _next_skill_popup() -> void:
+	if _popup_queue.is_empty():
+		return
+	var gain: Dictionary = _popup_queue.pop_front()
+	var favor: GodFavor = gain["favor"]
+	_popup = SKILL_CARD_SCENE.instantiate()
+	card_stack.add_child(_popup)
+	card_stack.move_child(_popup, 0)
+	_popup.show_skill(favor.slot, favor, _cooldown_of(favor), gain["replaced"], true)
+	_popup.dismissed.connect(dismiss_skill_popup)
+	_popup_left = popup_seconds
+	_place_cards()
+
+
+# Close the popup now (a click, its key) and bring up the next one, if any.
+func dismiss_skill_popup() -> void:
+	if _popup != null:
+		card_stack.remove_child(_popup)
+		_popup.queue_free()
+		_popup = null
+	_popup_left = 0.0
+	_next_skill_popup()
+
+
+# Was this click (screen coordinates) on the popup? If so it is closed and the click is
+# the HUD's - the arena asks this before its own attack reads the mouse (Arena._tap_panel_click).
+func click_skill_popup(point: Vector2) -> bool:
+	if _popup == null or not _popup.get_global_rect().has_point(point):
+		return false
+	dismiss_skill_popup()
+	return true
+
+
+# The skill bar the mouse is over (-1: none left): its card shows until it leaves.
+func set_hover_slot(slot: int) -> void:
+	_hover_slot = slot
+
+
+func _cooldown_of(favor: GodFavor) -> float:
+	return _match.skill_cooldown(favor.slot) if _match != null else favor.cooldown
+
+
+func _tick_skill_cards(delta: float) -> void:
+	if card_stack.get_child_count() > 0:
+		_place_cards()  # follows the stats panel if it is shown or hidden meanwhile
+	if _popup != null:
+		_popup_left -= delta
+		if _popup_left <= 0.0:
+			dismiss_skill_popup()
+	# The info cards: both skills while skill_info is held, else the hovered bar's.
+	var wanted: Array[int] = []
+	if _match != null:
+		if Input.is_action_pressed(&"skill_info"):
+			wanted = [GodFavor.Slot.E, GodFavor.Slot.Q]
+		elif _hover_slot >= 0:
+			wanted = [_hover_slot]
+		if _popup != null:
+			wanted.erase(_popup.slot)  # its popup is already showing that very card
+	for slot in _info_cards.keys().duplicate():
+		var shown: SkillCard = _info_cards[slot]
+		var favor := _match.skill_favor(slot) if _match != null else null
+		if not wanted.has(slot) or favor == null or shown.favor != favor:
+			card_stack.remove_child(shown)
+			shown.queue_free()
+			_info_cards.erase(slot)
+	for slot in wanted:
+		var favor := _match.skill_favor(slot)
+		if favor == null or _info_cards.has(slot):
+			continue
+		var card: SkillCard = SKILL_CARD_SCENE.instantiate()
+		card_stack.add_child(card)
+		card.show_skill(slot, favor, _cooldown_of(favor))
+		_info_cards[slot] = card
+		_place_cards()
+
+
+# The stack's corner: beside the shell's strip under its bars, or under this HUD's own
+# stats panel when that one is showing.
+func _place_cards() -> void:
+	var stats := get_node_or_null("StatsPanel") as Control
+	if stats != null and stats.visible:
+		card_stack.position = Vector2(stats.position.x, stats.position.y + stats.size.y + CARDS_GAP)
+	else:
+		card_stack.position = Vector2(CARDS_LEFT, CARDS_TOP)
+
+
+# The key that closes the popup is the skill's own: pressing it dismisses the card (the
+# cast itself still goes through - this never takes the event).
+func _unhandled_input(event: InputEvent) -> void:
+	if _popup == null or not (event is InputEventKey):
+		return
+	var action := &"skill_e" if _popup.slot == GodFavor.Slot.E else &"skill_q"
+	if event.is_action_pressed(action):
+		dismiss_skill_popup()
 
 
 func _sync_favor_note(mortal: GodMatch.Mortal) -> void:

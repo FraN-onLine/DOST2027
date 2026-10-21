@@ -40,6 +40,10 @@ extends Control
 # colour beside the name - the colour the host gave them in the lobby, the one on
 # their mortal's headband in the arena - and so does each row of the final judgment.
 #
+# The two favor bars of our own panel show the skill's card (the HUD's SkillCard) while
+# the mouse is over them, and the card of a skill just gained pops up beside them - both
+# are drawn by the arena's HUD, which this shell only tells where the mouse is.
+#
 # Each panel also carries a small Pamana badge (icon + name, the effect as its
 # tooltip) for the heirloom that mortal carries, from its purchase until it
 # expires: seconds left for a FIRST 30s item, the Agimat's charges.
@@ -96,6 +100,9 @@ func _ready() -> void:
 	# A name is live data: the lobby's UPDATE NAME can land at any time, and so can
 	# a join or a leave, so the panels follow the roster instead of being written
 	# once at start-up.
+	for bar_slot in [[e_bar, GodFavor.Slot.E], [q_bar, GodFavor.Slot.Q]]:
+		bar_slot[0].mouse_entered.connect(_on_skill_bar_hover.bind(bar_slot[1], true))
+		bar_slot[0].mouse_exited.connect(_on_skill_bar_hover.bind(bar_slot[1], false))
 	Network.player_list_updated.connect(_on_player_list_updated)
 	Network.player_name_changed.connect(_on_player_name_changed)
 	Network.player_god_icon_changed.connect(_on_player_god_icon_changed)
@@ -305,10 +312,20 @@ func _on_arena_ready() -> void:
 	arena.register_tap_panel(GodFavor.Slot.Q, q_bar)
 	if not run_snapshot.is_empty():
 		rules.apply_snapshot(run_snapshot)
+	# From here on a skill that appears is a gain worth a popup; what the mortal carried
+	# in (just loaded) is not.
+	rules.announce_gains = true
 	_refresh_local_stats()
 	if arena is PrepArea:
 		# Only now do the mortals hold their favors - the offers are filtered by them.
 		arena.open_prep()
+
+
+# The mouse is over (or left) one of our favor bars: the arena's HUD shows that skill's card.
+func _on_skill_bar_hover(slot: int, on: bool) -> void:
+	var arena_hud = arena.get("hud") if arena != null and is_instance_valid(arena) else null
+	if arena_hud != null:
+		arena_hud.set_hover_slot(slot if on else -1)
 
 
 func _on_trial_time_changed(seconds: float) -> void:
@@ -392,11 +409,9 @@ func _update_skill_bar(bar: ProgressBar, slot: int, mortal: GodMatch.Mortal) -> 
 	var favor := mortal.favor_in_slot(slot)
 	if favor == null:
 		bar.value = 0.0
-		bar.tooltip_text = "%s  --" % ("E" if slot == GodFavor.Slot.E else "Q")
 		return
 	var ratio := rules.skill_cooldown_ratio(slot, mortal.id)
 	bar.value = ratio * 100.0
-	bar.tooltip_text = "%s  %s" % [("E" if slot == GodFavor.Slot.E else "Q"), favor.display_name]
 	bar.modulate = favor.color
 
 

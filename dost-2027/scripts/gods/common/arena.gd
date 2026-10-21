@@ -141,6 +141,11 @@ const GUIDANCE_RADIUS := 150.0
 # How long a favor blot the host hands us stays up when the favor's own
 # patch_duration is not carried across the wire (the favors themselves say 1.5s).
 const FAVOR_PATCH_TIME := 1.5
+# How long a cast's name stays over the mortal that used it, seconds, and how readable
+# its colour is made (the favor's own, lightened until it reads this well on the night
+# - a dark favor like Tala's blue would otherwise sink into the grass).
+const CAST_TEXT_TIME := 1.6
+const CAST_TEXT_CONTRAST := 7.0
 
 enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 
@@ -339,6 +344,7 @@ func _ready() -> void:
 	rules.notice.connect(_on_notice)
 	rules.favor_fired.connect(_on_favor_fired)
 	rules.pamana_fired.connect(_on_pamana_fired)
+	rules.skill_used.connect(_on_skill_used)
 
 	hud = HUD_SCENE.instantiate()
 	ui_layer.add_child(hud)
@@ -367,6 +373,7 @@ func _ready() -> void:
 	_read_field()
 	player.set_display_name(_mortal_name(), UITokens.god_text(god))
 	hud.bind(rules, god)
+	rules.announce_gains = not embedded  # an embedded run's shell switches it on once the run's snapshot is in
 	_connect_network()
 	_sync_ghosts()
 	_paint_bandanas()
@@ -1772,6 +1779,8 @@ func _connect_network() -> void:
 	if _net.has_signal("arena_movement_override_received"):
 		_net.connect("arena_movement_override_received", _on_movement_override_received)
 	_net.player_left.connect(_on_peer_left)
+	if _net.has_signal("arena_cast_received"):
+		_net.connect("arena_cast_received", _on_arena_cast_received)
 	if _net.has_signal("dialogue_released"):
 		_net.connect("dialogue_released", _on_dialogue_released)
 	if _authority:
@@ -2110,6 +2119,40 @@ func _on_notice(text: String) -> void:
 	_log(text, Color(0.85, 0.85, 0.9))
 
 
+# --- A CAST, SEEN BY EVERYONE ---------------------------------------------------
+# The host sees every skill any mortal uses (GodMatch.skill_used) and puts its name over
+# that mortal's head - in the favor's colour, rising and fading like the mortal's other
+# floating text - on every screen, so a rival learns what was just used on them.
+
+func _on_skill_used(player_id: int, favor: GodFavor) -> void:
+	_show_cast(player_id, favor)
+	if _authority and _networked and _net != null:
+		_net.send_arena_cast(player_id, favor.id)
+
+
+func _on_arena_cast_received(caster_id: int, favor_id: StringName) -> void:
+	if _authority:
+		return
+	var favor := Gods.favor_by_id(favor_id)
+	if favor != null:
+		_show_cast(caster_id, favor)
+
+
+func _show_cast(mortal_id: int, favor: GodFavor) -> void:
+	var body := mortal_node(mortal_id)
+	if body != null:
+		body.show_floating_text(favor.display_name.to_upper(), UITokens.readable_on_dark(favor.color, UITokens.NIGHT_900, CAST_TEXT_CONTRAST), CAST_TEXT_TIME)
+
+
+# The body of a mortal on this screen: our own, or a rival's ghost (null when unknown).
+func mortal_node(mortal_id: int) -> ArenaMortal:
+	if mortal_id == _my_id:
+		return player
+	if _ghosts.has(mortal_id) and is_instance_valid(_ghosts[mortal_id]):
+		return _ghosts[mortal_id]
+	return null
+
+
 # --- BLINDNESS / INPUT ------------------------------------------------------
 
 func _apply_vision_mask() -> void:
@@ -2302,6 +2345,12 @@ func _tap_panel_click(event: InputEvent) -> bool:
 		return false
 	if event.button_index != MOUSE_BUTTON_LEFT:
 		return false
+	# A click on the skill popup closes it - and is never a swing, whatever the phase.
+	if hud != null and hud.click_skill_popup(event.position):
+		var popup_viewport := get_viewport()
+		if popup_viewport != null:
+			popup_viewport.set_input_as_handled()
+		return true
 	if _phase != Phase.PLAYING or dialogue.is_active() or due_menu.is_open():
 		return false
 	for slot in _tap_panels.keys():

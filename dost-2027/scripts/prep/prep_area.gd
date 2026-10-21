@@ -465,6 +465,9 @@ static func _ids_in(per_mortal: Dictionary) -> Dictionary:
 func _input(event: InputEvent) -> void:
 	if _closed or not (event is InputEventMouseButton) or not event.is_action_pressed("attack"):
 		return
+	if hud.click_skill_popup(event.position):  # a click that closes the skill popup is not a click at the stall
+		get_viewport().set_input_as_handled()
+		return
 	if shop.is_open() or due_menu.is_open() or not _near_stall():
 		return
 	open_shop()

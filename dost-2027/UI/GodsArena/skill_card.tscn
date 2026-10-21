@@ -1,0 +1,67 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://UI/GodsArena/skill_card.gd" id="1_card"]
+[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
+
+[node name="SkillCard" type="PanelContainer"]
+custom_minimum_size = Vector2(340, 0)
+theme_type_variation = &"PanelHud"
+script = ExtResource("1_card")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Key" type="Label" parent="Row"]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"KeycapLabel"
+text = "E"
+horizontal_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="Row"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+texture = ExtResource("2_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Body" type="VBoxContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="NameLabel" type="Label" parent="Row/Body"]
+layout_mode = 2
+mouse_filter = 2
+text = "SKILL"
+autowrap_mode = 3
+
+[node name="DescLabel" type="Label" parent="Row/Body"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="CooldownLabel" type="Label" parent="Row/Body"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"CaptionLabel"
+
+[node name="ReplacesLabel" type="Label" parent="Row/Body"]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"CaptionLabel"
+
+[node name="HintLabel" type="Label" parent="Row/Body"]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"CaptionLabel"

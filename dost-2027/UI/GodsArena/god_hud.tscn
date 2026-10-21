@@ -83,6 +83,13 @@ layout_mode = 2
 [node name="SkillBarQ" parent="StatsPanel/Margin/VBox/SkillRow" instance=ExtResource("4_bar")]
 layout_mode = 2
 
+[node name="SkillCards" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 246.0
+offset_top = 132.0
+mouse_filter = 2
+theme_override_constants/separation = 8
+
 [node name="TrialPanel" type="PanelContainer" parent="."]
 layout_mode = 1
 anchors_preset = 5

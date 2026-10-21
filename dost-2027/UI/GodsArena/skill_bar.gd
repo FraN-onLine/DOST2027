@@ -18,6 +18,7 @@ extends PanelContainer
 # ever sees it can ask "was that click on me?".
 
 signal pressed
+signal hovered(on: bool)  # the mouse entered / left the bar (the HUD shows the skill's card)
 
 const PLACEHOLDER_ICON := preload("res://icon.svg")
 
@@ -62,11 +63,13 @@ func _on_gui_input(event: InputEvent) -> void:
 func _on_mouse_entered() -> void:
 	_hovering = true
 	_refresh_border()
+	hovered.emit(true)
 
 
 func _on_mouse_exited() -> void:
 	_hovering = false
 	_refresh_border()
+	hovered.emit(false)
 
 
 # The border takes the bound favor's colour, and turns gold under the mouse, so
