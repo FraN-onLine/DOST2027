@@ -26,6 +26,13 @@ extends Node2D
 #     dialogue_prefix. What the designer sees in the arena scene is what every
 #     player gets.
 #
+#   * THE BANDANAS: every mortal (the local one, the ghosts, a solo bot) wears the
+#     same sprite, and only the bandana tells the players apart: set_bandana() on
+#     the mortal, with the colour the host gave that player in the lobby
+#     (Network.bandana_of, painted by _paint_bandanas() whenever the roster is
+#     republished). The swap lives under the sprite's modulate, so a hit flash, a
+#     freeze or Mayari's blitz tint still shows on top of it.
+#
 #   * THE FOLLOW CAMERA (the lobby's CAMERA = FOLLOW PLAYER, follow_camera):
 #     off by default, and then nothing above changes - the whole authored field
 #     is on screen and world = screen. On, the LOCAL mortal carries a Camera2D
@@ -362,6 +369,7 @@ func _ready() -> void:
 	hud.bind(rules, god)
 	_connect_network()
 	_sync_ghosts()
+	_paint_bandanas()
 	_collect_sun_patch_rects()
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_start_intro()
@@ -1779,8 +1787,9 @@ func _connect_network() -> void:
 func _on_player_list_updated(_players: Dictionary) -> void:
 	# The roster can arrive after this arena was built (a client always races the
 	# first list) and it can change mid-trial, so the rivals on the field are
-	# built from it every time instead of once at start-up.
+	# built from it every time instead of once at start-up. The colours ride with it.
 	_sync_ghosts()
+	_paint_bandanas()
 
 
 func _on_player_name_changed(peer_id: int, name: String) -> void:
@@ -1820,11 +1829,28 @@ func _sync_ghosts() -> void:
 		ghost.set_lock(true)
 		ghost.ring_color = UITokens.god_accent(god)
 		ghost.set_display_name(str(names[pid]), UITokens.god_text(god))
+		ghost.set_bandana(bandana_of(id))
 		_ghosts[id] = ghost
 	for id in _ghosts.keys().duplicate():
 		if not names.has(int(id)):
 			_ghosts[id].queue_free()
 			_ghosts.erase(id)
+
+
+# The bandana colour (an index into UITokens.BANDANA_COLORS) a mortal wears: the
+# one the host gave that player in the lobby, or - a solo rival, a bot - a free one.
+func bandana_of(mortal_id: int) -> int:
+	return _net.bandana_of(mortal_id) if _net != null and _net.has_method("bandana_of") else 0
+
+
+# Put every mortal on this field in the colour its player holds. Safe to call as
+# often as the roster is republished.
+func _paint_bandanas() -> void:
+	if player != null:
+		player.set_bandana(bandana_of(_my_id))
+	for id in _ghosts.keys():
+		if is_instance_valid(_ghosts[id]):
+			(_ghosts[id] as ArenaMortal).set_bandana(bandana_of(int(id)))
 
 
 func _move_ghosts(delta: float) -> void:

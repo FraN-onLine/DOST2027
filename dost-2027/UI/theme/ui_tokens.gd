@@ -48,6 +48,47 @@ const JADE := Color("#5CC48A")   # success / ready / FAVOR gained
 const EMBER := Color("#E0614F")  # danger / loss / last seconds
 const STAR := Color("#9FD3FF")   # info / keyboard focus ring
 
+# --- the players' bandanas ---------------------------------------------------
+# Every mortal wears the same sprite (Assets/Player/Lamang-Sheet.png); only the
+# bandana - the headband and its two tails, drawn in exactly BANDANA_LIGHT and
+# BANDANA_SHADOW and nowhere else on the sheet - changes colour per player (the
+# swap is scenes/gods/common/bandana_swap.gdshader, on the mortal's Sprite).
+# Eight colours that read apart at a glance, on the mortal's brown skin and black
+# hair, against each other and on every arena floor. Index 0 is the art's own red,
+# so the default look is the drawn one; a player picks theirs in the lobby and the
+# host never gives one colour to two players (Network.request_bandana_color).
+const BANDANA_LIGHT := Color8(122, 14, 14)   # #7A0E0E - the drawn bandana
+const BANDANA_SHADOW := Color8(87, 3, 3)     # #570303 - its shadow side
+# How much darker the shadow side is than the light one: the drawn red's own
+# light-to-shadow step (87 / 122 in the red channel), kept for every other colour.
+const BANDANA_SHADOW_RATIO := 0.713
+const BANDANA_COLORS: Array[Color] = [
+	Color8(122, 14, 14),   # red (as drawn)
+	Color8(60, 155, 232),  # sky blue
+	Color8(63, 168, 74),   # leaf green
+	Color8(224, 176, 48),  # gold
+	Color8(240, 238, 232), # white
+	Color8(138, 79, 214),  # purple
+	Color8(240, 122, 32),  # orange
+	Color8(240, 106, 174), # pink
+]
+const BANDANA_NAMES: Array[String] = ["RED", "SKY BLUE", "LEAF GREEN", "GOLD", "WHITE", "PURPLE", "ORANGE", "PINK"]
+
+
+# The bandana colour at `index` (wrapped, so a stray index never breaks a screen).
+static func bandana_color(index: int) -> Color:
+	return BANDANA_COLORS[posmod(index, BANDANA_COLORS.size())]
+
+
+# Its shadow side: the art's own shadow red for index 0, the same step darker for
+# the rest.
+static func bandana_shadow(index: int) -> Color:
+	if posmod(index, BANDANA_COLORS.size()) == 0:
+		return BANDANA_SHADOW
+	var light := bandana_color(index)
+	return Color(light.r * BANDANA_SHADOW_RATIO, light.g * BANDANA_SHADOW_RATIO, light.b * BANDANA_SHADOW_RATIO, 1.0)
+
+
 # --- type scale (px, multiples of 8 only) ------------------------------------
 const CAPTION := 8
 const BODY := 16

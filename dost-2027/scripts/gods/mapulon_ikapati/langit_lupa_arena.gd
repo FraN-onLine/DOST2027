@@ -862,6 +862,7 @@ func _spawn_bots() -> void:
 		_ghostly(bot)
 		bot.ring_color = god.color
 		bot.set_display_name(m.display_name, god.color)
+		bot.set_bandana(bandana_of(m.id))  # the free colours, after the player's
 		bot.global_position = _bot_start(m.id)
 		_bots[m.id] = bot
 		_mortal_positions[m.id] = bot.global_position

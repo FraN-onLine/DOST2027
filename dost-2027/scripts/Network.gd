@@ -68,6 +68,9 @@ var lobby_id := "" # Short code used to join a specific host
 var players := {} # peer_id -> name
 var player_data := {} # peer_id -> PlayerData (server-side authoritative name)
 var player_icons := {} # peer_id -> god id (replicated roster icon)
+# peer_id -> index into UITokens.BANDANA_COLORS (replicated with the roster). The
+# host decides it: no two players share one, and it is locked once START is pressed.
+var player_bandanas := {}
 var my_god_icon_id: StringName = &"mayari"
 var trial_order_ids: Array[StringName] = []
 var run_settings: RunSettings = RunSettings.defaults()  # host's run setup, mirrored on every peer
@@ -89,6 +92,7 @@ var mortal_positions := {}  # peer_id -> Vector2 (host: latest reported position
 var _discovery_active := false
 var _is_host_broadcasting := false
 var _game_in_progress := false
+var _bandana_memory := {}  # host: player name -> the colour they last held (a rejoin gets it back)
 var _dialogue_done := {}
 
 # --- Lobby ID join state ---
@@ -153,6 +157,7 @@ func start_host(port: int = DEFAULT_PORT) -> void:
 	_used_names[name] = true
 	player_data[host_id] = PlayerData.new(name)
 	player_icons[host_id] = my_god_icon_id
+	_assign_bandana(host_id, preferred_bandana())
 
 	# Create a short, human-friendly lobby ID so friends can join directly
 	lobby_id = _generate_lobby_id()
@@ -180,6 +185,7 @@ func stop_host() -> void:
 		players.clear()
 		player_data.clear()
 		player_icons.clear()
+		player_bandanas.clear()
 		trial_order_ids.clear()
 		announced_trial_order.clear()
 		run_settings = RunSettings.defaults()
@@ -243,6 +249,7 @@ func leave_host() -> void:
 		players.clear()
 		player_data.clear()
 		player_icons.clear()
+		player_bandanas.clear()
 		trial_order_ids.clear()
 		announced_trial_order.clear()
 		run_settings = RunSettings.defaults()
@@ -633,6 +640,7 @@ func _on_peer_connected(id: int) -> void:
 		players[id] = _assign_random_name()
 		player_data[id] = PlayerData.new()
 		player_icons[id] = &"mayari"
+		_assign_bandana(id)
 		broadcast_player_list()
 		# The run setup is the host's: hand the newcomer the current one so every
 		# lobby shows the same thing, whoever joined first and whoever joined last.
@@ -657,6 +665,11 @@ func register_player_name(player_name: String) -> void:
 	_used_names[clean_name] = true
 	if sender in player_data:
 		player_data[sender].name = clean_name
+	# A player who left the lobby and came back gets the colour they had, if it is free.
+	var remembered := int(_bandana_memory.get(clean_name, -1))
+	if remembered >= 0:
+		_set_player_bandana(sender, remembered, false)
+	_bandana_memory[clean_name] = int(player_bandanas.get(sender, 0))
 	broadcast_player_list()
 
 
@@ -669,6 +682,7 @@ func _on_peer_disconnected(id: int) -> void:
 			if id in player_data:
 				player_data.erase(id)
 			player_icons.erase(id)
+			player_bandanas.erase(id)
 			broadcast_player_list()
 	emit_signal("player_left", id)
 
@@ -679,6 +693,7 @@ func _on_connection_succeeded() -> void:
 	if my_name.is_empty():
 		my_name = _assign_random_name()
 	rpc_id(1, "register_player_name", my_name)
+	rpc_id(1, "request_bandana_color", preferred_bandana())  # the last colour this player picked, if it is free
 	emit_signal("connected", true, "connected")
 
 
@@ -699,7 +714,7 @@ func broadcast_player_list() -> void:
 		emit_signal("player_god_icon_changed", int(peer_id), god_id)
 	_announce_names()
 	if multiplayer.get_multiplayer_peer():
-		rpc("rpc_update_player_list", players, player_icons)
+		rpc("rpc_update_player_list", players, player_icons, player_bandanas)
 
 
 # Names are shown live - above a mortal, on the HUD, on the results - so every
@@ -739,6 +754,7 @@ func request_name_change(peer_id: int, new_name: String) -> void:
 		_release_name(players[peer_id])
 	players[peer_id] = clean_name
 	_used_names[clean_name] = true
+	_bandana_memory[clean_name] = int(player_bandanas.get(peer_id, 0))
 	if player_data.has(peer_id) and player_data[peer_id] is PlayerData:
 		player_data[peer_id].name = clean_name
 	if peer_id == multiplayer.get_unique_id():
@@ -751,9 +767,10 @@ func request_name_change(peer_id: int, new_name: String) -> void:
 
 
 @rpc("any_peer", "reliable")
-func rpc_update_player_list(remote_players: Dictionary, remote_icons: Dictionary = {}) -> void:
+func rpc_update_player_list(remote_players: Dictionary, remote_icons: Dictionary = {}, remote_bandanas: Dictionary = {}) -> void:
 	players = remote_players.duplicate()
 	player_icons = remote_icons.duplicate()
+	player_bandanas = remote_bandanas.duplicate()
 	for peer_id in players.keys():
 		if not player_icons.has(peer_id):
 			player_icons[peer_id] = &"mayari"
@@ -771,6 +788,111 @@ func rpc_update_player_list(remote_players: Dictionary, remote_icons: Dictionary
 		emit_signal("player_god_icon_changed", int(peer_id), StringName(str(player_icons[peer_id])))
 	_announce_names()
 	print("[Network] Received player list update: %s" % players)
+
+
+# ============================================
+# Bandana colours
+# ============================================
+# The colour of a player's bandana (UITokens.BANDANA_COLORS) is the host's to give:
+# a player asks for one (request_bandana_color), the host grants it only if nobody
+# else holds it - when two ask for the same colour at once, the first request to
+# reach the host wins and the other player simply keeps the colour they had - and
+# the result travels with the roster. A joiner starts on the first free colour (or
+# the one they last picked, when the host can give it), and nothing changes once
+# the host presses START.
+
+# The colour this machine last picked in the lobby (Settings), 0 when unset.
+func preferred_bandana() -> int:
+	var settings := get_node_or_null("/root/Settings")
+	if settings == null:
+		return 0
+	return int(settings.call("get_value", "gameplay", "bandana_color"))
+
+
+# Who holds colour `index` (0 when nobody does).
+func _bandana_holder(index: int) -> int:
+	for peer_id in player_bandanas.keys():
+		if int(player_bandanas[peer_id]) == index:
+			return int(peer_id)
+	return 0
+
+
+func _bandana_free_for(peer_id: int, index: int) -> bool:
+	if index < 0 or index >= UITokens.BANDANA_COLORS.size():
+		return false
+	var holder := _bandana_holder(index)
+	return holder == 0 or holder == peer_id
+
+
+# Host: give `peer_id` its colour - `preferred` when that is free, else the first free one.
+func _assign_bandana(peer_id: int, preferred := -1) -> void:
+	var index := preferred
+	if not _bandana_free_for(peer_id, index):
+		index = 0
+		while index < UITokens.BANDANA_COLORS.size() - 1 and not _bandana_free_for(peer_id, index):
+			index += 1
+	player_bandanas[peer_id] = index
+	if player_data.has(peer_id) and player_data[peer_id] is PlayerData:
+		player_data[peer_id].bandana_index = index
+
+
+# Host: the one place a colour changes hands. Refused (false) once the run has
+# started, for a colour that does not exist, or one another player holds.
+func _set_player_bandana(peer_id: int, index: int, remember := true) -> bool:
+	if _game_in_progress or not players.has(peer_id) or not _bandana_free_for(peer_id, index):
+		return false
+	player_bandanas[peer_id] = index
+	if player_data.has(peer_id) and player_data[peer_id] is PlayerData:
+		player_data[peer_id].bandana_index = index
+	if remember:
+		_bandana_memory[str(players[peer_id])] = index
+	return true
+
+
+@rpc("any_peer", "call_local", "reliable")
+func request_bandana_color(index: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	_set_player_bandana(sender, index)
+	# Granted or not, everyone (the asker included) gets the roster as it now stands,
+	# so a refused pick shows the colour the player really has.
+	broadcast_player_list()
+
+
+# This player's own pick (the lobby's swatches): remembered for next time, then asked
+# of the host. Only ever for ourselves - the host reads the sender, not an argument.
+func choose_bandana_color(index: int) -> void:
+	var settings := get_node_or_null("/root/Settings")
+	if settings != null:
+		settings.call("set_value", "gameplay", "bandana_color", index)
+		settings.call("save")
+	if has_multiplayer_peer() and not multiplayer.is_server():
+		rpc_id(1, "request_bandana_color", index)
+	else:
+		request_bandana_color(index)
+
+
+# The bandana colour of a mortal on the field: a player's own (the host's roster), or,
+# for a mortal that is no player - a solo rival, a bot - the free colours in order,
+# after the local player's.
+func bandana_of(mortal_id: int) -> int:
+	if player_bandanas.has(mortal_id):
+		return int(player_bandanas[mortal_id])
+	var local_id := multiplayer.get_unique_id() if has_multiplayer_peer() else GodMatch.LOCAL_ID
+	var taken: Array = player_bandanas.values()
+	if not player_bandanas.has(local_id):
+		if mortal_id == local_id:
+			return preferred_bandana()
+		taken.append(preferred_bandana())
+	var free: Array[int] = []
+	for index in range(UITokens.BANDANA_COLORS.size()):
+		if not taken.has(index):
+			free.append(index)
+	var rank := maxi(0, mortal_id - GodMatch.LOCAL_ID - 1)
+	return free[rank % free.size()] if not free.is_empty() else 0
 
 
 # ============================================

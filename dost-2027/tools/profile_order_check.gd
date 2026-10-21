@@ -161,7 +161,7 @@ func _run() -> void:
 		2: {"name": "RIVAL", "favor": 750, "due": 0},
 	}
 	game._show_finale()
-	_check(game.finale_summary.text.contains("HOST") and game.finale_summary.text.contains("RIVAL"), "final summary includes all players")
+	_check(game.finale_text().contains("HOST") and game.finale_text().contains("RIVAL"), "final summary includes all players")
 
 	var second_game: Control = load("res://scenes/Game.tscn").instantiate()
 	view.add_child(second_game)

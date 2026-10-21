@@ -210,7 +210,7 @@ func _run() -> void:
 		printerr("client_check: the client never started waiting for the host")
 	await _frames(2)
 	print("client results visible=%s body='%s'" % [
-		str(_client.hud.results_panel.visible), _client.hud.results_label.text.replace("\n", " | ")])
+		str(_client.hud.results_panel.visible), _client.hud.results_text().replace("\n", " | ")])
 
 	print("=== THE HOST OWNS THE NAME (lobby UPDATE NAME) ===")
 	# A rename has to stick on the machine that made it: my_name is what this

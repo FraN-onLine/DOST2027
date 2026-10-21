@@ -2,7 +2,8 @@ extends PanelContainer
 
 # One rival in the shell's column: icon and name, FAVOR and DUE, the two favor
 # bars, and the Pamana they carry (a small badge, hidden when none). Framed in
-# the accent of the god the rival wears (UITokens.god_accent).
+# the accent of the god the rival wears (UITokens.god_accent), with a swatch of
+# their bandana colour beside the name - the headband their mortal wears in the arena.
 
 @onready var name_label = $MarginContainer/VBoxContainer/Header/NameLabel
 @onready var god_icon: TextureRect = $MarginContainer/VBoxContainer/Header/Icon
@@ -15,6 +16,7 @@ extends PanelContainer
 @onready var pamana_label: Label = $MarginContainer/VBoxContainer/PamanaRow/PamanaLabel
 
 var player_id := 0
+var _bandana: BandanaSwatch = null
 
 
 func setup(id: int, player_name: String, favor: int, due: int) -> void:
@@ -27,6 +29,16 @@ func setup(id: int, player_name: String, favor: int, due: int) -> void:
 # repainted on its own instead of rebuilding the whole column.
 func set_name_text(player_name: String) -> void:
 	name_label.text = player_name
+
+
+# The colour of this rival's bandana (an index into UITokens.BANDANA_COLORS).
+func set_bandana(color_index: int) -> void:
+	if _bandana == null:
+		_bandana = BandanaSwatch.mark(color_index)
+		var header := name_label.get_parent()
+		header.add_child(_bandana)
+		header.move_child(_bandana, name_label.get_index())
+	_bandana.setup(color_index)
 
 
 func set_god_icon(god_id: StringName) -> void:

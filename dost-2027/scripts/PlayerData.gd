@@ -12,6 +12,7 @@ extends RefCounted
 
 var name: String = ""
 var god_icon_id: StringName = &"mayari"
+var bandana_index: int = 0  # which UITokens.BANDANA_COLORS this player wears (host-decided)
 
 
 func _init(player_name: String = "") -> void:
@@ -19,10 +20,11 @@ func _init(player_name: String = "") -> void:
 
 
 func to_dict() -> Dictionary:
-	return {"name": name, "god_icon_id": str(god_icon_id)}
+	return {"name": name, "god_icon_id": str(god_icon_id), "bandana_index": bandana_index}
 
 
 static func from_dict(data: Dictionary) -> PlayerData:
 	var player := PlayerData.new(str(data.get("name", "")))
 	player.god_icon_id = StringName(str(data.get("god_icon_id", "mayari")))
+	player.bandana_index = int(data.get("bandana_index", 0))
 	return player

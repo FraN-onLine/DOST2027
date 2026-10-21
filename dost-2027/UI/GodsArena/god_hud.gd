@@ -31,7 +31,7 @@ signal skill_pressed(slot: int)   # one of the two favor bars was tapped
 @onready var banner_label: Label = $BannerLabel
 @onready var results_panel: PanelContainer = $ResultsPanel
 @onready var results_title: Label = $ResultsPanel/Margin/VBox/ResultsTitle
-@onready var results_label: Label = $ResultsPanel/Margin/VBox/ResultsLabel
+@onready var results_rows: VBoxContainer = $ResultsPanel/Margin/VBox/ResultsRows
 @onready var results_hint: Label = $ResultsPanel/Margin/VBox/ResultsHint
 @onready var favor_note: Label = $FavorNote
 
@@ -95,9 +95,13 @@ func log_event(text: String, color: Color) -> void:
 	event_label.add_theme_color_override("font_color", UITokens.readable_on_dark(color, UITokens.NIGHT_900))
 
 
+# One row per player - their bandana's swatch, then the line - so the names on
+# the results match the headbands on the field.
 func show_results(summary: Dictionary, title := "TRIAL COMPLETE") -> void:
 	results_title.text = title
-	var lines: Array[String] = []
+	for child in results_rows.get_children():
+		results_rows.remove_child(child)
+		child.queue_free()
 	for id in summary.keys():
 		var row: Dictionary = summary[id]
 		var line := "%s   %d FAVOR" % [str(row.get("name", "?")), int(row.get("favor", 0))]
@@ -105,10 +109,24 @@ func show_results(summary: Dictionary, title := "TRIAL COMPLETE") -> void:
 			line += "   (+%d)" % int(row["bonus"])
 		if int(row.get("due", 0)) > 0:
 			line += "   [%d GOD'S DUE]" % int(row["due"])
-		lines.append(line)
-	results_label.text = "\n".join(lines)
+		results_rows.add_child(BandanaSwatch.player_row(_bandana_of(int(id)), line))
 	results_panel.visible = true
 	UITokens.reveal(results_panel)
+
+
+# The colour of a player's bandana. Looked up by path, not by name, so this HUD
+# still compiles when it is loaded before the autoloads exist (the tools/ checks).
+func _bandana_of(player_id: int) -> int:
+	var net := get_node_or_null("/root/Network")
+	return int(net.call("bandana_of", player_id)) if net != null else 0
+
+
+# The results as text, one line per player.
+func results_text() -> String:
+	var lines: Array[String] = []
+	for row in results_rows.get_children():
+		lines.append((row.get_node("Text") as Label).text)
+	return "\n".join(lines)
 
 
 func set_results_hint(text: String) -> void:
