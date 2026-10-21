@@ -8,9 +8,16 @@ extends Arena
 # arena: every mortal lands on one small shared field for prep_time seconds (the
 # lobby's PREP TIME, RunSettings.prep_time, handed over by the shell), around a
 # campfire, between two things to do -
-#   * the ALTAR of the god who just hosted (god_id): F opens the normal God's Due
-#     menu for that god anywhere on the field, so a voucher left over can still be
-#     spent (the base's menu, vouchers and RPCs, unchanged);
+#   * the ALTAR of the god who just hosted (god_id): F opens the God's Due menu
+#     for that god anywhere on the field. A voucher left over is spent first,
+#     exactly as in a trial (the base's menu, vouchers and RPCs). With none, the
+#     same cards are a BOON SHOP: any favor of that god for boon_cost FAVOR,
+#     max_boon_purchases per mortal per rest (apart from the Pamana - one of each
+#     is allowed). The host checks every purchase (try_buy_boon ->
+#     GodMatch.buy_boon: this god's, eligible, not held, affordable) and pays it
+#     with spend_favor - never a loss; a skill takes its slot in place of the old
+#     one (bestow_favor), which its card warns about. Everyone hears
+#     "<name> bought <favor>";
 #   * the TINDAHAN stall: walk up to it and LEFT CLICK for the shop
 #     (UI/GodsArena/tindahan_menu.tscn). The host rolls up to offer_count
 #     Pamana for each mortal (Game.pamana_rng, one generator per run), only the
@@ -44,6 +51,8 @@ const ALTAR_ICON_SIZE := 48.0  # the god on the altar, whatever size its icon is
 @export_category("Preparation Area")
 @export var prep_time := 20.0       # seconds of rest (the shell sets the lobby's; this is the standalone fallback)
 @export var max_purchases := 1      # Pamana each mortal may buy here (the anti-snowball rule)
+@export var boon_cost := GodMatch.BOON_COST  # FAVOR for a boon at the altar (no voucher left)
+@export var max_boon_purchases := 1  # boons each mortal may buy here, apart from the Pamana
 @export var offer_count := 3        # Pamana on each mortal's shelf
 @export var stall_reach := 90.0     # how close to the stall LEFT CLICK opens the Tindahan
 
@@ -63,6 +72,7 @@ var _closed := false
 var _offers: Dictionary = {}            # host: mortal id -> Array[StringName]
 var _my_offers: Array[StringName] = []  # a client: its own offers, as the host sent them
 var _bought: Dictionary = {}            # mortal id -> Array[StringName] (host decides, the tick mirrors)
+var _boons: Dictionary = {}             # mortal id -> Array[StringName] boons bought here (the same)
 var _ready_ids: Array = []              # who said READY (host: Network; client: the tick)
 var _tags: Dictionary = {}              # mortal id -> the name tag last drawn
 
@@ -80,6 +90,7 @@ func _start_intro() -> void:
 	# (ready or out of time) reaches this screen even if it never pressed READY.
 	_dialogue_wait_id = _dialogue_token("ready")
 	shop.pamana_chosen.connect(_on_pamana_chosen)
+	due_menu.boon_chosen.connect(_on_boon_chosen)
 	# The shell hides the event line in a trial; here the purchases read on it, just
 	# above READY, and the banner sits under the NEXT banner instead of on it.
 	hud.event_label.visible = true
@@ -113,13 +124,13 @@ func _paint_camp() -> void:
 	if god != null:
 		altar_name.text = "ALTAR OF %s" % god.display_name
 		altar_name.add_theme_color_override("font_color", UITokens.god_text(god))
-	altar_hint.text = "%s - GOD'S DUE" % UITokens.key_text(&"due_menu")
+	altar_hint.text = "%s - GOD'S DUE / BOON" % UITokens.key_text(&"due_menu")
 	var next := Gods.by_id(next_god_id) if next_god_id != &"" else null
 	next_label.visible = next != null
 	if next != null:
 		next_label.text = "NEXT: %s - %s" % [next.display_name.to_upper(), next.game_name.to_upper()]
 		next_label.add_theme_color_override("font_color", UITokens.god_text(next))
-	hint_label.text = "WASD - WALK     %s - GOD'S DUE     %s - READY     LEFT CLICK AT THE STALL - TINDAHAN" % [
+	hint_label.text = "WASD - WALK     %s - GOD'S DUE / BOON     %s - READY     LEFT CLICK AT THE STALL - TINDAHAN" % [
 		UITokens.key_text(&"due_menu"), UITokens.key_text(&"ready_up")]
 
 
@@ -224,6 +235,63 @@ func _on_pamana_chosen(item: Pamana) -> void:
 		try_purchase(_my_id, item.id)
 	elif _net != null and _net.has_multiplayer_peer():
 		_net.rpc_id(1, "request_prep_purchase", str(item.id))
+
+
+# --- THE ALTAR'S BOONS (the host decides) --------------------------------------------
+
+func boons_bought_by(mortal_id: int) -> Array:
+	return _boons.get(mortal_id, [])
+
+
+func boons_left(mortal_id: int) -> int:
+	return maxi(0, max_boon_purchases - boons_bought_by(mortal_id).size())
+
+
+# Host: `mortal_id` buys the boon `favor_id`. A voucher they still hold is spent
+# instead (a voucher always comes first); otherwise refused unless they have a
+# boon left here and GodMatch.buy_boon agrees (this god's favor, eligible, not
+# held, affordable). Returns true when they got it.
+func try_buy_boon(mortal_id: int, favor_id: StringName) -> bool:
+	if not _authority or _closed or god == null:
+		return false
+	var favor := god.get_favor(favor_id)
+	var mortal := rules.mortal(mortal_id)
+	if favor == null or mortal == null:
+		return false
+	if mortal.due > 0:
+		if not rules.grant_favor(favor, mortal_id):
+			return false
+		_publish_god_state()
+		return true
+	if boons_left(mortal_id) <= 0 or not rules.buy_boon(favor, mortal_id, boon_cost):
+		return false
+	var bought := boons_bought_by(mortal_id).duplicate()
+	bought.append(favor_id)
+	_boons[mortal_id] = bought
+	var line := "%s bought %s" % [mortal_label(mortal_id), favor.display_name]
+	_show_banner(line, favor.color, 2.0)
+	_log(line, favor.color)
+	_publish_god_state()
+	return true
+
+
+func _on_boon_purchase_requested(peer_id: int, favor_id: String) -> void:
+	try_buy_boon(peer_id, StringName(favor_id))
+
+
+func _on_boon_chosen(favor: GodFavor) -> void:
+	if _authority:
+		try_buy_boon(_my_id, favor.id)
+	elif _net != null and _net.has_multiplayer_peer():
+		_net.rpc_id(1, "request_boon_purchase", str(favor.id))
+
+
+# The base's God's Due menu, with the altar's prices: a voucher first, then boons.
+func _toggle_due_menu() -> void:
+	if due_menu.is_open():
+		due_menu.close()
+		return
+	due_menu.open(god, rules, _free_grants, not _authority, boon_cost, boons_left(_my_id))
 
 
 func _near_stall() -> bool:
@@ -360,25 +428,36 @@ func _tag(mortal_id: int, body: ArenaMortal) -> void:
 
 
 # What every client needs from the host's rest besides the base's tick: who is
-# ready, and who bought what (so a buyer's card reads BINILI).
+# ready, and who bought what (so a buyer's card reads BINILI, and the altar's
+# cards lock once their boons are bought).
 func arena_tick_fields() -> Dictionary:
-	var bought := {}
-	for id in _bought.keys():
-		bought[str(id)] = (_bought[id] as Array).map(func(p: StringName) -> String: return str(p))
-	return {"ready": _ready_ids.duplicate(), "bought": bought}
+	return {"ready": _ready_ids.duplicate(), "bought": _ids_out(_bought), "boons": _ids_out(_boons)}
 
 
 func arena_read_tick(state: Dictionary) -> void:
 	_ready_ids.clear()
 	for id in state.get("ready", []):
 		_ready_ids.append(int(id))
-	_bought.clear()
-	var bought: Dictionary = state.get("bought", {})
-	for key in bought.keys():
+	_bought = _ids_in(state.get("bought", {}))
+	_boons = _ids_in(state.get("boons", {}))
+
+
+# mortal id -> Array[StringName], as it travels (string keys and ids) and back.
+static func _ids_out(per_mortal: Dictionary) -> Dictionary:
+	var out := {}
+	for id in per_mortal.keys():
+		out[str(id)] = (per_mortal[id] as Array).map(func(p: StringName) -> String: return str(p))
+	return out
+
+
+static func _ids_in(per_mortal: Dictionary) -> Dictionary:
+	var out := {}
+	for key in per_mortal.keys():
 		var items: Array = []
-		for id in bought[key]:
+		for id in per_mortal[key]:
 			items.append(StringName(str(id)))
-		_bought[int(key)] = items
+		out[int(key)] = items
+	return out
 
 
 # --- INPUT -------------------------------------------------------------------------------
@@ -426,5 +505,6 @@ func _connect_network() -> void:
 	if _authority:
 		_net.connect("prep_offers_requested", _on_prep_offers_requested)
 		_net.connect("prep_purchase_requested", _on_prep_purchase_requested)
+		_net.connect("boon_purchase_requested", _on_boon_purchase_requested)
 	else:
 		_net.connect("prep_offers_received", _on_prep_offers_received)

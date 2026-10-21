@@ -8,8 +8,11 @@ extends SceneTree
 #
 # The first trial really ends (clock out -> closing lines -> the dialogue
 # handshake), both screens land in the preparation area, the client is sent its
-# own offers and buys one over the wire, both press READY, and both open the
-# next trial with the client's purchase riding along.
+# own offers and buys one over the wire, then at the altar spends a voucher the
+# host gave it (request_god_grant reaching the rest's god) and buys a boon for
+# FAVOR (request_boon_purchase); the host spends a voucher at its own altar too;
+# both press READY, and both open the next trial with the client's purchases
+# riding along.
 
 const PORT := 24682
 const PORT_FILE := "user://prep_net_host.txt"
@@ -58,7 +61,7 @@ func _run() -> void:
 	network.lobby_settings_path = SETTINGS_FILE
 	network.start_host(PORT)
 	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["tala", "mayari", "hanan"],
-		"trial_time": 60.0, "due_step": 1000})
+		"trial_time": 60.0, "due_step": 1000, "prep_time": 60.0})  # a rest long enough for the altar below
 	var file := FileAccess.open(PORT_FILE, FileAccess.WRITE)
 	file.store_string(str(int(network._current_port)))
 	file.close()
@@ -90,6 +93,11 @@ func _run() -> void:
 	_check(prep.next_god_id == &"mayari" and prep._networked, "the host's rest is networked and names Mayari")
 	var shelf: Array[StringName] = prep.offers_for(client_id)
 	_check(shelf.size() == 3, "the host rolled the client a shelf of three (%s)" % str(shelf))
+	# A voucher left over, for the client's altar below - once the shell has put
+	# the run's snapshot into the rest (a frame later), or it would wipe it.
+	await _until(func() -> bool: return _game().rules == prep.rules)
+	prep.rules.mortal(client_id).due = 1
+	prep._publish_god_state()
 
 	# --- the client buys over the wire ----------------------------------------------
 	_check(await _until(func() -> bool: return prep.bought_by(client_id).size() == 1), "the client's purchase reaches the host")
@@ -98,6 +106,30 @@ func _run() -> void:
 		var buyer := prep.rules.mortal(client_id)
 		_check(shelf.has(item.id), "it was on the client's shelf")
 		_check(buyer.favor == 1000 - item.cost, "the host charged %d FAVOR (%d)" % [item.cost, buyer.favor])
+
+	# --- the altar: the client's voucher, then its boon ---------------------------------
+	var buyer := prep.rules.mortal(client_id)
+	var favors_before := buyer.favors.size()
+	_check(await _until(func() -> bool: return buyer.due == 0 and buyer.favors.size() == favors_before + 1),
+		"F at the client's altar: the voucher reaches the rest's god on the host (%d favors)" % buyer.favors.size())
+	var paid_from := buyer.favor
+	_check(await _until(func() -> bool: return prep.boons_bought_by(client_id).size() == 1), "the client's boon purchase reaches the host")
+	if prep.boons_bought_by(client_id).size() == 1:
+		var boon := Gods.tala().get_favor(prep.boons_bought_by(client_id)[0])
+		_check(boon != null and buyer.has_favor(boon.id) and buyer.favor == paid_from - prep.boon_cost,
+			"the host sold it a boon of Tala's for %d FAVOR (%d -> %d)" % [prep.boon_cost, paid_from, buyer.favor])
+
+	# --- the host's own altar, with a voucher ---------------------------------------------
+	# (A moment first: the client is still reading "<name> bought ..." off the
+	# event line, which the host's own grant would replace.)
+	await _until(func() -> bool: return false, 2.0)
+	var me := prep.rules.local()
+	me.due = 1
+	var mine := me.favors.size()
+	prep._toggle_due_menu()
+	await _frames(2)
+	prep.due_menu._choose(0)
+	_check(me.due == 0 and me.favors.size() == mine + 1, "F at the host's altar grants the favor for its voucher")
 
 	# --- READY on both screens ends the rest ------------------------------------------
 	await _frames(20)

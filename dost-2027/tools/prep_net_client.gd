@@ -3,8 +3,9 @@ extends SceneTree
 # The CLIENT half of the networked rest check (its partner, and how to run the
 # two, is in tools/prep_net_host.gd). This screen follows the host through the
 # end of the first trial into the rest, receives ONLY its own offers, buys one
-# at the Tindahan (the host decides), sees it come back as BINILI, presses READY
-# and opens the next trial carrying it.
+# at the Tindahan (the host decides), sees it come back as BINILI, spends the
+# voucher the host gave it at the altar, buys a boon there for FAVOR, presses
+# READY and opens the next trial carrying it.
 
 const PORT_FILE := "user://prep_net_host.txt"
 const WAIT := 30.0
@@ -90,6 +91,35 @@ func _run() -> void:
 			price = (column.get_node("Price") as Label).text
 	_check(price == "BINILI", "the card reads BINILI on the client (%s)" % price)
 	_check(_game().pamana_row.visible, "the client's own panel carries the Pamana badge")
+
+	# --- the altar: the voucher first, then a boon for FAVOR ---------------------------
+	var me := prep.rules.local()
+	_check(await _until(func() -> bool: return me.due == 1), "the host left this client a voucher")
+	prep._toggle_due_menu()
+	await _frames(2)
+	_check(prep.due_menu.due_label.text == "GOD'S DUE VOUCHERS: 1", "with it the altar's cards cost a God's Due (%s)" % prep.due_menu.due_label.text)
+	var granted: GodFavor = prep.due_menu._shown[0]
+	prep.due_menu._choose(0)
+	_check(await _until(func() -> bool: return me.has_favor(granted.id) and me.due == 0),
+		"the host grants %s for the voucher, and it comes back" % granted.display_name)
+	var favor_before := me.favor
+	var popups := prep.popups_root.get_child_count()
+	prep._toggle_due_menu()
+	await _frames(2)
+	_check(prep.due_menu.due_label.text == "BUY A BOON - 750 FAVOR", "with no voucher the altar sells boons (%s)" % prep.due_menu.due_label.text)
+	var index := 0
+	for at in range(prep.due_menu._shown.size()):
+		if (prep.due_menu._shown[at] as GodFavor).kind != GodFavor.Kind.INSTANT:
+			index = at
+			break
+	var boon: GodFavor = prep.due_menu._shown[index]
+	prep.due_menu._choose(index)
+	_check(await _until(func() -> bool: return me.has_favor(boon.id) and prep.boons_bought_by(my_id) == [boon.id]),
+		"the host's answer comes back: %s bought" % boon.display_name)
+	_check(me.favor == favor_before - prep.boon_cost, "...for %d FAVOR (%d -> %d)" % [prep.boon_cost, favor_before, me.favor])
+	_check(prep.popups_root.get_child_count() == popups, "...and the client shows no loss popup for it")
+	_check(await _until(func() -> bool: return prep.hud.event_label.text.ends_with("bought %s" % boon.display_name)),
+		"the event line reads \"<name> bought %s\" (%s)" % [boon.display_name, prep.hud.event_label.text])
 
 	prep._ready_up()
 	_check(await _until(func() -> bool: return _game().arena != null and not (_game().arena is PrepArea) and _game().arena.god_id == &"mayari"), "both READY: the client opens Mayari's trial")

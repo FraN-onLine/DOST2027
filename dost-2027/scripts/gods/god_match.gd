@@ -35,6 +35,10 @@ const TRANSFER_REASON := "Kamalig"
 # The reason on a favor_changed that SPENT FAVOR at the Tindahan (spend_favor). A
 # purchase is not a loss either: every loss listener skips it, like a transfer.
 const PURCHASE_REASON := "Tindahan"
+# FAVOR for one boon (a favor of the god who just hosted) bought at the preparation
+# area's altar without a voucher (PrepArea.boon_cost starts here). Paid with
+# PURCHASE_REASON too: buying is never a loss.
+const BOON_COST := 750
 
 
 class Mortal:
@@ -547,6 +551,29 @@ func buy_pamana(pamana: Pamana, player_id: int = -1) -> bool:
 	return true
 
 
+# Could this mortal buy `favor` as a boon for `cost` FAVOR? Only a favor of this
+# match's god (the altar's), one bestow_favor would hand over (not held yet, and
+# eligible), and only when they can pay. Nothing changes.
+func can_buy_boon(favor: GodFavor, player_id: int = -1, cost := BOON_COST) -> bool:
+	var m := _resolve(player_id)
+	if m == null or favor == null or god == null or god.get_favor(favor.id) != favor:
+		return false
+	if m.has_favor(favor.id) or not is_favor_eligible(favor, m.id):
+		return false
+	return cost >= 0 and m.favor >= cost
+
+
+# Buy `favor` as a boon: every check first (can_buy_boon), then spend_favor - not a
+# loss - and bestow_favor, which puts a skill in its slot in place of the old one.
+# Host only. Returns true when it went through.
+func buy_boon(favor: GodFavor, player_id: int = -1, cost := BOON_COST) -> bool:
+	if not can_buy_boon(favor, player_id, cost):
+		return false
+	var m := _resolve(player_id)
+	spend_favor(cost, PURCHASE_REASON, m.id)
+	return bestow_favor(favor, m.id)
+
+
 # "GO!": every mortal's waiting item wakes for this trial.
 func _wake_pamana(m: Mortal) -> void:
 	m.pamana_active = m.pamana_next
@@ -905,6 +932,9 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.granary = int(entry.get("granary", m.granary))
 		var previous_next := m.pamana_next
 		var previous_surigao := m.surigao_early
+		var previous_favors: Array[StringName] = []
+		for favor in m.favors:
+			previous_favors.append(favor.id)
 		m.pamana_next = StringName(str(entry.get("pamana_next", m.pamana_next)))
 		m.pamana_active = StringName(str(entry.get("pamana_active", m.pamana_active)))
 		m.pamana_window = float(entry.get("pamana_window", m.pamana_window))
@@ -921,6 +951,12 @@ func apply_snapshot(state: Dictionary) -> void:
 			if favor != null:
 				owned.append(favor)
 		m.favors = owned
+		# Outside a trial (the preparation area) a drop that came with a new favor
+		# was a boon bought at the altar - not a loss either.
+		if not trial_active and m.favor < previous_favor:
+			for favor in owned:
+				if not previous_favors.has(favor.id):
+					bought = true
 		var cooldowns: Dictionary = entry.get("cooldowns", {})
 		for favor_id in cooldowns.keys():
 			var remote_left := float(cooldowns[favor_id])
