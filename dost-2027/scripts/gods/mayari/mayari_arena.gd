@@ -98,6 +98,11 @@ func collect_units() -> void:
 		_light_zone(starting_zone)
 
 
+# The follow camera's edge arrows: the two clones, wherever they walk.
+func edge_targets() -> Array:
+	return _clones
+
+
 func arena_rules_tick(delta: float) -> void:
 	# The host's frame of patintero: the light moves on, the clones walk, the lit
 	# zone pays and Mayari costs FAVOR to whoever she touches.

@@ -214,6 +214,12 @@ func collect_units() -> void:
 	_apply_art()
 
 
+# The follow camera's edge arrow: the Taya (its marker is shown only while there
+# is one, and on our own head when it is us - then it is never out of view).
+func edge_targets() -> Array:
+	return [taya_marker] if taya_marker != null else []
+
+
 func arena_round_reset() -> void:
 	_taya = -1
 	_tagback = 0.0

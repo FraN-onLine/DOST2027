@@ -9,8 +9,8 @@ extends SceneTree
 #     in the others, and a repeat blocks START
 #   * a client cannot change any setting; a synced setup reaches its lobby
 #   * trial length, God's Due step and intro mode reach the arena and GodMatch
-#   * PREP TIME (shown as 0:20) survives to_dict / from_dict, a bad value is put
-#     back by validate(), and it reaches the rest
+#   * PREP TIME (shown as 0:20) and CAMERA survive to_dict / from_dict, a bad
+#     value is put back by validate(), and the prep time reaches the rest
 #   * RESET restores the defaults, and the host's saved setup loads back
 # Uses a temporary settings file, never the host's user://lobby_settings.cfg.
 # Run: godot --headless --path <project> -s res://tools/lobby_options_check.gd
@@ -66,24 +66,32 @@ func _run() -> void:
 	options._step_trials(1)
 	_check(_settings().trials == Gods.TRIALS_MAX, "+ at 5 changes nothing")
 
-	# --- PREP TIME ----------------------------------------------------------
+	# --- PREP TIME and CAMERA ----------------------------------------------------------
 	var defaults := RunSettings.defaults()
-	_check(defaults.prep_time == 20.0, "the default is a 0:20 rest")
+	_check(defaults.prep_time == 20.0 and defaults.camera_mode == RunSettings.CAMERA_ARENA,
+		"the defaults are a 0:20 rest and the whole arena on screen")
 	var custom := RunSettings.defaults()
 	custom.prep_time = 45.0
+	custom.camera_mode = RunSettings.CAMERA_FOLLOW
 	var round_trip := RunSettings.from_dict(custom.to_dict())
-	_check(round_trip.prep_time == 45.0, "the prep time survives to_dict / from_dict")
-	var broken := RunSettings.from_dict({"prep_time": 33.0})
+	_check(round_trip.prep_time == 45.0 and round_trip.camera_mode == RunSettings.CAMERA_FOLLOW,
+		"prep time and camera survive to_dict / from_dict")
+	var broken := RunSettings.from_dict({"prep_time": 33.0, "camera_mode": "drone"})
 	broken.validate()
-	_check(broken.prep_time == RunSettings.DEFAULT_PREP_TIME, "validate() puts an unknown prep time back to the default")
+	_check(broken.prep_time == RunSettings.DEFAULT_PREP_TIME and broken.camera_mode == RunSettings.CAMERA_ARENA,
+		"validate() puts an unknown prep time and camera back to the defaults")
 	var prep_items: Array[String] = []
 	for index in range(options.prep_option.item_count):
 		prep_items.append(options.prep_option.get_item_text(index))
 	_check(prep_items == ["0:10", "0:20", "0:30", "0:45", "1:00"], "PREP TIME reads like the clock (%s)" % str(prep_items))
 	_check(options.prep_option.get_item_text(options.prep_option.selected) == "0:20", "...and shows the default 0:20")
 	options.prep_option.item_selected.emit(3)
-	_check(_settings().prep_time == 45.0, "the host's PREP TIME row changes the setup")
+	options.camera_option.item_selected.emit(1)
+	_check(_settings().prep_time == 45.0 and _settings().camera_mode == RunSettings.CAMERA_FOLLOW,
+		"the host's PREP TIME and CAMERA rows change the setup")
+	_check(options.camera_option.get_item_text(options.camera_option.selected) == "FOLLOW PLAYER", "CAMERA shows FOLLOW PLAYER")
 	_apply(RunSettings.defaults().to_dict())
+	_check(options.camera_option.get_item_text(options.camera_option.selected) == "WHOLE ARENA", "...and WHOLE ARENA again")
 	_apply(RunSettings.defaults().to_dict())
 	_check(_settings().trials == 4 and options.trials_value.text == "4", "the default is 4 trials")
 	options._step_trials(1)
@@ -163,7 +171,7 @@ func _run() -> void:
 	await _frames(1)
 	var all_disabled: bool = options.minus_button.disabled and options.plus_button.disabled \
 		and options.random_box.disabled and options.custom_box.disabled and options.time_option.disabled \
-		and options.due_option.disabled and options.intro_option.disabled and options.reset_button.disabled 		and options.prep_option.disabled
+		and options.due_option.disabled and options.intro_option.disabled and options.reset_button.disabled 		and options.prep_option.disabled and options.camera_option.disabled
 	for row in options.order_list.get_children():
 		if row is HBoxContainer:
 			all_disabled = all_disabled and row.get_node("God").disabled and row.get_node("Up").disabled and row.get_node("Down").disabled
@@ -177,6 +185,7 @@ func _run() -> void:
 	options.due_option.item_selected.emit(2)
 	options.intro_option.item_selected.emit(1)
 	options.prep_option.item_selected.emit(4)
+	options.camera_option.item_selected.emit(1)
 	options._on_reset_pressed()
 	_check(_settings().to_dict() == locked, "a client cannot change any setting")
 
@@ -222,7 +231,7 @@ func _run() -> void:
 
 	# --- the host's last setup loads back ------------------------------------------------------
 	_apply({"trials": 5, "order_mode": "custom", "trial_time": 120.0, "due_step": 750, "intro_mode": "short",
-		"prep_time": 60.0})
+		"prep_time": 60.0, "camera_mode": "follow"})
 	var saved := _settings().to_dict()
 	_network.save_host_settings()
 	_apply(RunSettings.defaults().to_dict())
@@ -230,12 +239,12 @@ func _run() -> void:
 	_check(_settings().to_dict() == saved, "saved host settings load back")
 	var cfg := ConfigFile.new()
 	cfg.set_value("run", "settings", {"trials": 42, "order_mode": "custom", "custom_order": ["bathala", "nobody", "tala", "tala"],
-		"trial_time": 77.0, "due_step": 3, "intro_mode": "loud", "prep_time": 5.0})
+		"trial_time": 77.0, "due_step": 3, "intro_mode": "loud", "prep_time": 5.0, "camera_mode": "drone"})
 	cfg.save(TEMP_SETTINGS)
 	_network.load_host_settings()
 	var loaded := _settings()
 	_check(loaded.trials == 5 and loaded.trial_time == 90.0 and loaded.due_step == 1000 and loaded.intro_mode == "full"
-		and loaded.prep_time == 20.0, "a bad saved file is validated on load")
+		and loaded.prep_time == 20.0 and loaded.camera_mode == "arena", "a bad saved file is validated on load")
 	_check(not loaded.custom_order.has(Gods.BATHALA) and loaded.custom_order.size() == 5 and loaded.repeat_slots().is_empty(),
 		"...and its order is cleaned (no Bathala, no unknown god, no repeat)")
 	# A file saved when a run could hold 9 trials (and gods came round again).

@@ -37,6 +37,7 @@ const NUMBER_COLOR := UITokens.MUTED
 @onready var due_option: OptionButton = $Margin/VBox/Scroll/Body/DueRow/DueOption
 @onready var intro_option: OptionButton = $Margin/VBox/Scroll/Body/IntroRow/IntroOption
 @onready var blitz_box: CheckBox = $Margin/VBox/Scroll/Body/BlitzRow/BlitzBox
+@onready var camera_option: OptionButton = $Margin/VBox/Scroll/Body/CameraRow/CameraOption
 @onready var host_note: Label = $Margin/VBox/Scroll/Body/HostNote
 @onready var reset_button: Button = $Margin/VBox/Buttons/ResetButton
 @onready var done_button: Button = $Margin/VBox/Buttons/DoneButton
@@ -63,11 +64,15 @@ func _ready() -> void:
 		due_option.add_item("%d FAVOR" % step)
 	intro_option.add_item("FULL (first visit)")
 	intro_option.add_item("SHORT (always)")
+	camera_option.add_item("WHOLE ARENA")
+	camera_option.add_item("FOLLOW PLAYER")
 	time_option.item_selected.connect(func(index: int) -> void: _change("trial_time", RunSettings.TRIAL_TIMES[index]))
 	prep_option.item_selected.connect(func(index: int) -> void: _change("prep_time", RunSettings.PREP_TIMES[index]))
 	due_option.item_selected.connect(func(index: int) -> void: _change("due_step", RunSettings.DUE_STEPS[index]))
 	intro_option.item_selected.connect(func(index: int) -> void:
 		_change("intro_mode", RunSettings.INTRO_FULL if index == 0 else RunSettings.INTRO_SHORT))
+	camera_option.item_selected.connect(func(index: int) -> void:
+		_change("camera_mode", RunSettings.CAMERA_ARENA if index == 0 else RunSettings.CAMERA_FOLLOW))
 	blitz_box.toggled.connect(_on_blitz_toggled)
 	reset_button.pressed.connect(_on_reset_pressed)
 	done_button.pressed.connect(close)
@@ -106,9 +111,10 @@ func refresh() -> void:
 	prep_option.select(RunSettings.PREP_TIMES.find(settings.prep_time))
 	due_option.select(RunSettings.DUE_STEPS.find(settings.due_step))
 	intro_option.select(0 if settings.intro_mode == RunSettings.INTRO_FULL else 1)
+	camera_option.select(0 if settings.camera_mode == RunSettings.CAMERA_ARENA else 1)
 	blitz_box.button_pressed = settings.god_blitz_mode
 	blitz_box.disabled = not editable
-	for option in [time_option, prep_option, due_option, intro_option]:
+	for option in [time_option, prep_option, due_option, intro_option, camera_option]:
 		option.disabled = not editable
 	reset_button.disabled = not editable
 	host_note.visible = not editable

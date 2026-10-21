@@ -15,7 +15,10 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_game")
 
-[node name="Background" type="ColorRect" parent="." unique_id=1021997398]
+[node name="BackLayer" type="CanvasLayer" parent="."]
+layer = -1
+
+[node name="Background" type="ColorRect" parent="BackLayer" unique_id=1021997398]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -25,7 +28,10 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
-[node name="TopLeft" type="PanelContainer" parent="." unique_id=226519229]
+[node name="HudLayer" type="CanvasLayer" parent="."]
+layer = 1
+
+[node name="TopLeft" type="PanelContainer" parent="HudLayer" unique_id=226519229]
 z_index = 10
 layout_mode = 0
 offset_left = 8.0
@@ -34,26 +40,26 @@ offset_right = 230.0
 offset_bottom = 180.0
 theme_type_variation = &"PanelHud"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="TopLeft" unique_id=1752690579]
+[node name="VBoxContainer" type="VBoxContainer" parent="HudLayer/TopLeft" unique_id=1752690579]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Header" type="HBoxContainer" parent="TopLeft/VBoxContainer"]
+[node name="Header" type="HBoxContainer" parent="HudLayer/TopLeft/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="IconFrame" type="PanelContainer" parent="TopLeft/VBoxContainer/Header"]
+[node name="IconFrame" type="PanelContainer" parent="HudLayer/TopLeft/VBoxContainer/Header"]
 layout_mode = 2
 theme_type_variation = &"PanelInset"
 
-[node name="GodIcon" type="TextureRect" parent="TopLeft/VBoxContainer/Header/IconFrame" unique_id=250674016]
+[node name="GodIcon" type="TextureRect" parent="HudLayer/TopLeft/VBoxContainer/Header/IconFrame" unique_id=250674016]
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 texture = ExtResource("3_78awf")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="NameLabel" type="Label" parent="TopLeft/VBoxContainer/Header" unique_id=853832918]
+[node name="NameLabel" type="Label" parent="HudLayer/TopLeft/VBoxContainer/Header" unique_id=853832918]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "You"
@@ -61,64 +67,64 @@ vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="StatsRow" type="HBoxContainer" parent="TopLeft/VBoxContainer" unique_id=533297541]
+[node name="StatsRow" type="HBoxContainer" parent="HudLayer/TopLeft/VBoxContainer" unique_id=533297541]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="FavorBox" type="VBoxContainer" parent="TopLeft/VBoxContainer/StatsRow" unique_id=955531282]
+[node name="FavorBox" type="VBoxContainer" parent="HudLayer/TopLeft/VBoxContainer/StatsRow" unique_id=955531282]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-[node name="FavorCaption" type="Label" parent="TopLeft/VBoxContainer/StatsRow/FavorBox" unique_id=1565000611]
+[node name="FavorCaption" type="Label" parent="HudLayer/TopLeft/VBoxContainer/StatsRow/FavorBox" unique_id=1565000611]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "FAVOR"
 
-[node name="FavorValue" type="Label" parent="TopLeft/VBoxContainer/StatsRow/FavorBox" unique_id=105599669]
+[node name="FavorValue" type="Label" parent="HudLayer/TopLeft/VBoxContainer/StatsRow/FavorBox" unique_id=105599669]
 layout_mode = 2
 theme_type_variation = &"DisplayLabel"
 text = "0"
 
-[node name="DueBox" type="VBoxContainer" parent="TopLeft/VBoxContainer/StatsRow" unique_id=847355597]
+[node name="DueBox" type="VBoxContainer" parent="HudLayer/TopLeft/VBoxContainer/StatsRow" unique_id=847355597]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="DueCaption" type="Label" parent="TopLeft/VBoxContainer/StatsRow/DueBox" unique_id=250978974]
+[node name="DueCaption" type="Label" parent="HudLayer/TopLeft/VBoxContainer/StatsRow/DueBox" unique_id=250978974]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "DUE"
 horizontal_alignment = 2
 
-[node name="DueRow" type="HBoxContainer" parent="TopLeft/VBoxContainer/StatsRow/DueBox"]
+[node name="DueRow" type="HBoxContainer" parent="HudLayer/TopLeft/VBoxContainer/StatsRow/DueBox"]
 layout_mode = 2
 size_flags_vertical = 6
 theme_override_constants/separation = 2
 alignment = 2
 
-[node name="DuePips" type="HBoxContainer" parent="TopLeft/VBoxContainer/StatsRow/DueBox/DueRow"]
+[node name="DuePips" type="HBoxContainer" parent="HudLayer/TopLeft/VBoxContainer/StatsRow/DueBox/DueRow"]
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="DueValue" type="Label" parent="TopLeft/VBoxContainer/StatsRow/DueBox/DueRow" unique_id=1395866843]
+[node name="DueValue" type="Label" parent="HudLayer/TopLeft/VBoxContainer/StatsRow/DueBox/DueRow" unique_id=1395866843]
 visible = false
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
 text = "0"
 vertical_alignment = 1
 
-[node name="ERow" type="HBoxContainer" parent="TopLeft/VBoxContainer"]
+[node name="ERow" type="HBoxContainer" parent="HudLayer/TopLeft/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="EKey" type="Label" parent="TopLeft/VBoxContainer/ERow"]
+[node name="EKey" type="Label" parent="HudLayer/TopLeft/VBoxContainer/ERow"]
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_type_variation = &"KeycapLabel"
 text = "E"
 horizontal_alignment = 1
 
-[node name="EBar" type="ProgressBar" parent="TopLeft/VBoxContainer/ERow" unique_id=903103553]
+[node name="EBar" type="ProgressBar" parent="HudLayer/TopLeft/VBoxContainer/ERow" unique_id=903103553]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -126,18 +132,18 @@ size_flags_vertical = 4
 tooltip_text = "E  --"
 show_percentage = false
 
-[node name="QRow" type="HBoxContainer" parent="TopLeft/VBoxContainer"]
+[node name="QRow" type="HBoxContainer" parent="HudLayer/TopLeft/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="QKey" type="Label" parent="TopLeft/VBoxContainer/QRow"]
+[node name="QKey" type="Label" parent="HudLayer/TopLeft/VBoxContainer/QRow"]
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_type_variation = &"KeycapLabel"
 text = "Q"
 horizontal_alignment = 1
 
-[node name="QBar" type="ProgressBar" parent="TopLeft/VBoxContainer/QRow" unique_id=1382924829]
+[node name="QBar" type="ProgressBar" parent="HudLayer/TopLeft/VBoxContainer/QRow" unique_id=1382924829]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -145,13 +151,13 @@ size_flags_vertical = 4
 tooltip_text = "Q  --"
 show_percentage = false
 
-[node name="PamanaRow" type="HBoxContainer" parent="TopLeft/VBoxContainer"]
+[node name="PamanaRow" type="HBoxContainer" parent="HudLayer/TopLeft/VBoxContainer"]
 visible = false
 layout_mode = 2
 mouse_filter = 0
 theme_override_constants/separation = 4
 
-[node name="PamanaIcon" type="TextureRect" parent="TopLeft/VBoxContainer/PamanaRow"]
+[node name="PamanaIcon" type="TextureRect" parent="HudLayer/TopLeft/VBoxContainer/PamanaRow"]
 custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
 mouse_filter = 2
@@ -159,7 +165,7 @@ texture = ExtResource("5_icon")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="PamanaLabel" type="Label" parent="TopLeft/VBoxContainer/PamanaRow"]
+[node name="PamanaLabel" type="Label" parent="HudLayer/TopLeft/VBoxContainer/PamanaRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
@@ -169,7 +175,7 @@ vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="OtherPlayersPanel" type="PanelContainer" parent="." unique_id=110846096]
+[node name="OtherPlayersPanel" type="PanelContainer" parent="HudLayer" unique_id=110846096]
 z_index = 10
 layout_mode = 0
 offset_left = 8.0
@@ -178,23 +184,23 @@ offset_right = 230.0
 offset_bottom = 640.0
 theme_type_variation = &"PanelHud"
 
-[node name="Margin" type="MarginContainer" parent="OtherPlayersPanel" unique_id=1375121128]
+[node name="Margin" type="MarginContainer" parent="HudLayer/OtherPlayersPanel" unique_id=1375121128]
 layout_mode = 2
 theme_override_constants/margin_left = 0
 theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 0
 theme_override_constants/margin_bottom = 0
 
-[node name="VBox" type="VBoxContainer" parent="OtherPlayersPanel/Margin" unique_id=589541731]
+[node name="VBox" type="VBoxContainer" parent="HudLayer/OtherPlayersPanel/Margin" unique_id=589541731]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="OtherPlayersPanel/Margin/VBox" unique_id=1987111472]
+[node name="Title" type="Label" parent="HudLayer/OtherPlayersPanel/Margin/VBox" unique_id=1987111472]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "RIVALS"
 
-[node name="OpponentPlaceholder" parent="OtherPlayersPanel/Margin/VBox" unique_id=1091981192 instance=ExtResource("3_opponent")]
+[node name="OpponentPlaceholder" parent="HudLayer/OtherPlayersPanel/Margin/VBox" unique_id=1091981192 instance=ExtResource("3_opponent")]
 layout_mode = 2
 
 [node name="ArenaPanel" type="Control" parent="." unique_id=936311631]
@@ -206,7 +212,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="TrialTimer" type="Label" parent="." unique_id=1183103044]
+[node name="TrialTimer" type="Label" parent="HudLayer" unique_id=1183103044]
 z_index = 10
 layout_mode = 1
 anchors_preset = 5
@@ -222,7 +228,7 @@ text = "1:30"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="FinalePanel" type="PanelContainer" parent="." unique_id=653460438]
+[node name="FinalePanel" type="PanelContainer" parent="HudLayer" unique_id=653460438]
 visible = false
 z_index = 30
 layout_mode = 1
@@ -239,30 +245,30 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_type_variation = &"PanelCard"
 
-[node name="Ornament" type="Control" parent="FinalePanel"]
+[node name="Ornament" type="Control" parent="HudLayer/FinalePanel"]
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("4_ornament")
 inset = -8
 
-[node name="Margin" type="MarginContainer" parent="FinalePanel" unique_id=910827972]
+[node name="Margin" type="MarginContainer" parent="HudLayer/FinalePanel" unique_id=910827972]
 layout_mode = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 8
 
-[node name="VBox" type="VBoxContainer" parent="FinalePanel/Margin" unique_id=1675082158]
+[node name="VBox" type="VBoxContainer" parent="HudLayer/FinalePanel/Margin" unique_id=1675082158]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="Title" type="Label" parent="FinalePanel/Margin/VBox" unique_id=1023301553]
+[node name="Title" type="Label" parent="HudLayer/FinalePanel/Margin/VBox" unique_id=1023301553]
 layout_mode = 2
 theme_type_variation = &"DisplayLabel"
 text = "BATHALA'S JUDGMENT"
 horizontal_alignment = 1
 
-[node name="Rule" type="Control" parent="FinalePanel/Margin/VBox"]
+[node name="Rule" type="Control" parent="HudLayer/FinalePanel/Margin/VBox"]
 custom_minimum_size = Vector2(320, 12)
 layout_mode = 2
 size_flags_horizontal = 4
@@ -270,24 +276,24 @@ mouse_filter = 2
 script = ExtResource("4_ornament")
 rule_only = true
 
-[node name="Summary" type="Label" parent="FinalePanel/Margin/VBox" unique_id=948407781]
+[node name="Summary" type="Label" parent="HudLayer/FinalePanel/Margin/VBox" unique_id=948407781]
 custom_minimum_size = Vector2(600, 220)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="HintRow" type="HBoxContainer" parent="FinalePanel/Margin/VBox"]
+[node name="HintRow" type="HBoxContainer" parent="HudLayer/FinalePanel/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="Key" type="Label" parent="FinalePanel/Margin/VBox/HintRow"]
+[node name="Key" type="Label" parent="HudLayer/FinalePanel/Margin/VBox/HintRow"]
 layout_mode = 2
 theme_type_variation = &"KeycapLabel"
 text = "Esc"
 
-[node name="Hint" type="Label" parent="FinalePanel/Margin/VBox/HintRow" unique_id=512967822]
+[node name="Hint" type="Label" parent="HudLayer/FinalePanel/Margin/VBox/HintRow" unique_id=512967822]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
 text = "LEAVE"

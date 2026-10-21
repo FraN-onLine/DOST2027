@@ -3,8 +3,8 @@ extends RefCounted
 
 # Everything the host sets up in the lobby before pressing START: how many trials,
 # in what order, how long each lasts, how long the rest between two trials lasts,
-# how often FAVOR pays a God's Due and how much the gods say when they open a
-# trial.
+# how often FAVOR pays a God's Due, how much the gods say when they open a trial
+# and what the camera shows.
 #
 # One object for all of it so the lobby, the network sync, the saved
 # user://lobby_settings.cfg and the game shell can never disagree: the host edits
@@ -23,6 +23,8 @@ const PREP_TIMES := [10.0, 20.0, 30.0, 45.0, 60.0]  # the preparation area (PAHI
 const DUE_STEPS := [750, 1000, 1500]
 const DEFAULT_TRIAL_TIME := 90.0
 const DEFAULT_PREP_TIME := 20.0
+const CAMERA_ARENA := "arena"    # the whole field at once, world = screen (the default)
+const CAMERA_FOLLOW := "follow"  # a Camera2D on the local mortal (Arena.follow_camera)
 
 var trials: int = Gods.TRIALS_DEFAULT
 var order_mode: String = ORDER_RANDOM
@@ -33,6 +35,8 @@ var due_step: int = GodMatch.MILESTONE_STEP
 var intro_mode: String = INTRO_FULL
 # Each god's blitz (last-stand mode) can be switched off here; default is on.
 var god_blitz_mode: bool = true
+# Only what this screen draws: the host's rules never read the camera.
+var camera_mode: String = CAMERA_ARENA
 
 
 static func defaults() -> RunSettings:
@@ -54,6 +58,7 @@ func to_dict() -> Dictionary:
 		"due_step": due_step,
 		"intro_mode": intro_mode,
 		"god_blitz_mode": god_blitz_mode,
+		"camera_mode": camera_mode,
 	}
 
 
@@ -72,6 +77,7 @@ static func from_dict(data: Dictionary) -> RunSettings:
 	settings.due_step = int(data.get("due_step", GodMatch.MILESTONE_STEP))
 	settings.intro_mode = str(data.get("intro_mode", INTRO_FULL))
 	settings.god_blitz_mode = bool(data.get("god_blitz_mode", true))
+	settings.camera_mode = str(data.get("camera_mode", CAMERA_ARENA))
 	return settings
 
 
@@ -95,6 +101,8 @@ func validate(fix_repeats := true) -> Array[String]:
 		trial_time = DEFAULT_TRIAL_TIME
 	if not PREP_TIMES.has(prep_time):
 		prep_time = DEFAULT_PREP_TIME
+	if camera_mode != CAMERA_FOLLOW:
+		camera_mode = CAMERA_ARENA
 	if not DUE_STEPS.has(due_step):
 		due_step = GodMatch.MILESTONE_STEP
 	var playable := playable_ids()

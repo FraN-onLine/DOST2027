@@ -209,6 +209,15 @@ func collect_units() -> void:
 		_build_gods(roster_for(_field_mortal_ids().size()))
 
 
+# The follow camera's edge arrows: every god on the field and both bases.
+func edge_targets() -> Array:
+	var targets: Array = []  # untyped: the gods and the bases are different nodes
+	targets.append_array(_gods)
+	if bases_root != null:
+		targets.append_array(bases_root.get_children())
+	return targets
+
+
 # Build the field's gods for `roster` (ids from ROSTER), plus Bathala himself.
 func _build_gods(roster: Array) -> void:
 	for god_node in _gods:

@@ -22,7 +22,11 @@ extends Control
 #
 # One trial = one arena child of ArenaPanel (a full-screen, input-transparent
 # Control), which is why the arena's own coordinates are already screen
-# coordinates.
+# coordinates - unless the lobby's CAMERA is FOLLOW PLAYER: then the shell sets
+# the arena's follow_camera and a Camera2D on the local mortal moves the world
+# under the screen. That is why every panel of the shell lives on HudLayer (a
+# CanvasLayer just above the world, below every arena layer) and the backdrop on
+# BackLayer (below the world): nothing a camera does can move them.
 #
 # BETWEEN TWO TRIALS: once a trial has closed (its god's end lines and hand-over
 # are spoken) and before the next arena starts, the shell opens the PREPARATION
@@ -49,23 +53,23 @@ const LOW_TIME := 10.0          # seconds left when the clock turns EMBER
 const COUNT_RATE := 12.0        # FAVOR count-up speed (fraction of the gap per second)
 const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
 
-@onready var own_panel: PanelContainer = $TopLeft
-@onready var own_name_label: Label = $TopLeft/VBoxContainer/Header/NameLabel
-@onready var own_icon_frame: PanelContainer = $TopLeft/VBoxContainer/Header/IconFrame
-@onready var own_god_icon: TextureRect = $TopLeft/VBoxContainer/Header/IconFrame/GodIcon
-@onready var favor_label: Label = $TopLeft/VBoxContainer/StatsRow/FavorBox/FavorValue
-@onready var due_label: Label = $TopLeft/VBoxContainer/StatsRow/DueBox/DueRow/DueValue
-@onready var due_pips: HBoxContainer = $TopLeft/VBoxContainer/StatsRow/DueBox/DueRow/DuePips
-@onready var e_bar: ProgressBar = $TopLeft/VBoxContainer/ERow/EBar
-@onready var q_bar: ProgressBar = $TopLeft/VBoxContainer/QRow/QBar
-@onready var pamana_row: HBoxContainer = $TopLeft/VBoxContainer/PamanaRow
-@onready var pamana_icon: TextureRect = $TopLeft/VBoxContainer/PamanaRow/PamanaIcon
-@onready var pamana_label: Label = $TopLeft/VBoxContainer/PamanaRow/PamanaLabel
-@onready var other_players_vbox: VBoxContainer = $OtherPlayersPanel/Margin/VBox
-@onready var opponent_placeholder: Control = $OtherPlayersPanel/Margin/VBox/OpponentPlaceholder
-@onready var timer_label: Label = $TrialTimer
-@onready var finale_panel: PanelContainer = $FinalePanel
-@onready var finale_summary: Label = $FinalePanel/Margin/VBox/Summary
+@onready var own_panel: PanelContainer = $HudLayer/TopLeft
+@onready var own_name_label: Label = $HudLayer/TopLeft/VBoxContainer/Header/NameLabel
+@onready var own_icon_frame: PanelContainer = $HudLayer/TopLeft/VBoxContainer/Header/IconFrame
+@onready var own_god_icon: TextureRect = $HudLayer/TopLeft/VBoxContainer/Header/IconFrame/GodIcon
+@onready var favor_label: Label = $HudLayer/TopLeft/VBoxContainer/StatsRow/FavorBox/FavorValue
+@onready var due_label: Label = $HudLayer/TopLeft/VBoxContainer/StatsRow/DueBox/DueRow/DueValue
+@onready var due_pips: HBoxContainer = $HudLayer/TopLeft/VBoxContainer/StatsRow/DueBox/DueRow/DuePips
+@onready var e_bar: ProgressBar = $HudLayer/TopLeft/VBoxContainer/ERow/EBar
+@onready var q_bar: ProgressBar = $HudLayer/TopLeft/VBoxContainer/QRow/QBar
+@onready var pamana_row: HBoxContainer = $HudLayer/TopLeft/VBoxContainer/PamanaRow
+@onready var pamana_icon: TextureRect = $HudLayer/TopLeft/VBoxContainer/PamanaRow/PamanaIcon
+@onready var pamana_label: Label = $HudLayer/TopLeft/VBoxContainer/PamanaRow/PamanaLabel
+@onready var other_players_vbox: VBoxContainer = $HudLayer/OtherPlayersPanel/Margin/VBox
+@onready var opponent_placeholder: Control = $HudLayer/OtherPlayersPanel/Margin/VBox/OpponentPlaceholder
+@onready var timer_label: Label = $HudLayer/TrialTimer
+@onready var finale_panel: PanelContainer = $HudLayer/FinalePanel
+@onready var finale_summary: Label = $HudLayer/FinalePanel/Margin/VBox/Summary
 
 var arena: Node = null
 var rules: GodMatch = null
@@ -114,11 +118,11 @@ func _build_hud() -> void:
 	var my_id := multiplayer.get_unique_id()
 	own_name_label.text = str(Network.players.get(my_id, Network.my_name if Network.my_name != "" else "Mortal"))
 	_set_own_god_icon(Network.player_icons.get(my_id, Network.my_god_icon_id))
-	$TopLeft/VBoxContainer/StatsRow/FavorBox/FavorCaption.text = "FAVOR"
-	$TopLeft/VBoxContainer/StatsRow/DueBox/DueCaption.text = "GOD'S DUE"
+	$HudLayer/TopLeft/VBoxContainer/StatsRow/FavorBox/FavorCaption.text = "FAVOR"
+	$HudLayer/TopLeft/VBoxContainer/StatsRow/DueBox/DueCaption.text = "GOD'S DUE"
 	# Recognition over recall: the keys as the player bound them.
-	$TopLeft/VBoxContainer/ERow/EKey.text = UITokens.key_text(&"skill_e")
-	$TopLeft/VBoxContainer/QRow/QKey.text = UITokens.key_text(&"skill_q")
+	$HudLayer/TopLeft/VBoxContainer/ERow/EKey.text = UITokens.key_text(&"skill_e")
+	$HudLayer/TopLeft/VBoxContainer/QRow/QKey.text = UITokens.key_text(&"skill_q")
 	_show_due_pips(0)
 	_build_other_player_panels()
 
@@ -149,7 +153,7 @@ func _refresh_opponent_display() -> void:
 	# play on their own field (Arnis) puts no rival ON the board - Apolaki is
 	# local to each player - but the roster is still who else is in the run, so
 	# it is always shown.
-	$OtherPlayersPanel.visible = true
+	$HudLayer/OtherPlayersPanel.visible = true
 
 
 func _on_player_list_updated(_players: Dictionary) -> void:
@@ -249,6 +253,8 @@ func _start_current_trial() -> void:
 	# A god speaks its full intro only the first time it hosts in this run (FULL),
 	# or never (SHORT); either way the dialogue handshake still runs.
 	arena_instance.first_visit = settings.intro_mode == RunSettings.INTRO_FULL and not _visited_gods.has(god.id)
+	# Only this screen's view (RunSettings.camera_mode): no rule reads it.
+	arena_instance.follow_camera = settings.camera_mode == RunSettings.CAMERA_FOLLOW
 	_visited_gods[god.id] = true
 	arena_instance.dialogue_prefix = "trial_%d" % (trial_index + 1)
 	arena_instance.next_god_id = trial_order[trial_index + 1].id if trial_index + 1 < trial_order.size() else &""
@@ -449,6 +455,7 @@ func _start_prep() -> void:
 	# The lobby's PREP TIME (RunSettings.prep_time); the scene's own export is
 	# only the fallback for a standalone rest.
 	prep.prep_time = Network.run_settings.prep_time
+	prep.follow_camera = Network.run_settings.camera_mode == RunSettings.CAMERA_FOLLOW
 	prep.dialogue_prefix = "prep_%d" % trial_index
 	prep.rng = pamana_rng
 	$ArenaPanel.add_child(prep)
@@ -472,7 +479,7 @@ func _on_prep_closed(prep: PrepArea) -> void:
 
 
 func _show_finale() -> void:
-	$OtherPlayersPanel.visible = true
+	$HudLayer/OtherPlayersPanel.visible = true
 	finale_panel.visible = true
 	UITokens.reveal(finale_panel)
 	timer_label.text = "FINAL JUDGMENT"

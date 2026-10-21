@@ -123,6 +123,11 @@ func _paint_camp() -> void:
 		UITokens.key_text(&"due_menu"), UITokens.key_text(&"ready_up")]
 
 
+# The follow camera's edge arrows: the altar and the stall, the two things to do.
+func edge_targets() -> Array:
+	return [$Camp/Altar, stall]
+
+
 # --- THE TINDAHAN: offers and purchases (the host decides) ----------------------------
 
 # Who shops here: every connected mortal, or only us solo (simulated rivals don't).
