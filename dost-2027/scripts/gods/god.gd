@@ -61,6 +61,31 @@ func transition_voices_for(next_god_id: StringName) -> Array:
 @export var transition_lines: Dictionary = {}  # next god id (String) -> Array[String]
 
 
+# --- SPEAKERS -----------------------------------------------------------------
+# A god that is really two (Mapulon & Ikapati) fills `speakers`: name ->
+# {color, portrait}. Any line that opens with "Name: " for one of those names is
+# spoken by that name, in its colour and with its portrait; the prefix is not
+# shown. A god without `speakers` behaves as always.
+@export var speakers: Dictionary = {}
+
+
+# The dialogue-box entry for one of this god's lines.
+func entry_for(line: String) -> Dictionary:
+	var entry := {"speaker": display_name, "color": color, "text": line}
+	if portrait != null:
+		entry["portrait"] = portrait
+	var cut := line.find(": ")
+	if cut > 0 and speakers.has(line.substr(0, cut)):
+		var who := line.substr(0, cut)
+		var info: Dictionary = speakers[who]
+		entry["speaker"] = who
+		entry["text"] = line.substr(cut + 2)
+		entry["color"] = info.get("color", color)
+		if info.get("portrait") is Texture2D:
+			entry["portrait"] = info["portrait"]
+	return entry
+
+
 func get_favor(favor_id: StringName) -> GodFavor:
 	for favor in favors:
 		if favor.id == favor_id:

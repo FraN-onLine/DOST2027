@@ -1018,11 +1018,9 @@ func _flush_favor_popups(delta: float) -> void:
 func _speech(speaker: God, lines: Array, voices: Array = []) -> Array:
 	var out: Array = []
 	for i in lines.size():
-		var entry := {"speaker": speaker.display_name, "color": speaker.color, "text": str(lines[i])}
+		var entry := speaker.entry_for(str(lines[i]))
 		if i < voices.size() and voices[i] is AudioStream:
 			entry["voice"] = voices[i]
-		if speaker.portrait != null:
-			entry["portrait"] = speaker.portrait
 		out.append(entry)
 	return out
 

@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
 [ext_resource type="Texture2D" uid="uid://bf3gykvvyldud" path="res://Assets/Gods/MapulonIkapati/ikapati_portrait.png" id="3_rcj6l"]
+[ext_resource type="Texture2D" uid="uid://bmmvbh8u53eu4" path="res://Assets/Gods/MapulonIkapati/mapulon_portrait.png" id="4_mapulon"]
 
 [sub_resource type="Resource" id="Favor_binhi"]
 script = ExtResource("1_favor")
@@ -124,6 +125,16 @@ arena_scene = "res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_favor")]([SubResource("Favor_binhi"), SubResource("Favor_panahon_ng_anihan"), SubResource("Favor_kabiyak"), SubResource("Favor_tagtuyot"), SubResource("Favor_ligaw_na_damo"), SubResource("Favor_unang_ulan"), SubResource("Favor_kamalig")])
 portrait = ExtResource("3_rcj6l")
+speakers = {
+"Ikapati": {
+"color": Color(0.56, 0.78, 0.33, 1),
+"portrait": ExtResource("3_rcj6l")
+},
+"Mapulon": {
+"color": Color(0.45, 0.72, 0.92, 1),
+"portrait": ExtResource("4_mapulon")
+}
+}
 intro_lines = Array[String](["Mapulon: The rains are late, and the mortals are early. Welcome to Langit Lupa.", "Ikapati: The Lupa is my earth - out there the Taya can catch you. Each Langit is his sky, and it keeps you safe.", "Mapulon: Until the Taya chants ALIS! Then jump down and race to another Langit. Every crossing earns FAVOR, and every season my sky crumbles and moves."])
 trial_end_lines = Array[String](["Ikapati: The field is cleared and the harvest counted.", "Mapulon: What you planted here will keep growing. We are patient - be patient with it."])
 success_lines = Array[String](["Mapulon: A good season.", "Ikapati: A full granary. We are proud of you."])
