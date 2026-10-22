@@ -9,10 +9,20 @@ extends Control
 # first rival panel so the layout can be seen without a second player.
 #
 # Both panels only ever grow downwards inside that strip: the rival column is
-# sized so every rival of Network.MAX_PLAYERS (three) fits above the bottom of
-# the screen, and a lobby name is clipped to its own panel with an ellipsis
-# instead of being allowed to widen it. The rival column starts low enough to
-# leave room for our own panel's Pamana badge row.
+# only as tall as the rivals in it (every rival of Network.MAX_PLAYERS - three -
+# fits above the bottom of the screen), and a lobby name is clipped to its own
+# panel with an ellipsis instead of being allowed to widen it. The rival column
+# starts low enough to leave room for our own panel's Pamana badge row.
+#
+# A rival card always carries a real name - the peer's lobby name, or, solo, the
+# stand-in rival's ("MORTAL 2", the name its tag shows on the field). With no
+# rival at all (and no trial note) the column is hidden instead of showing an
+# empty card. Game.tscn's authored card (OpponentPlaceholder) only previews the
+# layout in the editor.
+#
+# An empty favor bar says so - EMPTY, and where a favor comes from (the God's Due
+# key) - until a favor is bound. FAVOR pulses when it rises and flashes EMBER when
+# it drops (a held colour change instead, under reduce flashing).
 #
 # A trial can put one extra line in every panel (a TrialRow label, hidden when
 # empty) and one small note at the top of the rival column (StripNote): the
@@ -83,6 +93,8 @@ const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
 @onready var pamana_label: Label = $HudLayer/TopLeft/VBoxContainer/PamanaRow/PamanaLabel
 @onready var other_players_vbox: VBoxContainer = $HudLayer/OtherPlayersPanel/Margin/VBox
 @onready var opponent_placeholder: Control = $HudLayer/OtherPlayersPanel/Margin/VBox/OpponentPlaceholder
+@onready var e_empty: Label = $HudLayer/TopLeft/VBoxContainer/ERow/EBar/Empty
+@onready var q_empty: Label = $HudLayer/TopLeft/VBoxContainer/QRow/QBar/Empty
 @onready var timer_label: Label = $HudLayer/TrialTimer
 @onready var finale_panel: PanelContainer = $HudLayer/FinalePanel
 @onready var finale_summary: VBoxContainer = $HudLayer/FinalePanel/Margin/VBox/Summary
@@ -98,6 +110,8 @@ var _visited_gods: Dictionary = {}   # god id -> true (its intro is spoken once)
 var _favor_target := 0               # the FAVOR the card is counting toward
 var _favor_shown := 0.0              # the FAVOR the card shows this frame
 var _pips_shown := -1                # God's Due drawn as pips (-1: not drawn yet)
+var _favor_seen := -1                # the FAVOR last drawn (-1: none yet), to pulse on a change
+var _favor_tween: Tween
 # The Tindahan's offers are rolled from this, once per run (Game is the run).
 var pamana_rng := RandomNumberGenerator.new()
 
@@ -165,6 +179,8 @@ func _build_hud() -> void:
 	# Recognition over recall: the keys as the player bound them.
 	$HudLayer/TopLeft/VBoxContainer/ERow/EKey.text = UITokens.key_text(&"skill_e")
 	$HudLayer/TopLeft/VBoxContainer/QRow/QKey.text = UITokens.key_text(&"skill_q")
+	for empty in [e_empty, q_empty]:
+		empty.text = "EMPTY - %s AT GOD'S DUE" % UITokens.key_text(&"due_menu").to_upper()
 	_show_due_pips(0)
 	_build_other_player_panels()
 
@@ -185,18 +201,38 @@ func _build_other_player_panels() -> void:
 		panel.set_god_icon(StringName(str(Network.player_icons.get(peer_id, &"mayari"))))
 		panel.set_bandana(Network.bandana_of(id))
 		other_player_panels[id] = panel
-	# OpponentPlaceholder is the panel authored in Game.tscn: it previews the
-	# layout while you are alone and steps aside for the first real rival.
-	opponent_placeholder.visible = other_player_panels.is_empty()
+	# Solo: the match's stand-in rivals, under the names their tags show.
+	if other_player_panels.is_empty() and rules != null:
+		for mortal in rules.mortals.values():
+			if mortal.is_local:
+				continue
+			var panel := OPPONENT_PANEL_SCENE.instantiate()
+			other_players_vbox.add_child(panel)
+			panel.setup(mortal.id, mortal.display_name, mortal.favor, mortal.due)
+			panel.set_bandana(Network.bandana_of(mortal.id))
+			other_player_panels[mortal.id] = panel
+	# OpponentPlaceholder is the card authored in Game.tscn for the editor only: a
+	# card with a placeholder name never reaches the screen.
+	opponent_placeholder.visible = false
 	_refresh_opponent_display()
 
 
 func _refresh_opponent_display() -> void:
-	# The column stays on screen in every trial. A game the gods have everyone
-	# play on their own field (Arnis) puts no rival ON the board - Apolaki is
-	# local to each player - but the roster is still who else is in the run, so
-	# it is always shown.
-	$HudLayer/OtherPlayersPanel.visible = true
+	# The column is on screen in every trial that has a rival or a note in it. A
+	# game the gods have everyone play on their own field (Arnis) puts no rival ON
+	# the board - Apolaki is local to each player - but the roster is still who
+	# else is in the run, so it is shown. It is exactly as tall as what it holds.
+	var column: PanelContainer = $HudLayer/OtherPlayersPanel
+	column.visible = not other_player_panels.is_empty() or strip_note.visible
+	column.size.y = 0.0  # back down to what it holds (its width is the strip's)
+
+
+func _has_peer_rivals() -> bool:
+	var my_id := multiplayer.get_unique_id()
+	for peer_id in Network.players.keys():
+		if int(peer_id) != my_id:
+			return true
+	return false
 
 
 func _on_player_list_updated(_players: Dictionary) -> void:
@@ -312,10 +348,14 @@ func _start_current_trial() -> void:
 func _on_arena_ready() -> void:
 	if arena == null or not is_instance_valid(arena):
 		return
-	_refresh_opponent_display()
 	rules = arena.rules
 	if rules == null:
+		_refresh_opponent_display()
 		return
+	if _has_peer_rivals():
+		_refresh_opponent_display()
+	else:
+		_build_other_player_panels()  # solo: this trial's stand-in rivals
 	rules.favor_changed.connect(_on_favor_changed)
 	rules.due_changed.connect(_on_due_changed)
 	if arena.has_signal("trial_time_changed"):
@@ -382,6 +422,32 @@ func _count_favor(delta: float) -> void:
 	favor_label.text = str(roundi(_favor_shown))
 
 
+# FAVOR rose: the number pulses (1.0 -> 1.15 -> 1.0 over 0.2 s). FAVOR dropped: it
+# flashes EMBER and fades back. With reduce flashing on there is no pulse, and a
+# drop is a held colour change instead of a flash.
+func _favor_moved(up: bool) -> void:
+	if _favor_tween != null and _favor_tween.is_valid():
+		_favor_tween.kill()
+	favor_label.scale = Vector2.ONE
+	favor_label.modulate = Color.WHITE
+	favor_label.pivot_offset = favor_label.size * 0.5
+	var drop := Color(1.0, 0.36, 0.3)  # the gold number, washed EMBER
+	if UITokens.calm():
+		if not up:
+			favor_label.modulate = drop
+			_favor_tween = create_tween()
+			_favor_tween.tween_interval(0.4)
+			_favor_tween.tween_callback(func() -> void: favor_label.modulate = Color.WHITE)
+		return
+	_favor_tween = create_tween()
+	if up:
+		_favor_tween.tween_property(favor_label, "scale", Vector2.ONE * 1.15, 0.1).set_trans(Tween.TRANS_SINE)
+		_favor_tween.tween_property(favor_label, "scale", Vector2.ONE, 0.1).set_trans(Tween.TRANS_SINE)
+	else:
+		favor_label.modulate = drop
+		_favor_tween.tween_property(favor_label, "modulate", Color.WHITE, 0.4)
+
+
 # God's Due as diamond pips (the radio icons of the theme, so the art swap
 # covers them), with "+N" once there are more than MAX_PIPS. Zero shows one
 # empty pip, so the row never vanishes.
@@ -409,6 +475,9 @@ func _refresh_local_stats() -> void:
 	var mortal := rules.local()
 	if mortal == null:
 		return
+	if _favor_seen >= 0 and mortal.favor != _favor_seen:
+		_favor_moved(mortal.favor > _favor_seen)
+	_favor_seen = mortal.favor
 	_favor_target = mortal.favor
 	due_label.text = "+%d" % (mortal.due - MAX_PIPS) if mortal.due > MAX_PIPS else str(mortal.due)
 	_show_due_pips(mortal.due)
@@ -423,7 +492,9 @@ func _update_panel_stats() -> void:
 	_show_trial_row(own_trial_row, mortal.id)
 	var note: String = arena.strip_note() if arena != null and arena.has_method("strip_note") else ""
 	strip_note.text = note
-	strip_note.visible = note != ""
+	if strip_note.visible != (note != ""):
+		strip_note.visible = note != ""
+		_refresh_opponent_display()
 	for id in other_player_panels.keys():
 		var other := rules.mortal(int(id))
 		if other == null:
@@ -445,8 +516,10 @@ func _show_trial_row(label: Label, mortal_id: int) -> void:
 
 func _update_skill_bar(bar: ProgressBar, slot: int, mortal: GodMatch.Mortal) -> void:
 	var favor := mortal.favor_in_slot(slot)
+	(e_empty if bar == e_bar else q_empty).visible = favor == null
 	if favor == null:
 		bar.value = 0.0
+		bar.modulate = Color.WHITE
 		return
 	var ratio := rules.skill_cooldown_ratio(slot, mortal.id)
 	bar.value = ratio * 100.0

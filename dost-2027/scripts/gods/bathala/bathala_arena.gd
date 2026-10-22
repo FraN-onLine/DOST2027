@@ -93,7 +93,10 @@ const GOD_SCENES := {
 const ROSTER := ["apolaki", "tala", "mayari", "hanan"]
 const OFFENSE := {"apolaki": true, "mayari": true}
 const MIN_GODS := 2
-const MARK_OFFSET := Vector2(-30.0, -78.0)   # a frozen mortal's countdown, as over a god
+const MARK_OFFSET := Vector2(18.0, -48.0)    # a frozen mortal's countdown, beside its head (as beside a god)
+# How far inside the field a god's body is kept (about its ring), so it never stands
+# half off the field or off the screen.
+const GOD_MARGIN := Vector2(24.0, 24.0)
 const PITY_OFFSET := Vector2(-80.0, -96.0)
 
 @export_category("Agawan Base")
@@ -151,7 +154,7 @@ const PITY_OFFSET := Vector2(-80.0, -96.0)
 @onready var mine_hold_ring: Line2D = get_node_or_null("Bases/Mine/Hold")
 @onready var bathala_hold_ring: Line2D = get_node_or_null("Bases/Bathala/Hold")
 @onready var status_label: Label = get_node_or_null("AgawanHud/Status")
-@onready var hint_label: Label = get_node_or_null("AgawanHud/Hint")
+@onready var hint_label: HintStrip = get_node_or_null("AgawanHud/Hint")
 @onready var callout_label: Label = get_node_or_null("AgawanHud/Callout")
 @onready var shocks_root: Node2D = get_node_or_null("Shocks")
 
@@ -359,6 +362,8 @@ func arena_rules_tick(delta: float) -> void:
 		god_node.speed_mult = wary_speed()
 		god_node.watch_target = _holder_pos
 		god_node.step(delta, live)
+		if _field.has_area():
+			god_node.global_position = god_node.global_position.clamp(_field.position + GOD_MARGIN, _field.end - GOD_MARGIN)
 		if god_node.is_frozen():
 			_frozen_gods[index] = god_node.freeze_left
 			continue
@@ -918,7 +923,40 @@ func _process(delta: float) -> void:
 	_shock_cd = maxf(0.0, _shock_cd - delta)
 	_refresh_lock()
 	_refresh_marks()
+	_keep_labels_inside()
 	_refresh_hud(delta)
+
+
+# Every name and countdown floating over the field stays inside it (and so on the
+# screen): a god at the field's edge has its tag slid back in, never cut off.
+func _keep_labels_inside() -> void:
+	if not _field.has_area():
+		return
+	var labels: Array = _mark_labels.values()  # placed afresh every frame by _refresh_marks
+	for god_node in _gods:
+		if not is_instance_valid(god_node):
+			continue
+		for label in [god_node.name_label, god_node.timer_label]:
+			if label == null:
+				continue
+			# a god's tags ride on the god: back to where the scene put them first
+			if not label.has_meta(&"home_x"):
+				label.set_meta(&"home_x", label.position.x)
+			label.position.x = float(label.get_meta(&"home_x"))
+			labels.append(label)
+	if pity_label != null:
+		labels.append(pity_label)
+	for label in labels:
+		if label == null or not is_instance_valid(label) or not label.visible:
+			continue
+		var rect: Rect2 = label.get_global_rect()
+		var shift := 0.0
+		if rect.position.x < _field.position.x:
+			shift = _field.position.x - rect.position.x
+		elif rect.end.x > _field.end.x:
+			shift = _field.end.x - rect.end.x
+		if shift != 0.0:
+			label.global_position.x += shift
 
 
 # Frozen means frozen, on every screen: while our id is frozen (or the field
@@ -1072,7 +1110,7 @@ func _refresh_hud(delta: float) -> void:
 		status_label.text = "%s     %s     ROUND %d%s" % [stance, swing, _round, judged]
 		status_label.add_theme_color_override("font_color", UITokens.god_text(god))
 	if hint_label != null:
-		hint_label.text = "CLICK - ATTACK (freeze a god / thaw an ally)     E / Q - FAVORS     F - GOD'S DUE"
+		hint_label.text = "%s FREEZE GODS, THAW ALLIES   %s" % [key_cap(&"attack"), favor_keys_hint()]
 	if callout_label != null and _callout_left > 0.0:
 		_callout_left -= delta
 		if _callout_left <= 0.0:

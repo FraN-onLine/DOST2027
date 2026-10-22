@@ -6,6 +6,19 @@ var _arena: TalaArena
 var _problems := 0
 
 
+# Tala on her route, up at the field's top edge - clear of a throw from the line
+# (read from the field, so it holds whatever size the arena is drawn at).
+func _tala_clear() -> Vector2:
+	return Vector2(_arena.tala.global_position.x, _arena._field.position.y + 10.0)
+
+
+# A spot behind the shooting line, level with the gap between two cans: a throw
+# straight right from here misses every can.
+func _lane() -> Vector2:
+	var gap := (_arena._cans[0].global_position.y + _arena._cans[1].global_position.y) * 0.5
+	return Vector2(_arena._shoot_x - 100.0, gap)
+
+
 func _initialize() -> void:
 	_run()
 
@@ -27,7 +40,7 @@ func _run() -> void:
 		_arena.dialogue.advance()
 	_arena._phase = Arena.Phase.PLAYING
 	_arena.player.set_lock(false)
-	_arena.player.global_position = Vector2(350, 420)
+	_arena.player.global_position = _lane()
 	_arena._update_local_bounds()
 
 	# --- Tala walks the route drawn for her in the scene ------------------------
@@ -58,7 +71,7 @@ func _run() -> void:
 	for can in _arena._cans:
 		can.visible = false
 	_arena._cans[1].visible = true
-	_arena.tala.global_position = Vector2(835, 270)
+	_arena.tala.global_position = _tala_clear()
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
@@ -93,11 +106,11 @@ func _run() -> void:
 	_check(_arena._modes.get(_arena._my_id) == "ready", "returning to the line restores throwing")
 	_check(is_equal_approx(_arena.player.bounds.end.x, _arena._shoot_x), "the barrier closes again at the shooting line")
 
-	_arena.player.global_position = Vector2(350, 420)
+	_arena.player.global_position = _lane()
 	_arena.rules.local().favor = 500
 	_arena._modes[_arena._my_id] = "ready"
 	_arena._local_mode = "ready"
-	_arena.tala.global_position = Vector2(380, 420)
+	_arena.tala.global_position = _lane() + Vector2(30, 0)
 	_arena._start_throw(_arena._my_id, Vector2.RIGHT)
 	_arena._move_slippers(0.02)
 	_check(_arena.rules.local().favor == 400, "Tala catching a slipper costs 100 FAVOR")
@@ -107,7 +120,7 @@ func _run() -> void:
 	# She keeps walking her route whatever you do; standing in it is no
 	# different from her grabbing your slipper: FAVOR lost, shoved back.
 	_arena._invuln.clear()
-	_arena.player.global_position = Vector2(350, 420)
+	_arena.player.global_position = _lane()
 	_arena.player._knockback = Vector2.ZERO
 	_arena.rules.local().favor = 500
 	_arena.tala.global_position = _arena.player.global_position
@@ -186,7 +199,8 @@ func _run() -> void:
 	_check(_gap_to_route(_arena.tala.global_position) <= 1.0,
 		"and back on her route when the host says the intercept is over")
 
-	_arena.tala.global_position = Vector2(835, 270)
+	_arena.tala.global_position = _tala_clear()
+	_arena.player.global_position = _lane()  # a throw that meets no can
 	_arena._local_mode = "ready"
 	_arena._modes[_arena._my_id] = "ready"
 	_arena.slipper_range = 2000.0

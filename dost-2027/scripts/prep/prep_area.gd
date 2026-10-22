@@ -63,7 +63,7 @@ const ALTAR_ICON_SIZE := 48.0  # the god on the altar, whatever size its icon is
 @onready var stall_hint: Label = $Camp/Stall/Hint
 @onready var next_label: Label = $PrepHud/Next
 @onready var ready_label: Label = $PrepHud/Ready
-@onready var hint_label: Label = $PrepHud/Hint
+@onready var hint_label: HintStrip = $PrepHud/Hint
 @onready var shop: Control = $PrepHud/Tindahan
 
 var rng: RandomNumberGenerator = null   # the run's own, handed over by the Game shell
@@ -130,8 +130,8 @@ func _paint_camp() -> void:
 	if next != null:
 		next_label.text = "NEXT: %s - %s" % [next.display_name.to_upper(), next.game_name.to_upper()]
 		next_label.add_theme_color_override("font_color", UITokens.god_text(next))
-	hint_label.text = "WASD - WALK     %s - GOD'S DUE / BOON     %s - READY     LEFT CLICK AT THE STALL - TINDAHAN" % [
-		UITokens.key_text(&"due_menu"), UITokens.key_text(&"ready_up")]
+	hint_label.text = "[WASD] WALK   %s GOD'S DUE / BOON   %s READY   %s TINDAHAN" % [
+		key_cap(&"due_menu"), key_cap(&"ready_up"), key_cap(&"attack")]
 
 
 # The follow camera's edge arrows: the altar and the stall, the two things to do.
@@ -379,6 +379,7 @@ func is_closed() -> bool:
 # own clock, the network plumbing the base offers, and this screen's HUD.
 
 func _process(delta: float) -> void:
+	_tick_field_dim()
 	if _authority:
 		if not _closed:
 			_time_left = maxf(0.0, _time_left - delta)
@@ -424,7 +425,7 @@ func _tag(mortal_id: int, body: ArenaMortal) -> void:
 	if _tags.get(mortal_id, "") == text:
 		return
 	_tags[mortal_id] = text
-	body.set_display_name(text, UITokens.JADE if is_ready(mortal_id) else UITokens.god_text(god))
+	body.set_display_name(text, UITokens.JADE if is_ready(mortal_id) else tag_color(mortal_id))
 
 
 # What every client needs from the host's rest besides the base's tick: who is

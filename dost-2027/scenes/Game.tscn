@@ -131,6 +131,20 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 show_percentage = false
 
+[node name="Empty" type="Label" parent="HudLayer/TopLeft/VBoxContainer/ERow/EBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_colors/font_color = Color(0.43529412, 0.47843137, 0.6, 1)
+text = "EMPTY - F AT GOD'S DUE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="QRow" type="HBoxContainer" parent="HudLayer/TopLeft/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 8
@@ -148,6 +162,20 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 show_percentage = false
+
+[node name="Empty" type="Label" parent="HudLayer/TopLeft/VBoxContainer/QRow/QBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_colors/font_color = Color(0.43529412, 0.47843137, 0.6, 1)
+text = "EMPTY - F AT GOD'S DUE"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="TrialRow" type="Label" parent="HudLayer/TopLeft/VBoxContainer"]
 visible = false
@@ -187,7 +215,7 @@ layout_mode = 0
 offset_left = 8.0
 offset_top = 224.0
 offset_right = 230.0
-offset_bottom = 640.0
+offset_bottom = 248.0
 theme_type_variation = &"PanelHud"
 
 [node name="Margin" type="MarginContainer" parent="HudLayer/OtherPlayersPanel" unique_id=1375121128]

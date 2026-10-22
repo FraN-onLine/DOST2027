@@ -538,11 +538,12 @@ func _refresh_state_label() -> void:
 	state_label.text = text
 
 
-# The two duel bars: the swing and the guard, each refilling over its own
+# The two duel bars, side by side in the band under the field (BODY text, so they
+# read at a glance): the swing and the guard, each refilling over its own
 # cooldown so the mortal can see when the next strike or block is ready.
 func _refresh_bars() -> void:
-	_fill_bar(strike_bar, "LEFT MOUSE  STRIKE", _strike_cd, strike_cooldown, Color(1.0, 0.85, 0.35))
-	_fill_bar(defend_bar, "RIGHT MOUSE  DEFEND", _defend_cd, defend_cooldown, Color(0.55, 0.8, 1.0))
+	_fill_bar(strike_bar, "%s  STRIKE" % UITokens.key_text(&"attack").to_upper(), _strike_cd, strike_cooldown, Color(1.0, 0.85, 0.35))
+	_fill_bar(defend_bar, "%s  DEFEND" % UITokens.key_text(&"defend").to_upper(), _defend_cd, defend_cooldown, Color(0.55, 0.8, 1.0))
 
 
 func _fill_bar(bar: PanelContainer, caption: String, cooldown: float, total: float, tint: Color) -> void:

@@ -3,7 +3,7 @@ extends PanelContainer
 
 # One FAVOR skill slot - the E slot on the left, the Q slot on the right.
 #   [E] [icon] name
-#   no favor bound to the slot -> an empty slot and "--"
+#   no favor bound to the slot -> an empty slot and "EMPTY - F AT GOD'S DUE"
 #   favor ready to use         -> the icon, bright, and its name
 #   favor on cooldown          -> a dark curtain over the icon that drains from
 #                                 the top down as the cooldown runs out, with
@@ -126,7 +126,7 @@ func _refresh_fill() -> void:
 
 func _refresh_text() -> void:
 	if favor == null:
-		text_label.text = "--"
+		text_label.text = "EMPTY - %s AT GOD'S DUE" % UITokens.key_text(&"due_menu").to_upper()
 		text_label.add_theme_color_override("font_color", UITokens.FAINT)
 		return
 	text_label.text = favor.display_name.to_upper()

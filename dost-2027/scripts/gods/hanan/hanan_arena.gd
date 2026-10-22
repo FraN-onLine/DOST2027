@@ -109,7 +109,7 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @onready var hold_prompt: Label = get_node_or_null("BarLayer/Bar/HoldPrompt")
 @onready var status_label: Label = get_node_or_null("HananHud/Status")
 @onready var callout_label: Label = get_node_or_null("HananHud/Callout")
-@onready var hint_label: Label = get_node_or_null("HananHud/Hint")
+@onready var hint_label: HintStrip = get_node_or_null("HananHud/Hint")
 
 var _vault_state := Vault.RUN
 var _level := 1
@@ -563,8 +563,8 @@ func _refresh_hud(delta: float) -> void:
 		status_label.text = "LEVEL %d  %s     COMBO x%.2f     CLEAN %d  TRIPS %d" % [
 			_level, level_name(), _combo, _clean_total, _trips]
 	if hint_label != null:
-		hint_label.text = "HOLD LEFT CLICK - RISE    RELEASE - FALL    KEEP THE JUMP IN THE BOX" if in_vault \
-			else "RUN INTO THE BAKA - LEAP OVER IT    E / Q - FAVORS    F - GOD'S DUE"
+		hint_label.text = "HOLD %s TO RISE   LET GO TO FALL   KEEP THE JUMP IN THE BOX" % key_cap(&"attack") if in_vault \
+			else "RUN INTO THE BAKA TO LEAP   %s" % favor_keys_hint()
 	# Over the Moon shakes the field and the bar - never the labels, which must
 	# stay readable - unless the player turned shaking off.
 	var shake := Vector2.ZERO

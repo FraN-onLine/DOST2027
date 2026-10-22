@@ -78,8 +78,7 @@ func _ready() -> void:
 	if _networked:
 		Network.dialogue_released.connect(_on_released)
 	dialogue = DIALOGUE_SCENE.instantiate()
-	add_child(dialogue)
-	dialogue.dim.visible = false  # the art is the point of this scene
+	add_child(dialogue)  # it draws no shade of its own: the art is the point of this scene
 	_set_stage()
 	skip_hint.visible = can_skip
 	skip_hint.text = "HOLD %s OR PRESS ESC TO SKIP" % UITokens.key_text(&"advance_dialogue")
