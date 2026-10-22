@@ -27,7 +27,7 @@ const BATHALA := &"bathala"
 # The God Games' own name: the title screen and the finale read these, so the
 # branding lives in exactly one place. They mirror the Bathala resource.
 const GAME_TITLE := "BATHALA"
-const GAME_SUBTITLE := "Ang Laro ng mga diyos"
+const GAME_SUBTITLE := "Ang Laro ng mga Diyos"
 const GAME_ALT_NAME := "Bathala: the God Games"
 const GAME_PROLOGUE := "Bathala took the dearest of the mortals, convince him that they are ought to be released by getting FAVOR from God's challenges."
 

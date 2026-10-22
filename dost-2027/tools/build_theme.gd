@@ -496,6 +496,7 @@ func _tabs() -> void:
 		theme.set_color("font_hovered_color", type, UITokens.IVORY)
 		theme.set_color("font_disabled_color", type, UITokens.FAINT)
 		theme.set_font("font", type, spaced)
+		theme.set_font_size("font_size", type, UITokens.BODY)
 	theme.set_stylebox("panel", "TabContainer", _box(UITokens.NIGHT_800, UITokens.LINE, {"margin": Vector4(16, 16, 16, 16)}))
 	theme.set_stylebox("tabbar_background", "TabContainer", _empty())
 	theme.set_constant("side_margin", "TabContainer", 0)
@@ -559,12 +560,13 @@ func _diamond_icon(border: Color, pip: Color) -> ImageTexture:
 
 # 32x16 toggle: the knob sits left (off) or right on a gold track (on).
 func _toggle_icon(on: bool, disabled: bool) -> ImageTexture:
-	var image := _image(Vector2i(32, 16))
+	# Drawn on a 32x16 grid, doubled: the switch is 64x32, a clickable size.
+	var image := _image(Vector2i(64, 32))
 	var border := UITokens.NIGHT_600 if disabled else (UITokens.GOLD_LO if on else UITokens.LINE)
-	image.fill_rect(Rect2i(0, 0, 32, 16), border)
-	image.fill_rect(Rect2i(2, 2, 28, 12), (UITokens.NIGHT_700 if disabled else Color("#5C4718")) if on else UITokens.NIGHT_900)
+	image.fill_rect(Rect2i(0, 0, 64, 32), border)
+	image.fill_rect(Rect2i(4, 4, 56, 24), (UITokens.NIGHT_700 if disabled else Color("#5C4718")) if on else UITokens.NIGHT_900)
 	var knob := UITokens.FAINT if disabled else (UITokens.GOLD if on else UITokens.MUTED)
-	image.fill_rect(Rect2i(18 if on else 4, 4, 10, 8), knob)
+	image.fill_rect(Rect2i(36 if on else 8, 8, 20, 16), knob)
 	return _texture(image)
 
 

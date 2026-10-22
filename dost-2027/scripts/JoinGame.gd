@@ -8,16 +8,16 @@ extends Control
 const SEARCH_TEXT := "Searching your network"
 const DOT_SECONDS := 0.6
 
-@onready var host_list = $CenterContainer/Columns/NetworkCard/VBox/List/HostListScroll
-@onready var host_list_vbox = $CenterContainer/Columns/NetworkCard/VBox/List/HostListScroll/HostListVBox
-@onready var no_hosts_label = $CenterContainer/Columns/NetworkCard/VBox/List/NoHostsLabel
-@onready var refresh_button = $CenterContainer/Columns/NetworkCard/VBox/SearchRow/RefreshButton
-@onready var back_button = $BackButton
-@onready var status_label = $StatusLabel
-@onready var search_spinner = $CenterContainer/Columns/NetworkCard/VBox/SearchRow/SearchLabel
-@onready var name_input = $CenterContainer/Columns/FormCard/VBox/NameInput
-@onready var lobby_id_input = $CenterContainer/Columns/FormCard/VBox/LobbyIdInput
-@onready var join_lobby_button = $CenterContainer/Columns/FormCard/VBox/JoinLobbyButton
+@onready var host_list = $CenterContainer/Stack/Columns/NetworkCard/VBox/List/HostListScroll
+@onready var host_list_vbox = $CenterContainer/Stack/Columns/NetworkCard/VBox/List/HostListScroll/HostListVBox
+@onready var no_hosts_label = $CenterContainer/Stack/Columns/NetworkCard/VBox/List/NoHostsLabel
+@onready var refresh_button = $CenterContainer/Stack/Columns/NetworkCard/VBox/SearchRow/RefreshButton
+@onready var back_button = $CenterContainer/Stack/BackButton
+@onready var status_label = $CenterContainer/Stack/StatusLabel
+@onready var search_spinner = $CenterContainer/Stack/Columns/NetworkCard/VBox/SearchRow/SearchLabel
+@onready var name_input = $CenterContainer/Stack/Columns/FormCard/VBox/NameInput
+@onready var lobby_id_input = $CenterContainer/Stack/Columns/FormCard/VBox/LobbyIdInput
+@onready var join_lobby_button = $CenterContainer/Stack/Columns/FormCard/VBox/JoinLobbyButton
 
 var host_items := {}  # host_key -> PanelContainer (one row card)
 var _search_timer: Timer

@@ -43,56 +43,60 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Card" type="PanelContainer" parent="CenterContainer"]
+[node name="Stack" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Card" type="PanelContainer" parent="CenterContainer/Stack"]
 custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
 theme_type_variation = &"PanelCard"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Card" unique_id=1765284076]
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Stack/Card" unique_id=1765284076]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/Card/VBoxContainer" unique_id=1918956082]
+[node name="TitleLabel" type="Label" parent="CenterContainer/Stack/Card/VBoxContainer" unique_id=1918956082]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
 text = "HOST GAME"
 horizontal_alignment = 1
 
-[node name="SubtitleLabel" type="Label" parent="CenterContainer/Card/VBoxContainer" unique_id=803097319]
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/Stack/Card/VBoxContainer" unique_id=803097319]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
 text = "On LAN - others can join automatically"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="FieldGap" type="Control" parent="CenterContainer/Card/VBoxContainer"]
+[node name="FieldGap" type="Control" parent="CenterContainer/Stack/Card/VBoxContainer"]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="NameLabel" type="Label" parent="CenterContainer/Card/VBoxContainer" unique_id=661839950]
+[node name="NameLabel" type="Label" parent="CenterContainer/Stack/Card/VBoxContainer" unique_id=661839950]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
 text = "YOUR NAME"
 
-[node name="NameInput" type="LineEdit" parent="CenterContainer/Card/VBoxContainer" unique_id=852490383]
+[node name="NameInput" type="LineEdit" parent="CenterContainer/Stack/Card/VBoxContainer" unique_id=852490383]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 placeholder_text = "Enter your name..."
 max_length = 16
 
-[node name="ActionGap" type="Control" parent="CenterContainer/Card/VBoxContainer"]
+[node name="ActionGap" type="Control" parent="CenterContainer/Stack/Card/VBoxContainer"]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="StartButton" type="Button" parent="CenterContainer/Card/VBoxContainer" unique_id=207929624]
+[node name="StartButton" type="Button" parent="CenterContainer/Stack/Card/VBoxContainer" unique_id=207929624]
 custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "START HOSTING"
 
-[node name="StatusLabel" type="Label" parent="CenterContainer/Card/VBoxContainer" unique_id=2132691186]
+[node name="StatusLabel" type="Label" parent="CenterContainer/Stack/Card/VBoxContainer" unique_id=2132691186]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
@@ -100,16 +104,9 @@ text = "Enter your name to host a game"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="BackButton" type="Button" parent="." unique_id=1902135896]
+[node name="BackButton" type="Button" parent="CenterContainer/Stack"]
 custom_minimum_size = Vector2(120, 32)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -58.0
-offset_right = 144.0
-offset_bottom = -24.0
-grow_vertical = 0
+layout_mode = 2
+size_flags_horizontal = 4
 theme_type_variation = &"GhostButton"
 text = "BACK"

@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
 [ext_resource type="Texture2D" uid="uid://xmn5bukabvk7" path="res://Assets/Gods/Hanan/hanan_portrait.png" id="3_ftwwg"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
+[ext_resource type="Texture2D" uid="uid://dllasu0kwonv1" path="res://Assets/Gods/Hanan/Hanan-Icon.png" id="god_icon"]
 
 [sub_resource type="Resource" id="Favor_the_dawn"]
 script = ExtResource("1_favor")
@@ -103,7 +104,7 @@ id = &"hanan"
 display_name = "HANAN"
 epithet = "Goddess of the Morning"
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("god_icon")
 game_name = "LUKSONG BAKA"
 game_blurb = "Run into Hanan's Baka and hold left click to leap over it - release and you fall. Keep your jump inside the glowing box while it drifts: a clean vault lands you on the other side and feeds your combo, then turn and vault back. Slip out of the box and you trip."
 arena_scene = "res://scenes/gods/hanan/HananArena.tscn"

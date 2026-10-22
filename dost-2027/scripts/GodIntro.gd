@@ -1,6 +1,6 @@
 extends Control
 
-# BATHALA - Ang Laro ng mga diyos (the God Games).
+# BATHALA - Ang Laro ng mga Diyos (the God Games).
 # Title / story screen that leads into the first god's arena.
 
 const FALLBACK_ARENA := "res://scenes/Game.tscn"

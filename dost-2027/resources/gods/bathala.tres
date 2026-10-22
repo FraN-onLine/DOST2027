@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_god"]
 [ext_resource type="Texture2D" uid="uid://celskxwofnwhk" path="res://Assets/Gods/Bathala/bathala_portrait.png" id="3_a85m2"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="3_icon"]
+[ext_resource type="Texture2D" uid="uid://b26qqttlr3nlh" path="res://Assets/Gods/Bathala/Bathala-Icon.png" id="god_icon"]
 
 [sub_resource type="Resource" id="Favor_partnership_mayari"]
 script = ExtResource("1_favor")
@@ -100,9 +101,9 @@ params = {
 script = ExtResource("2_god")
 id = &"bathala"
 display_name = "BATHALA"
-epithet = "Ang Laro ng mga diyos"
+epithet = "Ang Laro ng mga Diyos"
 color = Color(0.3, 0.31, 0.36, 1)
-icon = ExtResource("3_icon")
+icon = ExtResource("god_icon")
 game_name = "AGAWAN BASE"
 game_blurb = "Bathala watches all. Two bases, yours and his, split by a common field. Tag the gods who hunt you - the same swing thaws a frozen ally - and hold his base to catch it. Do not let them touch yours."
 arena_scene = "res://scenes/gods/bathala/BathalaArena.tscn"

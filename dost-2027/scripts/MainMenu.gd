@@ -29,12 +29,12 @@ func _ready():
 	Network.connected.connect(_on_network_connected)
 
 	_brand_title()
-	status_label.text = "Ready to play!"
+	status_label.text = "LAN multiplayer"
 	# Keyboard and pad players start on the primary action.
 	host_button.grab_focus()
 
 
-# BATHALA / Ang Laro ng mga diyos - straight out of the registry, never typed
+# BATHALA / Ang Laro ng mga Diyos - straight out of the registry, never typed
 # twice. The colours are the theme's (HeroLabel gold), not Bathala's raw grey.
 func _brand_title() -> void:
 	title_label.text = Gods.GAME_TITLE
