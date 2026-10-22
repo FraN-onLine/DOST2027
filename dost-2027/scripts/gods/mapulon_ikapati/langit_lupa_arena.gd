@@ -124,11 +124,12 @@ const GOD_TAYA := -2
 # The gods' look (see THE GODS' LOOK): the overseer sheet's frames, the figure's
 # height inside a frame (the sheet cuts her off at the waist, so the frame's bottom
 # is her "feet"), and a mortal's height and the line its feet stand on, measured
-# from the mortal's position (Lamang-Sheet.png at Mortal.tscn's scale).
+# from the mortal's position (lam-ang.png at Mortal.tscn's scale; the feet are
+# Mortal.tscn's Shadow line).
 const GOD_SHEET := "IkapatiOverseer-Sheet.png"
 const GOD_FRAME := Vector2i(130, 99)
 const GOD_ART_HEIGHT := 88.0
-const MORTAL_HEIGHT := 58.0
+const MORTAL_HEIGHT := 78.0
 const MORTAL_FEET := 17.0
 const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are Taya first!"
 
@@ -200,7 +201,7 @@ const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are
 @export var god_hunt_speed := 230.0      # their walk while hunting
 @export var god_leave_time := 0.8        # seconds the gods take to fade out after their tag
 @export var god_tag_line := "MAPULON: \"IKAW NA!\""
-@export var god_height := 87.0           # px the god body stands (a mortal is 58)
+@export var god_height := 87.0           # px the god body stands (a mortal is 78)
 @export var god_puff_time := 0.35        # seconds the god body takes to pop in at GO
 
 @onready var langits_root: Node2D = get_node_or_null("ArenaField/Langits")

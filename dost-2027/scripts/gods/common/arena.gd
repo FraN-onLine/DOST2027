@@ -192,6 +192,9 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var dash_distance := 110.0
 @export var dash_time := 0.15
 @export var dash_cooldown := 1.6
+# A SPACE pressed this many seconds early (still recharging, stunned, mid-dash)
+# is kept and fires the moment the dash is ready, instead of being dropped.
+@export var dash_buffer := 0.12
 
 @export_category("Knockback")
 # What a hit does to a mortal: no control for this long, shoved at this speed.
@@ -303,6 +306,7 @@ var _movement_override_caster := -1
 var _movement_override_time := 0.0
 var _double_loss_seen: Dictionary = {}  # what the host last said about doubled losses (a client's copy, for the HUD)
 var _dash_cd := 0.0
+var _dash_buffered := 0.0  # seconds a too-early SPACE still waits (see dash_buffer)
 # The impact currently running on THIS screen: seconds left of the field's
 # shake and of the flash, plus the numbers they fade over (see _shake_screen).
 var _shake_left := 0.0
@@ -650,6 +654,10 @@ func _process(delta: float) -> void:
 	_tick_shake(delta)
 	_tick_flash(delta)
 	_dash_cd = maxf(0.0, _dash_cd - delta)
+	if _dash_buffered > 0.0:
+		_dash_buffered = maxf(0.0, _dash_buffered - delta)
+		if try_dash():  # every refusal still applies: it only fires once one would
+			_dash_buffered = 0.0
 
 
 func _tick_trial(delta: float) -> void:
@@ -2484,7 +2492,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif dash_enabled and event.is_action_pressed("dash"):
 				# SPACE is also advance_dialogue: during play it only ever dashes.
 				viewport.set_input_as_handled()
-				try_dash()
+				if not try_dash() and not player.locked:
+					_dash_buffered = dash_buffer
 		Phase.RESULTS:
 			if event.is_action_pressed("advance_dialogue"):
 				viewport.set_input_as_handled()

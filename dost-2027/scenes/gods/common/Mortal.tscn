@@ -178,9 +178,65 @@ radius = 46.0
 [sub_resource type="CircleShape2D" id="CircleShape2D_af5nn"]
 radius = 24.0
 
+[sub_resource type="Gradient" id="Gradient_shadow"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0, 0, 0, 0.35, 0, 0, 0, 0.28, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_shadow"]
+gradient = SubResource("Gradient_shadow")
+width = 32
+height = 32
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="Gradient" id="Gradient_dust"]
+colors = PackedColorArray(1, 1, 1, 0.8, 1, 1, 1, 0)
+
 [node name="Mortal" type="CharacterBody2D" unique_id=680107735]
 motion_mode = 1
 script = ExtResource("1_mortal")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+position = Vector2(0, 17)
+scale = Vector2(1.1, 0.34)
+texture = SubResource("GradientTexture2D_shadow")
+
+[node name="Dust" type="CPUParticles2D" parent="."]
+position = Vector2(0, 17)
+emitting = false
+amount = 5
+lifetime = 0.32
+one_shot = true
+explosiveness = 1.0
+local_coords = false
+emission_shape = 3
+emission_rect_extents = Vector2(8, 1)
+direction = Vector2(0, -1)
+spread = 60.0
+gravity = Vector2(0, 40)
+initial_velocity_min = 10.0
+initial_velocity_max = 30.0
+damping_min = 40.0
+damping_max = 60.0
+scale_amount_min = 2.0
+scale_amount_max = 4.0
+color = Color(0.62, 0.5, 0.36, 0.75)
+color_ramp = SubResource("Gradient_dust")
+
+[node name="Afterimages" type="Node2D" parent="."]
+
+[node name="Afterimage1" type="Sprite2D" parent="Afterimages"]
+visible = false
+
+[node name="Afterimage2" type="Sprite2D" parent="Afterimages"]
+visible = false
+
+[node name="Afterimage3" type="Sprite2D" parent="Afterimages"]
+visible = false
+
+[node name="Afterimage4" type="Sprite2D" parent="Afterimages"]
+visible = false
 
 [node name="Glow" type="Sprite2D" parent="." unique_id=1591973812]
 visible = false
@@ -191,7 +247,7 @@ texture = ExtResource("2_icon")
 
 [node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=348660814]
 material = SubResource("ShaderMaterial_bandana")
-position = Vector2(-9.536743e-07, -13)
+position = Vector2(0, -31.5)
 scale = Vector2(1.7078125, 1.6453125)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
 animation = &"hit-arnis"
@@ -213,9 +269,9 @@ metadata/_edit_lock_ = true
 
 [node name="NameTag" type="Label" parent="." unique_id=345467521]
 offset_left = -48.0
-offset_top = -55.0
+offset_top = -81.0
 offset_right = 72.0
-offset_bottom = -32.0
+offset_bottom = -58.0
 scale = Vector2(0.80199254, 0.77494526)
 theme_type_variation = &"WorldLabel"
 text = "MORTAL"
@@ -224,8 +280,15 @@ horizontal_alignment = 1
 [node name="FloatingStatus" type="Label" parent="." unique_id=638494987]
 visible = false
 offset_left = -90.0
-offset_top = -70.0
+offset_top = -96.0
 offset_right = 90.0
-offset_bottom = -48.0
+offset_bottom = -74.0
 theme_type_variation = &"WorldValue"
 horizontal_alignment = 1
+
+[node name="Steps" type="AudioStreamPlayer2D" parent="."]
+position = Vector2(0, 17)
+bus = &"SFX"
+
+[node name="Whoosh" type="AudioStreamPlayer2D" parent="."]
+bus = &"SFX"
