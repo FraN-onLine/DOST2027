@@ -215,7 +215,6 @@ const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are
 @onready var god_overseer: AnimatedSprite2D = get_node_or_null("ArenaField/GodOverSeer")
 @onready var background: Sprite2D = get_node_or_null("Background")
 @onready var bots_root: Node2D = get_node_or_null("Bots")
-@onready var taya_list: Label = get_node_or_null("LangitHud/TayaList")
 @onready var status_label: Label = get_node_or_null("LangitHud/Status")
 @onready var callout_label: Label = get_node_or_null("LangitHud/Callout")
 @onready var hint_label: Label = get_node_or_null("LangitHud/Hint")
@@ -282,12 +281,6 @@ func _ready() -> void:
 	if fixed_trial_time > 0.0:
 		trial_time = fixed_trial_time
 	super._ready()
-	# The TAYA list lives in the HUD's top-right column, under the effect timers, so the
-	# two never cover each other whichever has rows.
-	if taya_list != null and hud != null:
-		taya_list.reparent(hud.top_right, false)
-		taya_list.custom_minimum_size.x = 250.0
-		taya_list.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_spawn_bots()
 	_spawn_god()
 	var lupa_rule := get_node_or_null("LangitHud/RulesCard/Lines/Lupa") as Label
@@ -653,6 +646,31 @@ func _bank_drain(everything := false) -> void:
 
 func taya_seconds(mortal_id: int) -> float:
 	return float(_taya_time.get(mortal_id, 0.0))
+
+
+# TIME AS TAYA, in each player's panel on the left strip: their time as `M:SS`, the
+# Taya's row in the Taya colour, and - once anyone has held it - the least time (the
+# one that pays most; ties within tie_window share it) in gold with a #1.
+func panel_row(mortal_id: int) -> Dictionary:
+	if rules == null or rules.mortal(mortal_id) == null:
+		return {}
+	var seconds := taya_seconds(mortal_id)
+	var best := INF
+	for id in rules.mortals.keys():
+		best = minf(best, taya_seconds(int(id)))
+	var text := "TAYA %d:%02d" % [int(seconds / 60.0), int(seconds) % 60]
+	var tint := UITokens.IVORY
+	if best > 0.0 or seconds > 0.0:
+		if seconds - best <= tie_window:
+			text += "  #1"
+			tint = UITokens.GOLD
+	if mortal_id == _taya:
+		tint = TAYA_COLOR
+	return {"text": text, "tint": tint}
+
+
+func strip_note() -> String:
+	return "%s ARE TAYA" % god.display_name.to_upper() if _taya == GOD_TAYA else ""
 
 
 # The Taya can never stand on a Langit: anything inside one is put back on the
@@ -1560,15 +1578,6 @@ func _refresh_hud(delta: float) -> void:
 		rules_card.visible = first_visit and _phase == Phase.COUNTDOWN
 	if taya_tip != null:
 		taya_tip.visible = _taya_tip_left > 0.0 and _taya == _my_id
-	if taya_list != null:
-		var ids: Array = rules.mortals.keys()
-		ids.sort_custom(func(a, b): return taya_seconds(int(a)) < taya_seconds(int(b)))
-		var rows: Array[String] = ["TIME AS TAYA"]
-		if _taya == GOD_TAYA:
-			rows.append("> %s" % god.display_name)
-		for id in ids:
-			rows.append("%s%s  %.1fs" % ["> " if int(id) == _taya else "", mortal_label(int(id)), taya_seconds(int(id))])
-		taya_list.text = "\n".join(rows)
 	var taya_at := taya_position()
 	if status_label != null:
 		var dash := "DASH READY" if dash_cooldown_left() <= 0.0 else "DASH %.1fs" % dash_cooldown_left()

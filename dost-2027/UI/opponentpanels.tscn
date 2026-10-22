@@ -89,6 +89,14 @@ size_flags_horizontal = 3
 tooltip_text = "Q  --"
 show_percentage = false
 
+[node name="TrialRow" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "TRIAL"
+clip_text = true
+text_overrun_behavior = 3
+
 [node name="PamanaRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 visible = false
 layout_mode = 2

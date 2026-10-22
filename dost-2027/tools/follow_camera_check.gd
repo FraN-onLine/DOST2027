@@ -19,7 +19,7 @@ extends SceneTree
 # Run: godot --headless --path <project> -s res://tools/follow_camera_check.gd
 
 const SCREEN := Vector2(1152.0, 648.0)
-const HUD_FIELDS := ["status_label", "hint_label", "callout_label", "attack_bar", "taya_list", "rules_card",
+const HUD_FIELDS := ["status_label", "hint_label", "callout_label", "attack_bar", "rules_card",
 	"next_label", "ready_label", "shop", "bar"]
 
 var _problems := 0

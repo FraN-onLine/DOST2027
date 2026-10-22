@@ -755,6 +755,18 @@ func mortal_entries() -> Array:
 	return entries
 
 
+# A line a trial puts in a player's panel on the shell's left strip (yours and every
+# rival's), or {} for none: {"text": String, "tint": Color}. Game reads it each frame
+# for every mortal.
+func panel_row(_mortal_id: int) -> Dictionary:
+	return {}
+
+
+# A small line a trial puts at the top of the rivals' column ("" for none).
+func strip_note() -> String:
+	return ""
+
+
 func mortal_label(mortal_id: int) -> String:
 	var mortal := rules.mortal(mortal_id)
 	return mortal.display_name if mortal != null else "Mortal"
