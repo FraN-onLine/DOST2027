@@ -18,7 +18,7 @@ extends RefCounted
 # the card Body. The body rests 2 px low; hovering lifts it 1 px and selecting
 # lifts it the full 2 px with a gold ring - the card is "picked up".
 
-const PLACEHOLDER_ICON := preload("res://icon.svg")
+const PLACEHOLDER_ICON := preload("res://Assets/Placeholders/favor.png")
 const LIFT := 2.0
 const LIFT_TIME := 0.1
 

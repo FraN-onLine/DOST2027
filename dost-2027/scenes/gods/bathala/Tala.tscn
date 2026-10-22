@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://tala001"]
 
 [ext_resource type="Script" uid="uid://tala_script" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
-[ext_resource type="Texture2D" uid="uid://tala_icon" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/god.png" id="2_icon"]
 
 [node name="Tala" type="Node2D" unique_id=1701970278]
 script = ExtResource("1_god")

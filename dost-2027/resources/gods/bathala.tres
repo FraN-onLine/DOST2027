@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_god"]
 [ext_resource type="Texture2D" uid="uid://celskxwofnwhk" path="res://Assets/Gods/Bathala/bathala_portrait.png" id="3_a85m2"]
-[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="3_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="3_icon"]
 
 [sub_resource type="Resource" id="Favor_partnership_mayari"]
 script = ExtResource("1_favor")

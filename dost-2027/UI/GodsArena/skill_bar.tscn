@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://csk1llbar0001"]
 
 [ext_resource type="Script" path="res://UI/GodsArena/skill_bar.gd" id="1_bar"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="2_icon"]
 
 [node name="SkillBar" type="PanelContainer"]
 custom_minimum_size = Vector2(190, 48)

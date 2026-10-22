@@ -20,7 +20,7 @@ extends PanelContainer
 
 signal dismissed
 
-const PLACEHOLDER_ICON := preload("res://icon.svg")
+const PLACEHOLDER_ICON := preload("res://Assets/Placeholders/favor.png")
 
 @onready var key_label: Label = $Row/Key
 @onready var icon: TextureRect = $Row/Icon

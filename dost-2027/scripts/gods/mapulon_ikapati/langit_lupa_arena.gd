@@ -808,6 +808,7 @@ func _break_chant() -> void:
 	_chant_broken = _chant_step
 	_broken_time = broken_show_time
 	_root_left = chant_fail_stun
+	announce_stun(_taya, chant_fail_stun)  # the Taya stumbles: stars over their head
 	_chant_cd = chant_cooldown
 
 
@@ -872,6 +873,7 @@ func _tick_swaps(delta: float) -> void:
 func _shove(mortal_id: int, from: Vector2) -> void:
 	if _bots.has(mortal_id):
 		var bot: ArenaMortal = _bots[mortal_id]
+		hit_effects(bot.global_position, bot.global_position - from)
 		bot.hit(bot.global_position - from, shove_stun, shove_force)
 	else:
 		knock_mortal(mortal_id, from, shove_stun, shove_force)

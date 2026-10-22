@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dwhxsrh6kuqbg" path="res://scenes/gods/mayari/MayariGoal.tscn" id="4_goal"]
 [ext_resource type="Texture2D" uid="uid://d3vr2n1evain" path="res://Assets/Gods/Mayari/MayariOverseer-Sheet.png" id="4_qvw0k"]
 [ext_resource type="PackedScene" uid="uid://svxrl6j6aa6k" path="res://scenes/gods/mayari/MayariClone.tscn" id="5_clone"]
-[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="7_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/attack.png" id="7_icon"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_wlxev"]
 atlas = ExtResource("4_qvw0k")

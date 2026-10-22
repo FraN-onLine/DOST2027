@@ -7,7 +7,7 @@ extends CharacterBody2D
 # interrupts them.
 #
 # Every visual lives in Mortal.tscn (Shadow, Dust, Afterimages, Glow, Sprite,
-# NameTag, FloatingStatus, and the Steps / Whoosh sound slots) - this script
+# StunStars, NameTag, FloatingStatus, and the Steps / Whoosh sound slots) - this script
 # never draws and never builds nodes on the fly. (The one thing it gives each
 # mortal is its own copy of the Sprite's bandana material, below.) Sprite is an
 # AnimatedSprite2D and carries the authored clips (the idle, the walk, plus the
@@ -57,6 +57,8 @@ extends CharacterBody2D
 @export var lean_degrees := 5.0     # tilt towards the way it walks, at full speed
 @export var squash := 0.05          # the hop's stretch / squash (scale fraction)
 @export var hit_stop := 0.06        # s the sprite freezes on a hit (only with screen shake on)
+@export var stun_star_orbit := Vector2(16.0, 5.0)  # px: how wide / deep the stars circle the head
+@export var stun_star_speed := 7.0  # rad/s
 # A mortal nobody here steers (a ghost, a bot) "dashed" when it was seen going
 # this many times move_speed. Ghosts can't hear a dash, only see it - and the
 # glide they get (Arena.ghost_smoothing) shows a 733 px/s dash at ~575 px/s, a
@@ -79,6 +81,11 @@ var bandana_index := 0
 var facing := 1
 
 var _stun := 0.0
+# Seconds the stars still circle the head. Look only: hit() sets it with the stun, and
+# an arena sets it (show_stun) for a mortal it can't hit() here - a ghost - or one that
+# is stumbling without being shoved (a broken chant).
+var _stun_fx := 0.0
+var _stun_angle := 0.0
 var _knockback := Vector2.ZERO
 var _forced_move_time := 0.0
 var _forced_move_direction := Vector2.ZERO
@@ -136,6 +143,7 @@ const LEGACY_CLIPS: Array[StringName] = [&"defend-arnis"]  # still on Lamang-She
 const TURN_DOT := -0.17          # cos(100°): input this far from the velocity turns back
 const JUMP := 48.0               # px in one physics frame: a respawn or a snap, not a walk
 const VISUAL_SMOOTHING := 18.0
+const STUN_FX_MIN := 0.3         # a 0.2s stun still shows its stars long enough to read
 const TRAIL_TIME := 0.15         # the dash's length: one afterimage per TRAIL_GAP of it
 const TRAIL_GAP := 0.04
 const TRAIL_LIFE := 0.25
@@ -148,6 +156,7 @@ const KICK_DAMPING := 21.0
 @onready var shadow: Sprite2D = $Shadow
 @onready var dust: CPUParticles2D = $Dust
 @onready var afterimages: Node2D = $Afterimages
+@onready var stun_stars: Node2D = $StunStars
 @onready var steps: AudioStreamPlayer2D = $Steps
 @onready var whoosh: AudioStreamPlayer2D = $Whoosh
 @onready var name_tag: Label = $NameTag
@@ -221,6 +230,7 @@ func stun_left() -> float:
 # keeps flying, so nothing here can drift from what the other screens see.
 func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:
 	_stun = maxf(_stun, stun_time)
+	show_stun(stun_time)
 	_knockback = direction.normalized() * force
 	_flash = 0.35
 	_hit_direction = direction.normalized()
@@ -228,6 +238,11 @@ func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:
 	_hit_flash = 1.0
 	if _setting("screen_shake_enabled"):
 		_hit_stop = hit_stop
+
+
+# The stars over the head for `seconds` (at least STUN_FX_MIN); nothing moves.
+func show_stun(seconds: float) -> void:
+	_stun_fx = maxf(_stun_fx, maxf(seconds, STUN_FX_MIN))
 
 
 func force_movement(direction: Vector2, duration: float) -> void:
@@ -425,6 +440,7 @@ func _physics_process(delta: float) -> void:
 
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
+	_update_stun_stars(delta)
 	if glow != null:
 		var hit_alpha := 0.35 if _setting("reduce_flashing") else 0.7  # steady tint instead of a bright flash
 		var glow_alpha := 0.25 if _flash <= 0.0 else hit_alpha
@@ -436,6 +452,24 @@ func _physics_process(delta: float) -> void:
 		floating_text.modulate.a = clampf(_floating_time, 0.0, 1.0)
 		if _floating_time <= 0.0:
 			floating_text.visible = false
+
+
+# Three stars circling the head while _stun_fx runs (the sprite hidden - Langit Lupa's
+# gods - hides them too). One ellipse seen from the side: the far ones are smaller.
+func _update_stun_stars(delta: float) -> void:
+	if stun_stars == null:
+		return
+	_stun_fx = maxf(0.0, _stun_fx - delta)
+	stun_stars.visible = _stun_fx > 0.0 and sprite != null and sprite.visible
+	if not stun_stars.visible:
+		return
+	_stun_angle += delta * stun_star_speed
+	for index in range(stun_stars.get_child_count()):
+		var star := stun_stars.get_child(index) as Sprite2D
+		var angle := _stun_angle + TAU * index / stun_stars.get_child_count()
+		star.position = Vector2(cos(angle) * stun_star_orbit.x, sin(angle) * stun_star_orbit.y)
+		star.scale = Vector2.ONE * (0.3 + 0.08 * sin(angle))
+		star.rotation = angle
 
 
 # The player's own walk: towards the held direction at `accel` (`turn_accel` when

@@ -7,7 +7,7 @@ extends SceneTree
 # Run: godot --headless --path <project> -s res://tools/build_pamana.gd
 
 const OUT_DIR := "res://resources/pamana"
-const ICON := "res://icon.svg"  # placeholder art until the real icons arrive
+const ICON := "res://Assets/Placeholders/favor.png"  # placeholder art until the real icons arrive
 
 const ITEMS := [
 	{

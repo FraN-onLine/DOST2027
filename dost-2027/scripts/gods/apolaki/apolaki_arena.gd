@@ -312,6 +312,7 @@ func _resolve_strike() -> void:
 		# CLASH: his guard holds, but the blow lands on it - he braces back a
 		# step, the field rings once and the screen gives a white flicker.
 		duelist.hit_from(player.global_position, block_knock_force)
+		hit_effects(duelist.global_position, duelist.global_position - player.global_position)
 		_shake_screen(block_shake_time, 0.55)
 		_flash_screen(Color(1.0, 1.0, 1.0), 0.16)
 	else:
@@ -325,6 +326,7 @@ func _resolve_strike() -> void:
 		score_favor(favor_gain, god.display_name)
 		_log("Strike landed: +%d FAVOR" % favor_gain, Color(0.7, 1, 0.8))
 		duelist.hit_from(player.global_position, strike_knock_force)
+		hit_effects(duelist.global_position, duelist.global_position - player.global_position)
 		_shake_screen(strike_shake_time)
 		_flash_screen(Color(1.0, 0.95, 0.78), 0.28)
 

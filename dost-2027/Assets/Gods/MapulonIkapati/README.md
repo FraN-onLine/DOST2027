@@ -8,7 +8,7 @@ is needed.
 
 | File | What it is | Used by | Fallback when missing |
 |---|---|---|---|
-| `MapulonIkapati-Icon.png` | the pair's portrait, 64 x 64 px like `Assets/Gods/Tala/Tala-Icon.png` | lobby god icon, sidebars, God's Due menu, Almanac | `res://icon.svg` (see the note below) |
+| `MapulonIkapati-Icon.png` | the pair's portrait, 64 x 64 px like `Assets/Gods/Tala/Tala-Icon.png` | lobby god icon, sidebars, God's Due menu, Almanac | `res://Assets/Placeholders/favor.png` (see the note below) |
 | `Arena-Background.png` | the field (the Lupa), ideally 1152 x 648 (it is stretched to fill the screen) | `Background` | Mayari's `AreanaTemp.png`, tinted green |
 | `Langit.png` | one sky platform (a cloud or a terraced rice-paddy block), centred, about 96 x 60 px. The shadow under it stays | `ArenaField/Langits/LangitN/Sprite` | the white `Body` rectangle (greyed, with the `Lock` shape, on the screen of a runner it is closed to) |
 | `Langit-Crumble.png` | the crack / crumble animation, a horizontal strip of square-ish frames (the frame count is read from width / height). It plays over the platform during the warning before a crumble | `ArenaField/Langits/LangitN/Crumble` | the platform shakes and fades instead |
@@ -23,6 +23,6 @@ the players see.
 ## Swap the icon by hand
 
 `resources/gods/mapulon_ikapati.tres` is a resource file and cannot fall back by
-itself, so it still points at `res://icon.svg`. Once `MapulonIkapati-Icon.png`
+itself, so it still points at `res://Assets/Placeholders/favor.png`. Once `MapulonIkapati-Icon.png`
 exists, add a second `ext_resource` for the portrait and point the `[resource]`
 section's `icon` at it, the way `tala.tres` does with `4_portrait`.

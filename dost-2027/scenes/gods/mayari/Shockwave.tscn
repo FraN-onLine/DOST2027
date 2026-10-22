@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dffwgptwgyajf"]
 
 [ext_resource type="Script" uid="uid://c8ns7p148iqbe" path="res://scripts/gods/mayari/shockwave.gd" id="1_shock"]
-[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/shockwave.png" id="2_icon"]
 
 [node name="Shockwave" type="Node2D" unique_id=1760482314]
 script = ExtResource("1_shock")
