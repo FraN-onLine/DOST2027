@@ -2,7 +2,7 @@ class_name BandanaSwatch
 extends Button
 
 # One bandana colour (UITokens.BANDANA_COLORS) as a small square - the bandana on
-# top, the player's cloak colour (UITokens.cloak_shades) below it, as on the mortal -
+# top, the mid shade of their bandana and vest (UITokens.art_shades) below it -
 # in two jobs:
 #
 #   * a MARK beside a player's name - their panel on the shell's left strip, the
@@ -72,7 +72,7 @@ func setup(color_index: int, is_locked := false, is_chosen := false, holder := "
 func _draw() -> void:
 	var box := Rect2(Vector2.ZERO, size)
 	var color := UITokens.bandana_color(index)
-	var cloak := UITokens.cloak_shades(index)[0]
+	var cloak := UITokens.art_shades(index)[1]
 	if locked:
 		# Greyed out: the colour is still there to read, but dimmed to the night.
 		color = color.lerp(UITokens.NIGHT_700, 0.7)

@@ -15,12 +15,12 @@ extends CharacterBody2D
 # so the body holds the art while the arena keeps the rules.
 #
 # BANDANA: every mortal wears the same sprite, so what tells the players apart is
-# the colour of the bandana - the headband and its two tails - and of the cloak.
-# The Sprite carries bandana_swap.gdshader, which turns the two reds the art draws
-# the bandana in into the player's colour (UITokens.bandana_color) and the three
-# it draws the cloak in into three shades of it (UITokens.cloak_shades), touching
-# nothing else, and set_bandana() gives the mortal its own material so each one
-# keeps its own. It sits UNDER the node's modulate, so every hit flash, freeze or
+# the colour of the bandana - the headband and its two tails - and of the vest.
+# The Sprite carries bandana_swap.gdshader, which turns the three reds the art
+# draws both in into the player's colour and two darker steps of it
+# (UITokens.art_shades), touching nothing else, and set_bandana() gives the mortal
+# its own material so each one keeps its own. The defend-arnis clip is still the
+# old sheet with the old reds, so the shader's `legacy` switch follows the clip. It sits UNDER the node's modulate, so every hit flash, freeze or
 # fade an arena puts on a mortal still shows on top of it.
 #
 # FACING: the authored art faces right, so a move to the left mirrors the sprite
@@ -132,6 +132,7 @@ var _trail_next := 0
 var _trail_spots: Array[Transform2D] = []
 
 const ANIM_WALK := &"walk"
+const LEGACY_CLIPS: Array[StringName] = [&"defend-arnis"]  # still on Lamang-Sheet.png
 const TURN_DOT := -0.17          # cos(100°): input this far from the velocity turns back
 const JUMP := 48.0               # px in one physics frame: a respawn or a snap, not a walk
 const VISUAL_SMOOTHING := 18.0
@@ -171,6 +172,9 @@ func _ready() -> void:
 		_trail_spots.append(Transform2D.IDENTITY)
 	_apply_facing()
 	set_bandana(bandana_index)  # its own material, from the first frame
+	if sprite != null:
+		sprite.animation_changed.connect(_on_animation_changed)
+		_on_animation_changed()
 
 
 # Put the player's bandana (and cloak) colour on this mortal (and only this one: the material
@@ -183,12 +187,22 @@ func set_bandana(index: int) -> void:
 		sprite.material = sprite.material.duplicate()
 		sprite.material.set_meta("own_bandana", true)
 	var swap := sprite.material as ShaderMaterial
+	var shades := UITokens.art_shades(bandana_index)
+	swap.set_shader_parameter("shade_light", shades[0])
+	swap.set_shader_parameter("shade_mid", shades[1])
+	swap.set_shader_parameter("shade_dark", shades[2])
 	swap.set_shader_parameter("bandana_color", UITokens.bandana_color(bandana_index))
 	swap.set_shader_parameter("bandana_shadow", UITokens.bandana_shadow(bandana_index))
 	var cloak := UITokens.cloak_shades(bandana_index)
 	swap.set_shader_parameter("cloak_color", cloak[0])
 	swap.set_shader_parameter("cloak_mid", cloak[1])
 	swap.set_shader_parameter("cloak_dark", cloak[2])
+
+
+# The clips still drawn on the old sheet, in the old reds (see bandana_swap.gdshader).
+func _on_animation_changed() -> void:
+	if sprite.material is ShaderMaterial:
+		(sprite.material as ShaderMaterial).set_shader_parameter("legacy", sprite.animation in LEGACY_CLIPS)
 
 
 func is_stunned() -> bool:
@@ -267,7 +281,9 @@ func show_floating_text(text: String, tint := Color.WHITE, duration := 2.2) -> v
 # open a strike's hit window on one frame and close it on another without the
 # body ever knowing the rules. The idle and the walk are the mortal's own: it
 # swaps between them as it starts and stops (see _update_look); any other clip an
-# arena plays holds until the arena hands the mortal back to its idle.
+# arena plays holds until it has played out, then the mortal falls back to the walk
+# or the idle by itself (an arena can say so sooner with play_locomotion). A stunned
+# mortal, and the player while locked (dialogue, a rooted chant), show the idle.
 
 const ANIM_IDLE := &"default"
 
@@ -281,6 +297,19 @@ func play_animation(anim: StringName) -> void:
 	if sprite.animation == anim and sprite.is_playing():
 		return
 	sprite.play(anim)
+
+
+# Back to what the mortal's motion says: the walk while it is moving, the idle
+# otherwise. What an arena calls when an action clip is over, so a mortal that
+# strikes while running goes back to running.
+func play_locomotion() -> void:
+	play_animation(ANIM_WALK if _walking and not _rooted() else ANIM_IDLE)
+
+
+# Stunned, or the player held still by the arena: shown idle whatever it slides at.
+# (Ghosts and bots stay locked for life - their motion decides, not the lock.)
+func _rooted() -> bool:
+	return is_stunned() or (locked and _player_driven)
 
 
 func current_animation() -> StringName:
@@ -465,8 +494,11 @@ func _update_look(moved: Vector2, delta: float) -> void:
 		if _top_ratio > 0.6:
 			_kick_velocity += facing * deg_to_rad(4.0) * sqrt(KICK_STIFFNESS)
 			_puff(0.6, Vector2(facing, 0.0))
+	if not own_clip and not sprite.is_playing():
+		play_locomotion()  # the action has played out
+		own_clip = true
 	if own_clip:
-		var clip := ANIM_WALK if _walking and sprite.sprite_frames.has_animation(ANIM_WALK) else ANIM_IDLE
+		var clip := ANIM_WALK if _walking and not _rooted() and sprite.sprite_frames.has_animation(ANIM_WALK) else ANIM_IDLE
 		if sprite.animation != clip:
 			sprite.play(clip)
 		sprite.speed_scale = lerpf(1.0, 1.8, ratio)  # quicker steps, a livelier cloak

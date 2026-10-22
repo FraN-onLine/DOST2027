@@ -110,7 +110,6 @@ extends Arena
 
 # The mortal's own clips (authored in Mortal.tscn). The swing lands on one of its
 # frames and both clips hand the mortal back to its idle once they run out.
-const IDLE_ANIM := &"default"
 const STRIKE_ANIM := &"hit-arnis"
 const DEFEND_ANIM := &"defend-arnis"
 # The hazard that falls around the mortal (scenes/gods/apolaki/sunbursts.tscn):
@@ -178,7 +177,7 @@ func arena_round_reset() -> void:
 	_reset_hazards()
 	clear_sun_patches()
 	_reset_screen_impact()  # a new round starts with the screen at rest
-	player.play_animation(IDLE_ANIM)
+	player.play_locomotion()
 	if duelist != null:
 		duelist.restart()
 
@@ -278,11 +277,11 @@ func _tick_actions() -> void:
 			_resolve_strike()
 		if not player.is_animation_playing(STRIKE_ANIM):
 			_swinging = false
-			player.play_animation(IDLE_ANIM)
+			player.play_locomotion()
 	elif _guarding:
 		if not player.is_animation_playing(DEFEND_ANIM):
 			_guarding = false
-			player.play_animation(IDLE_ANIM)
+			player.play_locomotion()
 
 
 # The mortal's own three states. They are exactly what its clips are running:
