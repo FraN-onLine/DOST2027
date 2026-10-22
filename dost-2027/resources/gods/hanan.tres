@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" uid="uid://c5nc3s3yg47q0" path="res://Assets/Gods/Hanan/Hanan-General-Favor.png" id="2_xmiqn"]
 [ext_resource type="Texture2D" uid="uid://xmn5bukabvk7" path="res://Assets/Gods/Hanan/hanan_portrait.png" id="3_ftwwg"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
 
@@ -13,7 +14,7 @@ display_name = "The Dawn"
 description = "Every mortal's God's Due drops by 1 (never below 0)."
 kind = 2
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_xmiqn")
 params = {
 "due_reduction": 1
 }
@@ -26,7 +27,7 @@ display_name = "An Even Playing Field"
 description = "The mortal with the most FAVOR besides you loses half the gap between their FAVOR and the lowest mortal's."
 kind = 2
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_xmiqn")
 params = {
 "gap_fraction": 0.5
 }
@@ -38,7 +39,7 @@ god_id = &"hanan"
 display_name = "First Light"
 description = "At the start of each trial, you gain 150 FAVOR if you are in last place."
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_xmiqn")
 params = {
 "last_place_bonus": 150
 }
@@ -53,7 +54,7 @@ slot = 2
 kind = 1
 cooldown = 35.0
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_xmiqn")
 params = {
 "lookback": 5.0
 }
@@ -68,7 +69,7 @@ slot = 1
 kind = 1
 cooldown = 30.0
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_xmiqn")
 
 [sub_resource type="Resource" id="Favor_morning_chases_the_night"]
 script = ExtResource("1_favor")
@@ -77,7 +78,7 @@ god_id = &"hanan"
 display_name = "Morning Chases the Night"
 description = "Mayari's vision blocks on you last at most 0.5s, and each one cut short gives +50 FAVOR. Only offered while you hold a Mayari favor."
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_xmiqn")
 params = {
 "blind_cap": 0.5,
 "bonus": 50,
@@ -91,7 +92,7 @@ god_id = &"hanan"
 display_name = "The Three Sisters"
 description = "When Bathala's final trial begins, gain 150 FAVOR for each sister (Mayari, Tala) you hold a favor from. Only offered while you hold a Mayari or Tala favor."
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_xmiqn")
 params = {
 "per_sister": 150,
 "requires_any_god": ["mayari", "tala"]
@@ -116,9 +117,9 @@ success_lines = Array[String](["You leapt like the morning itself. Father should
 failure_lines = Array[String](["You tripped, but every dawn gets another try."])
 transition_lines = {
 "*": ["The morning is done. Go well, mortals."],
-"mayari": ["Mayari, do keep an eye on these mortals. They may need a little guidance when the lights go out."],
 "apolaki": ["Apolaki, please try not to push them too hard. They have already come a long way."],
-"tala": ["Tala, I'll leave them to you. May they find their aim, even if they stumble along the way."],
+"bathala": ["Father is waiting for you now. Whatever happens next, I hope they find what their hearts are looking for."],
 "mapulon_ikapati": ["Uncle, Auntie, I hope you'll give them a chance to catch their breath. They've certainly earned one."],
-"bathala": ["Father is waiting for you now. Whatever happens next, I hope they find what their hearts are looking for."]
+"mayari": ["Mayari, do keep an eye on these mortals. They may need a little guidance when the lights go out."],
+"tala": ["Tala, I'll leave them to you. May they find their aim, even if they stumble along the way."]
 }

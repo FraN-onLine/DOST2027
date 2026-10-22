@@ -52,6 +52,8 @@ var _bob := 0.0
 var _flash := 0.0
 var _floating_time := 0.0
 var _floating_velocity := Vector2.ZERO
+# True while the move keys are the ones driving this mortal (its own walk).
+var _moving := false
 
 # Where the combat pieces sit in the authored scene; the facing mirrors their x
 # offsets (and their scale, so a non-symmetric shape would mirror too).

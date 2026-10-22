@@ -2,7 +2,12 @@
 
 [ext_resource type="Script" uid="uid://c3w2eintc3nrp" path="res://scripts/MainMenu.gd" id="1_main"]
 [ext_resource type="Texture2D" uid="uid://xno0bm25ol28" path="res://Assets/title/title_sky.png" id="2_sky"]
-[ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="3_ornament"]
+[ext_resource type="Script" uid="uid://c7k5x8rqao2o1" path="res://UI/theme/ornament_frame.gd" id="3_ornament"]
+[ext_resource type="Texture2D" uid="uid://lthxivt5071j" path="res://Assets/Buttons/B1_still.png" id="4_ow34m"]
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_wpc2v"]
+texture = ExtResource("4_ow34m")
+region_rect = Rect2(11.980781, 9.971748, 97.11201, 30.27327)
 
 [node name="MainMenu" type="Control" unique_id=1590613013]
 layout_mode = 3
@@ -23,7 +28,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.043137256, 0.0627451, 0.1254902, 1)
 
-[node name="Sky" type="TextureRect" parent="."]
+[node name="Sky" type="TextureRect" parent="." unique_id=779136949]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -35,7 +40,7 @@ texture = ExtResource("2_sky")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="Dim" type="ColorRect" parent="."]
+[node name="Dim" type="ColorRect" parent="." unique_id=285720722]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -57,7 +62,7 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Lockup" type="VBoxContainer" parent="CenterContainer/VBoxContainer"]
+[node name="Lockup" type="VBoxContainer" parent="CenterContainer/VBoxContainer" unique_id=471912019]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
@@ -74,7 +79,7 @@ layout_mode = 2
 text = "Ang Laro ng mga diyos"
 horizontal_alignment = 1
 
-[node name="Rule" type="Control" parent="CenterContainer/VBoxContainer/Lockup"]
+[node name="Rule" type="Control" parent="CenterContainer/VBoxContainer/Lockup" unique_id=996278607]
 custom_minimum_size = Vector2(320, 12)
 layout_mode = 2
 size_flags_horizontal = 4
@@ -82,7 +87,7 @@ mouse_filter = 2
 script = ExtResource("3_ornament")
 rule_only = true
 
-[node name="LockupGap" type="Control" parent="CenterContainer/VBoxContainer"]
+[node name="LockupGap" type="Control" parent="CenterContainer/VBoxContainer" unique_id=1526923394]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 mouse_filter = 2
@@ -92,6 +97,7 @@ custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"PrimaryButton"
+theme_override_styles/normal = SubResource("StyleBoxTexture_wpc2v")
 text = "HOST GAME"
 
 [node name="JoinButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=954221442]
@@ -101,7 +107,7 @@ size_flags_horizontal = 4
 theme_type_variation = &"SecondaryButton"
 text = "JOIN GAME"
 
-[node name="PlayGap" type="Control" parent="CenterContainer/VBoxContainer"]
+[node name="PlayGap" type="Control" parent="CenterContainer/VBoxContainer" unique_id=981092929]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 mouse_filter = 2
@@ -120,7 +126,7 @@ size_flags_horizontal = 4
 theme_type_variation = &"SecondaryButton"
 text = "OPTIONS"
 
-[node name="BrowseGap" type="Control" parent="CenterContainer/VBoxContainer"]
+[node name="BrowseGap" type="Control" parent="CenterContainer/VBoxContainer" unique_id=1265890063]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 mouse_filter = 2
@@ -132,7 +138,7 @@ size_flags_horizontal = 4
 theme_type_variation = &"GhostButton"
 text = "QUIT"
 
-[node name="Footer" type="PanelContainer" parent="."]
+[node name="Footer" type="PanelContainer" parent="." unique_id=693749889]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0

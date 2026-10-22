@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="God" format=3 uid="uid://dk0ejghyobl6n"]
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
-[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" uid="uid://blql24cfcgde8" path="res://Assets/Gods/Tala/Tala-General-Favor.png" id="2_pnj1g"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
 [ext_resource type="Texture2D" uid="uid://cof0s5w2fy7v0" path="res://Assets/Gods/Tala/tala_portrait.png" id="4_pnj1g"]
 [ext_resource type="Texture2D" uid="uid://qhwimvi6gul2" path="res://Assets/Gods/Tala/Tala-Icon.png" id="4_portrait"]
@@ -13,7 +13,7 @@ god_id = &"tala"
 display_name = "The Bountiful (E)"
 description = "Your E skill's cooldown is permanently reduced by 10%."
 color = Color(0.2, 0.32, 0.62, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pnj1g")
 params = {
 "cooldown_multiplier": 0.9
 }
@@ -25,7 +25,7 @@ god_id = &"tala"
 display_name = "The Bountiful (Q)"
 description = "Your Q skill's cooldown is permanently reduced by 10%."
 color = Color(0.2, 0.32, 0.62, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pnj1g")
 params = {
 "cooldown_multiplier": 0.9
 }
@@ -37,7 +37,7 @@ god_id = &"tala"
 display_name = "The Shining"
 description = "Your movement speed is permanently increased by 10%."
 color = Color(0.2, 0.32, 0.62, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pnj1g")
 params = {
 "move_speed_multiplier": 1.1
 }
@@ -49,7 +49,7 @@ god_id = &"tala"
 display_name = "The Guidance"
 description = "Near another mortal, gain 50% movement speed for one second. Incompatible with personal-arena trials."
 color = Color(0.2, 0.32, 0.62, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pnj1g")
 params = {
 "duration": 1.0,
 "nearby_radius": 150.0,
@@ -67,7 +67,7 @@ kind = 1
 cooldown = 30.0
 duration = 1.0
 color = Color(0.2, 0.32, 0.62, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pnj1g")
 
 [sub_resource type="Resource" id="Favor_unbothered"]
 script = ExtResource("1_favor")
@@ -80,7 +80,7 @@ kind = 1
 cooldown = 20.0
 duration = 10.0
 color = Color(0.2, 0.32, 0.62, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pnj1g")
 
 [resource]
 script = ExtResource("3_god")
@@ -100,9 +100,9 @@ trial_end_lines = Array[String](["Splendid! Your aim has improved quite nicely."
 success_lines = Array[String](["The game is done. The Favor you gathered will speak for you."])
 failure_lines = Array[String](["The game is done. The Favor you gathered will speak for you."])
 transition_lines = {
-"mayari": ["Sister, do try to keep the darkness manageable. I'd hate for them to lose their way before they've had their fun."],
 "apolaki": ["Brother, do mind your temper. These mortals are rather fragile compared to you."],
+"bathala": ["Father awaits you now, little mortals. May the stars guide your steps... wherever they may lead."],
 "hanan": ["Hanan, I'll leave them in your capable hands. Perhaps a little fresh air will do them good."],
 "mapulon_ikapati": ["Uncle, Auntie, I'll leave these mortals to you. Do take good care of them."],
-"bathala": ["Father awaits you now, little mortals. May the stars guide your steps... wherever they may lead."]
+"mayari": ["Sister, do try to keep the darkness manageable. I'd hate for them to lose their way before they've had their fun."]
 }

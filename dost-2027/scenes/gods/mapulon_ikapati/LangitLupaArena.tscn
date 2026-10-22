@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://ii77nij5t84i" path="res://scripts/gods/mapulon_ikapati/langit_lupa_arena.gd" id="2_script"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://ds4dxa5j0omwb" path="res://Assets/Gods/MapulonIkapati/IkapatiOverseer-Sheet.png" id="4_3punl"]
+[ext_resource type="Texture2D" uid="uid://dyjktf2v021td" path="res://Assets/Gods/MapulonIkapati/MapulonOverSeer-Sheet.png" id="5_t7fk7"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_t7fk7"]
 atlas = ExtResource("4_3punl")
@@ -34,6 +35,35 @@ animations = [{
 "speed": 5.0
 }]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_4he5h"]
+atlas = ExtResource("5_t7fk7")
+region = Rect2(0, 0, 130, 99)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1i2is"]
+atlas = ExtResource("5_t7fk7")
+region = Rect2(130, 0, 130, 99)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_en32h"]
+atlas = ExtResource("5_t7fk7")
+region = Rect2(260, 0, 130, 99)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_r1xhw"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4he5h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1i2is")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_en32h")
+}],
+"loop": 2,
+"name": &"default",
+"speed": 5.0
+}]
+
 [node name="Arena" unique_id=628936061 instance=ExtResource("1_arena")]
 script = ExtResource("2_script")
 fixed_trial_time = 60.0
@@ -50,6 +80,9 @@ langit_size = Vector2(96, 60)
 langit_safe_margin = 6.0
 langit_spacing = 120.0
 langit_fade_in = 0.3
+field_size_2p = Vector2(560, 0)
+field_size_3p = Vector2(640, 0)
+field_size_4p = Vector2(720, 0)
 season_interval = 12.0
 shift_warning = 1.0
 chant_cooldown = 5.0
@@ -76,6 +109,16 @@ bot_dash_radius = 75.0
 bot_flee_radius = 140.0
 bot_chant_success = 0.7
 bot_chant_beat = 0.5
+god_starts_as_taya = true
+god_speed = 175.0
+god_chant_success = 0.7
+god_chant_beat = 0.5
+god_taya_max_time = 15.0
+god_hunt_speed = 230.0
+god_leave_time = 0.8
+god_tag_line = "MAPULON: \"IKAW NA!\""
+god_height = 87.0
+god_puff_time = 0.35
 god_id = &"mapulon_ikapati"
 embedded = true
 dialogue_prefix = "mapulon_ikapati"
@@ -199,11 +242,18 @@ width = 2.0
 default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=632666614]
-position = Vector2(693, 189)
+position = Vector2(615, 192)
 scale = Vector2(3.6833231, 3.2276123)
 sprite_frames = SubResource("SpriteFrames_4he5h")
 autoplay = "default"
-frame_progress = 0.26349792
+frame_progress = 0.050460998
+
+[node name="GodOverSeer2" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1831042744]
+position = Vector2(952, 189)
+scale = Vector2(3.6833231, 3.2276123)
+sprite_frames = SubResource("SpriteFrames_r1xhw")
+autoplay = "default"
+frame_progress = 0.030867117
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(420, 440)

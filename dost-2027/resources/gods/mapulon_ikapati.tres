@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
 [ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" uid="uid://ctrr0t3pi4w5v" path="res://Assets/Gods/MapulonIkapati/MI-General-Favor.png" id="2_pc3d1"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
 [ext_resource type="Texture2D" uid="uid://bf3gykvvyldud" path="res://Assets/Gods/MapulonIkapati/ikapati_portrait.png" id="3_rcj6l"]
 [ext_resource type="Texture2D" uid="uid://bmmvbh8u53eu4" path="res://Assets/Gods/MapulonIkapati/mapulon_portrait.png" id="4_mapulon"]
@@ -13,7 +14,7 @@ god_id = &"mapulon_ikapati"
 display_name = "Binhi (Ikapati)"
 description = "The seed. At the end of every trial you hold it, gain 50 FAVOR for each trial it has grown: 50, then 100, then 150... Plant it early."
 color = Color(0.56, 0.78, 0.33, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pc3d1")
 params = {
 "growth_per_trial": 50
 }
@@ -25,7 +26,7 @@ god_id = &"mapulon_ikapati"
 display_name = "Panahon ng Anihan (Mapulon)"
 description = "Harvest season. FAVOR you earn in the last 15 seconds of every trial is increased by 30%. End-of-trial payouts do not count."
 color = Color(0.56, 0.78, 0.33, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pc3d1")
 params = {
 "gain_mult": 1.3,
 "window": 15.0
@@ -39,7 +40,7 @@ display_name = "Kabiyak (The Pair)"
 description = "Your other half. You are paired with the mortal closest to you in FAVOR. For the rest of the run, whenever they gain FAVOR you gain 10% of it; they lose nothing. If they leave, you pair with the next closest. Only offered while you hold a Mapulon & Ikapati favor."
 kind = 2
 color = Color(0.56, 0.78, 0.33, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pc3d1")
 params = {
 "requires_god": "mapulon_ikapati",
 "share": 0.1
@@ -56,7 +57,7 @@ kind = 1
 cooldown = 30.0
 duration = 5.0
 color = Color(0.56, 0.78, 0.33, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pc3d1")
 params = {
 "max_total": 400,
 "percent_per_second": 0.03
@@ -73,7 +74,7 @@ kind = 1
 cooldown = 30.0
 duration = 6.0
 color = Color(0.56, 0.78, 0.33, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pc3d1")
 params = {
 "siphon": 0.3
 }
@@ -89,7 +90,7 @@ kind = 1
 cooldown = 30.0
 duration = 6.0
 color = Color(0.56, 0.78, 0.33, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pc3d1")
 params = {
 "regrow_delay": 5.0,
 "regrow_mult": 1.25
@@ -105,7 +106,7 @@ slot = 2
 kind = 1
 cooldown = 40.0
 color = Color(0.56, 0.78, 0.33, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("2_pc3d1")
 params = {
 "interest": 0.2,
 "max_store": 400,
@@ -125,6 +126,18 @@ arena_scene = "res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn"
 implemented = true
 favors = Array[ExtResource("1_favor")]([SubResource("Favor_binhi"), SubResource("Favor_panahon_ng_anihan"), SubResource("Favor_kabiyak"), SubResource("Favor_tagtuyot"), SubResource("Favor_ligaw_na_damo"), SubResource("Favor_unang_ulan"), SubResource("Favor_kamalig")])
 portrait = ExtResource("3_rcj6l")
+intro_lines = Array[String](["Mapulon: Langit Lupa! A game of chasing, dodging, and finding your footing.", "Ikapati: Look after yourselves... and perhaps look after one another, too.", "Mapulon: Enough talk. Let's see how well you run!"])
+trial_end_lines = Array[String](["Ikapati: Well done, dearies! You've certainly kept us entertained. We all seek somewhere safe to stand.", "Mapulon: Just remember that no ground stays firm forever.", "Ikapati: And no one should have to face every storm alone."])
+success_lines = Array[String](["Mapulon: A good season.", "Ikapati: A full granary. We are proud of you."])
+failure_lines = Array[String](["Ikapati: A thin harvest this time.", "Mapulon: Seasons turn. Plant again."])
+transition_lines = {
+"*": ["Ikapati: Go well, mortals. Eat before you play.", "Mapulon: And watch the sky."],
+"apolaki": ["Mapulon: Apolaki, they're all yours. Try not to break anything we just finished growing.", "Ikapati: And do be gentle with them, dear. A little encouragement goes a long way."],
+"bathala": ["Mapulon: Well, that's our part done. Lord Bathala will be waiting.", "Ikapati: Don't let the game become more important than the one you're playing it for."],
+"hanan": ["Ikapati: Hanan, dear, it's your turn. Give these poor mortals a little sunshine.", "Mapulon: They've had enough running around for one day. Well... perhaps not."],
+"mayari": ["Mapulon: Your turn, Mayari. Try not to send them running in circles all day.", "Ikapati: Oh, let them have a little fun, dear. Just don't let them forget where they're going."],
+"tala": ["Ikapati: Tala, dear, do take good care of them.", "Mapulon: Though I suspect they'll be doing more running around than resting."]
+}
 speakers = {
 "Ikapati": {
 "color": Color(0.56, 0.78, 0.33, 1),
@@ -134,16 +147,4 @@ speakers = {
 "color": Color(0.45, 0.72, 0.92, 1),
 "portrait": ExtResource("4_mapulon")
 }
-}
-intro_lines = Array[String](["Mapulon: Langit Lupa! A game of chasing, dodging, and finding your footing.", "Ikapati: Look after yourselves... and perhaps look after one another, too.", "Mapulon: Enough talk. Let's see how well you run!"])
-trial_end_lines = Array[String](["Ikapati: Well done, dearies! You've certainly kept us entertained. We all seek somewhere safe to stand.", "Mapulon: Just remember that no ground stays firm forever.", "Ikapati: And no one should have to face every storm alone."])
-success_lines = Array[String](["Mapulon: A good season.", "Ikapati: A full granary. We are proud of you."])
-failure_lines = Array[String](["Ikapati: A thin harvest this time.", "Mapulon: Seasons turn. Plant again."])
-transition_lines = {
-"*": ["Ikapati: Go well, mortals. Eat before you play.", "Mapulon: And watch the sky."],
-"mayari": ["Mapulon: Your turn, Mayari. Try not to send them running in circles all day.", "Ikapati: Oh, let them have a little fun, dear. Just don't let them forget where they're going."],
-"apolaki": ["Mapulon: Apolaki, they're all yours. Try not to break anything we just finished growing.", "Ikapati: And do be gentle with them, dear. A little encouragement goes a long way."],
-"tala": ["Ikapati: Tala, dear, do take good care of them.", "Mapulon: Though I suspect they'll be doing more running around than resting."],
-"hanan": ["Ikapati: Hanan, dear, it's your turn. Give these poor mortals a little sunshine.", "Mapulon: They've had enough running around for one day. Well... perhaps not."],
-"bathala": ["Mapulon: Well, that's our part done. Lord Bathala will be waiting.", "Ikapati: Don't let the game become more important than the one you're playing it for."]
 }

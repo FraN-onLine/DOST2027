@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="God" format=3 uid="uid://21lr2etcsksh"]
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_dp3kp"]
-[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_e57f4"]
+[ext_resource type="Texture2D" uid="uid://i83pdi0ayq0d" path="res://Assets/Gods/Apolaki/Apolaki-General-Favor.png" id="2_nxm4o"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_nxm4o"]
 [ext_resource type="Texture2D" uid="uid://dlf51behe325t" path="res://Assets/Gods/Apolaki/Apolaki-Icon.png" id="4_icon"]
 [ext_resource type="Texture2D" uid="uid://cgt4dp3y83y4y" path="res://Assets/title/poster.jpg" id="4_nxm4o"]
@@ -13,7 +13,7 @@ god_id = &"apolaki"
 display_name = "The Sun God"
 description = "If an opponent loses FAVOR, a sun patch blocks their screen for 1.5s."
 color = Color(1, 0.85, 0.25, 1)
-icon = ExtResource("2_e57f4")
+icon = ExtResource("2_nxm4o")
 params = {
 "patch_duration": 1.5
 }
@@ -25,7 +25,7 @@ god_id = &"apolaki"
 display_name = "The Ruler"
 description = "If you lose FAVOR, a random opponent gets a sun patch on their screen for 1.5s."
 color = Color(1, 0.85, 0.25, 1)
-icon = ExtResource("2_e57f4")
+icon = ExtResource("2_nxm4o")
 params = {
 "patch_duration": 1.5
 }
@@ -37,7 +37,7 @@ god_id = &"apolaki"
 display_name = "The Victor"
 description = "At 5 sun patches on one opponent they lose 100 FAVOR - once per trial. You are immune to other mortals holding this favor."
 color = Color(1, 0.85, 0.25, 1)
-icon = ExtResource("2_e57f4")
+icon = ExtResource("2_nxm4o")
 params = {
 "patch_threshold": 5,
 "penalty": 100
@@ -50,7 +50,7 @@ god_id = &"apolaki"
 display_name = "The Great"
 description = "Gain 1 FAVOR per second for as long as any sun patch is shining."
 color = Color(1, 0.85, 0.25, 1)
-icon = ExtResource("2_e57f4")
+icon = ExtResource("2_nxm4o")
 params = {
 "favor_per_sec": 1.0
 }
@@ -66,7 +66,7 @@ kind = 1
 cooldown = 30.0
 duration = 5.0
 color = Color(1, 0.85, 0.25, 1)
-icon = ExtResource("2_e57f4")
+icon = ExtResource("2_nxm4o")
 params = {
 "patch_duration": 5.0,
 "requires_god": "mayari"
@@ -83,7 +83,7 @@ kind = 1
 cooldown = 25.0
 duration = 3.0
 color = Color(1, 0.85, 0.25, 1)
-icon = ExtResource("2_e57f4")
+icon = ExtResource("2_nxm4o")
 params = {
 "loss_immunity": 3.0
 }
@@ -96,7 +96,7 @@ display_name = "Sibling's Rivalry"
 description = "Get 1000 FAVOR ahead of another mortal and Apolaki blots out part of their screen with sun patches for 5s (once per mortal, once per trial). Needs a Mayari favor in the match."
 duration = 5.0
 color = Color(1, 0.85, 0.25, 1)
-icon = ExtResource("2_e57f4")
+icon = ExtResource("2_nxm4o")
 params = {
 "ahead_by": 1000,
 "requires_god": "mayari"
@@ -120,9 +120,9 @@ trial_end_lines = Array[String](["Hah! Not bad, mortals. You've got some fight i
 success_lines = Array[String](["You struck true. The sun saw it."])
 failure_lines = Array[String](["Not enough fire in you yet."])
 transition_lines = {
-"mayari": ["Hmph. Don't let my sister's tricks get to your heads. Keep your eyes open, and your feet moving."],
-"tala": ["Try not to make this too easy on them, Tala. A little challenge never hurt anyone!"],
+"bathala": ["They're holding up better than I expected, Father. Let's see if they're still standing when they reach you."],
 "hanan": ["Give them a good fight, Hanan. They could use a little more practice."],
 "mapulon_ikapati": ["Uncle, Auntie. Try not to coddle them too much. Let's see if they've got any backbone."],
-"bathala": ["They're holding up better than I expected, Father. Let's see if they're still standing when they reach you."]
+"mayari": ["Hmph. Don't let my sister's tricks get to your heads. Keep your eyes open, and your feet moving."],
+"tala": ["Try not to make this too easy on them, Tala. A little challenge never hurt anyone!"]
 }
