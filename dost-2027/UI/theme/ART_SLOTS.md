@@ -79,14 +79,14 @@ needed.
   detail frames. If you want it as art, provide a `ornament_frame.png` 9-slice
   (64x64 source, 8 px margins) and a `ornament_rule.png` (64x8, centre stud).
   The frame is tinted at runtime, so draw it in white.
-- **Favor icons**: every favor still uses `res://icon.svg`, tinted with the
-  favor's colour. When real icons arrive, set `icon` on each favor in
+- **Favor icons**: every favor without art uses `Assets/Placeholders/favor.png` (CC0, see
+  `Assets/Placeholders/CREDITS.md`), tinted with the favor's colour. When real icons arrive, set `icon` on each favor in
   `resources/gods/*.tres` and drop the tint (search for `PLACEHOLDER_ICON`).
 
 ## The preparation area (scene art, also placeholders)
 
 The rest between two trials (`scenes/prep/PrepArea.tscn`) is drawn with coloured
-rects and `res://icon.svg` for now. Each slot is a node in that scene. Swap its
+rects and the CC0 placeholders in `Assets/Placeholders` for now. Each slot is a node in that scene. Swap its
 texture or replace the rect with a `Sprite2D`, keeping its position, so the
 stall's reach and the layout stay where they are.
 
@@ -100,7 +100,7 @@ stall's reach and the layout stay where they are.
 
 ## Pamana icons
 
-Every Pamana (`resources/pamana/*.tres`) still uses `res://icon.svg`, tinted with
+Every Pamana (`resources/pamana/*.tres`) without art falls back to `favor.png`, tinted with
 the item's colour (an item too dark to read on night indigo, the Mighty Pen, is
 tinted ivory). Draw one 24x24 source icon per item (`manunggul_jar.png`,
 `torn_cedulas.png`, `banton_cloth.png`, `agimat.png`, `mighty_pen.png`,
@@ -111,7 +111,7 @@ shows on the Tindahan's cards, the HUD badges and the Almanac's MGA PAMANA page.
 ## The opening cutscene (scene art, also placeholders)
 
 `scenes/OpeningCutscene.tscn` plays once at the start of a run. Every slot is a
-node under `Stage`, drawn with coloured rects and `res://icon.svg` for now; swap
+node under `Stage`, drawn with coloured rects and the CC0 placeholders in `Assets/Placeholders` for now; swap
 the texture and keep the node's size, so the tweens in `scripts/OpeningCutscene.gd`
 (positions are set in code from the screen size) stay where they are.
 
@@ -127,3 +127,27 @@ the texture and keep the node's size, so the tweens in `scripts/OpeningCutscene.
 | `ines_portrait.png` | `Cutscene.placeholder()` | 32x32 | Ines's small portrait in the dialogue box, and beside Bathala's at the end of the run. |
 | `suitor_portrait_1.png`, `_2.png` | `Cutscene.placeholder()` | 32x32 | The suitors' small portraits in the dialogue box. Mortals show no big photo. |
 | roll call | `GodRow` slots | 60x60 | Reuses each god's `portrait` (Mayari, Apolaki, Hanan, Tala, Mapulon & Ikapati); they stand as silhouettes, then slide in and light up as Bathala calls them. |
+
+## One-shot effects and the stun stars (placeholders, CC0)
+
+Every placeholder lives in `Assets/Placeholders/` and is credited in
+`Assets/Placeholders/CREDITS.md`. To use real art, replace the file (same name,
+white on transparent so it can be tinted, same size) or point the slot at a new
+one. One-shot effects go through `Arena.spawn_effect(name, position, angle)`; its
+table is `Arena.EFFECTS` (texture, scale from -> to, time, tint), so a new look is
+one entry. A landed hit is `Arena.hit_effects` (ring, spark and slash together);
+`Arena.announce_hit` / `announce_stun` add the stars and tell every other screen.
+
+| Slot (file) | Used by | Source size | Notes |
+|---|---|---|---|
+| `fx/hit_spark.png` | `Arena.EFFECTS[&"spark"]` | 128x128 | The flash where an attack lands: arnis strikes (both ways), Agawan tags, Mayari's shockwave and clones, Tala's touch, her catch and the can her slipper hits, Langit Lupa's shove. |
+| `fx/hit_slash.png` | `Arena.EFFECTS[&"slash"]` | 128x128 | A slash lying along the blow (it is rotated to the direction). Draw it pointing right. |
+| `fx/impact_ring.png` | `Arena.EFFECTS[&"impact"]` | 128x128 | The ring that opens on the target. Soft; it is dimmed with "reduce flashing". |
+| `fx/stun_star.png` | `StunStars/Star1..3` in `Mortal.tscn` | 64x64 | One star; three circle the head of a stunned mortal (the player, a rival's ghost, a bot) for the stun's duration, 0.3 s at least. Shown for a knockback, Mayari's shockwave, a broken chant and Langit Lupa's shove. Tinted gold. |
+| `glow.png` | `Glow` in `Mortal.tscn` | 128x128 | The soft disc under a mortal. |
+| `shockwave.png` | `Icon` in `Shockwave.tscn` | 128x128 | The icon in the middle of Mayari's wave. |
+| `attack.png` | `AttackHud/Icon` in `MayariArena.tscn` | 128x128 | The attack bar's icon. |
+| `flame.png` | `Camp/Campfire/Flame` in `PrepArea.tscn` | 128x128 | Tinted orange. |
+| `god.png` | the Agawan gods, the cutscene's figures, the altar's god, the shopkeeper, `Arena.TEMP_ICON` | 128x128 | A figure until each has its own art. |
+| `favor.png` | `Gods.TEMP_ICON`, `UICards.PLACEHOLDER_ICON`, the skill bar / card / effect row | 128x128 | Any favor, skill, effect or Pamana without an icon. |
+| `app-icon.png` | `project.godot` `config/icon` | 128x128 | The window / executable icon. |

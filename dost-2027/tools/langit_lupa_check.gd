@@ -572,6 +572,28 @@ func _run() -> void:
 	await _frames(4)
 	_check(game.arena != null and is_equal_approx(game.arena.trial_time, 60.0), "the shell keeps Langit Lupa at 60s over a 90s lobby setting")
 	_check(game.timer_label.text == "1:00", "the clock shows 1:00 (%s)" % game.timer_label.text)
+	# TIME AS TAYA lives in the player panels on the left strip, not in a HUD list.
+	var shell_arena: LangitLupaArena = game.arena
+	var me: int = game.rules.local().id
+	_check(shell_arena.get_node_or_null("LangitHud/TayaList") == null, "there is no TAYA list in the arena's HUD any more")
+	shell_arena._taya = -1
+	shell_arena._taya_time = {me: 12.0}
+	await _frames(2)
+	_check(game.own_trial_row.visible and game.own_trial_row.text == "TAYA 0:12", "your panel shows TAYA 0:12 (%s)" % game.own_trial_row.text)
+	_check(not game.strip_note.visible, "...and no gods' line while the gods are not Taya")
+	for id in game.rules.mortals.keys():
+		if int(id) != me:
+			shell_arena._taya_time[int(id)] = 75.0
+	await _frames(2)
+	_check(game.own_trial_row.text == "TAYA 0:12  #1", "the least time is ranked first - it pays most (%s)" % game.own_trial_row.text)
+	_check(shell_arena.panel_row(int(game.rules.mortals.keys().filter(func(id): return int(id) != me)[0]))["text"] == "TAYA 1:15",
+		"a rival's time rolls over into minutes (1:15)")
+	shell_arena._taya = me
+	await _frames(2)
+	_check(shell_arena.panel_row(me)["tint"] == LangitLupaArena.TAYA_COLOR, "the Taya's row is in the Taya colour")
+	shell_arena._taya = LangitLupaArena.GOD_TAYA
+	await _frames(2)
+	_check(game.strip_note.visible and game.strip_note.text.ends_with("ARE TAYA"), "while the gods are Taya the strip says so (%s)" % game.strip_note.text)
 	game.queue_free()
 	network.trial_order_ids.clear()
 	await _frames(2)

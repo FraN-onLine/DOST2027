@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://caeyjvhbdf8ae"]
 
 [ext_resource type="Script" uid="uid://mbsvj8vbhmue" path="res://scripts/gods/common/mortal.gd" id="1_mortal"]
-[ext_resource type="Texture2D" uid="uid://c7647hfqxdnnq" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/glow.png" id="2_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/fx/stun_star.png" id="7_stun"]
 [ext_resource type="Texture2D" uid="uid://cphb53fo1gfxn" path="res://Assets/Player/Lamang-Sheet.png" id="3_af5nn"]
 [ext_resource type="Texture2D" uid="uid://dxphlrugle2gr" path="res://Assets/Gods/lam-ang.png" id="4_6r6jq"]
 [ext_resource type="Shader" uid="uid://coxohuv3bowvg" path="res://scenes/gods/common/bandana_swap.gdshader" id="4_bandana"]
@@ -9,6 +10,10 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bandana"]
 shader = ExtResource("4_bandana")
+shader_parameter/shade_light = Vector4(0.345098, 0.062745, 0.062745, 1)
+shader_parameter/shade_mid = Vector4(0.254902, 0.043137, 0.043137, 1)
+shader_parameter/shade_dark = Vector4(0.164706, 0, 0, 1)
+shader_parameter/legacy = false
 shader_parameter/bandana_color = Vector4(0.478431, 0.054902, 0.054902, 1)
 shader_parameter/bandana_shadow = Vector4(0.341176, 0.011765, 0.011765, 1)
 shader_parameter/cloak_color = Vector4(0.345098, 0.062745, 0.062745, 1)
@@ -254,6 +259,26 @@ animation = &"hit-arnis"
 autoplay = "default"
 frame = 8
 frame_progress = 1.0
+
+[node name="StunStars" type="Node2D" parent="."]
+visible = false
+z_index = 2
+position = Vector2(0, -64)
+
+[node name="Star1" type="Sprite2D" parent="StunStars"]
+modulate = Color(1, 0.9, 0.35, 1)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("7_stun")
+
+[node name="Star2" type="Sprite2D" parent="StunStars"]
+modulate = Color(1, 0.9, 0.35, 1)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("7_stun")
+
+[node name="Star3" type="Sprite2D" parent="StunStars"]
+modulate = Color(1, 0.9, 0.35, 1)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("7_stun")
 
 [node name="Arnis-Damage-Area" type="Area2D" parent="." unique_id=757709739]
 position = Vector2(0, -7)

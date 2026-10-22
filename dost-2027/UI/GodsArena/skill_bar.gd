@@ -20,7 +20,7 @@ extends PanelContainer
 signal pressed
 signal hovered(on: bool)  # the mouse entered / left the bar (the HUD shows the skill's card)
 
-const PLACEHOLDER_ICON := preload("res://icon.svg")
+const PLACEHOLDER_ICON := preload("res://Assets/Placeholders/favor.png")
 
 @onready var key_label: Label = $Row/Key
 @onready var icon: TextureRect = $Row/Slot/Icon

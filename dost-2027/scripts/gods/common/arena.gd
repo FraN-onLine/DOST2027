@@ -133,8 +133,17 @@ const DIALOGUE_SCENE := preload("res://UI/GodsArena/god_dialogue.tscn")
 const DUE_MENU_SCENE := preload("res://UI/GodsArena/gods_due_menu.tscn")
 const MORTAL_SCENE := preload("res://scenes/gods/common/Mortal.tscn")
 const POPUP_SCENE := preload("res://UI/Popups/favor_popup.tscn")
-const TEMP_ICON := preload("res://icon.svg")
+const TEMP_ICON := preload("res://Assets/Placeholders/god.png")
 const SUN_PATCH_ICON := preload("res://Assets/Gods/Apolaki/Sun-Patch.png")
+
+# One-shot effects (spawn_effect): placeholders until real art - swap the file, keep the
+# slot (UI/theme/ART_SLOTS.md, "One-shot effects"). `from` -> `to` is the scale over
+# `time` seconds; `soft` ones (flashes) are dimmed with Settings "reduce flashing".
+const EFFECTS := {
+	&"spark": {"texture": preload("res://Assets/Placeholders/fx/hit_spark.png"), "from": 0.25, "to": 0.75, "time": 0.22, "tint": Color(1.0, 0.95, 0.7), "soft": true},
+	&"slash": {"texture": preload("res://Assets/Placeholders/fx/hit_slash.png"), "from": 0.55, "to": 0.9, "time": 0.2, "tint": Color(1.0, 1.0, 1.0), "soft": false},
+	&"impact": {"texture": preload("res://Assets/Placeholders/fx/impact_ring.png"), "from": 0.15, "to": 0.55, "time": 0.26, "tint": Color(1.0, 0.8, 0.6), "soft": true},
+}
 
 # The photo of the current god - taken from the god's .tres icon field (each
 # god's .tres carries its own portrait now, so we no longer need a shared icon).
@@ -755,6 +764,18 @@ func mortal_entries() -> Array:
 	return entries
 
 
+# A line a trial puts in a player's panel on the shell's left strip (yours and every
+# rival's), or {} for none: {"text": String, "tint": Color}. Game reads it each frame
+# for every mortal.
+func panel_row(_mortal_id: int) -> Dictionary:
+	return {}
+
+
+# A small line a trial puts at the top of the rivals' column ("" for none).
+func strip_note() -> String:
+	return ""
+
+
 func mortal_label(mortal_id: int) -> String:
 	var mortal := rules.mortal(mortal_id)
 	return mortal.display_name if mortal != null else "Mortal"
@@ -835,6 +856,7 @@ func knock_mortal(mortal_id: int, from_position: Vector2, stun := 0.0, force := 
 		var shove := player.global_position - from_position
 		if shove.length() < 0.01:
 			shove = Vector2.LEFT
+		announce_hit(mortal_id, player.global_position, shove, knock_stun if stun <= 0.0 else stun)
 		_apply_knockback(shove, stun, force)
 		if impact:
 			_impact_hit()
@@ -847,6 +869,7 @@ func knock_mortal(mortal_id: int, from_position: Vector2, stun := 0.0, force := 
 	var direction := position - from_position
 	if direction.length() < 0.01:
 		direction = Vector2.LEFT
+	announce_hit(mortal_id, position, direction, knock_stun if stun <= 0.0 else stun)
 	_net.send_arena_hit(mortal_id, {
 		"direction": direction.normalized(),
 		"stun": knock_stun if stun <= 0.0 else stun,
@@ -1805,6 +1828,8 @@ func _connect_network() -> void:
 		_net.connect("arena_hit_received", _on_arena_hit_received)
 	if _net.has_signal("arena_blind_received"):
 		_net.connect("arena_blind_received", _on_arena_blind_received)
+	if _net.has_signal("arena_fx_received"):
+		_net.connect("arena_fx_received", _on_arena_fx_received)
 	if _net.has_signal("arena_movement_override_received"):
 		_net.connect("arena_movement_override_received", _on_movement_override_received)
 	_net.player_left.connect(_on_peer_left)
@@ -2241,6 +2266,76 @@ func _show_cast(mortal_id: int, favor: GodFavor) -> void:
 	var body := mortal_node(mortal_id)
 	if body != null:
 		body.show_floating_text(favor.display_name.to_upper(), UITokens.readable_on_dark(favor.color, UITokens.NIGHT_900, CAST_TEXT_CONTRAST), CAST_TEXT_TIME)
+
+
+# --- ONE-SHOT EFFECTS ---------------------------------------------------------
+
+# A one-shot sprite at a world position that grows and fades on its own (EFFECTS);
+# `angle` turns it (the slash lies along the blow). Returns it, or null for an
+# unknown name or an arena without a popup layer.
+func spawn_effect(effect: StringName, at: Vector2, angle := 0.0) -> Sprite2D:
+	var spec: Dictionary = EFFECTS.get(effect, {})
+	if spec.is_empty() or popups_root == null or at == Vector2.INF:
+		return null
+	var sprite := Sprite2D.new()
+	sprite.texture = spec["texture"]
+	sprite.rotation = angle
+	sprite.scale = Vector2.ONE * float(spec["from"])
+	var tint: Color = spec["tint"]
+	tint.a = 0.5 if bool(spec["soft"]) and reduce_flashing() else 1.0
+	sprite.modulate = tint
+	popups_root.add_child(sprite)
+	sprite.global_position = at
+	var tween := sprite.create_tween().set_parallel(true)
+	tween.tween_property(sprite, "scale", Vector2.ONE * float(spec["to"]), float(spec["time"]))
+	tween.tween_property(sprite, "modulate:a", 0.0, float(spec["time"]))
+	tween.chain().tween_callback(sprite.queue_free)
+	return sprite
+
+
+# Where an attack lands: a ring and a spark on the target and a slash along the blow.
+func hit_effects(at: Vector2, direction: Vector2) -> void:
+	spawn_effect(&"impact", at)
+	spawn_effect(&"spark", at)
+	spawn_effect(&"slash", at, direction.angle())
+
+
+# The stars over a mortal's head for `seconds` - ours, a rival's ghost or a bot.
+func show_stun(mortal_id: int, seconds: float) -> void:
+	var body := mortal_node(mortal_id)
+	if body != null and seconds > 0.0:
+		body.show_stun(seconds)
+
+
+# What the host shows for a hit it scored, here and on every other screen.
+func announce_hit(mortal_id: int, at: Vector2, direction: Vector2, stun_seconds: float) -> void:
+	hit_effects(at, direction)
+	show_stun(mortal_id, stun_seconds)
+	_send_fx({"kind": "hit", "id": mortal_id, "at": at, "dir": direction, "stun": stun_seconds})
+
+
+# A mortal stumbling without being shoved (a broken chant): the stars, everywhere.
+func announce_stun(mortal_id: int, seconds: float) -> void:
+	show_stun(mortal_id, seconds)
+	_send_fx({"kind": "stun", "id": mortal_id, "stun": seconds})
+
+
+func _send_fx(fx: Dictionary) -> void:
+	if separate_players():
+		return  # a private duel (Apolaki's) is nobody else's to watch
+	if _authority and _networked and _net != null and _net.has_method("send_arena_fx"):
+		_net.send_arena_fx(fx)
+
+
+func _on_arena_fx_received(fx: Dictionary) -> void:
+	if _authority or separate_players():
+		return
+	var id := int(fx.get("id", -1))
+	if fx.get("kind", "") == "hit":
+		hit_effects(fx.get("at", Vector2.INF), fx.get("dir", Vector2.RIGHT))
+		if id == _my_id:
+			return  # our own hit() already put the stars over our head
+	show_stun(id, float(fx.get("stun", 0.0)))
 
 
 # The body of a mortal on this screen: our own, or a rival's ghost (null when unknown).

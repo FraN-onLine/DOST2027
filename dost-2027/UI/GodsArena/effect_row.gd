@@ -10,7 +10,7 @@ extends PanelContainer
 # throughout (border, name, bar), so the two never read alike. The row only draws what
 # it is told; the HUD removes it when the effect ends.
 
-const PLACEHOLDER_ICON := preload("res://icon.svg")
+const PLACEHOLDER_ICON := preload("res://Assets/Placeholders/favor.png")
 
 @onready var icon: TextureRect = $Row/Icon
 @onready var name_label: Label = $Row/Body/Line/NameLabel

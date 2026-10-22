@@ -399,19 +399,6 @@ default_color = Color(0.9490196, 0.9098039, 0.8117647, 0.35)
 [node name="LangitHud" type="CanvasLayer" parent="." index="14" unique_id=1870373423]
 layer = 12
 
-[node name="TayaList" type="Label" parent="LangitHud" index="0" unique_id=1255700455]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -250.0
-offset_top = 56.0
-offset_right = -16.0
-offset_bottom = 160.0
-grow_horizontal = 0
-theme_type_variation = &"HudLabel"
-text = "TIME AS TAYA"
-horizontal_alignment = 2
-
 [node name="Status" type="Label" parent="LangitHud" index="1" unique_id=100621347]
 anchors_preset = 2
 anchor_top = 1.0

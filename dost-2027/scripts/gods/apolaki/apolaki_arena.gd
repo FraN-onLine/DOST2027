@@ -110,7 +110,6 @@ extends Arena
 
 # The mortal's own clips (authored in Mortal.tscn). The swing lands on one of its
 # frames and both clips hand the mortal back to its idle once they run out.
-const IDLE_ANIM := &"default"
 const STRIKE_ANIM := &"hit-arnis"
 const DEFEND_ANIM := &"defend-arnis"
 # The hazard that falls around the mortal (scenes/gods/apolaki/sunbursts.tscn):
@@ -178,7 +177,7 @@ func arena_round_reset() -> void:
 	_reset_hazards()
 	clear_sun_patches()
 	_reset_screen_impact()  # a new round starts with the screen at rest
-	player.play_animation(IDLE_ANIM)
+	player.play_locomotion()
 	if duelist != null:
 		duelist.restart()
 
@@ -278,11 +277,11 @@ func _tick_actions() -> void:
 			_resolve_strike()
 		if not player.is_animation_playing(STRIKE_ANIM):
 			_swinging = false
-			player.play_animation(IDLE_ANIM)
+			player.play_locomotion()
 	elif _guarding:
 		if not player.is_animation_playing(DEFEND_ANIM):
 			_guarding = false
-			player.play_animation(IDLE_ANIM)
+			player.play_locomotion()
 
 
 # The mortal's own three states. They are exactly what its clips are running:
@@ -313,6 +312,7 @@ func _resolve_strike() -> void:
 		# CLASH: his guard holds, but the blow lands on it - he braces back a
 		# step, the field rings once and the screen gives a white flicker.
 		duelist.hit_from(player.global_position, block_knock_force)
+		hit_effects(duelist.global_position, duelist.global_position - player.global_position)
 		_shake_screen(block_shake_time, 0.55)
 		_flash_screen(Color(1.0, 1.0, 1.0), 0.16)
 	else:
@@ -326,6 +326,7 @@ func _resolve_strike() -> void:
 		score_favor(favor_gain, god.display_name)
 		_log("Strike landed: +%d FAVOR" % favor_gain, Color(0.7, 1, 0.8))
 		duelist.hit_from(player.global_position, strike_knock_force)
+		hit_effects(duelist.global_position, duelist.global_position - player.global_position)
 		_shake_screen(strike_shake_time)
 		_flash_screen(Color(1.0, 0.95, 0.78), 0.28)
 

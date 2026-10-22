@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://UI/GodsArena/effect_row.gd" id="1_row"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="2_icon"]
 
 [node name="EffectRow" type="PanelContainer"]
 custom_minimum_size = Vector2(314, 0)

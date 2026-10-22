@@ -7,7 +7,7 @@ extends CharacterBody2D
 # interrupts them.
 #
 # Every visual lives in Mortal.tscn (Shadow, Dust, Afterimages, Glow, Sprite,
-# NameTag, FloatingStatus, and the Steps / Whoosh sound slots) - this script
+# StunStars, NameTag, FloatingStatus, and the Steps / Whoosh sound slots) - this script
 # never draws and never builds nodes on the fly. (The one thing it gives each
 # mortal is its own copy of the Sprite's bandana material, below.) Sprite is an
 # AnimatedSprite2D and carries the authored clips (the idle, the walk, plus the
@@ -15,12 +15,12 @@ extends CharacterBody2D
 # so the body holds the art while the arena keeps the rules.
 #
 # BANDANA: every mortal wears the same sprite, so what tells the players apart is
-# the colour of the bandana - the headband and its two tails - and of the cloak.
-# The Sprite carries bandana_swap.gdshader, which turns the two reds the art draws
-# the bandana in into the player's colour (UITokens.bandana_color) and the three
-# it draws the cloak in into three shades of it (UITokens.cloak_shades), touching
-# nothing else, and set_bandana() gives the mortal its own material so each one
-# keeps its own. It sits UNDER the node's modulate, so every hit flash, freeze or
+# the colour of the bandana - the headband and its two tails - and of the vest.
+# The Sprite carries bandana_swap.gdshader, which turns the three reds the art
+# draws both in into the player's colour and two darker steps of it
+# (UITokens.art_shades), touching nothing else, and set_bandana() gives the mortal
+# its own material so each one keeps its own. The defend-arnis clip is still the
+# old sheet with the old reds, so the shader's `legacy` switch follows the clip. It sits UNDER the node's modulate, so every hit flash, freeze or
 # fade an arena puts on a mortal still shows on top of it.
 #
 # FACING: the authored art faces right, so a move to the left mirrors the sprite
@@ -57,6 +57,8 @@ extends CharacterBody2D
 @export var lean_degrees := 5.0     # tilt towards the way it walks, at full speed
 @export var squash := 0.05          # the hop's stretch / squash (scale fraction)
 @export var hit_stop := 0.06        # s the sprite freezes on a hit (only with screen shake on)
+@export var stun_star_orbit := Vector2(16.0, 5.0)  # px: how wide / deep the stars circle the head
+@export var stun_star_speed := 7.0  # rad/s
 # A mortal nobody here steers (a ghost, a bot) "dashed" when it was seen going
 # this many times move_speed. Ghosts can't hear a dash, only see it - and the
 # glide they get (Arena.ghost_smoothing) shows a 733 px/s dash at ~575 px/s, a
@@ -79,6 +81,11 @@ var bandana_index := 0
 var facing := 1
 
 var _stun := 0.0
+# Seconds the stars still circle the head. Look only: hit() sets it with the stun, and
+# an arena sets it (show_stun) for a mortal it can't hit() here - a ghost - or one that
+# is stumbling without being shoved (a broken chant).
+var _stun_fx := 0.0
+var _stun_angle := 0.0
 var _knockback := Vector2.ZERO
 var _forced_move_time := 0.0
 var _forced_move_direction := Vector2.ZERO
@@ -132,9 +139,11 @@ var _trail_next := 0
 var _trail_spots: Array[Transform2D] = []
 
 const ANIM_WALK := &"walk"
+const LEGACY_CLIPS: Array[StringName] = [&"defend-arnis"]  # still on Lamang-Sheet.png
 const TURN_DOT := -0.17          # cos(100°): input this far from the velocity turns back
 const JUMP := 48.0               # px in one physics frame: a respawn or a snap, not a walk
 const VISUAL_SMOOTHING := 18.0
+const STUN_FX_MIN := 0.3         # a 0.2s stun still shows its stars long enough to read
 const TRAIL_TIME := 0.15         # the dash's length: one afterimage per TRAIL_GAP of it
 const TRAIL_GAP := 0.04
 const TRAIL_LIFE := 0.25
@@ -147,6 +156,7 @@ const KICK_DAMPING := 21.0
 @onready var shadow: Sprite2D = $Shadow
 @onready var dust: CPUParticles2D = $Dust
 @onready var afterimages: Node2D = $Afterimages
+@onready var stun_stars: Node2D = $StunStars
 @onready var steps: AudioStreamPlayer2D = $Steps
 @onready var whoosh: AudioStreamPlayer2D = $Whoosh
 @onready var name_tag: Label = $NameTag
@@ -171,6 +181,9 @@ func _ready() -> void:
 		_trail_spots.append(Transform2D.IDENTITY)
 	_apply_facing()
 	set_bandana(bandana_index)  # its own material, from the first frame
+	if sprite != null:
+		sprite.animation_changed.connect(_on_animation_changed)
+		_on_animation_changed()
 
 
 # Put the player's bandana (and cloak) colour on this mortal (and only this one: the material
@@ -183,12 +196,22 @@ func set_bandana(index: int) -> void:
 		sprite.material = sprite.material.duplicate()
 		sprite.material.set_meta("own_bandana", true)
 	var swap := sprite.material as ShaderMaterial
+	var shades := UITokens.art_shades(bandana_index)
+	swap.set_shader_parameter("shade_light", shades[0])
+	swap.set_shader_parameter("shade_mid", shades[1])
+	swap.set_shader_parameter("shade_dark", shades[2])
 	swap.set_shader_parameter("bandana_color", UITokens.bandana_color(bandana_index))
 	swap.set_shader_parameter("bandana_shadow", UITokens.bandana_shadow(bandana_index))
 	var cloak := UITokens.cloak_shades(bandana_index)
 	swap.set_shader_parameter("cloak_color", cloak[0])
 	swap.set_shader_parameter("cloak_mid", cloak[1])
 	swap.set_shader_parameter("cloak_dark", cloak[2])
+
+
+# The clips still drawn on the old sheet, in the old reds (see bandana_swap.gdshader).
+func _on_animation_changed() -> void:
+	if sprite.material is ShaderMaterial:
+		(sprite.material as ShaderMaterial).set_shader_parameter("legacy", sprite.animation in LEGACY_CLIPS)
 
 
 func is_stunned() -> bool:
@@ -207,6 +230,7 @@ func stun_left() -> float:
 # keeps flying, so nothing here can drift from what the other screens see.
 func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:
 	_stun = maxf(_stun, stun_time)
+	show_stun(stun_time)
 	_knockback = direction.normalized() * force
 	_flash = 0.35
 	_hit_direction = direction.normalized()
@@ -214,6 +238,11 @@ func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:
 	_hit_flash = 1.0
 	if _setting("screen_shake_enabled"):
 		_hit_stop = hit_stop
+
+
+# The stars over the head for `seconds` (at least STUN_FX_MIN); nothing moves.
+func show_stun(seconds: float) -> void:
+	_stun_fx = maxf(_stun_fx, maxf(seconds, STUN_FX_MIN))
 
 
 func force_movement(direction: Vector2, duration: float) -> void:
@@ -267,7 +296,9 @@ func show_floating_text(text: String, tint := Color.WHITE, duration := 2.2) -> v
 # open a strike's hit window on one frame and close it on another without the
 # body ever knowing the rules. The idle and the walk are the mortal's own: it
 # swaps between them as it starts and stops (see _update_look); any other clip an
-# arena plays holds until the arena hands the mortal back to its idle.
+# arena plays holds until it has played out, then the mortal falls back to the walk
+# or the idle by itself (an arena can say so sooner with play_locomotion). A stunned
+# mortal, and the player while locked (dialogue, a rooted chant), show the idle.
 
 const ANIM_IDLE := &"default"
 
@@ -281,6 +312,19 @@ func play_animation(anim: StringName) -> void:
 	if sprite.animation == anim and sprite.is_playing():
 		return
 	sprite.play(anim)
+
+
+# Back to what the mortal's motion says: the walk while it is moving, the idle
+# otherwise. What an arena calls when an action clip is over, so a mortal that
+# strikes while running goes back to running.
+func play_locomotion() -> void:
+	play_animation(ANIM_WALK if _walking and not _rooted() else ANIM_IDLE)
+
+
+# Stunned, or the player held still by the arena: shown idle whatever it slides at.
+# (Ghosts and bots stay locked for life - their motion decides, not the lock.)
+func _rooted() -> bool:
+	return is_stunned() or (locked and _player_driven)
 
 
 func current_animation() -> StringName:
@@ -396,6 +440,7 @@ func _physics_process(delta: float) -> void:
 
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
+	_update_stun_stars(delta)
 	if glow != null:
 		var hit_alpha := 0.35 if _setting("reduce_flashing") else 0.7  # steady tint instead of a bright flash
 		var glow_alpha := 0.25 if _flash <= 0.0 else hit_alpha
@@ -407,6 +452,24 @@ func _physics_process(delta: float) -> void:
 		floating_text.modulate.a = clampf(_floating_time, 0.0, 1.0)
 		if _floating_time <= 0.0:
 			floating_text.visible = false
+
+
+# Three stars circling the head while _stun_fx runs (the sprite hidden - Langit Lupa's
+# gods - hides them too). One ellipse seen from the side: the far ones are smaller.
+func _update_stun_stars(delta: float) -> void:
+	if stun_stars == null:
+		return
+	_stun_fx = maxf(0.0, _stun_fx - delta)
+	stun_stars.visible = _stun_fx > 0.0 and sprite != null and sprite.visible
+	if not stun_stars.visible:
+		return
+	_stun_angle += delta * stun_star_speed
+	for index in range(stun_stars.get_child_count()):
+		var star := stun_stars.get_child(index) as Sprite2D
+		var angle := _stun_angle + TAU * index / stun_stars.get_child_count()
+		star.position = Vector2(cos(angle) * stun_star_orbit.x, sin(angle) * stun_star_orbit.y)
+		star.scale = Vector2.ONE * (0.3 + 0.08 * sin(angle))
+		star.rotation = angle
 
 
 # The player's own walk: towards the held direction at `accel` (`turn_accel` when
@@ -465,8 +528,11 @@ func _update_look(moved: Vector2, delta: float) -> void:
 		if _top_ratio > 0.6:
 			_kick_velocity += facing * deg_to_rad(4.0) * sqrt(KICK_STIFFNESS)
 			_puff(0.6, Vector2(facing, 0.0))
+	if not own_clip and not sprite.is_playing():
+		play_locomotion()  # the action has played out
+		own_clip = true
 	if own_clip:
-		var clip := ANIM_WALK if _walking and sprite.sprite_frames.has_animation(ANIM_WALK) else ANIM_IDLE
+		var clip := ANIM_WALK if _walking and not _rooted() and sprite.sprite_frames.has_animation(ANIM_WALK) else ANIM_IDLE
 		if sprite.animation != clip:
 			sprite.play(clip)
 		sprite.speed_scale = lerpf(1.0, 1.8, ratio)  # quicker steps, a livelier cloak

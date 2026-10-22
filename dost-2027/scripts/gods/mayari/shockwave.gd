@@ -9,7 +9,7 @@ extends Node2D
 # in sync. Nothing here draws - the art lives in Shockwave.tscn:
 #
 #   Ring - a Line2D circle drawn at `base_radius`, scaled up as the wave grows.
-#   Icon - a Sprite2D carrying the Godot placeholder (res://icon.svg), the same
+#   Icon - a Sprite2D carrying a placeholder ring (Assets/Placeholders/shockwave.png), the same
 #          stand-in every god and favor uses until real art arrives.
 #
 # The whole node scales from `start_scale` to `max_scale` over `expand_time`, so

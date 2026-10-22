@@ -49,26 +49,34 @@ const EMBER := Color("#E0614F")  # danger / loss / last seconds
 const STAR := Color("#9FD3FF")   # info / keyboard focus ring
 
 # --- the players' bandanas ---------------------------------------------------
-# Every mortal wears the same sprite (Assets/Player/Lamang-Sheet.png); only the
-# bandana - the headband and its two tails, drawn in exactly BANDANA_LIGHT and
-# BANDANA_SHADOW and nowhere else on the sheet - and the cloak (the big coat, drawn
-# in exactly CLOAK_LIGHT / CLOAK_MID / CLOAK_DARK) change colour per player (the
-# swap is scenes/gods/common/bandana_swap.gdshader, on the mortal's Sprite).
+# Every mortal wears the same sprite; only the colour of its bandana and vest
+# changes per player (the swap is scenes/gods/common/bandana_swap.gdshader, on the
+# mortal's Sprite). The current art (Assets/Gods/lam-ang*.png) draws the headband,
+# its tails and the vest in the same three reds and nowhere else: SHADE_LIGHT,
+# SHADE_MID, SHADE_DARK. A player's colour takes the light one and the other two
+# step down in the art's own 88 : 65 : 42 ratio (art_shades).
 # Eight colours that read apart at a glance, on the mortal's brown skin and black
 # hair, against each other and on every arena floor. Index 0 is the art's own red,
 # so the default look is the drawn one; a player picks theirs in the lobby and the
 # host never gives one colour to two players (Network.request_bandana_color).
-const BANDANA_LIGHT := Color8(122, 14, 14)   # #7A0E0E - the drawn bandana
+const SHADE_LIGHT := Color8(88, 16, 16)   # #581010
+const SHADE_MID := Color8(65, 11, 11)     # #410B0B
+const SHADE_DARK := Color8(42, 0, 0)      # #2A0000
+const SHADE_MID_RATIO := 0.74
+const SHADE_DARK_RATIO := 0.48
+# LEGACY: the defend-arnis clip still comes from the old Assets/Player/Lamang-Sheet.png,
+# where the bandana is BANDANA_LIGHT / BANDANA_SHADOW and the cloak CLOAK_LIGHT /
+# CLOAK_MID / CLOAK_DARK. Delete these (and bandana_shadow, cloak_shades) when that
+# clip gets new art.
+const BANDANA_LIGHT := Color8(122, 14, 14)   # #7A0E0E - the old bandana
 const BANDANA_SHADOW := Color8(87, 3, 3)     # #570303 - its shadow side
-# How much darker the shadow side is than the light one: the drawn red's own
-# light-to-shadow step (87 / 122 in the red channel), kept for every other colour.
+# How much darker the shadow side is than the light one: the old red's own
+# light-to-shadow step (87 / 122 in the red channel).
 const BANDANA_SHADOW_RATIO := 0.713
-# The cloak's three drawn reds, light to dark.
 const CLOAK_LIGHT := Color8(88, 16, 16)   # #581010
 const CLOAK_MID := Color8(75, 0, 0)       # #4B0000
 const CLOAK_DARK := Color8(42, 0, 0)      # #2A0000
-# A player's cloak is their bandana colour a little darker (so the bandana still
-# stands out on the head), in the drawn reds' own 88 : 75 : 42 steps.
+# The old cloak was the bandana colour a little darker, in its own 88 : 75 : 42 steps.
 const CLOAK_RATIO := 0.72
 const CLOAK_MID_RATIO := 0.85
 const CLOAK_DARK_RATIO := 0.48
@@ -90,8 +98,19 @@ static func bandana_color(index: int) -> Color:
 	return BANDANA_COLORS[posmod(index, BANDANA_COLORS.size())]
 
 
-# Its shadow side: the art's own shadow red for index 0, the same step darker for
-# the rest.
+# The three shades [light, mid, dark] the mortal's bandana and vest are drawn in at
+# `index`: the art's own reds for index 0, the colour stepped down for the rest.
+static func art_shades(index: int) -> Array[Color]:
+	if posmod(index, BANDANA_COLORS.size()) == 0:
+		return [SHADE_LIGHT, SHADE_MID, SHADE_DARK]
+	var base := bandana_color(index)
+	return [base,
+		Color(base.r * SHADE_MID_RATIO, base.g * SHADE_MID_RATIO, base.b * SHADE_MID_RATIO, 1.0),
+		Color(base.r * SHADE_DARK_RATIO, base.g * SHADE_DARK_RATIO, base.b * SHADE_DARK_RATIO, 1.0)]
+
+
+# LEGACY (see above): the old bandana's shadow side - the old red's own shadow red
+# for index 0, the same step darker for the rest.
 static func bandana_shadow(index: int) -> Color:
 	if posmod(index, BANDANA_COLORS.size()) == 0:
 		return BANDANA_SHADOW
@@ -99,8 +118,7 @@ static func bandana_shadow(index: int) -> Color:
 	return Color(light.r * BANDANA_SHADOW_RATIO, light.g * BANDANA_SHADOW_RATIO, light.b * BANDANA_SHADOW_RATIO, 1.0)
 
 
-# The cloak's three shades [light, mid, dark] for the bandana at `index`: the art's
-# own reds for index 0, the bandana colour scaled down for the rest.
+# LEGACY: the old cloak's three shades [light, mid, dark] for the bandana at `index`.
 static func cloak_shades(index: int) -> Array[Color]:
 	if posmod(index, BANDANA_COLORS.size()) == 0:
 		return [CLOAK_LIGHT, CLOAK_MID, CLOAK_DARK]

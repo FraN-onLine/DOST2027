@@ -1,8 +1,14 @@
 extends SceneTree
 
-# Validation: the players' bandana and cloak colours (UITokens.BANDANA_COLORS and
-# cloak_shades, the shader scenes/gods/common/bandana_swap.gdshader,
+# Validation: the players' bandana and vest colours (UITokens.BANDANA_COLORS and
+# art_shades, the shader scenes/gods/common/bandana_swap.gdshader,
 # Network.request_bandana_color).
+#   * the current art (Assets/Gods/lam-ang.png, lam-ang-walking.png) draws the
+#     bandana and the vest in exactly three reds, #581010 #410B0B #2A0000, and
+#     nothing else on either sheet is within the shader's tolerance of them;
+#     art_shades gives the art's own reds for colour 0 and the colour, x0.74 and
+#     x0.48 of it for the rest
+#   * LEGACY, the rest of this list: the defend-arnis clip is still on the old sheet.
 #   * Assets/Player/Lamang-Sheet.png draws the bandana in exactly two colours,
 #     #7A0E0E and #570303, and the cloak in exactly three, #581010 #4B0000 #2A0000;
 #     no other colour on the sheet is within the shader's tolerance of any of the
@@ -23,6 +29,7 @@ extends SceneTree
 # Run: godot --headless --path <project> -s res://tools/bandana_check.gd
 
 const SHEET := "res://Assets/Player/Lamang-Sheet.png"
+const NEW_SHEETS: Array[String] = ["res://Assets/Gods/lam-ang.png", "res://Assets/Gods/lam-ang-walking.png"]
 # What the shader tolerates (see bandana_swap.gdshader): channels within this many
 # 8-bit steps of the drawn red count as the bandana.
 const SHADER_TOLERANCE := 0.012
@@ -104,6 +111,37 @@ func _run() -> void:
 			if _near(pixel, color):
 				strays.append("#" + html)
 	_check(strays.is_empty(), "no other colour on the sheet is within the shader's tolerance of the bandana or the cloak (%s)" % str(strays))
+
+	# --- the current art: three reds shared by the bandana and the vest ---------------
+	var new_drawn: Array[Color] = [UITokens.SHADE_LIGHT, UITokens.SHADE_MID, UITokens.SHADE_DARK]
+	for path in NEW_SHEETS:
+		var image: Image = (load(path) as Texture2D).get_image()
+		image.decompress()
+		var found := [0, 0, 0]
+		var near_misses := 0
+		for y in range(image.get_height()):
+			for x in range(image.get_width()):
+				var pixel: Color = image.get_pixel(x, y)
+				if pixel.a <= 0.0:
+					continue
+				var hit := -1
+				for i in range(3):
+					if pixel.to_html(false) == new_drawn[i].to_html(false):
+						hit = i
+					elif _near(pixel, new_drawn[i]):
+						near_misses += 1
+				if hit >= 0:
+					found[hit] += 1
+		_check(found[0] > 0 and found[1] > 0 and found[2] > 0 and near_misses == 0,
+			"%s draws #581010 #410B0B #2A0000 (%s) and nothing else near them" % [path.get_file(), str(found)])
+	_check(UITokens.art_shades(0) == [UITokens.SHADE_LIGHT, UITokens.SHADE_MID, UITokens.SHADE_DARK],
+		"colour 0's shades are the art's own reds")
+	var shade_ok := true
+	for index in range(1, 8):
+		var shades := UITokens.art_shades(index)
+		var base := UITokens.bandana_color(index)
+		shade_ok = shade_ok and _same(shades[0], base) and absf(shades[1].g - base.g * 0.74) < 0.004 and absf(shades[2].b - base.b * 0.48) < 0.004
+	_check(shade_ok, "every other colour is light = the colour, mid = x0.74, dark = x0.48")
 
 	# --- the swap over the whole sheet ------------------------------------------------------
 	var identical := true
@@ -196,6 +234,15 @@ func _run() -> void:
 	var second_material := second.sprite.material as ShaderMaterial
 	_check(first_material != null and second_material != null and first_material != second_material,
 		"every mortal has a material of its own")
+	_check(first_material.get_shader_parameter("shade_light") == UITokens.art_shades(1)[0]
+		and second_material.get_shader_parameter("shade_mid") == UITokens.art_shades(5)[1]
+		and second_material.get_shader_parameter("shade_dark") == UITokens.art_shades(5)[2],
+		"...and its own bandana and vest shades")
+	_check(not first_material.get_shader_parameter("legacy"), "idle is on the new art: the shader's legacy switch is off")
+	first.sprite.play(&"defend-arnis")
+	var legacy_on: bool = first_material.get_shader_parameter("legacy")
+	first.sprite.play(&"hit-arnis")
+	_check(legacy_on and not first_material.get_shader_parameter("legacy"), "defend-arnis (old sheet) turns it on, hit-arnis (new) off again")
 	_check(first_material.get_shader_parameter("bandana_color") == UITokens.bandana_color(1)
 		and second_material.get_shader_parameter("bandana_color") == UITokens.bandana_color(5)
 		and second_material.get_shader_parameter("bandana_shadow") == UITokens.bandana_shadow(5)

@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://c8if6nvl5ehs"]
 
 [ext_resource type="Script" path="res://UI/opponent_panel.gd" id="1_panel"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/god.png" id="2_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="3_favor"]
 
 [node name="OpponentPanel" type="PanelContainer"]
 custom_minimum_size = Vector2(0, 88)
@@ -89,6 +90,14 @@ size_flags_horizontal = 3
 tooltip_text = "Q  --"
 show_percentage = false
 
+[node name="TrialRow" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "TRIAL"
+clip_text = true
+text_overrun_behavior = 3
+
 [node name="PamanaRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 visible = false
 layout_mode = 2
@@ -99,7 +108,7 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
 mouse_filter = 2
-texture = ExtResource("2_icon")
+texture = ExtResource("3_favor")
 expand_mode = 1
 stretch_mode = 5
 

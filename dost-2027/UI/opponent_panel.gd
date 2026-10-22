@@ -1,7 +1,7 @@
 extends PanelContainer
 
 # One rival in the shell's column: icon and name, FAVOR and DUE, the two favor
-# bars, and the Pamana they carry (a small badge, hidden when none). Framed in
+# bars, the line a trial puts in the panel (Game.show_trial_row; hidden when none), and the Pamana they carry (a small badge, hidden when none). Framed in
 # the accent of the god the rival wears (UITokens.god_accent), with a swatch of
 # their bandana colour beside the name - the headband their mortal wears in the arena.
 
@@ -11,6 +11,7 @@ extends PanelContainer
 @onready var due_label = $MarginContainer/VBoxContainer/StatsLabel/DueBox/DueValue
 @onready var e_bar = $MarginContainer/VBoxContainer/SkillRow/EBar
 @onready var q_bar = $MarginContainer/VBoxContainer/SkillRow/QBar
+@onready var trial_row: Label = $MarginContainer/VBoxContainer/TrialRow
 @onready var pamana_row: HBoxContainer = $MarginContainer/VBoxContainer/PamanaRow
 @onready var pamana_icon: TextureRect = $MarginContainer/VBoxContainer/PamanaRow/PamanaIcon
 @onready var pamana_label: Label = $MarginContainer/VBoxContainer/PamanaRow/PamanaLabel

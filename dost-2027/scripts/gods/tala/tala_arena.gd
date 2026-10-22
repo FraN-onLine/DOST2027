@@ -512,6 +512,7 @@ func _resolve_tala_catch(owner: int) -> void:
 	# own screen whichever peer hosts the round: a direct kick here covers the
 	# host's own screen, the mirrored count covers a client's (arena_read_tick).
 	if tala != null:
+		announce_hit(-1, tala.global_position, Vector2.RIGHT, 0.0)  # the slipper lands on her
 		_drop_slipper(owner, tala.global_position + Vector2(28.0, 18.0))
 	lose_favor(tala_penalty, "Tala caught your slipper", owner)
 	_tala_hits += 1
@@ -525,6 +526,7 @@ func _resolve_can(owner: int, can_index: int) -> void:
 	if can_index < 0 or can_index >= _cans.size():
 		return
 	_can_repair[can_index] = can_repair_time
+	announce_hit(-1, _cans[can_index].global_position, Vector2.RIGHT, 0.0)  # ...and on the can
 	_refresh_can(can_index)
 	bank_favor(can_favor, "knocking down a tin can", owner)
 	_modes[owner] = "ready"

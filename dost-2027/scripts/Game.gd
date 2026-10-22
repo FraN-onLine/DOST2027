@@ -14,6 +14,11 @@ extends Control
 # instead of being allowed to widen it. The rival column starts low enough to
 # leave room for our own panel's Pamana badge row.
 #
+# A trial can put one extra line in every panel (a TrialRow label, hidden when
+# empty) and one small note at the top of the rival column (StripNote): the
+# arena answers Arena.panel_row(mortal id) and Arena.strip_note() and the shell
+# draws them each frame (Langit Lupa's TAYA 0:12 rows).
+#
 # Arena contract (scripts/gods/common/arena.gd): every arena scene is authored in
 # screen space exactly as it is played - the scene fills the screen and keeps
 # the left Arena.UI_STRIP_WIDTH pixels clear for the panels below. The shell
@@ -71,6 +76,8 @@ const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
 @onready var due_pips: HBoxContainer = $HudLayer/TopLeft/VBoxContainer/StatsRow/DueBox/DueRow/DuePips
 @onready var e_bar: ProgressBar = $HudLayer/TopLeft/VBoxContainer/ERow/EBar
 @onready var q_bar: ProgressBar = $HudLayer/TopLeft/VBoxContainer/QRow/QBar
+@onready var own_trial_row: Label = $HudLayer/TopLeft/VBoxContainer/TrialRow
+@onready var strip_note: Label = $HudLayer/OtherPlayersPanel/Margin/VBox/StripNote
 @onready var pamana_row: HBoxContainer = $HudLayer/TopLeft/VBoxContainer/PamanaRow
 @onready var pamana_icon: TextureRect = $HudLayer/TopLeft/VBoxContainer/PamanaRow/PamanaIcon
 @onready var pamana_label: Label = $HudLayer/TopLeft/VBoxContainer/PamanaRow/PamanaLabel
@@ -413,6 +420,10 @@ func _update_panel_stats() -> void:
 		return
 	_update_skill_bar(e_bar, GodFavor.Slot.E, mortal)
 	_update_skill_bar(q_bar, GodFavor.Slot.Q, mortal)
+	_show_trial_row(own_trial_row, mortal.id)
+	var note: String = arena.strip_note() if arena != null and arena.has_method("strip_note") else ""
+	strip_note.text = note
+	strip_note.visible = note != ""
 	for id in other_player_panels.keys():
 		var other := rules.mortal(int(id))
 		if other == null:
@@ -420,6 +431,16 @@ func _update_panel_stats() -> void:
 		other_player_panels[id].update_stats(other.favor, other.due)
 		other_player_panels[id].update_skill_bar(rules, other)
 		other_player_panels[id].update_pamana(other)
+		_show_trial_row(other_player_panels[id].trial_row, int(id))
+
+
+# The line the trial in play puts in a player's panel (Arena.panel_row), hidden when it has none.
+func _show_trial_row(label: Label, mortal_id: int) -> void:
+	var row: Dictionary = arena.panel_row(mortal_id) if arena != null and arena.has_method("panel_row") else {}
+	label.visible = not row.is_empty()
+	if label.visible:
+		label.text = str(row["text"])
+		label.add_theme_color_override("font_color", UITokens.readable_on_dark(row["tint"], UITokens.NIGHT_900))
 
 
 func _update_skill_bar(bar: ProgressBar, slot: int, mortal: GodMatch.Mortal) -> void:

@@ -48,6 +48,7 @@ signal arena_state_received(state)        # host -> clients: 10 Hz world tick
 signal mortal_positions_received(positions)  # host -> clients: the fast position stream
 signal arena_hit_received(hit)            # host -> the peer whose mortal was hit
 signal arena_blind_received(caster_id, radius, duration)  # host -> everyone but the caster
+signal arena_fx_received(fx)              # host -> everyone: a hit landed / a mortal is stunned (look only)
 signal arena_cast_received(caster_id, favor_id)           # host -> clients: this mortal just used this skill
 signal arena_movement_override_received(caster_id, duration)
 
@@ -1383,6 +1384,22 @@ func rpc_arena_blind(caster_id: int, radius: float, duration: float) -> void:
 	if multiplayer.is_server():
 		return
 	emit_signal("arena_blind_received", caster_id, radius, duration)
+
+
+# A hit that landed or a mortal that stumbled, said to every other screen so each draws
+# its spark and stars (Arena.announce_hit / announce_stun). Look only: the shove itself
+# still goes to the victim alone (send_arena_hit).
+func send_arena_fx(fx: Dictionary) -> void:
+	if not has_multiplayer_peer():
+		return
+	rpc("rpc_arena_fx", fx)
+
+
+@rpc("any_peer", "reliable")
+func rpc_arena_fx(fx: Dictionary) -> void:
+	if multiplayer.is_server():
+		return
+	emit_signal("arena_fx_received", fx)
 
 
 # A duration of 0 cancels a running override (Hanan's Break of Day ends it).

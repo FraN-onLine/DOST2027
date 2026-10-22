@@ -199,11 +199,8 @@ func _run() -> void:
 	await _frames(3)
 	langit_hud._process(0.016)
 	await _frames(2)
-	var taya_list: Label = langit.taya_list
-	_check(taya_list.get_parent() == langit_hud.top_right, "Langit's TAYA list hangs in the same column")
-	var effects_rect: Rect2 = langit_hud.effects_box.get_global_rect()
-	_check(taya_list.get_global_rect().position.y >= effects_rect.end.y - 0.5,
-		"...under the effects, so neither covers the other (effects end %.0f, list starts %.0f)" % [effects_rect.end.y, taya_list.get_global_rect().position.y])
+	_check(langit.get_node_or_null("LangitHud/TayaList") == null and langit_hud.top_right.get_child_count() > 0,
+		"Langit's TAYA list is no longer in the top-right column (it moved into the player panels)")
 	_finish(game)
 
 

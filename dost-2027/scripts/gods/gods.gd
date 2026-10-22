@@ -15,7 +15,7 @@ extends RefCounted
 
 const GOD_DIR := "res://resources/gods"
 
-const TEMP_ICON := "res://icon.svg"  # placeholder art for every god / favor
+const TEMP_ICON := "res://Assets/Placeholders/favor.png"  # placeholder art for every god / favor
 
 const MAYARI := &"mayari"
 const APOLAKI := &"apolaki"

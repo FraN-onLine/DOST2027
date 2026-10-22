@@ -12,6 +12,10 @@ extends SceneTree
 #     the arenas set them (only the Sprite moves)
 #   * a ghost the arena only ever places (global_position) still steps, walks and
 #     turns to face where it goes
+#   * the clip: idle standing, walk moving; an action clip wins and, once played
+#     out (or on play_locomotion()), the mortal goes back to what it is doing; a
+#     stun or a locked player shows the idle; the legacy palette follows defend-arnis
+#   * a stunned mortal (or a ghost shown stunned) has three stars over its head
 #   * a SPACE pressed while the dash recharges fires once it is ready, inside the
 #     buffer; one pressed too early to make it is dropped
 # Run: godot --headless --path <project> -s res://tools/movement_feel_check.gd
@@ -130,6 +134,74 @@ func _run() -> void:
 	_check(not ghost._seen_dash, "...and a walk is not taken for a dash")
 	ghost.queue_free()
 	mortal.queue_free()
+	await _physics(2)
+
+	# --- which clip plays ------------------------------------------------------------------------
+	var runner: ArenaMortal = MORTAL.instantiate()
+	view.add_child(runner)
+	runner.global_position = Vector2(300, 300)
+	await _physics(2)
+	_check(runner.current_animation() == ArenaMortal.ANIM_IDLE, "standing still plays the idle")
+	Input.action_press("move_right")
+	await _physics(20)
+	_check(runner.current_animation() == ArenaMortal.ANIM_WALK, "walking plays the walk")
+	runner.play_animation(&"hit-arnis")
+	await _physics(5)
+	_check(runner.current_animation() == &"hit-arnis" and runner.is_animation_playing(&"hit-arnis"), "an action clip wins over the walk while it plays")
+	await _physics(80)
+	_check(runner.current_animation() == ArenaMortal.ANIM_WALK, "...and once it has played out, still holding right, it is walking again (%s)" % runner.current_animation())
+	runner.play_animation(&"defend-arnis")
+	runner.play_locomotion()
+	_check(runner.current_animation() == ArenaMortal.ANIM_WALK, "play_locomotion() after an action on the run goes back to the walk")
+	Input.action_release("move_right")
+	await _physics(30)
+	_check(runner.current_animation() == ArenaMortal.ANIM_IDLE, "let go, back to the idle")
+	runner.play_animation(&"hit-arnis")
+	runner.play_locomotion()
+	_check(runner.current_animation() == ArenaMortal.ANIM_IDLE, "play_locomotion() standing still goes back to the idle")
+	Input.action_press("move_right")
+	await _physics(20)
+	runner.hit(Vector2.LEFT, 0.5, 300.0)
+	await _physics(10)  # past the hit's freeze (hit_stop, 0.06s)
+	_check(runner.current_animation() == ArenaMortal.ANIM_IDLE, "stunned, it shows the idle however fast it slides")
+	await _physics(40)
+	_check(runner.current_animation() == ArenaMortal.ANIM_WALK, "...and walks again when the stun ends")
+	runner.set_lock(true)
+	await _physics(4)
+	_check(runner.current_animation() == ArenaMortal.ANIM_IDLE, "the player locked (dialogue, a rooted chant) shows the idle with the keys held")
+	runner.set_lock(false)
+	Input.action_release("move_right")
+	await _physics(10)
+
+	# --- the legacy palette follows the clip -------------------------------------------------------
+	var swap := runner.sprite.material as ShaderMaterial
+	runner.play_animation(&"defend-arnis")
+	var legacy_on: bool = swap.get_shader_parameter("legacy")
+	runner.play_locomotion()
+	await _physics(1)
+	_check(legacy_on and not swap.get_shader_parameter("legacy"), "the old-sheet palette is on for defend-arnis only")
+
+	# --- the stun's stars ---------------------------------------------------------------------------
+	_check(not runner.stun_stars.visible, "no stars over a mortal that is not stunned")
+	runner.hit(Vector2.RIGHT, 0.5, 100.0)
+	await _physics(3)
+	_check(runner.stun_stars.visible and runner.stun_stars.get_child_count() == 3, "a stunned mortal has three stars circling its head")
+	var star_at: Vector2 = (runner.stun_stars.get_child(0) as Node2D).position
+	await _physics(3)
+	_check(star_at != (runner.stun_stars.get_child(0) as Node2D).position, "...and they circle")
+	await _physics(60)
+	_check(not runner.stun_stars.visible and not runner.is_stunned(), "...gone when the stun is over")
+	var placed: ArenaMortal = MORTAL.instantiate()
+	view.add_child(placed)
+	placed.set_lock(true)
+	placed.global_position = Vector2(500, 300)
+	await _physics(2)
+	placed.show_stun(0.5)
+	await _physics(4)
+	_check(placed.stun_stars.visible and placed.global_position == Vector2(500, 300) and not placed.is_stunned(),
+		"a ghost shown stunned gets the stars and is not moved by it")
+	placed.queue_free()
+	runner.queue_free()
 	await _physics(2)
 
 	# --- the dash buffer -----------------------------------------------------------------------
