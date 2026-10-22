@@ -6,12 +6,13 @@ extends CharacterBody2D
 # movement during dialogue and shove the mortal around when a god or a clone
 # interrupts them.
 #
-# Every visual lives in Mortal.tscn (Sprite, Glow, NameTag, FloatingStatus) -
-# this script never draws and never builds nodes on the fly. (The one thing it
-# gives each mortal is its own copy of the Sprite's bandana material, below.) Sprite is an
-# AnimatedSprite2D and carries the authored clips (the idle walk, plus the arnis
-# strike and guard): an arena plays them and reads the running frame back, so the
-# body holds the art while the arena keeps the rules.
+# Every visual lives in Mortal.tscn (Shadow, Dust, Afterimages, Glow, Sprite,
+# NameTag, FloatingStatus, and the Steps / Whoosh sound slots) - this script
+# never draws and never builds nodes on the fly. (The one thing it gives each
+# mortal is its own copy of the Sprite's bandana material, below.) Sprite is an
+# AnimatedSprite2D and carries the authored clips (the idle, the walk, plus the
+# arnis strike and guard): an arena plays them and reads the running frame back,
+# so the body holds the art while the arena keeps the rules.
 #
 # BANDANA: every mortal wears the same sprite, so what tells the players apart is
 # the colour of the bandana - the headband and its two tails - and of the cloak.
@@ -29,8 +30,43 @@ extends CharacterBody2D
 # frame - player input, a forced move, a knockback, or, for a remote ghost the
 # arena glides towards its last reported position, the distance travelled - so
 # every ArenaMortal (the local player and every ghost) turns to face its motion.
+#
+# FEEL: the player's own walk speeds up and slows down (accel / turn_accel /
+# friction) instead of jumping between 0 and move_speed - but only free walking:
+# a stun, a forced move, a dash and a lock still set the velocity outright, on
+# the frame they happen. move_speed stays the cap. Everything else is LOOK, and
+# it is read from the motion this screen actually saw (the distance travelled
+# each physics frame), never from input or the network - so the local player,
+# every ghost the arena glides around, a bot and a shoved mortal all walk, lean,
+# hop and kick up dust the same way, and nothing new is ever sent. The look only
+# ever touches the Sprite (and the Shadow under it), on top of the position and
+# scale authored in Mortal.tscn: the root node's scale, rotation and modulate
+# belong to the arenas (Hanan's crouch scales it, flashes and fades modulate it).
+# The feet stand on y = Shadow.position.y (the bottom of the body collision), so
+# every squash and lean pivots there and the mortal never leaves the ground.
 
 @export var move_speed := 215.0
+
+@export_group("Feel")
+@export var accel := 3200.0         # px/s² towards the held direction: full speed in ~4 frames
+@export var turn_accel := 4800.0    # ...when the held direction turns back more than ~100°
+@export var friction := 2600.0      # px/s² to a stop with nothing held: ~5 frames
+@export var stride := 30.0          # px walked per footfall (faster walk = quicker steps)
+@export var hop_height := 2.5       # px of hop per step at full speed
+@export var idle_bob := 1.0         # px of breathing while standing
+@export var lean_degrees := 5.0     # tilt towards the way it walks, at full speed
+@export var squash := 0.05          # the hop's stretch / squash (scale fraction)
+@export var hit_stop := 0.06        # s the sprite freezes on a hit (only with screen shake on)
+# A mortal nobody here steers (a ghost, a bot) "dashed" when it was seen going
+# this many times move_speed. Ghosts can't hear a dash, only see it - and the
+# glide they get (Arena.ghost_smoothing) shows a 733 px/s dash at ~575 px/s, a
+# 560 px/s knockback at ~380 and the fastest favoured walk at ~375, so 2.2
+# (473 px/s) sits between them.
+@export var dash_detect_ratio := 2.2
+
+@export_group("Sounds")
+@export var step_sounds: Array[AudioStream] = []
+@export var dash_sound: AudioStream
 
 var locked := false
 var bounds := Rect2()
@@ -54,6 +90,9 @@ var _floating_time := 0.0
 var _floating_velocity := Vector2.ZERO
 # True while the move keys are the ones driving this mortal (its own walk).
 var _moving := false
+# True once the move keys have driven this mortal at all: it is this screen's own
+# player (ghosts and bots stay locked for life). Its sounds play at full volume.
+var _player_driven := false
 
 # Where the combat pieces sit in the authored scene; the facing mirrors their x
 # offsets (and their scale, so a non-symmetric shape would mirror too).
@@ -61,8 +100,55 @@ var _area_offset_x := 0.0
 var _collision_offset_x := 0.0
 var _last_position := Vector2.ZERO
 
+# The look (see FEEL). The authored Sprite/Shadow placement everything rides on:
+var _sprite_base_position := Vector2.ZERO
+var _sprite_base_scale := Vector2.ONE
+var _shadow_base_scale := Vector2.ONE
+var _feet_y := 0.0
+# What this screen saw the mortal do (px/s, smoothed), and how far into its stride.
+var _visual_velocity := Vector2.ZERO
+var _step_phase := 0.0
+var _steps_taken := 0
+var _walking := false
+var _top_ratio := 0.0
+var _walk_weight := 1.0
+# The springs and pops, each 1 -> 0 (or a small angle settling back to 0).
+var _lean := 0.0
+var _kick := 0.0
+var _kick_velocity := 0.0
+var _pop := 0.0
+var _turn := 0.0
+var _hit_squash := 0.0
+var _hit_direction := Vector2.ZERO
+var _hit_flash := 0.0
+var _hit_stop := 0.0
+var _dash_stretch := 0.0
+var _dash_direction := Vector2.RIGHT
+var _seen_dash := false
+# The dash trail: how long it still drops afterimages, and when the next one is due.
+var _trail_time := 0.0
+var _trail_gap := 0.0
+var _trail_next := 0
+var _trail_spots: Array[Transform2D] = []
+
+const ANIM_WALK := &"walk"
+const TURN_DOT := -0.17          # cos(100°): input this far from the velocity turns back
+const JUMP := 48.0               # px in one physics frame: a respawn or a snap, not a walk
+const VISUAL_SMOOTHING := 18.0
+const TRAIL_TIME := 0.15         # the dash's length: one afterimage per TRAIL_GAP of it
+const TRAIL_GAP := 0.04
+const TRAIL_LIFE := 0.25
+const OTHER_VOLUME_DB := -8.0    # a ghost's or bot's sounds, under the player's own
+const KICK_STIFFNESS := 900.0    # the stop's lean overshoot: ~0.15s to settle
+const KICK_DAMPING := 21.0
+
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var glow: Sprite2D = $Glow
+@onready var shadow: Sprite2D = $Shadow
+@onready var dust: CPUParticles2D = $Dust
+@onready var afterimages: Node2D = $Afterimages
+@onready var steps: AudioStreamPlayer2D = $Steps
+@onready var whoosh: AudioStreamPlayer2D = $Whoosh
 @onready var name_tag: Label = $NameTag
 @onready var floating_text: Label = $FloatingStatus
 @onready var damage_area: Area2D = get_node("Arnis-Damage-Area")
@@ -75,6 +161,14 @@ func _ready() -> void:
 	_area_offset_x = damage_area.position.x if damage_area != null else 0.0
 	_collision_offset_x = body_collision.position.x if body_collision != null else 0.0
 	_last_position = global_position
+	if sprite != null:
+		_sprite_base_position = sprite.position
+		_sprite_base_scale = sprite.scale
+	if shadow != null:
+		_shadow_base_scale = shadow.scale
+		_feet_y = shadow.position.y
+	for index in range(afterimages.get_child_count() if afterimages != null else 0):
+		_trail_spots.append(Transform2D.IDENTITY)
 	_apply_facing()
 	set_bandana(bandana_index)  # its own material, from the first frame
 
@@ -106,10 +200,20 @@ func stun_left() -> float:
 	return _stun
 
 
+# The shove itself, then how it lands on this screen: the sprite squashes from
+# the side it was hit on and flashes white (through its own self_modulate, so it
+# stacks with the arena's modulate and the bandana swap), and - with screen shake
+# on - freezes for a beat. The freeze holds only the sprite's pose; the body
+# keeps flying, so nothing here can drift from what the other screens see.
 func hit(direction: Vector2, stun_time := 1.4, force := 420.0) -> void:
 	_stun = maxf(_stun, stun_time)
 	_knockback = direction.normalized() * force
 	_flash = 0.35
+	_hit_direction = direction.normalized()
+	_hit_squash = 1.0
+	_hit_flash = 1.0
+	if _setting("screen_shake_enabled"):
+		_hit_stop = hit_stop
 
 
 func force_movement(direction: Vector2, duration: float) -> void:
@@ -119,11 +223,13 @@ func force_movement(direction: Vector2, duration: float) -> void:
 
 # A quick burst of `distance` pixels over `time` seconds along `direction`, or
 # the way the mortal faces when it is zero (standing still). Walls and the
-# arena's bounds still stop it.
+# arena's bounds still stop it. When it runs out the mortal carries on at
+# move_speed the same way, so the dash flows back into the walk.
 func dash(direction: Vector2, distance: float, time: float) -> void:
 	var way := direction.normalized() if direction.length() > 0.01 else Vector2(facing, 0.0)
 	_dash_time = maxf(0.01, time)
 	_dash_velocity = way * distance / _dash_time
+	_start_dash_look(way)
 
 
 func is_dashing() -> bool:
@@ -159,7 +265,9 @@ func show_floating_text(text: String, tint := Color.WHITE, duration := 2.2) -> v
 # The clips an arena can play (authored on Sprite in Mortal.tscn). The mortal
 # only plays them and reports back the running clip and its frame, so a game can
 # open a strike's hit window on one frame and close it on another without the
-# body ever knowing the rules.
+# body ever knowing the rules. The idle and the walk are the mortal's own: it
+# swaps between them as it starts and stops (see _update_look); any other clip an
+# arena plays holds until the arena hands the mortal back to its idle.
 
 const ANIM_IDLE := &"default"
 
@@ -199,19 +307,30 @@ func is_animation_playing(anim: StringName = &"") -> bool:
 # The art faces right. Whoever is actually moving the mortal decides the facing:
 # an input-driven player has a live velocity; a ghost the arena glides towards
 # its last reported position has none - so use the distance travelled when the
-# velocity has nothing to say. Facing only changes on real motion; a mortal that
-# is standing (or shoved straight up/down/into a wall) keeps its last direction.
+# velocity has nothing to say, and when that is too small for one frame (a ghost
+# gliding at a walk covers ~3px), the smoothed motion this screen saw. Facing
+# only changes on real motion; a mortal that is standing (or shoved straight
+# up/down/into a wall) keeps its last direction. A turn squeezes the sprite thin
+# for a few frames, so the flip reads as a turn, and a sharp one at speed kicks
+# up dust.
 func _update_facing() -> void:
 	var moved := global_position - _last_position
 	_last_position = global_position
-	var basis := velocity if absf(velocity.x) > 4.0 else moved
-	if absf(basis.x) < 4.0:
+	var basis := velocity.x
+	if absf(basis) <= 4.0:
+		basis = moved.x if absf(moved.x) >= 4.0 else 0.0
+	if basis == 0.0 and absf(_visual_velocity.x) >= 20.0:
+		basis = _visual_velocity.x
+	if basis == 0.0:
 		return
-	var new_facing := 1 if basis.x > 0.0 else -1
+	var new_facing := 1 if basis > 0.0 else -1
 	if new_facing == facing:
 		return
 	facing = new_facing
 	_apply_facing()
+	_turn = 1.0
+	if _visual_velocity.length() > move_speed * 0.5:
+		_puff(0.6, Vector2(-facing, 0.0))
 
 
 # Mirror every side-specific piece of the mortal to the current facing: the
@@ -229,6 +348,8 @@ func _apply_facing() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var dash_ended := false
+	_moving = false
 	if _stun > 0.0:
 		_stun = maxf(0.0, _stun - delta)
 		velocity = _knockback
@@ -238,30 +359,45 @@ func _physics_process(delta: float) -> void:
 		_dash_time -= delta
 		if _dash_time < 0.001:
 			_dash_time = 0.0  # 0.15s at 60 FPS is 9 frames, not a 10th from rounding
+			dash_ended = true
 	elif _forced_move_time > 0.0:
 		_forced_move_time = maxf(0.0, _forced_move_time - delta)
 		velocity = _forced_move_direction * move_speed
 	elif locked:
 		velocity = Vector2.ZERO
 	else:
-		velocity = Input.get_vector("move_left", "move_right", "move_up", "move_down") * move_speed
+		_steer(Input.get_vector("move_left", "move_right", "move_up", "move_down"), delta)
 
 	move_and_slide()
+	if dash_ended:
+		velocity = _dash_velocity.normalized() * move_speed  # flows on into the walk
 	if bounds.size != Vector2.ZERO:
-		global_position.x = clampf(global_position.x, bounds.position.x + radius, bounds.end.x - radius)
-		global_position.y = clampf(global_position.y, bounds.position.y + radius, bounds.end.y - radius)
+		var low := bounds.position.x + radius
+		var high := bounds.end.x - radius
+		global_position.x = clampf(global_position.x, low, high)
+		# Held against the edge, the walk stops pressing into it (so it doesn't
+		# build up speed it would spend the moment the key turns away).
+		if (global_position.x <= low and velocity.x < 0.0) or (global_position.x >= high and velocity.x > 0.0):
+			velocity.x = 0.0
+		low = bounds.position.y + radius
+		high = bounds.end.y - radius
+		global_position.y = clampf(global_position.y, low, high)
+		if (global_position.y <= low and velocity.y < 0.0) or (global_position.y >= high and velocity.y > 0.0):
+			velocity.y = 0.0
 
+	# What this screen saw: the distance travelled, smoothed into a velocity (a
+	# respawn or a ghost's snap is a jump, not a walk, and counts as standing).
+	var moved := global_position - _last_position
+	if moved.length() >= JUMP:
+		moved = Vector2.ZERO
+	_visual_velocity = _visual_velocity.lerp(moved / delta, clampf(delta * VISUAL_SMOOTHING, 0.0, 1.0))
 	_update_facing()
+	_update_look(moved, delta)
 
-	_bob += delta
-	if sprite != null:
-		sprite.position.y = sin(_bob * 7.0) * 1.5
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
 	if glow != null:
-		var settings := get_node_or_null("/root/Settings")  # by path so checks compile without the autoload
-		var calm: bool = settings != null and bool(settings.call("reduce_flashing"))
-		var hit_alpha := 0.35 if calm else 0.7  # steady tint instead of a bright flash
+		var hit_alpha := 0.35 if _setting("reduce_flashing") else 0.7  # steady tint instead of a bright flash
 		var glow_alpha := 0.25 if _flash <= 0.0 else hit_alpha
 		glow.modulate = Color(ring_color.r, ring_color.g, ring_color.b, glow_alpha)
 	if floating_text != null and floating_text.visible:
@@ -271,3 +407,196 @@ func _physics_process(delta: float) -> void:
 		floating_text.modulate.a = clampf(_floating_time, 0.0, 1.0)
 		if _floating_time <= 0.0:
 			floating_text.visible = false
+
+
+# The player's own walk: towards the held direction at `accel` (`turn_accel` when
+# it turns back on itself, so a dodge never feels floaty), down to a stop at
+# `friction` when nothing is held. Never past move_speed: a speed favour that
+# ends slows the mortal on the spot, one that starts takes ~3 frames to reach.
+func _steer(input: Vector2, delta: float) -> void:
+	_player_driven = true
+	_moving = input != Vector2.ZERO
+	velocity = velocity.limit_length(move_speed)
+	var rate := friction
+	if _moving:
+		var turning_back := velocity.length() > 1.0 and input.normalized().dot(velocity.normalized()) < TURN_DOT
+		rate = turn_accel if turning_back else accel
+	velocity = velocity.move_toward(input * move_speed, rate * delta)
+
+
+# --- LOOK ---------------------------------------------------------------------
+# All of it from `moved`, the distance this screen saw the mortal travel this
+# physics frame, and _visual_velocity, that smoothed (see FEEL). Nothing here
+# touches the velocity or the position.
+func _update_look(moved: Vector2, delta: float) -> void:
+	if sprite == null:
+		return
+	_tick_afterimages(delta)
+	var shown := sprite.visible  # Langit Lupa's gods wear a mortal body with the sprite hidden
+	if shadow != null:
+		shadow.visible = shown
+	_hit_flash = maxf(0.0, _hit_flash - delta / 0.12)
+	var peak := 1.6 if _setting("reduce_flashing") else 3.0
+	sprite.self_modulate = Color.WHITE.lerp(Color(peak, peak, peak), _hit_flash)
+	if _hit_stop > 0.0:
+		_hit_stop -= delta
+		sprite.speed_scale = 0.0  # the pose and every offset hold; the body moves on
+		return
+
+	var cap := maxf(move_speed, 1.0)
+	var speed := _visual_velocity.length()
+	var ratio := clampf(speed / cap, 0.0, 1.0)
+	_bob += delta
+
+	# Its own clips (idle, walk) get the whole procedural walk; an arena's clip
+	# (the arnis strike or guard) gets next to none, so its frames read clean.
+	var own_clip := sprite.animation == ANIM_IDLE or sprite.animation == ANIM_WALK
+	_walk_weight = move_toward(_walk_weight, 1.0 if own_clip else 0.1, delta * 8.0)
+
+	# Starting from rest pops (a squash, a puff); stopping hard from a run kicks
+	# the body forward past upright and lets it spring back.
+	_top_ratio = maxf(ratio, _top_ratio - delta * 2.0)
+	if not _walking and ratio > 0.35:
+		_walking = true
+		_pop = 1.0
+		_puff(0.5, -_visual_velocity.normalized())
+	elif _walking and ratio < 0.08:
+		_walking = false
+		if _top_ratio > 0.6:
+			_kick_velocity += facing * deg_to_rad(4.0) * sqrt(KICK_STIFFNESS)
+			_puff(0.6, Vector2(facing, 0.0))
+	if own_clip:
+		var clip := ANIM_WALK if _walking and sprite.sprite_frames.has_animation(ANIM_WALK) else ANIM_IDLE
+		if sprite.animation != clip:
+			sprite.play(clip)
+		sprite.speed_scale = lerpf(1.0, 1.8, ratio)  # quicker steps, a livelier cloak
+	else:
+		sprite.speed_scale = 1.0
+
+	# The stride: one footfall every `stride` px walked.
+	_step_phase += moved.length() * PI / maxf(stride, 1.0)
+	if _step_phase >= PI:
+		_step_phase = fmod(_step_phase, PI)
+		if ratio > 0.3:
+			_footfall(ratio)
+
+	# A remote mortal can't say it dashed; seen going this fast, it did.
+	if not _player_driven and not is_stunned() and move_speed > 1.0:
+		if not _seen_dash and speed > move_speed * dash_detect_ratio:
+			_seen_dash = true
+			_start_dash_look(_visual_velocity.normalized())
+		elif speed < move_speed:
+			_seen_dash = false
+	if _trail_time > 0.0:
+		_trail_time -= delta
+		_trail_gap -= delta
+		if _trail_gap <= 0.0:
+			_trail_gap = TRAIL_GAP
+			_drop_afterimage()
+
+	# The springs settle.
+	_lean = lerpf(_lean, deg_to_rad(lean_degrees) * clampf(_visual_velocity.x / cap, -1.0, 1.0), clampf(delta * 12.0, 0.0, 1.0))
+	_kick_velocity += (-KICK_STIFFNESS * _kick - KICK_DAMPING * _kick_velocity) * delta
+	_kick += _kick_velocity * delta
+	_pop = maxf(0.0, _pop - delta / 0.15)
+	_turn = maxf(0.0, _turn - delta / 0.05)
+	_hit_squash = maxf(0.0, _hit_squash - delta / 0.25)
+	_dash_stretch = maxf(0.0, _dash_stretch - delta / 0.2)
+
+	var weight := _walk_weight
+	var hop := absf(sin(_step_phase)) * hop_height * ratio * weight
+	var breathe := sin(_bob * 2.4) * idle_bob * (1.0 - ratio) * weight
+	# Stretch on the way up off each step, squash coming down onto the next.
+	var bounce := sin(2.0 * _step_phase - 0.5) * squash * ratio * weight
+	var sx := (1.0 - bounce + 0.07 * _pop) * (1.0 - 0.3 * _turn)
+	var sy := 1.0 + bounce - 0.07 * _pop
+	# A hit squashes along the side it came from; a dash stretches along its way.
+	var across := absf(_hit_direction.x)
+	sx *= 1.0 - 0.18 * _hit_squash * across + 0.1 * _hit_squash * (1.0 - across)
+	sy *= 1.0 - 0.18 * _hit_squash * (1.0 - across) + 0.1 * _hit_squash * across
+	across = absf(_dash_direction.x)
+	sx *= 1.0 + _dash_stretch * (0.25 * across - 0.12 * (1.0 - across))
+	sy *= 1.0 + _dash_stretch * (0.2 * (1.0 - across) - 0.15 * across)
+	var tilt := (_lean + _kick) * weight - _hit_direction.x * 0.2 * _hit_squash
+
+	# Squash and tilt around the feet, then lift the hop off them.
+	var reach := (_feet_y - _sprite_base_position.y) * sy
+	sprite.scale = _sprite_base_scale * Vector2(sx, sy)
+	sprite.rotation = tilt
+	sprite.position = _sprite_base_position + Vector2(reach * sin(tilt), _feet_y - _sprite_base_position.y - reach * cos(tilt) - hop + breathe)
+	if shadow != null:
+		shadow.scale = _shadow_base_scale * (1.0 - 0.2 * hop / maxf(hop_height, 0.01))
+
+
+func _footfall(ratio: float) -> void:
+	_steps_taken += 1
+	if ratio > 0.85 and _steps_taken % 2 == 0:
+		_puff(0.25, -_visual_velocity.normalized())
+	if not step_sounds.is_empty():
+		_play_sound(steps, step_sounds.pick_random())
+
+
+func _start_dash_look(way: Vector2) -> void:
+	_dash_direction = way
+	_dash_stretch = 1.0
+	_trail_time = TRAIL_TIME
+	_trail_gap = 0.0
+	_puff(1.0, -way)
+	_play_sound(whoosh, dash_sound)
+
+
+# A puff of dust at the feet, thrown towards `away` (and up). One emitter, so a
+# new puff restarts it: they are short enough that it never shows.
+func _puff(strength: float, away: Vector2) -> void:
+	if dust == null or sprite == null or not sprite.visible:
+		return
+	dust.direction = (away + Vector2.UP * 0.8).normalized()
+	dust.initial_velocity_max = 20.0 + 40.0 * strength
+	dust.restart()
+	dust.emitting = true
+
+
+# The dash trail: the frame the sprite shows right now, left where it is, tinted
+# the player's colour, fading out. The pool is the Afterimages children.
+func _drop_afterimage() -> void:
+	if afterimages == null or _trail_spots.is_empty() or not sprite.visible or sprite.sprite_frames == null:
+		return
+	var image := afterimages.get_child(_trail_next) as Sprite2D
+	_trail_spots[_trail_next] = sprite.global_transform
+	_trail_next = (_trail_next + 1) % _trail_spots.size()
+	image.texture = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	image.flip_h = sprite.flip_h
+	var tint := UITokens.bandana_color(bandana_index).lightened(0.35)
+	image.modulate = Color(tint.r, tint.g, tint.b, 0.55)
+	image.visible = true
+
+
+func _tick_afterimages(delta: float) -> void:
+	if afterimages == null:
+		return
+	for index in range(_trail_spots.size()):
+		var image := afterimages.get_child(index) as Sprite2D
+		if not image.visible:
+			continue
+		image.global_transform = _trail_spots[index]  # stays where it was dropped
+		image.modulate.a -= delta * 0.55 / TRAIL_LIFE
+		if image.modulate.a <= 0.0:
+			image.visible = false
+
+
+func _play_sound(player: AudioStreamPlayer2D, stream: AudioStream) -> void:
+	if player == null or stream == null or sprite == null or not sprite.visible:
+		return
+	player.stream = stream
+	player.pitch_scale = randf_range(0.9, 1.1)
+	player.volume_db = 0.0 if _player_driven else OTHER_VOLUME_DB
+	player.play()
+
+
+# A Settings toggle (screen_shake_enabled, reduce_flashing), false without the
+# autoload - by path so checks compile without it.
+func _setting(method: StringName) -> bool:
+	if not is_inside_tree():
+		return false
+	var settings := get_node_or_null("/root/Settings")
+	return settings != null and bool(settings.call(method))
