@@ -51,7 +51,8 @@ const STAR := Color("#9FD3FF")   # info / keyboard focus ring
 # --- the players' bandanas ---------------------------------------------------
 # Every mortal wears the same sprite (Assets/Player/Lamang-Sheet.png); only the
 # bandana - the headband and its two tails, drawn in exactly BANDANA_LIGHT and
-# BANDANA_SHADOW and nowhere else on the sheet - changes colour per player (the
+# BANDANA_SHADOW and nowhere else on the sheet - and the cloak (the big coat, drawn
+# in exactly CLOAK_LIGHT / CLOAK_MID / CLOAK_DARK) change colour per player (the
 # swap is scenes/gods/common/bandana_swap.gdshader, on the mortal's Sprite).
 # Eight colours that read apart at a glance, on the mortal's brown skin and black
 # hair, against each other and on every arena floor. Index 0 is the art's own red,
@@ -62,6 +63,15 @@ const BANDANA_SHADOW := Color8(87, 3, 3)     # #570303 - its shadow side
 # How much darker the shadow side is than the light one: the drawn red's own
 # light-to-shadow step (87 / 122 in the red channel), kept for every other colour.
 const BANDANA_SHADOW_RATIO := 0.713
+# The cloak's three drawn reds, light to dark.
+const CLOAK_LIGHT := Color8(88, 16, 16)   # #581010
+const CLOAK_MID := Color8(75, 0, 0)       # #4B0000
+const CLOAK_DARK := Color8(42, 0, 0)      # #2A0000
+# A player's cloak is their bandana colour a little darker (so the bandana still
+# stands out on the head), in the drawn reds' own 88 : 75 : 42 steps.
+const CLOAK_RATIO := 0.72
+const CLOAK_MID_RATIO := 0.85
+const CLOAK_DARK_RATIO := 0.48
 const BANDANA_COLORS: Array[Color] = [
 	Color8(122, 14, 14),   # red (as drawn)
 	Color8(60, 155, 232),  # sky blue
@@ -87,6 +97,18 @@ static func bandana_shadow(index: int) -> Color:
 		return BANDANA_SHADOW
 	var light := bandana_color(index)
 	return Color(light.r * BANDANA_SHADOW_RATIO, light.g * BANDANA_SHADOW_RATIO, light.b * BANDANA_SHADOW_RATIO, 1.0)
+
+
+# The cloak's three shades [light, mid, dark] for the bandana at `index`: the art's
+# own reds for index 0, the bandana colour scaled down for the rest.
+static func cloak_shades(index: int) -> Array[Color]:
+	if posmod(index, BANDANA_COLORS.size()) == 0:
+		return [CLOAK_LIGHT, CLOAK_MID, CLOAK_DARK]
+	var base := bandana_color(index)
+	var light := Color(base.r * CLOAK_RATIO, base.g * CLOAK_RATIO, base.b * CLOAK_RATIO, 1.0)
+	return [light,
+		Color(light.r * CLOAK_MID_RATIO, light.g * CLOAK_MID_RATIO, light.b * CLOAK_MID_RATIO, 1.0),
+		Color(light.r * CLOAK_DARK_RATIO, light.g * CLOAK_DARK_RATIO, light.b * CLOAK_DARK_RATIO, 1.0)]
 
 
 # --- type scale (px, multiples of 8 only) ------------------------------------

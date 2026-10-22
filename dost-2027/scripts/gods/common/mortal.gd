@@ -14,12 +14,13 @@ extends CharacterBody2D
 # body holds the art while the arena keeps the rules.
 #
 # BANDANA: every mortal wears the same sprite, so what tells the players apart is
-# the colour of the bandana - the headband and its two tails. The Sprite carries
-# bandana_swap.gdshader, which turns the two reds the art draws it in into the
-# player's colour (UITokens.bandana_color) and touches nothing else, and
-# set_bandana() gives the mortal its own material so each one keeps its own. It
-# sits UNDER the node's modulate, so every hit flash, freeze or fade an arena puts
-# on a mortal still shows on top of it.
+# the colour of the bandana - the headband and its two tails - and of the cloak.
+# The Sprite carries bandana_swap.gdshader, which turns the two reds the art draws
+# the bandana in into the player's colour (UITokens.bandana_color) and the three
+# it draws the cloak in into three shades of it (UITokens.cloak_shades), touching
+# nothing else, and set_bandana() gives the mortal its own material so each one
+# keeps its own. It sits UNDER the node's modulate, so every hit flash, freeze or
+# fade an arena puts on a mortal still shows on top of it.
 #
 # FACING: the authored art faces right, so a move to the left mirrors the sprite
 # (AnimatedSprite2D.flip_h) and slides the attack area + standing collision to
@@ -76,7 +77,7 @@ func _ready() -> void:
 	set_bandana(bandana_index)  # its own material, from the first frame
 
 
-# Put the player's bandana colour on this mortal (and only this one: the material
+# Put the player's bandana (and cloak) colour on this mortal (and only this one: the material
 # is copied the first time, so mortals never share a colour by accident).
 func set_bandana(index: int) -> void:
 	bandana_index = posmod(index, UITokens.BANDANA_COLORS.size())
@@ -88,6 +89,10 @@ func set_bandana(index: int) -> void:
 	var swap := sprite.material as ShaderMaterial
 	swap.set_shader_parameter("bandana_color", UITokens.bandana_color(bandana_index))
 	swap.set_shader_parameter("bandana_shadow", UITokens.bandana_shadow(bandana_index))
+	var cloak := UITokens.cloak_shades(bandana_index)
+	swap.set_shader_parameter("cloak_color", cloak[0])
+	swap.set_shader_parameter("cloak_mid", cloak[1])
+	swap.set_shader_parameter("cloak_dark", cloak[2])
 
 
 func is_stunned() -> bool:
