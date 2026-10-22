@@ -143,11 +143,17 @@ func _run() -> void:
 		if rows[index] <= rows[index - 1]:
 			printerr("trial_check: the shell panel must stack NAME / FAVOR+DUE / E / Q - row %d is not below row %d" % [
 				index, index - 1])
-	print("shell rivals: authored '%s' visible=%s while alone | E/Q rows share a line: %s" % [
-		_shell.opponent_placeholder.name, str(_shell.opponent_placeholder.visible),
+	# Alone, the column lists the match's stand-in rivals under the names their tags
+	# show - never the authored card's placeholder "PlayerName".
+	var solo_names: Array = _shell.other_player_panels.values().map(func(p): return str(p.name_label.text))
+	print("shell rivals: authored '%s' visible=%s while alone | stand-ins %s | E/Q rows share a line: %s" % [
+		_shell.opponent_placeholder.name, str(_shell.opponent_placeholder.visible), str(solo_names),
 		str(is_equal_approx(rows[2], rows[3]))])
-	if not _shell.opponent_placeholder.visible:
-		printerr("trial_check: the authored rival panel should stand in while you are alone")
+	if _shell.opponent_placeholder.visible:
+		printerr("trial_check: the authored placeholder card must never show while you are alone")
+	for mortal in arena.rules.mortals.values():
+		if not mortal.is_local and not solo_names.has(mortal.display_name):
+			printerr("trial_check: the stand-in rival '%s' needs a card under its own name" % mortal.display_name)
 	# A real rival takes the authored panel's slot. The Network autoload is
 	# reached through the tree: a -s script cannot name an autoload at compile
 	# time (its own script is compiled before the autoloads are registered).

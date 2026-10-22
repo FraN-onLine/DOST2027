@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" path="res://Assets/Placeholders/god.png" id="3_icon"]
 [ext_resource type="PackedScene" path="res://UI/GodsArena/tindahan_menu.tscn" id="4_shop"]
 [ext_resource type="Texture2D" path="res://Assets/Placeholders/flame.png" id="5_flame"]
+[ext_resource type="Script" path="res://UI/GodsArena/hint_strip.gd" id="hint_strip"]
 
 [node name="PrepArea" instance=ExtResource("1_base")]
 script = ExtResource("2_prep")
@@ -152,27 +153,32 @@ text = "NEXT: TALA - TUMBANG PRESO"
 horizontal_alignment = 1
 
 [node name="Ready" type="Label" parent="PrepHud"]
-anchors_preset = 2
+anchors_preset = 3
+anchor_left = 1.0
 anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 242.0
-offset_top = -52.0
-offset_right = 942.0
-offset_bottom = -28.0
+offset_left = -200.0
+offset_top = -40.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
 grow_vertical = 0
+horizontal_alignment = 2
 theme_type_variation = &"HudLabel"
 text = "READY 0/1"
 
-[node name="Hint" type="Label" parent="PrepHud"]
+[node name="Hint" type="PanelContainer" parent="PrepHud"]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 242.0
-offset_top = -27.0
-offset_right = 942.0
-offset_bottom = -3.0
+offset_left = 244.0
+offset_top = -40.0
+offset_right = 244.0
+offset_bottom = -8.0
 grow_vertical = 0
-theme_type_variation = &"HudHint"
-text = "WASD - WALK     F - GOD'S DUE     R - READY"
+mouse_filter = 2
+script = ExtResource("hint_strip")
+text = "[WASD] WALK"
 
 [node name="Tindahan" parent="PrepHud" instance=ExtResource("4_shop")]

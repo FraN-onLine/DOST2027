@@ -39,15 +39,16 @@ offset_top = -52.0
 offset_right = 55.0
 offset_bottom = -34.0
 theme_type_variation = &"WorldLabel"
+theme_override_constants/outline_size = 2
 text = "APOLAKI"
 horizontal_alignment = 1
 
 [node name="Timer" type="Label" parent="." unique_id=1666068429]
 visible = false
-offset_left = -30.0
-offset_top = -78.0
-offset_right = 30.0
-offset_bottom = -54.0
+offset_left = 20.0
+offset_top = -36.0
+offset_right = 60.0
+offset_bottom = -12.0
 theme_type_variation = &"WorldValue"
 text = "10"
 horizontal_alignment = 1

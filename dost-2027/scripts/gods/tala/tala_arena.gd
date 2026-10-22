@@ -7,8 +7,8 @@ extends Arena
 @export var can_radius := 28.0
 @export var tala_radius := 34.0
 @export var tala_speed := 92.0
-@export var tala_min_y := 285.0
-@export var tala_max_y := 565.0
+@export var tala_min_y := 202.0
+@export var tala_max_y := 588.0
 @export var can_repair_time := 3.0
 @export var can_favor := 300
 # FAVOR lost two ways: when Tala catches your slipper, and when YOU walk into
@@ -45,7 +45,7 @@ extends Arena
 @onready var barrier: Line2D = get_node_or_null("ArenaField/Barrier")
 @onready var slippers_root: Node2D = get_node_or_null("Slippers")
 @onready var status_label: Label = get_node_or_null("TalaHud/Status")
-@onready var hint_label: Label = get_node_or_null("TalaHud/Hint")
+@onready var hint_label: HintStrip = get_node_or_null("TalaHud/Hint")
 # Slipper.tscn: the slipper's own scene. `toss` while it flies, `grounded`
 # once it lands - type 1 is your own, type 2 a rival's.
 const SLIPPER_SCENE := preload("res://scenes/gods/tala/Slipper.tscn")
@@ -785,7 +785,7 @@ func _refresh_status() -> void:
 		"return":
 			status_label.text = "RETURN TO THE LINE"
 	if hint_label != null:
-		hint_label.text = "LEFT CLICK - THROW    WASD / ARROWS - MOVE    E / Q - FAVORS"
+		hint_label.text = "%s THROW   [WASD] MOVE   %s" % [key_cap(&"attack"), favor_keys_hint()]
 
 
 func nearby_movement_favors_enabled() -> bool:

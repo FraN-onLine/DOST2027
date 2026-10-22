@@ -7,12 +7,17 @@ extends Control
 # LAYERING: this scene is instanced into Arena's UILayer (CanvasLayer layer 10)
 # and re-parented into a dedicated DialogueLayer (layer 50) on ready, so the
 # portrait + box sit ABOVE every game UI element (attack bars at layer 11-12,
-# HUD, popups). Dim covers the whole screen; the god's photo docks right;
-# the box sits bottom; the name nub sticks out ABOVE the box like a folder tab.
+# HUD, popups). The god's photo docks right; the box sits bottom, kept short so
+# most of the field stays in view; the name nub sticks out ABOVE the box like a
+# folder tab. The arena dims the FIELD while a line is up (Arena.field_dim) -
+# never the HUD, so this scene draws no shade of its own.
 #
-# Presentation (UI/theme): the small portrait sits on the left of the box in a
-# frame of the speaker's accent; the name tab is a Nameplate in that accent with
-# the name in its readable form (readable_on_dark); the line is BODY ivory; the
+# ONE PORTRAIT: the god is shown once, as the big photo. The small framed portrait
+# in the box is only used for a SECOND face ("beside", Ines next to Bathala).
+#
+# Presentation (UI/theme): the name tab is a Nameplate in the speaker's accent
+# with the name, upper case, in its readable form (readable_on_dark); the
+# small portrait (when shown) is framed in the same accent; the line is BODY ivory; the
 # advance key is a keycap from the player's bindings (advance_dialogue) that
 # blinks slowly - and holds still with reduce flashing on.
 #
@@ -25,7 +30,6 @@ extends Control
 
 signal finished()
 
-@onready var dim: ColorRect = $Dim
 @onready var photo: TextureRect = $Photo
 @onready var voice: AudioStreamPlayer = $Voice
 @onready var box: PanelContainer = $Box
@@ -117,7 +121,7 @@ func _render() -> void:
 	var entry: Dictionary = _lines[_index]
 	var speaker_color: Color = entry.get("color", Color.WHITE)
 	var accent := UITokens.readable_on_dark(speaker_color, UITokens.NIGHT_800, UITokens.ACCENT_CONTRAST)
-	name_label.text = str(entry.get("speaker", ""))
+	name_label.text = str(entry.get("speaker", "")).to_upper()
 	name_label.add_theme_color_override("font_color", UITokens.readable_on_dark(speaker_color, UITokens.NIGHT_700))
 	name_tab.add_theme_stylebox_override("panel", UITokens.accent_box(name_tab.get_theme_stylebox("panel", &"Nameplate"), accent))
 	portrait_frame.add_theme_stylebox_override("panel", UITokens.accent_box(portrait_frame.get_theme_stylebox("panel", &"PanelInset"), accent))
@@ -125,18 +129,21 @@ func _render() -> void:
 	hint_label.text = "CLOSE" if _index == _lines.size() - 1 else "NEXT"
 	var tex = entry.get("portrait", null)
 	if tex is Texture2D:
-		portrait.texture = tex
 		photo.texture = tex
 		photo.visible = true
-		portrait.visible = true
 	else:
 		photo.visible = photo.texture != null
-		portrait.visible = portrait.texture != null
 	if entry.get("hide_photo", false):
 		photo.visible = false
+	# The speaker is already the big photo: the small frame only carries a second
+	# face - or the speaker, when a line hides the big photo.
 	var beside = entry.get("beside", null)
+	portrait.visible = false
 	if beside is Texture2D:
 		portrait.texture = beside
+		portrait.visible = true
+	elif not photo.visible and tex is Texture2D:
+		portrait.texture = tex
 		portrait.visible = true
 	portrait_frame.visible = portrait.visible
 	_play_voice(entry.get("voice", null))

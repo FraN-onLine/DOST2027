@@ -271,13 +271,20 @@ func set_lock(value: bool) -> void:
 		velocity = Vector2.ZERO
 
 
-# Name tag for networked mortals (ghosts and the local player).
+# Name tag for networked mortals (ghosts and the local player). The tag is the
+# WorldLabel 8 px font at scale 1 with a 1 px dark rim; the arena picks the tint
+# (Arena.tag_color: gold for this screen's mortal, the bandana for everyone else).
 func set_display_name(text: String, tint := Color(1, 1, 1, 0.85)) -> void:
 	if name_tag == null:
 		return
 	name_tag.text = text
 	name_tag.add_theme_color_override("font_color", tint)
 	name_tag.visible = text != ""
+
+
+func set_tag_color(tint: Color) -> void:
+	if name_tag != null:
+		name_tag.add_theme_color_override("font_color", tint)
 
 
 func show_floating_text(text: String, tint := Color.WHITE, duration := 2.2) -> void:

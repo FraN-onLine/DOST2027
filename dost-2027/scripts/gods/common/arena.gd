@@ -26,6 +26,17 @@ extends Node2D
 #     dialogue_prefix. What the designer sees in the arena scene is what every
 #     player gets.
 #
+#   * THE SCREEN'S BANDS, right of the strip (every arena keeps to them):
+#       y   0 - 192  the clock (top centre), the god's overseer art - above the
+#                    field's top edge, never over it - and, at y 156, the
+#                    trial's status line (top-left, sized to its text)
+#       y 192 - 600  THE FIELD: the Border is drawn at x 244 - 1136 (892 x 408);
+#                    Langit Lupa narrows it per player count, centred on it
+#       y 608 - 640  the controls hint (a HintStrip: keys as keycaps, BODY text)
+#                    or the trial's own bars (Apolaki's duel, Mayari's attack)
+#     A hit's wash (FieldFlash) covers the field only, and the shade while a god
+#     speaks (FieldDim) the world only: neither ever tints a HUD.
+#
 #   * THE BANDANAS: every mortal (the local one, the ghosts, a solo bot) wears the
 #     same sprite, and only the bandana tells the players apart: set_bandana() on
 #     the mortal, with the colour the host gave that player in the lobby
@@ -153,6 +164,7 @@ const GOD_PHOTO := TEMP_ICON
 const POPUP_GAIN_COLOR := UITokens.JADE    # the design system's gain / loss colours
 const POPUP_LOSS_COLOR := UITokens.EMBER
 const POPUP_OFFSET := Vector2(0.0, -42.0)   # above the mortal's head
+const POPUP_STACK := 18.0                    # a gain and a loss at once: one line apart
 
 const DIALOGUE_TIMEOUT := 20.0
 const GUIDANCE_RADIUS := 150.0
@@ -252,6 +264,8 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var popup_flush := 0.5
 # A change of at least this many FAVOR pops at once instead of waiting.
 @export var popup_big_delta := 20
+# Popups that land on the same mortal this close together merge into one (seconds).
+@export var popup_merge_time := 0.3
 
 @export_category("Solo Rivals")
 # Without other players the leaderboard and the rivalry rules still need
@@ -266,9 +280,13 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var vision_mask: ColorRect = $VisionLayer/VisionMask
 @onready var sun_patch_layer: CanvasLayer = get_node_or_null("Patches")
-# The wash a landed hit paints over the screen (authored in Arena.tscn - this
-# script never builds nodes on the fly).
-@onready var hit_flash: ColorRect = get_node_or_null("FlashLayer/ScreenFlash")
+# The wash a landed hit paints over the FIELD (authored in Arena.tscn - this
+# script never builds nodes on the fly). It lives in the world, not on a
+# CanvasLayer, so it never tints the HUD; _flash_screen() fits it to the field.
+@onready var hit_flash: ColorRect = get_node_or_null("FieldFlash")
+# The shade over the world while a god speaks: the field dims, the HUD (every
+# CanvasLayer, the shell's panels too) stays as bright as ever.
+@onready var field_dim: ColorRect = get_node_or_null("FieldDim")
 
 var god: God
 var rules: GodMatch
@@ -293,6 +311,7 @@ var _free_grants := 0
 var _results: Dictionary = {}
 var _gain_pending: Dictionary = {}    # mortal id -> FAVOR gathered, not popped yet
 var _gain_timer := 0.0
+var _popup_recent: Dictionary = {}    # mortal id -> {node, delta, at}: the FAVOR popup last spawned on them
 var _vision_fade := 1.0               # blindness mask fade-in (see Settings.reduce_flashing)
 var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
 var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
@@ -394,7 +413,7 @@ func _ready() -> void:
 	_base_move_speed = player.move_speed
 	_build_camera()
 	_read_field()
-	player.set_display_name(_mortal_name(), UITokens.god_text(god))
+	player.set_display_name(_mortal_name(), tag_color(_my_id))
 	hud.bind(rules, god)
 	hud.effect_source = local_effects
 	rules.announce_gains = not embedded  # an embedded run's shell switches it on once the run's snapshot is in
@@ -662,6 +681,7 @@ func _process(delta: float) -> void:
 	_watch_local_pamana()
 	_tick_shake(delta)
 	_tick_flash(delta)
+	_tick_field_dim()
 	_dash_cd = maxf(0.0, _dash_cd - delta)
 	if _dash_buffered > 0.0:
 		_dash_buffered = maxf(0.0, _dash_buffered - delta)
@@ -903,7 +923,7 @@ func _on_arena_hit_received(hit: Dictionary) -> void:
 # --- THE FEEL OF A HIT ----------------------------------------------------------
 # The weight a landed blow has on the screen it lands on: the FIELD jumps - the
 # HUD never moves, so its labels stay readable (the same rule as Hanan's Over the
-# Moon) - and a wash flashes over the screen. Both comfort options in Settings
+# Moon) - and a wash flashes over the field (never the HUD). Both comfort options in Settings
 # hold: screen shake off means no shake at all, reduce flashing halves the wash
 # so it reads as a wash, not a strobe. Every arena owns this - Apolaki calls the
 # two entry points directly for each of the duel's four outcomes, and a
@@ -948,8 +968,17 @@ func _flash_screen(tint: Color, peak: float) -> void:
 	_flash_left = flash_time
 	_flash_span = flash_time
 	if hit_flash != null:
+		hit_flash.position = _field.position
+		hit_flash.size = _field.size
 		hit_flash.color = _flash_tint
 		hit_flash.visible = true
+
+
+# The world dims while a god speaks (the dialogue box itself sits on its own layer,
+# above everything; the HUD is never dimmed).
+func _tick_field_dim() -> void:
+	if field_dim != null:
+		field_dim.visible = dialogue != null and dialogue.is_active()
 
 
 func _tick_flash(delta: float) -> void:
@@ -1007,13 +1036,35 @@ func spawn_popup(text: String, tint: Color, origin: Vector2, icon_texture: Textu
 
 # "+N FAVOR" over a mortal's head - light yellow - or the same popup in the loss
 # colour when N is negative. `reason` is only put in the text when given.
+#
+# Two popups landing on the same mortal within popup_merge_time are one popup: a
+# second gain (or loss) adds its number to the one already rising, so "+28 FAVOR"
+# texts never stack on top of each other. A change the other way round in that
+# window rises one line above it instead.
 func favor_popup(mortal_id: int, delta: int, reason := "") -> Node2D:
 	if delta == 0:
 		return null
-	var suffix := "" if reason == "" else "   %s" % reason
-	var text := "%s%d FAVOR%s" % ["+" if delta > 0 else "", delta, suffix]
+	var now := Time.get_ticks_msec()
+	var origin := popup_origin(mortal_id)
+	var recent: Dictionary = _popup_recent.get(mortal_id, {})
+	if not recent.is_empty() and is_instance_valid(recent["node"]) and now - int(recent["at"]) <= int(popup_merge_time * 1000.0):
+		if signi(int(recent["delta"])) == signi(delta):
+			recent["delta"] = int(recent["delta"]) + delta
+			var merged: Node2D = recent["node"]
+			merged.relabel(_favor_text(int(recent["delta"]), ""), POPUP_GAIN_COLOR if delta > 0 else POPUP_LOSS_COLOR)
+			return merged
+		if origin != Vector2.INF:
+			origin.y -= POPUP_STACK
 	var tint := POPUP_GAIN_COLOR if delta > 0 else POPUP_LOSS_COLOR
-	return spawn_popup(text, tint, popup_origin(mortal_id))
+	var popup := spawn_popup(_favor_text(delta, reason), tint, origin)
+	if popup != null:
+		_popup_recent[mortal_id] = {"node": popup, "delta": delta, "at": now}
+	return popup
+
+
+func _favor_text(delta: int, reason: String) -> String:
+	var suffix := "" if reason == "" else "   %s" % reason
+	return "%s%d FAVOR%s" % ["+" if delta > 0 else "", delta, suffix]
 
 
 # Where a mortal's popups come off: our own mortal's head, or the ghost of a
@@ -1794,6 +1845,19 @@ func _on_favor_chosen(favor: GodFavor, free_grants_left: int) -> void:
 
 # --- HUD HELPERS ------------------------------------------------------------
 
+# --- THE HINT BAND ------------------------------------------------------------
+# Every arena's controls hint is a HintStrip in the band under the field: keys in
+# [brackets] become keycaps, read from the player's bindings so a rebinding shows.
+
+func key_cap(action: StringName) -> String:
+	return "[%s]" % UITokens.key_text(action)
+
+
+# The tail every trial's hint ends with: the two favors and God's Due.
+func favor_keys_hint() -> String:
+	return "%s %s FAVORS   %s GOD'S DUE" % [key_cap(&"skill_e"), key_cap(&"skill_q"), key_cap(&"due_menu")]
+
+
 func _show_banner(text: String, color: Color, duration := 2.0) -> void:
 	if hud != null:
 		hud.show_banner(text, color, duration)
@@ -1866,9 +1930,9 @@ func _on_player_name_changed(peer_id: int, name: String) -> void:
 	if mortal != null:
 		mortal.display_name = clean
 	if peer_id == _my_id:
-		player.set_display_name(clean, UITokens.god_text(god))
+		player.set_display_name(clean, tag_color(peer_id))
 	elif _ghosts.has(peer_id) and is_instance_valid(_ghosts[peer_id]):
-		_ghosts[peer_id].set_display_name(clean, UITokens.god_text(god))
+		_ghosts[peer_id].set_display_name(clean, tag_color(peer_id))
 
 
 func _sync_ghosts() -> void:
@@ -1891,7 +1955,7 @@ func _sync_ghosts() -> void:
 		ghosts_root.add_child(ghost)
 		ghost.set_lock(true)
 		ghost.ring_color = UITokens.god_accent(god)
-		ghost.set_display_name(str(names[pid]), UITokens.god_text(god))
+		ghost.set_display_name(str(names[pid]), tag_color(id))
 		ghost.set_bandana(bandana_of(id))
 		_ghosts[id] = ghost
 	for id in _ghosts.keys().duplicate():
@@ -1906,14 +1970,24 @@ func bandana_of(mortal_id: int) -> int:
 	return _net.bandana_of(mortal_id) if _net != null and _net.has_method("bandana_of") else 0
 
 
-# Put every mortal on this field in the colour its player holds. Safe to call as
-# often as the roster is republished.
+# The colour of a mortal's name tag: gold over this screen's own mortal, and the
+# player's bandana over everyone else, so a tag always matches the headband under it.
+func tag_color(mortal_id: int) -> Color:
+	if mortal_id == _my_id:
+		return UITokens.GOLD
+	return UITokens.readable_on_dark(UITokens.bandana_color(bandana_of(mortal_id)), UITokens.NIGHT_900)
+
+
+# Put every mortal on this field in the colour its player holds (the headband and
+# the name tag). Safe to call as often as the roster is republished.
 func _paint_bandanas() -> void:
 	if player != null:
 		player.set_bandana(bandana_of(_my_id))
+		player.set_tag_color(tag_color(_my_id))
 	for id in _ghosts.keys():
 		if is_instance_valid(_ghosts[id]):
 			(_ghosts[id] as ArenaMortal).set_bandana(bandana_of(int(id)))
+			(_ghosts[id] as ArenaMortal).set_tag_color(tag_color(int(id)))
 
 
 func _move_ghosts(delta: float) -> void:

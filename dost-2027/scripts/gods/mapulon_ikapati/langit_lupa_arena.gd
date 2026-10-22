@@ -217,7 +217,7 @@ const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are
 @onready var bots_root: Node2D = get_node_or_null("Bots")
 @onready var status_label: Label = get_node_or_null("LangitHud/Status")
 @onready var callout_label: Label = get_node_or_null("LangitHud/Callout")
-@onready var hint_label: Label = get_node_or_null("LangitHud/Hint")
+@onready var hint_label: HintStrip = get_node_or_null("LangitHud/Hint")
 @onready var rules_card: Control = get_node_or_null("LangitHud/RulesCard")
 @onready var taya_tip: Control = get_node_or_null("LangitHud/TayaTip")
 
@@ -1072,7 +1072,7 @@ func _spawn_bots() -> void:
 		bot.set_lock(true)  # moved by this script, never by the keyboard
 		_ghostly(bot)
 		bot.ring_color = god.color
-		bot.set_display_name(m.display_name, god.color)
+		bot.set_display_name(m.display_name, tag_color(m.id))
 		bot.set_bandana(bandana_of(m.id))  # the free colours, after the player's
 		bot.global_position = _bot_start(m.id)
 		_bots[m.id] = bot
@@ -1600,7 +1600,7 @@ func _refresh_hud(delta: float) -> void:
 		status_label.add_theme_color_override("font_color", UITokens.readable_on_dark(tint, UITokens.NIGHT_900))
 	if hint_label != null:
 		if _taya == _my_id:
-			var chant := "RIGHT CLICK - CHANT" if _chant_cd <= 0.0 else "CHANT IN %.1fs" % _chant_cd
-			hint_label.text = "TAG RUNNERS ON THE LUPA    %s    SHIFT / SPACE - DASH" % chant
+			var chant := "%s CHANT" % key_cap(&"defend") if _chant_cd <= 0.0 else "CHANT IN %ds" % int(ceil(_chant_cd))
+			hint_label.text = "TAG RUNNERS ON THE LUPA   %s   %s DASH" % [chant, key_cap(&"dash")]
 		else:
-			hint_label.text = "REACH A NEW LANGIT FOR FAVOR    SHIFT / SPACE - DASH    E / Q - FAVORS    F - GOD'S DUE"
+			hint_label.text = "REACH A NEW LANGIT   %s DASH   %s" % [key_cap(&"dash"), favor_keys_hint()]

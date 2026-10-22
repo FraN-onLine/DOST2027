@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://c3lilpohgea6w" path="res://scripts/gods/bathala/bathala_arena.gd" id="2_arena"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://cdkt78lh7iqvd" path="res://Assets/Gods/Bathala/bathalaoverseer-Sheet.png" id="4_pvjnw"]
+[ext_resource type="Script" path="res://UI/GodsArena/hint_strip.gd" id="hint_strip"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cet4o"]
 atlas = ExtResource("4_pvjnw")
@@ -73,46 +74,40 @@ dialogue_prefix = "bathala"
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
 modulate = Color(0.55, 0.55, 0.6, 1)
-position = Vector2(636, 240.00003)
-scale = Vector2(6.5475, 4.87)
+position = Vector2(704, -8)
+scale = Vector2(7, 8)
 texture = ExtResource("3_bg")
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=970090949]
-position = Vector2(0, 266.7339)
-scale = Vector2(1, 0.5463709)
-points = PackedVector2Array(262, 96, 1130, 96, 1130, 584, 262, 584, 262, 96)
+points = PackedVector2Array(244, 192, 1136, 192, 1136, 600, 244, 600, 244, 192)
 width = 4.0
 default_color = Color(0.78, 0.78, 0.82, 0.8)
 
 [node name="SectionLeft" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1800574664]
-position = Vector2(523.125, 277.08746)
-scale = Vector2(0.0625, 0.5271545)
-points = PackedVector2Array(560, 96, 560, 584)
+points = PackedVector2Array(548.313, 205.02, 548.313, 598.671)
 width = 2.0
 default_color = Color(0.78, 0.78, 0.82, 0.35)
 
 [node name="SectionRight" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=1510647598]
-position = Vector2(0, 278.7073)
-scale = Vector2(1, 0.5243903)
-points = PackedVector2Array(900, 96, 900, 584)
+points = PackedVector2Array(899.641, 207.093, 899.641, 598.679)
 width = 2.0
 default_color = Color(0.78, 0.78, 0.82, 0.35)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1242689336]
-position = Vector2(962, 155)
-scale = Vector2(3.6833231, 3.2276123)
+position = Vector2(1016, 100)
+scale = Vector2(1.84, 1.84)
 sprite_frames = SubResource("SpriteFrames_y7s8a")
 autoplay = "default"
 frame_progress = 0.519802
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
-position = Vector2(360, 470)
+position = Vector2(344.71, 422.779)
 
 [node name="Bases" type="Node2D" parent="." index="9" unique_id=1224575092]
 z_index = 1
 
 [node name="Mine" type="Node2D" parent="Bases" index="0" unique_id=1844672177]
-position = Vector2(360, 456)
+position = Vector2(344.71, 401.356)
 
 [node name="Fill" type="ColorRect" parent="Bases/Mine" index="0" unique_id=1257788309]
 offset_left = -46.0
@@ -134,16 +129,16 @@ default_color = Color(0.88, 0.38, 0.31, 0.95)
 
 [node name="Name" type="Label" parent="Bases/Mine" index="3" unique_id=1262103921]
 offset_left = -60.0
-offset_top = 6.0
+offset_top = -86.0
 offset_right = 60.0
-offset_bottom = 26.0
+offset_bottom = -68.0
 theme_type_variation = &"WorldLabel"
 text = "YOUR BASE"
 horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="Bathala" type="Node2D" parent="Bases" index="1" unique_id=1980799891]
-position = Vector2(1049, 463)
+position = Vector2(1052.76, 412.067)
 
 [node name="Fill" type="ColorRect" parent="Bases/Bathala" index="0" unique_id=674682801]
 offset_left = -46.0
@@ -165,9 +160,9 @@ default_color = Color(0.96, 0.82, 0.48, 0.95)
 
 [node name="Name" type="Label" parent="Bases/Bathala" index="3" unique_id=492982157]
 offset_left = -70.0
-offset_top = 6.0
+offset_top = -86.0
 offset_right = 70.0
-offset_bottom = 26.0
+offset_bottom = -68.0
 theme_type_variation = &"WorldLabel"
 text = "BATHALA'S BASE"
 horizontal_alignment = 1
@@ -195,28 +190,26 @@ horizontal_alignment = 1
 layer = 12
 
 [node name="Status" type="Label" parent="AgawanHud" index="0" unique_id=1077757494]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 242.0
-offset_top = -52.0
-offset_right = 942.0
-offset_bottom = -28.0
-grow_vertical = 0
+anchors_preset = 0
+offset_left = 244.0
+offset_top = 156.0
+offset_right = 244.0
+offset_bottom = 180.0
 theme_type_variation = &"HudLabel"
 text = "ON THE FIELD     ATTACK READY     ROUND 1"
 
-[node name="Hint" type="Label" parent="AgawanHud" index="1" unique_id=908270617]
+[node name="Hint" type="PanelContainer" parent="AgawanHud" index="1" unique_id=908270617]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 242.0
-offset_top = -27.0
-offset_right = 942.0
-offset_bottom = -3.0
+offset_left = 244.0
+offset_top = -40.0
+offset_right = 244.0
+offset_bottom = -8.0
 grow_vertical = 0
-theme_type_variation = &"HudHint"
-text = "CLICK - ATTACK"
+mouse_filter = 2
+script = ExtResource("hint_strip")
+text = "[LEFT CLICK] ATTACK"
 
 [node name="Callout" type="Label" parent="AgawanHud" index="2" unique_id=1214418893]
 visible = false

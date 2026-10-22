@@ -57,6 +57,17 @@ func show_favor(text: String, tint: Color, icon_texture: Texture2D = null) -> vo
 	queue_free()
 
 
+# A second change merged into this popup (Arena.favor_popup): the new total, and a
+# small pop so the eye catches that the number moved. The rise and fade carry on.
+func relabel(text: String, tint: Color) -> void:
+	label.text = text
+	label.add_theme_color_override("font_color", tint)
+	_recenter()
+	box.scale = Vector2.ONE * 0.85
+	create_tween().tween_property(box, "scale", Vector2.ONE, pop_in) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
 # Centre the box (and its pivot, so the pop-in grows around the middle) on the
 # spot the popup was spawned at.
 func _recenter() -> void:
