@@ -1,14 +1,18 @@
 extends SceneTree
 
-# Validation: the players' bandana colours (UITokens.BANDANA_COLORS, the shader
-# scenes/gods/common/bandana_swap.gdshader, Network.request_bandana_color).
+# Validation: the players' bandana and cloak colours (UITokens.BANDANA_COLORS and
+# cloak_shades, the shader scenes/gods/common/bandana_swap.gdshader,
+# Network.request_bandana_color).
 #   * Assets/Player/Lamang-Sheet.png draws the bandana in exactly two colours,
-#     #7A0E0E and #570303, and no other colour on the sheet is within the shader's
-#     tolerance of either (the shirt's #581010 is the close one) - so the swap
-#     touches the bandana and nothing else
+#     #7A0E0E and #570303, and the cloak in exactly three, #581010 #4B0000 #2A0000;
+#     no other colour on the sheet is within the shader's tolerance of any of the
+#     five - so the swap touches the bandana and the cloak and nothing else
 #   * the swap, run over the whole sheet the way the shader runs it: colour 0
-#     gives the sheet back exactly, every other colour changes only the bandana's
-#     pixels, to the palette colour and its darker shadow
+#     gives the sheet back exactly, every other colour changes only those five
+#     colours, to the palette colour, its darker shadow and the three cloak shades
+#   * a tint (modulate) on top of the swap still colours the cloak, which a
+#     multiplier on the drawn red could not (its mid and dark reds have no green
+#     or blue)
 #   * the palette: 8 colours, 0 is the drawn red, no two alike, shadows darker
 #   * a mortal owns its material (two mortals, two colours), and its modulate is
 #     still free for hit flashes and fades
@@ -35,18 +39,26 @@ func _frames(count: int) -> void:
 		await process_frame
 
 
-# The shader, in GDScript: what a drawn pixel becomes for bandana colour `index`.
+# The five drawn colours the shader replaces, and what each becomes for colour `index`.
+func _drawn() -> Array[Color]:
+	return [UITokens.BANDANA_LIGHT, UITokens.BANDANA_SHADOW, UITokens.CLOAK_LIGHT, UITokens.CLOAK_MID, UITokens.CLOAK_DARK]
+
+
+func _targets(index: int) -> Array[Color]:
+	var cloak := UITokens.cloak_shades(index)
+	return [UITokens.bandana_color(index), UITokens.bandana_shadow(index), cloak[0], cloak[1], cloak[2]]
+
+
+# The shader, in GDScript: what a drawn pixel becomes for colour `index` (before the
+# node's modulate, which multiplies the result).
 func _swap(pixel: Color, index: int) -> Color:
-	var light := UITokens.BANDANA_LIGHT
-	var shadow := UITokens.BANDANA_SHADOW
 	if pixel.a <= 0.0:
 		return pixel  # not drawn (the shader skips it too)
-	if _near(pixel, light):
-		var to := UITokens.bandana_color(index)
-		return Color(pixel.r * to.r / light.r, pixel.g * to.g / light.g, pixel.b * to.b / light.b, pixel.a)
-	if _near(pixel, shadow):
-		var to := UITokens.bandana_shadow(index)
-		return Color(pixel.r * to.r / shadow.r, pixel.g * to.g / shadow.g, pixel.b * to.b / shadow.b, pixel.a)
+	var drawn := _drawn()
+	for i in range(drawn.size()):
+		if _near(pixel, drawn[i]):
+			var to := _targets(index)[i]
+			return Color(to.r, to.g, to.b, pixel.a)
 	return pixel
 
 
@@ -65,8 +77,7 @@ func _run() -> void:
 	# --- the art: exactly two bandana colours, nothing else near them -----------------
 	var sheet: Image = (load(SHEET) as Texture2D).get_image()
 	sheet.decompress()
-	var light := 0
-	var shadow := 0
+	var counts := {}
 	var colors := {}
 	for y in range(sheet.get_height()):
 		for x in range(sheet.get_width()):
@@ -74,54 +85,64 @@ func _run() -> void:
 			if pixel.a <= 0.0:
 				continue
 			colors[pixel.to_html(false)] = pixel
-			if pixel.to_html(false) == UITokens.BANDANA_LIGHT.to_html(false):
-				light += 1
-			elif pixel.to_html(false) == UITokens.BANDANA_SHADOW.to_html(false):
-				shadow += 1
-	_check(UITokens.BANDANA_LIGHT.to_html(false) == "7a0e0e" and UITokens.BANDANA_SHADOW.to_html(false) == "570303",
-		"the palette names the drawn bandana: #7A0E0E and #570303")
-	_check(light > 0 and shadow > 0, "the sheet draws both (%d light, %d shadow pixels)" % [light, shadow])
+			counts[pixel.to_html(false)] = int(counts.get(pixel.to_html(false), 0)) + 1
+	var names: Array[String] = []
+	for color in _drawn():
+		names.append(color.to_html(false))
+	_check(names == ["7a0e0e", "570303", "581010", "4b0000", "2a0000"],
+		"the palette names the drawn colours: bandana #7A0E0E #570303, cloak #581010 #4B0000 #2A0000")
+	var drawn_all := true
+	for html in names:
+		drawn_all = drawn_all and int(counts.get(html, 0)) > 0
+	_check(drawn_all, "the sheet draws all five (%s)" % str(names.map(func(html): return counts.get(html, 0))))
 	var strays: Array[String] = []
 	for html in colors.keys():
-		if html in [UITokens.BANDANA_LIGHT.to_html(false), UITokens.BANDANA_SHADOW.to_html(false)]:
+		if html in names:
 			continue
 		var pixel: Color = colors[html]
-		if _near(pixel, UITokens.BANDANA_LIGHT) or _near(pixel, UITokens.BANDANA_SHADOW):
-			strays.append("#" + html)
-	_check(strays.is_empty(), "no other colour on the sheet is within the shader's tolerance of the bandana (%s)" % str(strays))
-	_check(colors.has("581010") and colors.has("4b0000") and colors.has("2a0000"),
-		"the shirt's own reds (#581010, #4B0000, #2A0000) are on the sheet and stay out of the swap")
+		for color in _drawn():
+			if _near(pixel, color):
+				strays.append("#" + html)
+	_check(strays.is_empty(), "no other colour on the sheet is within the shader's tolerance of the bandana or the cloak (%s)" % str(strays))
 
 	# --- the swap over the whole sheet ------------------------------------------------------
 	var identical := true
-	var only_bandana := true
+	var only_those := true
 	var painted := true
+	var drawn := _drawn()
 	for index in range(UITokens.BANDANA_COLORS.size()):
 		var changed := 0
 		var wrong := 0
+		var targets := _targets(index)
 		for y in range(sheet.get_height()):
 			for x in range(sheet.get_width()):
 				var pixel: Color = sheet.get_pixel(x, y)
 				var after := _swap(pixel, index)
 				# (A see-through pixel can still carry a colour in the file; it is not drawn.)
-				var drawn_light := pixel.a > 0.0 and pixel.to_html(false) == UITokens.BANDANA_LIGHT.to_html(false)
-				var drawn_shadow := pixel.a > 0.0 and pixel.to_html(false) == UITokens.BANDANA_SHADOW.to_html(false)
-				if drawn_light and not _same(after, UITokens.bandana_color(index)):
+				var which := -1
+				for i in range(drawn.size()):
+					if pixel.a > 0.0 and pixel.to_html(false) == drawn[i].to_html(false):
+						which = i
+				if which >= 0 and not _same(after, targets[which]):
 					wrong += 1
-				if drawn_shadow and not _same(after, UITokens.bandana_shadow(index)):
-					wrong += 1
-				if not (drawn_light or drawn_shadow) and not _same(after, pixel):
-					only_bandana = false
+				if which < 0 and not _same(after, pixel):
+					only_those = false
 				if not _same(after, pixel):
 					changed += 1
 		if index == 0 and changed != 0:
 			identical = false
 		if wrong != 0:
 			painted = false
-			printerr("  colour %d: %d bandana pixels came out wrong" % [index, wrong])
+			printerr("  colour %d: %d bandana or cloak pixels came out wrong" % [index, wrong])
 	_check(identical, "colour 0 hands the sheet back exactly as drawn")
-	_check(only_bandana, "no colour changes a pixel that is not the bandana")
-	_check(painted, "every colour turns the light pixels into the colour and the shadow ones into its darker shade")
+	_check(only_those, "no colour changes a pixel that is not the bandana or the cloak")
+	_check(painted, "every colour turns the bandana into its colour and shadow, and the cloak into its three shades")
+
+	# The tint the arenas put on a mortal multiplies what the swap produced: a cloak
+	# shade that has only red in it (as drawn) can still be tinted blue or faded.
+	var blue_tint := Color(0.3, 0.5, 1.0, 0.6)
+	_check((UITokens.cloak_shades(1)[1] * blue_tint).b > 0.1, "a blue tint lands on the sky blue cloak's mid shade")
+	_check((UITokens.CLOAK_MID * blue_tint).b == 0.0, "...where multiplying the drawn #4B0000 would give no blue at all")
 
 	# --- the palette -----------------------------------------------------------------------------
 	_check(UITokens.BANDANA_COLORS.size() == 8 and UITokens.BANDANA_NAMES.size() == 8, "eight bandana colours, each named")
@@ -142,6 +163,14 @@ func _run() -> void:
 	for index in range(1, 8):
 		darker = darker and UITokens.luminance(UITokens.bandana_shadow(index)) < UITokens.luminance(UITokens.bandana_color(index))
 	_check(darker, "every shadow is darker than its colour")
+	var cloak_ok := true
+	for index in range(1, 8):
+		var shades := UITokens.cloak_shades(index)
+		var base := UITokens.bandana_color(index)
+		cloak_ok = cloak_ok and shades.size() == 3 and UITokens.luminance(shades[2]) < UITokens.luminance(shades[1]) 			and UITokens.luminance(shades[1]) < UITokens.luminance(shades[0]) and UITokens.luminance(shades[0]) < UITokens.luminance(base) 			and absf(shades[0].r - base.r * UITokens.CLOAK_RATIO) < 0.004 and absf(shades[1].g - shades[0].g * UITokens.CLOAK_MID_RATIO) < 0.004
+	_check(cloak_ok, "each cloak is three shades, light to dark, and a little darker than its bandana")
+	_check(UITokens.cloak_shades(0) == [UITokens.CLOAK_LIGHT, UITokens.CLOAK_MID, UITokens.CLOAK_DARK],
+		"colour 0's cloak is the art's own reds")
 	var seen := true
 	for index in range(1, 8):
 		# The bandana sits between the mortal's black hair and brown skin: every
@@ -169,8 +198,11 @@ func _run() -> void:
 		"every mortal has a material of its own")
 	_check(first_material.get_shader_parameter("bandana_color") == UITokens.bandana_color(1)
 		and second_material.get_shader_parameter("bandana_color") == UITokens.bandana_color(5)
-		and second_material.get_shader_parameter("bandana_shadow") == UITokens.bandana_shadow(5),
-		"...and its own colour, shadow included")
+		and second_material.get_shader_parameter("bandana_shadow") == UITokens.bandana_shadow(5)
+		and first_material.get_shader_parameter("cloak_color") == UITokens.cloak_shades(1)[0]
+		and second_material.get_shader_parameter("cloak_mid") == UITokens.cloak_shades(5)[1]
+		and second_material.get_shader_parameter("cloak_dark") == UITokens.cloak_shades(5)[2],
+		"...and its own colours, shadow and cloak included")
 	first.sprite.modulate = Color(1.0, 0.45, 0.35)
 	_check(first.sprite.material == first_material and first.sprite.modulate == Color(1.0, 0.45, 0.35),
 		"a hit flash (modulate) is still free on top of the swap")

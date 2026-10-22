@@ -94,11 +94,32 @@ func _run() -> void:
 	_set_favor(100, 500, 200)
 	_arena._start_trial()
 	_check(_arena.taya_id() == LangitLupaArena.GOD_TAYA, "at GO Mapulon & Ikapati are the Taya, not a mortal (%d)" % _arena.taya_id())
-	_check(_arena.hud.banner_label.text == "TAYA: MAPULON & IKAPATI!", "the rhyme lands on the gods (%s)" % _arena.hud.banner_label.text)
+	_check(_arena.hud.banner_label.text == "MAPULON & IKAPATI ARE TAYA!", "the banner says the gods are Taya (%s)" % _arena.hud.banner_label.text)
 	_check(_rules.mortal(LangitLupaArena.GOD_TAYA) == null and _arena._field.has_point(_arena._god_at),
 		"the gods stand on the field, but are no GodMatch mortal")
 	_arena._process(0.0)
 	_check(_arena._god_body.visible and _arena.taya_marker.visible, "their body is drawn, wearing the Taya marker")
+	_check(not _arena._god_body.sprite.visible, "the god body's mortal sprite is hidden")
+	var god_art := _arena._god_art as AnimatedSprite2D
+	_check(god_art != null and god_art.is_playing() and god_art.sprite_frames.get_frame_count("default") == 3 and god_art.visible,
+		"...and Ikapati's three frames loop in its place")
+	var stands: float = _arena.god_height
+	_check(is_equal_approx(LangitLupaArena.GOD_ART_HEIGHT * god_art.scale.y, stands),
+		"...scaled to stand %d px, about 1.5 mortals (%.2f)" % [stands, stands / LangitLupaArena.MORTAL_HEIGHT])
+	_check(is_equal_approx(_arena._god_look.global_position.y - _arena._god_body.global_position.y, LangitLupaArena.MORTAL_FEET)
+		and is_equal_approx(god_art.position.y + god_art.sprite_frames.get_frame_texture("default", 0).get_size().y * 0.5 * god_art.scale.y, 0.0),
+		"...with her feet on the line a mortal's feet are on")
+	_check(_arena._god_look.get_node_or_null("GodRing") != null, "...over a ring in the pair's accent")
+	_check(not _arena.god_overseer.visible, "the overseer Ikapati is hidden while the god body is on the field")
+	_check(_arena._god_look.scale.x < 1.0, "the god body pops in (puff: scale %.2f and growing)" % _arena._god_look.scale.x)
+	_arena._god_body.global_position = _arena._god_at
+	_arena._god_body._last_position = _arena._god_at
+	_arena._god_body.global_position += Vector2(-20, 0)
+	_arena._god_body._update_facing()
+	_arena._process(0.0)
+	_check(bool(god_art.flip_h), "she turns to face the way they walk (left)")
+	_check(is_equal_approx(_arena.taya_marker.global_position.y, _arena._god_body.global_position.y - _arena._god_lift),
+		"the Taya marker sits above her head, not over it")
 
 	# --- the first Taya, the old rule ------------------------------------------------
 	_arena.god_starts_as_taya = false
@@ -339,6 +360,7 @@ func _run() -> void:
 	_arena._move_god(_arena.god_leave_time + 0.01)
 	_arena._process(0.0)
 	_check(_arena._god_at == Vector2.INF and not _arena._god_body.visible, "...then they leave the field")
+	_check(_arena.god_overseer.visible, "...and the overseer Ikapati is back where she watches")
 	_arena._move_god(1.0)
 	_check(_arena._god_at == Vector2.INF and _arena.taya_id() == 2, "they never come back as an extra hunter")
 	# a runner on a Langit is safe from the gods too; the gods never stand on one
