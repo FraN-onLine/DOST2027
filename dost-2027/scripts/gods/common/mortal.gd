@@ -69,8 +69,18 @@ extends CharacterBody2D
 @export_group("Sounds")
 @export var step_sounds: Array[AudioStream] = []
 @export var dash_sound: AudioStream
+@export var land_sound: AudioStream  # the thud of coming down from the sky at GO (skipped when empty)
 
 var locked := false
+# THE DROP AT GO (the arena's, see Arena THE GO DROP): look only, like everything
+# below FEEL. The body never moves - it waits on its spawn point - while the sprite
+# and what rides above it (name tag, glow, stars) are lifted by drop_offset, so a
+# mortal can fall from the sky onto the spot the physics already put it on.
+# drop_hidden draws nothing of the mortal at all (before GO), and drop_shadow is how
+# much of its shadow shows while it falls (0 small and faint, 1 as always).
+var drop_offset := Vector2.ZERO
+var drop_hidden := false
+var drop_shadow := 1.0
 var bounds := Rect2()
 var ring_color := Color(1, 0.95, 0.8)
 var radius := 13.0
@@ -130,6 +140,8 @@ var _hit_direction := Vector2.ZERO
 var _hit_flash := 0.0
 var _hit_stop := 0.0
 var _dash_stretch := 0.0
+var _land := 0.0  # the squash of coming down, 1 -> 0
+var _lifted := Vector2.ZERO  # how far drop_offset has already carried the parts above the sprite
 var _dash_direction := Vector2.RIGHT
 var _seen_dash := false
 # The dash trail: how long it still drops afterimages, and when the next one is due.
@@ -150,6 +162,9 @@ const TRAIL_LIFE := 0.25
 const OTHER_VOLUME_DB := -8.0    # a ghost's or bot's sounds, under the player's own
 const KICK_STIFFNESS := 900.0    # the stop's lean overshoot: ~0.15s to settle
 const KICK_DAMPING := 21.0
+const LAND_TIME := 0.1           # the landing squash, seconds
+const LAND_SQUASH := 0.3         # ...and how flat it gets (scale fraction)
+const DROP_SHADOW_SMALL := 0.35  # the shadow's size when the mortal is still high
 
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var glow: Sprite2D = $Glow
@@ -508,6 +523,7 @@ func _update_look(moved: Vector2, delta: float) -> void:
 	_hit_flash = maxf(0.0, _hit_flash - delta / 0.12)
 	var peak := 1.6 if _setting("reduce_flashing") else 3.0
 	sprite.self_modulate = Color.WHITE.lerp(Color(peak, peak, peak), _hit_flash)
+	_apply_drop_look(delta)
 	if _hit_stop > 0.0:
 		_hit_stop -= delta
 		sprite.speed_scale = 0.0  # the pose and every offset hold; the body moves on
@@ -581,8 +597,8 @@ func _update_look(moved: Vector2, delta: float) -> void:
 	var breathe := sin(_bob * 2.4) * idle_bob * (1.0 - ratio) * weight
 	# Stretch on the way up off each step, squash coming down onto the next.
 	var bounce := sin(2.0 * _step_phase - 0.5) * squash * ratio * weight
-	var sx := (1.0 - bounce + 0.07 * _pop) * (1.0 - 0.3 * _turn)
-	var sy := 1.0 + bounce - 0.07 * _pop
+	var sx := (1.0 - bounce + 0.07 * _pop) * (1.0 - 0.3 * _turn) * (1.0 + LAND_SQUASH * _land)
+	var sy := (1.0 + bounce - 0.07 * _pop) * (1.0 - LAND_SQUASH * _land)
 	# A hit squashes along the side it came from; a dash stretches along its way.
 	var across := absf(_hit_direction.x)
 	sx *= 1.0 - 0.18 * _hit_squash * across + 0.1 * _hit_squash * (1.0 - across)
@@ -596,9 +612,40 @@ func _update_look(moved: Vector2, delta: float) -> void:
 	var reach := (_feet_y - _sprite_base_position.y) * sy
 	sprite.scale = _sprite_base_scale * Vector2(sx, sy)
 	sprite.rotation = tilt
-	sprite.position = _sprite_base_position + Vector2(reach * sin(tilt), _feet_y - _sprite_base_position.y - reach * cos(tilt) - hop + breathe)
+	sprite.position = _sprite_base_position + Vector2(reach * sin(tilt), _feet_y - _sprite_base_position.y - reach * cos(tilt) - hop + breathe) + drop_offset
 	if shadow != null:
-		shadow.scale = _shadow_base_scale * (1.0 - 0.2 * hop / maxf(hop_height, 0.01))
+		shadow.scale = _shadow_base_scale * (1.0 - 0.2 * hop / maxf(hop_height, 0.01)) * lerpf(DROP_SHADOW_SMALL, 1.0, drop_shadow)
+
+
+# Coming down from the sky at GO is over: the squash, the dust at the feet and the
+# thud. (The arena calls it the frame drop_offset reaches the ground.)
+func land() -> void:
+	_land = 1.0
+	_puff(1.0, Vector2.ZERO)
+	_play_sound(steps, land_sound)
+
+
+# The drop's share of the look, every frame: nothing drawn while hidden (self_modulate,
+# which only this script writes, so no arena's flash or fade is in the way), the
+# shadow faint and small until the mortal is near it, and the parts that ride above
+# the sprite carried up with it.
+func _apply_drop_look(delta: float) -> void:
+	_land = maxf(0.0, _land - delta / LAND_TIME)
+	var drawn := 0.0 if drop_hidden else 1.0
+	sprite.self_modulate.a = drawn
+	if shadow != null:
+		shadow.self_modulate.a = 0.0 if drop_hidden else drop_shadow
+	if name_tag != null:
+		name_tag.self_modulate.a = drawn
+	if glow != null:
+		glow.self_modulate.a = drawn
+	var lift := drop_offset - _lifted
+	if lift == Vector2.ZERO:
+		return
+	_lifted = drop_offset
+	for part in [name_tag, floating_text, glow, stun_stars]:
+		if part != null:
+			part.position += lift
 
 
 func _footfall(ratio: float) -> void:

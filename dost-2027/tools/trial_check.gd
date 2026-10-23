@@ -203,6 +203,7 @@ func _run() -> void:
 	while arena.dialogue.is_active() and guard < 60:
 		arena.dialogue.advance()
 		guard += 1
+	arena.drop_enabled = false  # this check is about the trial, not about the sky
 	arena._countdown = 0.001
 	await _frames(3)
 	print("phase=%d (2=PLAYING) | shell clock='%s'" % [arena._phase, _shell.timer_label.text])

@@ -262,6 +262,12 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var intro_pan_share := 0.7      # share of the countdown spent panning; the rest zooms out
 @export var intro_face_screen_x := 0.75 # how far across the screen the face sits when the shot opens
 
+@export_category("GO Drop")
+# At GO the mortals fall from the sky onto their spawn points (see THE GO DROP).
+# Settings > Gameplay > Intro camera turns it off with the intro shot.
+@export var drop_enabled := true
+@export var drop_time := 1.0            # seconds from GO to control: the fall, the landing, the settle
+
 @export_category("Network")
 @export var net_tick_rate := 10.0    # world state broadcasts per second
 @export var net_state_rate := 5.0    # FAVOR snapshots per second
@@ -379,6 +385,13 @@ var _intro_left := 0.0
 var _intro_hold := 0.0
 var _intro_open := Vector2.ZERO     # the camera's centre when the shot opens
 var _intro_pan_end := Vector2.ZERO  # ...and where the pan leaves it, over the field
+# The GO drop (see THE GO DROP).
+var _drop_left := 0.0       # seconds of the drop still to play: the host's clock, the host's word on a client
+var _going := false         # the host's countdown has reached GO and is waiting out the drop
+var _drop_waiting := false  # the mortals are held off the field until a GO that is not a trial's first
+var _drop_cast: Dictionary = {}  # mortal id -> {delay, lift, landed}: who falls, when, from how high
+var _drop_shaken := false
+var _drop_seen := false     # this GO's drop has begun (so a late word of it cannot begin it again)
 
 # --- multiplayer ---
 var _net: Node = null
@@ -628,6 +641,7 @@ func _start_countdown() -> void:
 	_phase = Phase.COUNTDOWN
 	_countdown = countdown_time
 	_count_shown = -1
+	_reset_drop()
 	player.set_lock(true)
 	# The full round is already on the clock while the mortals wait through the
 	# 3 - 2 - 1, and the host broadcasts it, so every screen shows the round
@@ -645,8 +659,23 @@ func _start_countdown() -> void:
 	_begin_intro_shot()
 
 
-func _start_trial() -> void:
+# GO. With the drop the mortals fall for drop_time first - still locked, the clock
+# and the rules held, the phase still the countdown's, so nothing that waits for
+# PLAYING runs - and _start_trial opens the round when they have landed.
+func _go() -> void:
+	if not begin_drop():
+		_start_trial()
+		return
+	_going = true
+	_end_intro_shot()  # the view is the normal one from GO, whatever is left of the shot
+	_show_banner("GO!", god.color, 1.0)
+
+
+# `show_go` is false when the drop already showed the banner.
+func _start_trial(show_go := true) -> void:
 	_phase = Phase.PLAYING
+	_going = false
+	_reset_drop()
 	_end_intro_shot()  # GO is never late: whatever is left of the shot is cut
 	_trial_time = trial_time
 	trial_time_changed.emit(_trial_time)
@@ -674,11 +703,13 @@ func _start_trial() -> void:
 	rules.trial_active = true
 	if _authority:
 		rules.begin_trial()  # First Light pays whoever starts the trial in last place
-	_show_banner("GO!", god.color, 1.0)
+	if show_go:
+		_show_banner("GO!", god.color, 1.0)
 	hud.set_time_left(_trial_time)
 
 
 func _process(delta: float) -> void:
+	_tick_drop(delta)
 	if _authority and _networked and not _dialogue_waiting:
 		var waiting_kind := "intro" if _phase == Phase.INTRO else "results" if _phase == Phase.RESULTS else ""
 		var waiting_id := _dialogue_token(waiting_kind) if waiting_kind != "" else ""
@@ -693,7 +724,10 @@ func _process(delta: float) -> void:
 	match _phase:
 		Phase.COUNTDOWN:
 			# The host counts; a client never runs a clock of its own.
-			if _authority:
+			if _authority and _going:
+				if not drop_active():
+					_start_trial(false)  # they have landed: the round, the clock and the rules begin
+			elif _authority:
 				_countdown -= delta
 				var shown := int(ceil(maxf(0.0, _countdown)))
 				if shown != _count_shown:
@@ -701,7 +735,7 @@ func _process(delta: float) -> void:
 					if shown > 0:
 						_show_banner(str(shown), god.color, 1.0)
 				if _countdown <= 0.0:
-					_start_trial()
+					_go()
 		Phase.PLAYING:
 			if _authority:
 				_tick_trial(delta)
@@ -732,7 +766,10 @@ func _process(delta: float) -> void:
 
 func _tick_trial(delta: float) -> void:
 	# The shared part of one round: the clock runs down, the mercy seconds burn
-	# off, and the arena's own rules get their frame.
+	# off, and the arena's own rules get their frame. Not while the mortals are still
+	# falling from the sky at a GO (a later round's, Bathala's): nobody loses playing time.
+	if drop_active():
+		return
 	_trial_time -= delta
 	rules.time_left = _trial_time  # Panahon ng Anihan's harvest window reads it
 	trial_time_changed.emit(_trial_time)
@@ -1240,6 +1277,7 @@ func _continue_dialogue() -> void:
 func _end_trial() -> void:
 	_phase = Phase.RESULTS
 	_end_intro_shot()
+	_reset_drop()
 	player.set_lock(true)
 	_blind_time = 0.0
 	_gain_pending.clear()
@@ -2096,6 +2134,7 @@ func _publish_arena_tick() -> void:
 	var state := {
 		"phase": int(_phase),
 		"trial_time": _trial_time,
+		"drop_left": _drop_left,
 		"mortals": _mortal_positions.duplicate() if shares_mortal_positions() else {},
 		"banner": hud.banner_label.text if hud.banner_label.visible else "",
 		"banner_color": hud.banner_label.get_theme_color("font_color"),
@@ -2139,6 +2178,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	# would sit still while the host's runs.
 	trial_time_changed.emit(_trial_time)
 	hud.set_time_left(_trial_time)
+	_read_drop(float(state.get("drop_left", 0.0)))
 
 	var mortals: Dictionary = state.get("mortals", {})
 	_mortal_positions.clear()
@@ -2178,6 +2218,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 func _enter_playing() -> void:
 	_phase = Phase.PLAYING
 	_end_intro_shot()
+	_reset_drop()  # the host's drop is over (its phase says so): everyone stands on their spawn
 	if dialogue.is_active():
 		dialogue.close_now()
 	player.set_lock(false)
@@ -2770,6 +2811,163 @@ func intro_target() -> Rect2:
 # The shot's camera while it plays (null otherwise) - for the checks.
 func intro_camera() -> Camera2D:
 	return _intro_camera
+
+
+# --- THE GO DROP ----------------------------------------------------------------
+# Before GO the mortals are not on the field: through the intro dialogue, the
+# "3 - 2 - 1" and the intro shot every mortal on this screen (this one's, the
+# ghosts, a solo game's bots) draws nothing, while its body waits on its spawn
+# point as ever. At GO they fall from above the top of the view onto those points,
+# drop_time seconds in all: each mortal's sprite (and the tag, glow and stars that
+# ride over it) is lifted by Mortal.drop_offset, accelerating down to land at about
+# 0.9 of the second (staggered by peer id, so every screen casts the same order),
+# squashes and puffs dust on landing and settles. The shadow stays on the ground
+# all along, growing from small and faint, so everyone can see where they will
+# land. Once the last one is down the map shakes once (_shake_screen, so Settings >
+# screen shake rules it and only the field moves). The GO banner stays over it.
+#
+# Look only: no body moves and no position is sent. What it does change is when
+# the round starts: the host's phase stays the countdown's through the drop, so the
+# mortals stay locked, the clock stays at the full round and nothing that waits for
+# PLAYING (the god's rules, the clones, Tala) runs, then _start_trial opens the
+# round and everything begins together. Nothing new is sent either - a client
+# reads `drop_left` off the host's world tick that already carries the phase and the
+# clock, plays the same fall from there and walks into the round when the host says
+# PLAYING. A later round's GO (Bathala's) holds its mortals the same way
+# (hold_mortals_for_drop) and calls begin_drop itself; there _tick_trial rests
+# while the drop lasts. Not in the prep area, not for a mortal that joins mid-round.
+# Settings > Gameplay > Intro camera (the one switch for the cinematics) skips it.
+
+const DROP_FALL_SHARE := 0.78   # of drop_time the fall takes, from a mortal's own start
+const DROP_STAGGER := 0.12      # of drop_time between the first mortal to fall and the last
+const DROP_MARGIN := 100.0      # px a mortal starts above the view's top edge (sprite and tag clear)
+const DROP_SHAKE_TIME := 0.25
+const DROP_SHAKE_POWER := 0.6
+
+
+func drop_applies() -> bool:
+	return drop_enabled and drop_time > 0.0 and intro_camera_allowed()
+
+
+func drop_active() -> bool:
+	return _drop_left > 0.0
+
+
+# Every mortal the drop lifts on this screen: id -> mortal. The arenas with bodies
+# of their own that a mortal scene wears (Langit Lupa's bots) add them.
+func drop_mortals() -> Dictionary:
+	var all := {_my_id: player}
+	for id in _ghosts.keys():
+		if is_instance_valid(_ghosts[id]):
+			all[int(id)] = _ghosts[id]
+	return all
+
+
+# A GO that is not the trial's first: the mortals leave the field until it.
+func hold_mortals_for_drop() -> void:
+	_drop_seen = false
+	_drop_waiting = drop_applies()
+
+
+# The host's GO: the drop begins (false: no drop here, the round starts at once).
+func begin_drop() -> bool:
+	if not drop_applies():
+		return false
+	_drop_left = drop_time
+	_drop_waiting = false
+	_drop_seen = true
+	_cast_drop()
+	return true
+
+
+# A client's first sight of the host's drop, and the host's word on how long is left.
+func _read_drop(left: float) -> void:
+	if _authority or left <= 0.0 or not drop_applies():
+		return
+	if not _drop_seen:
+		_drop_seen = true
+		_drop_left = left
+		_drop_waiting = false
+		_cast_drop()
+	elif _drop_left > 0.0 and absf(left - _drop_left) > 0.25:
+		_drop_left = left  # drifted: the host's word wins
+
+
+# Who falls, in what order and from how high: sorted by peer id, so every screen
+# agrees; from above whatever this screen shows (the follow camera's view, or the arena).
+func _cast_drop() -> void:
+	_drop_cast.clear()
+	_drop_shaken = false
+	var mortals := drop_mortals()
+	var ids := mortals.keys()
+	ids.sort()
+	var top := _view_top()
+	for rank in range(ids.size()):
+		var mortal: ArenaMortal = mortals[ids[rank]]
+		var share := 0.0 if ids.size() < 2 else float(rank) / float(ids.size() - 1)
+		_drop_cast[ids[rank]] = {
+			"delay": DROP_STAGGER * drop_time * share,
+			"lift": maxf(mortal.global_position.y - top + DROP_MARGIN, DROP_MARGIN),
+			"landed": false,
+		}
+
+
+# The world y of the view's top edge.
+func _view_top() -> float:
+	if camera != null and camera.is_inside_tree():
+		return camera.get_screen_center_position().y - get_viewport_rect().size.y * 0.5 / camera.zoom.y
+	return 0.0
+
+
+# Every frame: the drop's clock, then what each mortal looks like.
+func _tick_drop(delta: float) -> void:
+	if _drop_left > 0.0:
+		_drop_left = maxf(0.0, _drop_left - delta)
+	var applies := drop_applies()
+	var dropping := applies and _drop_left > 0.0 and not _drop_cast.is_empty()
+	var waiting := applies and not dropping and (_drop_waiting or (not _drop_seen and (_phase == Phase.INTRO or _phase == Phase.COUNTDOWN)))
+	var elapsed := drop_time - _drop_left
+	var fall := drop_time * DROP_FALL_SHARE
+	var down := true
+	var mortals := drop_mortals()
+	for id in mortals.keys():
+		var mortal: ArenaMortal = mortals[id]
+		if dropping and _drop_cast.has(id):
+			var cast: Dictionary = _drop_cast[id]
+			var t := elapsed - float(cast["delay"])
+			if t < fall:
+				var u := clampf(t / fall, 0.0, 1.0)
+				mortal.drop_offset = Vector2(0.0, -float(cast["lift"]) * (1.0 - u * u))  # accelerating: it falls ever faster
+				mortal.drop_shadow = u
+				mortal.drop_hidden = false
+				down = false
+				continue
+			mortal.drop_offset = Vector2.ZERO
+			mortal.drop_shadow = 1.0
+			mortal.drop_hidden = false
+			if not bool(cast["landed"]):
+				cast["landed"] = true
+				mortal.land()
+			continue
+		mortal.drop_offset = Vector2.ZERO
+		mortal.drop_shadow = 1.0
+		mortal.drop_hidden = waiting
+	if dropping and down and not _drop_shaken:
+		_drop_shaken = true  # the last one is down: one shake of the map
+		_shake_screen(DROP_SHAKE_TIME, DROP_SHAKE_POWER)
+
+
+# Nothing held, nothing falling: every mortal as it always is.
+func _reset_drop() -> void:
+	_drop_left = 0.0
+	_drop_waiting = false
+	_drop_seen = false
+	_drop_shaken = false
+	_drop_cast.clear()
+	for mortal in drop_mortals().values():
+		mortal.drop_offset = Vector2.ZERO
+		mortal.drop_shadow = 1.0
+		mortal.drop_hidden = false
 
 
 func _set_hud_alpha(alpha: float) -> void:

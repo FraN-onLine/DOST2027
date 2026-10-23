@@ -76,6 +76,11 @@ var _ready_ids: Array = []              # who said READY (host: Network; client:
 var _tags: Dictionary = {}              # mortal id -> the name tag last drawn
 
 
+# The prep area is not a trial: nobody falls from the sky into it.
+func drop_applies() -> bool:
+	return false
+
+
 # --- OPENING ---------------------------------------------------------------------
 
 # The base calls this at the end of _ready: no dialogue, no countdown - the rest

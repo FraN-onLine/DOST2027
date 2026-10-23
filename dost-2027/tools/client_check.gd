@@ -45,6 +45,7 @@ func _run() -> void:
 	while _host.dialogue.is_active() and guard < 40:
 		_host.dialogue.advance()
 		guard += 1
+	_host.drop_enabled = false  # this check is about the client following, not about the sky
 	_host._countdown = 0.001
 	await _frames(3)
 	print("host phase=%d (2=PLAYING)" % _host._phase)

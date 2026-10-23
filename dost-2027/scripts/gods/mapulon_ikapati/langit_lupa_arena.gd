@@ -456,8 +456,8 @@ func _show_banner(text: String, color: Color, duration := 2.0) -> void:
 # At GO the rhyme's pointer lands on the gods (or, with god_starts_as_taya off,
 # on the mortal with the most FAVOR - read once begin_trial() has paid First
 # Light, so it is the real one).
-func _start_trial() -> void:
-	super._start_trial()
+func _start_trial(show_go := true) -> void:
+	super._start_trial(show_go)
 	if not _authority:
 		return
 	if god_starts_as_taya:
@@ -1049,6 +1049,15 @@ func _nearest_langit(mortal_id: int, here: Vector2, skip := -1) -> int:
 
 # --- SOLO BOTS ---------------------------------------------------------------
 
+# The bots fall from the sky at GO with everyone else.
+func drop_mortals() -> Dictionary:
+	var all := super.drop_mortals()
+	for id in _bots.keys():
+		if is_instance_valid(_bots[id]):
+			all[int(id)] = _bots[id]
+	return all
+
+
 func _spawn_bots() -> void:
 	if _networked or not simulate_rivals or bots_root == null:
 		return
@@ -1509,7 +1518,7 @@ func _refresh_hud(delta: float) -> void:
 	elif callout_label != null:
 		callout_label.visible = false
 	if rules_card != null:
-		rules_card.visible = first_visit and _phase == Phase.COUNTDOWN
+		rules_card.visible = first_visit and _phase == Phase.COUNTDOWN and not drop_active()
 		rules_card.modulate.a = hud_alpha
 	if taya_tip != null:
 		taya_tip.visible = _taya_tip_left > 0.0 and _taya == _my_id

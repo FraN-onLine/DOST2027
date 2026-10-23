@@ -150,7 +150,9 @@ func _run() -> void:
 	_step_to(arena, 0.5 - DT * 0.5)
 	_check(arena._phase == Arena.Phase.COUNTDOWN, "...still counting just before 0.5s")
 	_step(arena, DT)
-	_check(arena._phase == Arena.Phase.PLAYING and arena.intro_camera() == null, "...and GO comes at 0.5s, the shot cut")
+	_check(arena._going and arena.drop_active() and arena.intro_camera() == null, "...and GO comes at 0.5s, the shot cut (the drop starts)")
+	_run_to_go(arena)
+	_check(arena._phase == Arena.Phase.PLAYING, "...and the round opens when the drop ends")
 	await _close(arena)
 
 	# --- Bathala: the shot opens the trial, never a later round ---------------------

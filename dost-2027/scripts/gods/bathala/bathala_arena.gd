@@ -594,12 +594,14 @@ func _tick_round_count(delta: float) -> void:
 	if _count <= 0.0:
 		_count = 0.0
 		_show_banner("GO!", UITokens.GOLD, 1.0)
+		begin_drop()  # the mortals fall in; the rules and the clock wait until they have landed
 
 
 # Every screen, as a round's count begins: our mortal back to its spawn, and the
 # round callout.
 func _on_round_count_began() -> void:
 	player.global_position = _start_position
+	hold_mortals_for_drop()  # off the field until the GO that drops them back in
 	_callout("ROUND %d · BATHALA GROWS WARY" % _round if _wary > 0 else "ROUND %d" % _round)
 
 
@@ -919,6 +921,8 @@ func arena_read_tick(state: Dictionary) -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	if _count <= 0.0 and not drop_active():
+		_drop_waiting = false  # the GO came and nobody fell (the host has no drop): back on the field
 	_shock_cd = maxf(0.0, _shock_cd - delta)
 	_refresh_lock()
 	_refresh_marks()
@@ -962,7 +966,7 @@ func _keep_labels_inside() -> void:
 # stands still between rounds) our mortal is locked. Only a lock this script set
 # is ever lifted here - the intro, the countdown and the results keep theirs.
 func _refresh_lock() -> void:
-	var want := _phase == Phase.PLAYING and (_is_frozen(_my_id) or _pause > 0.0 or _count > 0.0)
+	var want := _phase == Phase.PLAYING and (_is_frozen(_my_id) or _pause > 0.0 or _count > 0.0 or drop_active())
 	if want and not player.locked:
 		player.set_lock(true)
 		_rule_lock = true
