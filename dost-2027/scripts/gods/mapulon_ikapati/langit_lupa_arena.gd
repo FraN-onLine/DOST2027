@@ -215,9 +215,8 @@ const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are
 @onready var god_overseer: AnimatedSprite2D = get_node_or_null("ArenaField/GodOverSeer")
 @onready var background: Sprite2D = get_node_or_null("Background")
 @onready var bots_root: Node2D = get_node_or_null("Bots")
-@onready var status_label: Label = get_node_or_null("LangitHud/Status")
+@onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 @onready var callout_label: Label = get_node_or_null("LangitHud/Callout")
-@onready var hint_label: HintStrip = get_node_or_null("LangitHud/Hint")
 @onready var rules_card: Control = get_node_or_null("LangitHud/RulesCard")
 @onready var taya_tip: Control = get_node_or_null("LangitHud/TayaTip")
 

@@ -62,8 +62,7 @@ const ALTAR_ICON_SIZE := 48.0  # the god on the altar, whatever size its icon is
 @onready var stall: Node2D = $Camp/Stall
 @onready var stall_hint: Label = $Camp/Stall/Hint
 @onready var next_label: Label = $PrepHud/Next
-@onready var ready_label: Label = $PrepHud/Ready
-@onready var hint_label: HintStrip = $PrepHud/Hint
+@onready var ready_label: Label = get_node(BAND_STATE + "Ready")
 @onready var shop: Control = $PrepHud/Tindahan
 
 var rng: RandomNumberGenerator = null   # the run's own, handed over by the Game shell
@@ -380,6 +379,7 @@ func is_closed() -> bool:
 
 func _process(delta: float) -> void:
 	_tick_field_dim()
+	_tick_band()
 	if _authority:
 		if not _closed:
 			_time_left = maxf(0.0, _time_left - delta)

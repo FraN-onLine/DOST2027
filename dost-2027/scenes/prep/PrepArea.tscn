@@ -6,7 +6,6 @@
 [ext_resource type="PackedScene" path="res://UI/GodsArena/tindahan_menu.tscn" id="4_shop"]
 [ext_resource type="Texture2D" uid="uid://w5baa76vtjgb" path="res://Assets/Placeholders/flame.png" id="5_flame"]
 [ext_resource type="Texture2D" uid="uid://47ujncj6jm7f" path="res://Assets/Map/lobbymap.png" id="7_161xv"]
-[ext_resource type="Script" uid="uid://bpe8osuir3cim" path="res://UI/GodsArena/hint_strip.gd" id="hint_strip"]
 
 [node name="PrepArea" unique_id=580867236 instance=ExtResource("1_base")]
 script = ExtResource("2_prep")
@@ -158,33 +157,11 @@ theme_type_variation = &"HudCallout"
 text = "NEXT: TALA - TUMBANG PRESO"
 horizontal_alignment = 1
 
-[node name="Ready" type="Label" parent="PrepHud" index="1" unique_id=507479925]
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -200.0
-offset_top = -40.0
-offset_right = -16.0
-offset_bottom = -16.0
-grow_horizontal = 0
-grow_vertical = 0
+[node name="Ready" type="Label" parent="BandLayer/Band/Rows/State" unique_id=507479925]
+layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "READY 0/1"
 horizontal_alignment = 2
-
-[node name="Hint" type="PanelContainer" parent="PrepHud" index="2" unique_id=1185619867]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 244.0
-offset_top = -40.0
-offset_right = 244.0
-offset_bottom = -8.0
-grow_vertical = 0
-mouse_filter = 2
-script = ExtResource("hint_strip")
 
 [node name="Tindahan" parent="PrepHud" index="3" unique_id=1600641913 instance=ExtResource("4_shop")]
 

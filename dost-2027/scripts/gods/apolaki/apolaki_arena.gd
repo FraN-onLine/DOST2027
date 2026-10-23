@@ -104,9 +104,9 @@ extends Arena
 @export var block_knock_force := 150.0
 
 @onready var duelist: ApolakiDuelist = get_node_or_null("ArenaField/Apolaki")
-@onready var state_label: Label = get_node_or_null("DuelHud/State")
-@onready var strike_bar: PanelContainer = get_node_or_null("DuelHud/Bars/StrikeBar")
-@onready var defend_bar: PanelContainer = get_node_or_null("DuelHud/Bars/DefendBar")
+@onready var state_label: Label = get_node_or_null(BAND_STATE + "State")
+@onready var strike_bar: PanelContainer = get_node_or_null(BAND_STATE + "Bars/StrikeBar")
+@onready var defend_bar: PanelContainer = get_node_or_null(BAND_STATE + "Bars/DefendBar")
 
 # The mortal's own clips (authored in Mortal.tscn). The swing lands on one of its
 # frames and both clips hand the mortal back to its idle once they run out.

@@ -32,10 +32,16 @@ extends Node2D
 #     rectangle) and keeps to these rules:
 #       the overseer  is big, behind the HUD, and never moved for a HUD element -
 #                     move the element
-#       the status    line (and Apolaki's duel bars, Mayari's attack bar) sits in
-#                     the sky between the overseer and the field's top edge
-#       the hint      (a HintStrip: keys as keycaps, BODY text) sits in the band
-#                     under the field's bottom edge
+#       the band      (BandLayer/Band, shared) runs along the bottom of the
+#                     screen right of the strip and holds every trial's action
+#                     UI in two rows: row 1 (band_state) the trial's live state -
+#                     its Status line, Apolaki's duel bars, Mayari's attack bar -
+#                     authored as children of BandLayer/Band/Rows/State in the
+#                     god's own scene; row 2 the controls hint (hint_label, a
+#                     HintStrip: keys as keycaps, BODY text). It may cover the
+#                     field's lowest pixels and turns see-through while our
+#                     mortal stands under it; it steps aside while a god speaks.
+#                     Big announcements (banners, callouts) stay centred.
 #     A hit's wash (FlashLayer/ScreenFlash) covers the whole screen; the shade
 #     while a god speaks (FieldDim) the world only, so it never dims a HUD.
 #
@@ -137,6 +143,10 @@ signal trial_complete
 signal trial_time_changed(seconds: float)
 
 const UI_STRIP_WIDTH := 238.0
+# Where a god's scene parents its row-1 nodes (see THE SCREEN'S LAYOUT above).
+const BAND_STATE := "BandLayer/Band/Rows/State/"
+# The band's opacity while our mortal stands under it.
+const BAND_SEE_THROUGH := 0.35
 
 # The colour a favor zone glows while a god is lighting it.
 const FAVOR_COLOR := Color(1.0, 0.86, 0.25)
@@ -288,6 +298,10 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 # The shade over the world while a god speaks: the field dims, the HUD (every
 # CanvasLayer, the shell's panels too) stays as bright as ever.
 @onready var field_dim: ColorRect = get_node_or_null("FieldDim")
+# The bottom band and its two rows (THE SCREEN'S LAYOUT).
+@onready var band: PanelContainer = get_node_or_null("BandLayer/Band")
+@onready var band_state: HBoxContainer = get_node_or_null("BandLayer/Band/Rows/State")
+@onready var hint_label: HintStrip = get_node_or_null("BandLayer/Band/Rows/Hint")
 
 var god: God
 var rules: GodMatch
@@ -685,6 +699,7 @@ func _process(delta: float) -> void:
 	_tick_shake(delta)
 	_tick_flash(delta)
 	_tick_field_dim()
+	_tick_band()
 	_dash_cd = maxf(0.0, _dash_cd - delta)
 	if _dash_buffered > 0.0:
 		_dash_buffered = maxf(0.0, _dash_buffered - delta)
@@ -980,6 +995,17 @@ func _flash_screen(tint: Color, peak: float) -> void:
 func _tick_field_dim() -> void:
 	if field_dim != null:
 		field_dim.visible = dialogue != null and dialogue.is_active()
+
+
+# The bottom band steps aside for the dialogue box (both sit at the bottom) and is
+# see-through while our mortal's feet are under it, so the field it covers stays
+# readable.
+func _tick_band() -> void:
+	if band == null:
+		return
+	band.visible = not dialogue.is_active()
+	var under := band.get_global_rect().grow(8.0).has_point(player.get_global_transform_with_canvas().origin)
+	band.modulate.a = BAND_SEE_THROUGH if under else 1.0
 
 
 func _tick_flash(delta: float) -> void:

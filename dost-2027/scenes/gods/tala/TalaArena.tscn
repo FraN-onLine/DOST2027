@@ -7,7 +7,6 @@
 [ext_resource type="Texture2D" uid="uid://b6vjr6hvao45f" path="res://Assets/Gods/Tala/can1.png" id="5_8urks"]
 [ext_resource type="Texture2D" uid="uid://dqltvlxohlij3" path="res://Assets/Gods/Tala/Tala-Sheet.png" id="5_28pec"]
 [ext_resource type="Texture2D" uid="uid://c5faeg35jn743" path="res://Assets/Gods/Tala/TalaOverseer-Sheet.png" id="7_28pec"]
-[ext_resource type="Script" path="res://UI/GodsArena/hint_strip.gd" id="hint_strip"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cgjks"]
 atlas = ExtResource("4_28pec")
@@ -258,27 +257,8 @@ offset_bottom = -5.0
 [node name="Slippers" type="Node2D" parent="." index="9" unique_id=1663118273]
 z_index = 6
 
-[node name="TalaHud" type="CanvasLayer" parent="." index="10" unique_id=985875143]
-layer = 11
-
-[node name="Status" type="Label" parent="TalaHud" index="0" unique_id=1709965248]
-anchors_preset = 0
-offset_left = 260
-offset_top = 316
-offset_right = 260
-offset_bottom = 340
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1709965248]
+layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "THROW FROM THE LINE"
 
-[node name="Hint" type="PanelContainer" parent="TalaHud" index="1" unique_id=1700730853]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 260
-offset_top = -34
-offset_right = 260
-offset_bottom = -2
-grow_vertical = 0
-mouse_filter = 2
-script = ExtResource("hint_strip")
-text = "[LEFT CLICK] THROW"

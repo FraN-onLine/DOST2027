@@ -54,8 +54,7 @@ extends Arena
 # The gold the field pulses in blitz: a rect over the floor, under the lines, cans and mortals.
 @onready var blitz_glow: ColorRect = get_node_or_null("ArenaField/BlitzGlow")
 @onready var slippers_root: Node2D = get_node_or_null("Slippers")
-@onready var status_label: Label = get_node_or_null("TalaHud/Status")
-@onready var hint_label: HintStrip = get_node_or_null("TalaHud/Hint")
+@onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 # Slipper.tscn: the slipper's own scene. `toss` while it flies, `grounded`
 # once it lands - type 1 is your own, type 2 a rival's.
 const SLIPPER_SCENE := preload("res://scenes/gods/tala/Slipper.tscn")

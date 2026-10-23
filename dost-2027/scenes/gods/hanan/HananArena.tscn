@@ -4,7 +4,6 @@
 [ext_resource type="Script" uid="uid://hlq046tgceac" path="res://scripts/gods/hanan/hanan_arena.gd" id="2_pmmhp"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://dnax1ilo8tx4p" path="res://Assets/Gods/Hanan/HananOverseer-Sheet.png" id="4_2uhhy"]
-[ext_resource type="Script" path="res://UI/GodsArena/hint_strip.gd" id="hint_strip"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_w0dj0"]
 atlas = ExtResource("4_2uhhy")
@@ -112,12 +111,8 @@ position = Vector2(400, 470)
 [node name="HananHud" type="CanvasLayer" parent="." index="9" unique_id=81470394]
 layer = 12
 
-[node name="Status" type="Label" parent="HananHud" index="0" unique_id=1400636208]
-anchors_preset = 0
-offset_left = 258
-offset_top = 210
-offset_right = 258
-offset_bottom = 234
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1400636208]
+layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "LEVEL 1  LOW BAKA"
 
@@ -131,19 +126,6 @@ offset_bottom = 150.0
 grow_horizontal = 2
 theme_type_variation = &"HudCallout"
 horizontal_alignment = 1
-
-[node name="Hint" type="PanelContainer" parent="HananHud" index="2" unique_id=770398069]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 258
-offset_top = -40
-offset_right = 258
-offset_bottom = -8
-grow_vertical = 0
-mouse_filter = 2
-script = ExtResource("hint_strip")
-text = "[LEFT CLICK] LEAP"
 
 [node name="BarLayer" type="CanvasLayer" parent="." index="10" unique_id=1058177752]
 layer = 4

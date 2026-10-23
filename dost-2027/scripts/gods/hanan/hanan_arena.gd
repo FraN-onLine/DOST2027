@@ -107,9 +107,8 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @onready var indicator: ColorRect = get_node_or_null("BarLayer/Bar/Indicator")
 @onready var rate_label: Label = get_node_or_null("BarLayer/Bar/Rate")
 @onready var hold_prompt: Label = get_node_or_null("BarLayer/Bar/HoldPrompt")
-@onready var status_label: Label = get_node_or_null("HananHud/Status")
+@onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 @onready var callout_label: Label = get_node_or_null("HananHud/Callout")
-@onready var hint_label: HintStrip = get_node_or_null("HananHud/Hint")
 
 var _vault_state := Vault.RUN
 var _level := 1

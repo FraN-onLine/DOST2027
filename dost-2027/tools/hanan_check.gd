@@ -51,9 +51,12 @@ func _run() -> void:
 	_check(bar_layer != null and _arena.bar.get_parent() == bar_layer, "the balance bar lives on its own layer")
 	_check(bar_layer != null and bar_layer.layer < vision.layer and bar_layer.layer < patches.layer,
 		"the bar is drawn below Mayari's blackout (%d) and Apolaki's sun patches (%d)" % [vision.layer, patches.layer])
+	var band_layer: CanvasLayer = _arena.get_node_or_null("BandLayer")
 	_check(label_layer != null and label_layer.layer > vision.layer and label_layer.layer > patches.layer
-		and _arena.status_label.get_parent() == label_layer and _arena.callout_label.get_parent() == label_layer
-		and _arena.hint_label.get_parent() == label_layer, "the status, callout and hint labels are drawn above them")
+		and _arena.callout_label.get_parent() == label_layer, "the callout is drawn above them")
+	_check(band_layer != null and band_layer.layer > vision.layer and band_layer.layer > patches.layer
+		and _arena.status_label.get_canvas_layer_node() == band_layer and _arena.hint_label.get_canvas_layer_node() == band_layer,
+		"the status and hint, in the bottom band, are drawn above them too")
 	_arena.begin_vault()
 	_arena._refresh_hud(0.0)
 	var feet: Vector2 = _arena.player.get_global_transform_with_canvas().origin

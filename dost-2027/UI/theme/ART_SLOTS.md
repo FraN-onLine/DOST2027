@@ -146,7 +146,7 @@ one entry. A landed hit is `Arena.hit_effects` (ring, spark and slash together);
 | `fx/stun_star.png` | `StunStars/Star1..3` in `Mortal.tscn` | 64x64 | One star; three circle the head of a stunned mortal (the player, a rival's ghost, a bot) for the stun's duration, 0.3 s at least. Shown for a knockback, Mayari's shockwave, a broken chant and Langit Lupa's shove. Tinted gold. |
 | `glow.png` | `Glow` in `Mortal.tscn` | 128x128 | The soft disc under a mortal. |
 | `shockwave.png` | `Icon` in `Shockwave.tscn` | 128x128 | The icon in the middle of Mayari's wave. |
-| `attack.png` | `AttackHud/Icon` in `MayariArena.tscn` | 128x128 | The attack bar's icon. |
+| `attack.png` | `BandLayer/Band/Rows/State/Icon` in `MayariArena.tscn` | 128x128 | The attack bar's icon. |
 | `flame.png` | `Camp/Campfire/Flame` in `PrepArea.tscn` | 128x128 | Tinted orange. |
 | `god.png` | the Agawan gods, the cutscene's figures, the altar's god, the shopkeeper, `Arena.TEMP_ICON` | 128x128 | A figure until each has its own art. |
 | `favor.png` | `Gods.TEMP_ICON`, `UICards.PLACEHOLDER_ICON`, the skill bar / card / effect row | 128x128 | Any favor, skill, effect or Pamana without an icon. |
