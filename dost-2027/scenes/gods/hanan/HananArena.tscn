@@ -63,18 +63,18 @@ burst_multiplier = 3.2
 bar_offset = Vector2(36, 0)
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
-position = Vector2(704, -8)
-scale = Vector2(7, 8)
+position = Vector2(654.75, 274)
+scale = Vector2(6.5475, 4.87)
 texture = ExtResource("3_bg")
 metadata/_edit_lock_ = true
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1490822659]
-points = PackedVector2Array(244, 192, 1136, 192, 1136, 600, 244, 600, 244, 192)
+points = PackedVector2Array(258, 240, 1010, 240, 1010, 590, 258, 590, 258, 240)
 width = 4.0
 default_color = Color(1, 0.62, 0.55, 0)
 
 [node name="Baka" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=4442098]
-position = Vector2(673.394, 460.114)
+position = Vector2(620, 470)
 
 [node name="Sprite" type="Sprite2D" parent="ArenaField/Baka" index="0" unique_id=1130681991]
 visible = false
@@ -96,28 +96,28 @@ horizontal_alignment = 1
 
 [node name="Overseer" type="Sprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=2122756111]
 visible = false
-position = Vector2(1016, 100)
+position = Vector2(984, 185)
 scale = Vector2(3, 3)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1341370406]
-position = Vector2(1016, 100)
-scale = Vector2(1.84, 1.84)
+position = Vector2(956.79205, 174.3834)
+scale = Vector2(3.710893, 3.522897)
 sprite_frames = SubResource("SpriteFrames_q1ga2")
 autoplay = "default"
 frame_progress = 0.046383616
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
-position = Vector2(412.436, 460.114)
+position = Vector2(400, 470)
 
 [node name="HananHud" type="CanvasLayer" parent="." index="9" unique_id=81470394]
 layer = 12
 
 [node name="Status" type="Label" parent="HananHud" index="0" unique_id=1400636208]
 anchors_preset = 0
-offset_left = 244.0
-offset_top = 156.0
-offset_right = 244.0
-offset_bottom = 180.0
+offset_left = 258
+offset_top = 210
+offset_right = 258
+offset_bottom = 234
 theme_type_variation = &"HudLabel"
 text = "LEVEL 1  LOW BAKA"
 
@@ -136,10 +136,10 @@ horizontal_alignment = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 244.0
-offset_top = -40.0
-offset_right = 244.0
-offset_bottom = -8.0
+offset_left = 258
+offset_top = -40
+offset_right = 258
+offset_bottom = -8
 grow_vertical = 0
 mouse_filter = 2
 script = ExtResource("hint_strip")
