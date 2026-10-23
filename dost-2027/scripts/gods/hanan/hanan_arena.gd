@@ -30,6 +30,9 @@ extends Arena
 #   combo (up to `combo_cap`), and every `vaults_per_level` clean vaults the Baka
 #   gets harder:
 #     1 Low Baka, 2 Sitting Baka, 3 Standing Baka, 4 High Baka, 5+ Over the Moon.
+#   Hanan herself is the Baka (HananBaka.tscn): this file hands her the level
+#   (set_level: crouched, sitting, standing - taller past Standing Baka) and a
+#   trip (bump). Her art is only a look: every vault number is the level's.
 #   STUMBLE  a trip drops the mortal at the Baka's feet on the side they came
 #            from and shoves them back; it costs trip_penalty_base +
 #            trip_penalty_per_level for each level above the first (40 at Low
@@ -52,7 +55,6 @@ const LEVEL_NAMES := ["LOW BAKA", "SITTING BAKA", "STANDING BAKA", "HIGH BAKA", 
 # Hanan's art is drop-in (see Assets/Gods/Hanan/README.md): each file is used when
 # it exists and the placeholder stays when it does not.
 const ART_DIR := "res://Assets/Gods/Hanan/"
-const BAKA_STRIP_FRAMES := 5  # a Baka.png this many frames wide holds one height per level
 const SCREEN_SIZE := Vector2(1152.0, 648.0)  # the authored arena (see arena.gd)
 const CLEAN_COLOR := Color(0.7, 1, 0.8)
 const TRIP_COLOR := Color(1, 0.5, 0.45)
@@ -92,12 +94,11 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 # Impact), set to 5 in HananArena.tscn - redeclaring it here is a parse error.
 @export var bar_offset := Vector2(36.0, 0.0)  # where the bar hangs, from the mortal's feet
 
-@onready var baka: Node2D = get_node_or_null("ArenaField/Baka")
-@onready var baka_sprite: Sprite2D = get_node_or_null("ArenaField/Baka/Sprite")
-@onready var baka_body: ColorRect = get_node_or_null("ArenaField/Baka/Body")
+@onready var baka: HananBaka = get_node_or_null("ArenaField/Baka")
 @onready var overseer: Sprite2D = get_node_or_null("ArenaField/Overseer")
 @onready var background: Sprite2D = get_node_or_null("Background")
-# The labels sit high (HananHud, above everything) so they always stay readable.
+# The labels sit high (the callout on HananHud, the status and hint in the
+# base's bottom band, both above everything) so they always stay readable.
 # The bar sits LOW (BarLayer, below Mayari's VisionLayer and Apolaki's Patches):
 # a blackout or a sun patch must hide it like it hides any other trial's field.
 @onready var hud_layer: CanvasLayer = get_node_or_null("HananHud")
@@ -444,6 +445,8 @@ func _trip() -> void:
 	_set_callout(text, TRIP_COLOR, 1.2)
 	_leave_vault()
 	player.global_position.x = _from_x  # at the Baka's feet, on the side they came from
+	if baka != null:
+		baka.bump()
 	_vault_state = Vault.STUMBLE
 	_state_timer = stumble_time
 	player.set_lock(false)
@@ -480,7 +483,7 @@ static func art(file: String) -> Texture2D:
 
 
 func _apply_art() -> void:
-	_use_baka_art(art("Baka.png"))
+	_show_baka_height()
 	var watcher := art("Hanan-Overseer.png")
 	if overseer != null:
 		overseer.texture = watcher
@@ -494,32 +497,10 @@ func _apply_art() -> void:
 		background.scale = SCREEN_SIZE / backdrop.get_size()
 
 
-# The Baka's art, or the coloured rectangle when there is none. A wide image is a
-# strip of one frame per level; otherwise the one image is stretched taller.
-func _use_baka_art(texture: Texture2D) -> void:
-	if baka_sprite != null:
-		baka_sprite.texture = texture
-		baka_sprite.visible = texture != null
-		if texture != null:
-			var strip := texture.get_width() >= texture.get_height() * 2.5
-			baka_sprite.hframes = BAKA_STRIP_FRAMES if strip else 1
-			baka_sprite.offset.y = -texture.get_height() * 0.5  # stands on the Baka's origin, like the rectangle
-	if baka_body != null:
-		baka_body.visible = texture == null
-	_show_baka_height()
-
-
-# Taller every level: the strip shows that level's frame, a single image or the
-# rectangle is stretched.
+# Hanan shows the level: crouched, sitting, standing, taller past Standing Baka.
 func _show_baka_height() -> void:
-	if baka == null:
-		return
-	var step := mini(_level, LEVEL_NAMES.size())
-	if baka_sprite != null and baka_sprite.visible and baka_sprite.hframes > 1:
-		baka.scale.y = 1.0
-		baka_sprite.frame = step - 1
-	else:
-		baka.scale.y = 0.6 + 0.2 * step
+	if baka != null:
+		baka.set_level(_level)
 
 
 # --- HUD ---------------------------------------------------------------------

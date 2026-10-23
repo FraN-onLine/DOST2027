@@ -83,6 +83,21 @@ needed.
   `Assets/Placeholders/CREDITS.md`), tinted with the favor's colour. When real icons arrive, set `icon` on each favor in
   `resources/gods/*.tres` and drop the tint (search for `PLACEHOLDER_ICON`).
 
+## God scenes (scene art, the Godot placeholder for now)
+
+Two gods on the field are scenes of their own, each with ONE `SpriteFrames` resource
+on an `AnimatedSprite2D`. Every clip holds the Godot logo
+(`Assets/Placeholders/godot_placeholder.svg`) until there is art: replace the frames
+inside each clip, keep the clip names exactly, and nothing in the code changes. The
+script scales the frame showing so the figure stands at the size below with its
+feet on the node's origin, so any frame size works; keep the feet on the bottom
+edge of the frame and the figure centred.
+
+| Clip | Scene / node | Expected frame size | Notes |
+|---|---|---|---|
+| `idle`, `walk`, `chant`, `tag` | `scenes/gods/mapulon_ikapati/IkapatiTaya.tscn`, `GodLook/Art` | 64x96 (drawn 87 px tall: `god_height` on the arena) | Mapulon & Ikapati as Langit Lupa's opening Taya. `idle` standing, `walk` on the move, `chant` while they chant (loop it), `tag` the "Ikaw na!" as they fade out. Facing right; it is flipped to walk left. If the figure does not fill the frame's height, set `figure_height` on the scene's root. |
+| `low`, `sitting`, `standing` | `scenes/gods/hanan/HananBaka.tscn`, `Art` | 96x64 (`low`), 96x96 (`sitting`), 96x128 (`standing`); drawn at `art_scale` 0.6 | Hanan as the Baka. Level 1 `low` (crouched), 2 `sitting` (bent), 3+ `standing`; High Baka and Over the Moon stretch `standing` taller (`taller_per_level`). Keep the heights clearly different so the levels read. |
+
 ## The preparation area (scene art, also placeholders)
 
 The rest between two trials (`scenes/prep/PrepArea.tscn`) is drawn with coloured

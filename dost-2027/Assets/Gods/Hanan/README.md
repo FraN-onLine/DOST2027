@@ -9,13 +9,14 @@ needed.
 | File | What it is | Used by | Fallback when missing |
 |---|---|---|---|
 | `Hanan-Icon.png` | Hanan's portrait, 64 x 64 px like `Assets/Gods/Tala/Tala-Icon.png` | lobby god icon, sidebars, God's Due menu, Almanac | `res://Assets/Placeholders/favor.png` (see the note below) |
-| `Baka.png` | the crouching Baka, standing on its feet at the bottom of the image. Either one image, scaled taller each level, or a horizontal strip of 5 equal frames (Low, Sitting, Standing, High, Over the Moon) | `ArenaField/Baka/Sprite` | the brown `ArenaField/Baka/Body` rectangle, scaled taller each level |
 | `Hanan-Overseer.png` | Hanan watching the field, like `Assets/Gods/Tala/Tala-Overseer.png` (one image) | `ArenaField/Overseer` | hidden |
 | `Arena-Background.png` | the arena background, ideally 1152 x 648 (it is stretched to fill the screen) | `Background` | Mayari's `AreanaTemp.png` |
 
-A strip is detected by its shape. An image at least 2.5 times as wide as it is
-tall is read as 5 frames, and the arena shows the frame for the current level
-instead of stretching the image.
+Hanan herself is the Baka, and she is not a drop-in file any more: she is her own
+scene, `scenes/gods/hanan/HananBaka.tscn` (the old `Baka.png` strip is no longer
+read). Put the frames in its `Art` SpriteFrames, clips `low`, `sitting` and
+`standing` (see `UI/theme/ART_SLOTS.md`, "God scenes"). The Godot placeholder stays
+until then.
 
 ## Swap the icon by hand
 

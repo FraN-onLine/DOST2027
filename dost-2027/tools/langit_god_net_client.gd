@@ -69,7 +69,14 @@ func _run() -> void:
 	_check(await _until(func() -> bool: return _game() != null and _game().arena is LangitLupaArena, 60.0), "the client follows the host into Langit Lupa")
 	var arena: LangitLupaArena = _game().arena
 	arena.god_leave_time = 2.0  # the host's fade is 2 s here too
-	_check(await _until(func() -> bool: return arena._phase == Arena.Phase.PLAYING), "the trial is under way on the client")
+	# The intro shot runs here too, from the countdown the client follows (no message of its own).
+	var saw_shot := [false]
+	_check(await _until(func() -> bool:
+		saw_shot[0] = saw_shot[0] or (arena.intro_camera() != null and root.get_camera_2d() == arena.intro_camera())
+		return arena._phase == Arena.Phase.PLAYING), "the trial is under way on the client")
+	_check(saw_shot[0], "the client's countdown opened on the gods' faces")
+	_check(arena.intro_camera() == null and root.get_camera_2d() == null and root.canvas_transform == Transform2D.IDENTITY,
+		"...and at GO the client's view is the whole arena again")
 
 	# --- GO: the gods are the Taya on this screen too -----------------------------------------------
 	_check(await _until(func() -> bool: return arena._taya == LangitLupaArena.GOD_TAYA), "the client learns the gods are the Taya")
@@ -78,8 +85,8 @@ func _run() -> void:
 	var body := arena._god_body
 	_check(await _until(func() -> bool: return body.visible), "the god body appears on the client")
 	_check(not body.sprite.visible and not arena.god_overseer.visible, "...without the mortal sprite, and the overseer Ikapati is hidden here too")
-	var art := arena._god_art as AnimatedSprite2D
-	_check(art != null and art.is_playing(), "...with Ikapati looping")
+	var art := body.art
+	_check(art != null and art.is_playing() and body.scene_file_path.ends_with("IkapatiTaya.tscn"), "...the IkapatiTaya scene, its clip playing (%s)" % art.animation)
 	await _until(func() -> bool: return arena._god_at != Vector2.INF and body.global_position.distance_to(arena._god_at) < 40.0)
 	_check(body.global_position.distance_to(arena._god_at) < 40.0, "the body stands where the host's tick says (%.0f px off)" % body.global_position.distance_to(arena._god_at))
 	await _frames(3)
