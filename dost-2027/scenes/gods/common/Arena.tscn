@@ -198,12 +198,15 @@ offset_bottom = 1944.0
 mouse_filter = 2
 color = Color(0.043137256, 0.0627451, 0.1254902, 0.55)
 
-[node name="FieldFlash" type="ColorRect" parent="." unique_id=1958472012]
+[node name="FlashLayer" type="CanvasLayer" parent="." unique_id=1958472011]
+layer = 13
+
+[node name="ScreenFlash" type="ColorRect" parent="FlashLayer" unique_id=1958472012]
 visible = false
-z_index = 79
-offset_left = 244.0
-offset_top = 192.0
-offset_right = 1136.0
-offset_bottom = 600.0
 mouse_filter = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(1, 1, 1, 0.28)

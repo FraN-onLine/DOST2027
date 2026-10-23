@@ -975,6 +975,9 @@ func apply_snapshot(state: Dictionary) -> void:
 				owned.append(favor)
 		var held_before := {GodFavor.Slot.E: m.favor_in_slot(GodFavor.Slot.E), GodFavor.Slot.Q: m.favor_in_slot(GodFavor.Slot.Q)}
 		m.favors = owned
+		for favor in owned:
+			if not previous_favors.has(favor.id):
+				favor_granted.emit(m.id, favor)
 		if announce_gains:
 			for skill_slot in held_before.keys():
 				var now := m.favor_in_slot(skill_slot)

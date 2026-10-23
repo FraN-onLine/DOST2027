@@ -231,9 +231,14 @@ func _choose(index: int) -> void:
 		boon_chosen.emit(favor)
 		close()
 		return
+	if _free_grants <= 0 and (mortal == null or mortal.due <= 0):
+		# Nothing to spend: the row is greyed, and a click or key does nothing but say so.
+		due_label.text = "NO GOD'S DUE YET"
+		return
 	if _remote:
-		# Multiplayer client: the host decides. Emit straight away - the arena
-		# forwards the request and the next snapshot updates our favor list.
+		# Multiplayer client: the host decides. Emit once we know there is a
+		# voucher to spend - the arena forwards the request, and only the next
+		# snapshot (not this click) proves the favor is ours.
 		favor_chosen.emit(favor, _free_grants)
 		close()
 		return
