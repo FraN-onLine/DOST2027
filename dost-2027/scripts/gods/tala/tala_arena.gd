@@ -12,13 +12,14 @@ extends Arena
 @export var can_repair_time := 3.0
 @export var can_favor := 300
 # BLITZ MODE: the last blitz_duration seconds of the trial. Cans pay
-# blitz_can_multiplier, a second Tala walks in front of the first, a catch by
+# blitz_can_multiplier, a second Tala walks her own beat (the first one's route
+# the other way round, in a lane blitz_double_lane in front of it), a catch by
 # either of them (or walking into either) also stuns you for blitz_stun_time
 # seconds, and the field (only the field) pulses gold.
 @export var blitz_duration := 30.0   # seconds at the end when blitz runs
 @export var blitz_can_multiplier := 1.25   # what a can pays during blitz
 @export var blitz_stun_time := 1.0   # seconds you are stunned by either Tala in blitz
-@export var blitz_second_offset := Vector2(64.0, 0.0)   # how far ahead of Tala her double stands
+@export var blitz_double_lane := 64.0   # px her double's lane lies toward the throwing line, off Tala's route
 # FAVOR lost two ways: when Tala catches your slipper, and when YOU walk into
 # her - running into the guard costs the same as her grabbing your footwear.
 @export var tala_penalty := 100
@@ -101,7 +102,9 @@ var _tala_seek := Vector2.INF
 var _blitz := false           # are we in blitz right now? (derived from the shared round clock, same on every screen)
 var _blitz_logged := false    # "BLITZ!" is said once per round
 var _blitz_phase := 0.0       # the glow's pulse clock
-var _second_tala: AnimatedSprite2D = null   # her double - walks in front of Tala herself during blitz
+var _second_tala: AnimatedSprite2D = null   # her double - walks her route the other way round during blitz
+var _double_distance := 0.0   # how far along the route the double stands (the mirror of _tala_distance)
+var _double_dir := -1.0       # the way it is walking: against Tala's
 
 
 func _ready() -> void:
@@ -204,7 +207,7 @@ func _update_blitz(delta: float) -> void:
 		else:
 			_despawn_second_tala()
 	if _blitz:
-		_place_second_tala()
+		_place_second_tala(delta)
 	_pulse_blitz_glow(delta)
 
 
@@ -229,16 +232,48 @@ func _despawn_second_tala() -> void:
 	_second_tala = null
 
 
-# In front of Tala, every frame, facing the way she faces.
-func _place_second_tala() -> void:
+# Her double walks its OWN beat: the same route, mirrored - when Tala is
+# `_tala_distance` along it, the double is `_tala_length - _tala_distance` along it,
+# so they pass each other mid-route - in a lane blitz_double_lane toward the
+# throwing line, so it never stands on her sprite. While she hurries off to cut a
+# slipper off (_tala_seeking) the double does not copy her: it keeps walking at
+# tala_speed the way it was going, then glides back onto the mirror. It reads only
+# what every screen has (_tala_distance, _tala_dir, the seek flag), so all screens
+# place it alike. It faces the way IT travels.
+func _place_second_tala(delta := 0.0) -> void:
 	if _second_tala == null or tala == null:
 		return
-	var source := tala as AnimatedSprite2D
-	_second_tala.global_position = tala.global_position + blitz_second_offset
-	_second_tala.flip_h = source.flip_h
-	if _second_tala.animation != source.animation or not _second_tala.is_playing():
-		_second_tala.play(source.animation)
-	_second_tala.frame = source.frame
+	var mirror := _tala_length - _tala_distance
+	if delta <= 0.0:
+		_double_distance = mirror
+	elif _tala_seeking():
+		_double_distance += _double_dir * tala_speed * delta
+		if _double_distance >= _tala_length:
+			_double_distance = _tala_length
+			_double_dir = -1.0
+		elif _double_distance <= 0.0:
+			_double_distance = 0.0
+			_double_dir = 1.0
+	else:
+		_double_distance = move_toward(_double_distance, mirror, maxf(seek_speed, tala_speed) * delta)
+		_double_dir = -_tala_dir
+	var spot := _point_on_tala_path(_double_distance)
+	spot.x += blitz_double_lane * (1.0 if _shoot_x > spot.x else -1.0)
+	spot = spot.clamp(_field.position, _field.end)
+	var travelled := spot - _second_tala.global_position
+	_second_tala.global_position = spot
+	if travelled.length() < 0.01:
+		return
+	_second_tala.flip_h = travelled.x < 0.0 if absf(travelled.x) >= absf(travelled.y) else travelled.y < 0.0
+	var clip := &"walk" if _second_tala.sprite_frames.has_animation(&"walk") else (tala as AnimatedSprite2D).animation
+	if _second_tala.animation != clip or not _second_tala.is_playing():
+		_second_tala.play(clip)
+
+
+# She is off her beat cutting a slipper off: the host is mid-intercept, or a
+# client was told where she stands.
+func _tala_seeking() -> bool:
+	return _seeking or _tala_seek != Vector2.INF
 
 
 # The gold wash lives on its own rect over the field's floor (BlitzGlow), never on
