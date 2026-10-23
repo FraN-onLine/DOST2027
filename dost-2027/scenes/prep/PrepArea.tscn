@@ -2,10 +2,75 @@
 
 [ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://dpj3uh8pu6651" path="res://scripts/prep/prep_area.gd" id="2_prep"]
+[ext_resource type="Texture2D" uid="uid://2vufr8ct7wh3" path="res://Assets/Campfire-Sheet.png" id="3_161xv"]
 [ext_resource type="Texture2D" uid="uid://b3hkvrfg3hjsl" path="res://Assets/Placeholders/god.png" id="3_icon"]
 [ext_resource type="PackedScene" path="res://UI/GodsArena/tindahan_menu.tscn" id="4_shop"]
-[ext_resource type="Texture2D" uid="uid://w5baa76vtjgb" path="res://Assets/Placeholders/flame.png" id="5_flame"]
+[ext_resource type="Texture2D" uid="uid://dbmukqcfnx0ge" path="res://Assets/Altar.png" id="5_dlnq4"]
 [ext_resource type="Texture2D" uid="uid://47ujncj6jm7f" path="res://Assets/Map/lobbymap.png" id="7_161xv"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h5hph"]
+atlas = ExtResource("3_161xv")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wg0tl"]
+atlas = ExtResource("3_161xv")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ssttb"]
+atlas = ExtResource("3_161xv")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_53n7r"]
+atlas = ExtResource("3_161xv")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p45a0"]
+atlas = ExtResource("3_161xv")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l1bjg"]
+atlas = ExtResource("3_161xv")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dl68p"]
+atlas = ExtResource("3_161xv")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_40i7l"]
+atlas = ExtResource("3_161xv")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h5hph")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wg0tl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ssttb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_53n7r")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_p45a0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l1bjg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dl68p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_40i7l")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="PrepArea" unique_id=580867236 instance=ExtResource("1_base")]
 script = ExtResource("2_prep")
@@ -36,6 +101,12 @@ color = Color(0.105882354, 0.14509805, 0.27058825, 0.6)
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(700, 460)
 
+[node name="Ready" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=507479925]
+layout_mode = 2
+theme_type_variation = &"HudLabel"
+text = "READY 0/1"
+horizontal_alignment = 2
+
 [node name="Camp" type="Node2D" parent="." index="11" unique_id=1281223518]
 z_index = 1
 
@@ -50,37 +121,23 @@ offset_bottom = 44.0
 mouse_filter = 2
 color = Color(0.9098039, 0.72156864, 0.2901961, 0.12)
 
-[node name="Logs" type="ColorRect" parent="Camp/Campfire" index="1" unique_id=506396241]
-offset_left = -24.0
-offset_top = 8.0
-offset_right = 24.0
-offset_bottom = 18.0
-mouse_filter = 2
-color = Color(0.42, 0.29, 0.16, 1)
-
-[node name="Flame" type="Sprite2D" parent="Camp/Campfire" index="2" unique_id=860253181]
+[node name="Flame" type="AnimatedSprite2D" parent="Camp/Campfire" index="1" unique_id=1221586135]
 modulate = Color(0.96, 0.6, 0.25, 0.95)
-position = Vector2(0, -6)
-scale = Vector2(0.22, 0.22)
-texture = ExtResource("5_flame")
+position = Vector2(1.4799805, -2.5200043)
+scale = Vector2(1.5162497, 1.485)
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+autoplay = "default"
+frame_progress = 0.5407333
 
 [node name="Altar" type="Node2D" parent="Camp" index="1" unique_id=518928254]
 position = Vector2(440, 300)
 
-[node name="Stone" type="ColorRect" parent="Camp/Altar" index="0" unique_id=1790327213]
-offset_left = -44.0
-offset_top = -8.0
-offset_right = 44.0
-offset_bottom = 40.0
-mouse_filter = 2
-color = Color(0.42, 0.44, 0.52, 1)
-
-[node name="GodIcon" type="Sprite2D" parent="Camp/Altar" index="1" unique_id=1442026637]
+[node name="GodIcon" type="Sprite2D" parent="Camp/Altar" index="0" unique_id=1442026637]
 position = Vector2(0, -32)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("3_icon")
 
-[node name="Name" type="Label" parent="Camp/Altar" index="2" unique_id=662627978]
+[node name="Name" type="Label" parent="Camp/Altar" index="1" unique_id=662627978]
 offset_left = -90.0
 offset_top = 44.0
 offset_right = 90.0
@@ -89,7 +146,7 @@ theme_type_variation = &"WorldLabel"
 text = "ALTAR"
 horizontal_alignment = 1
 
-[node name="Hint" type="Label" parent="Camp/Altar" index="3" unique_id=416557277]
+[node name="Hint" type="Label" parent="Camp/Altar" index="2" unique_id=416557277]
 offset_left = -90.0
 offset_top = 64.0
 offset_right = 90.0
@@ -97,6 +154,11 @@ offset_bottom = 84.0
 theme_type_variation = &"WorldLabel"
 text = "F - GOD'S DUE"
 horizontal_alignment = 1
+
+[node name="Sprite2D" type="Sprite2D" parent="Camp/Altar" index="3" unique_id=729452783]
+position = Vector2(9.536743e-07, 17)
+scale = Vector2(1.28125, 1.3125)
+texture = ExtResource("5_dlnq4")
 
 [node name="Stall" type="Node2D" parent="Camp" index="2" unique_id=317150400]
 position = Vector2(960, 300)
@@ -157,15 +219,10 @@ theme_type_variation = &"HudCallout"
 text = "NEXT: TALA - TUMBANG PRESO"
 horizontal_alignment = 1
 
-[node name="Ready" type="Label" parent="BandLayer/Band/Rows/State" unique_id=507479925]
-layout_mode = 2
-theme_type_variation = &"HudLabel"
-text = "READY 0/1"
-horizontal_alignment = 2
-
-[node name="Tindahan" parent="PrepHud" index="3" unique_id=1600641913 instance=ExtResource("4_shop")]
+[node name="Tindahan" parent="PrepHud" index="1" unique_id=1600641913 instance=ExtResource("4_shop")]
 
 [node name="Lobbymap" type="Sprite2D" parent="." index="13" unique_id=86944327]
 position = Vector2(639, 278.00003)
 scale = Vector2(1.1276041, 1.2160494)
 texture = ExtResource("7_161xv")
+metadata/_edit_lock_ = true
