@@ -80,6 +80,7 @@ var locked := false
 # much of its shadow shows while it falls (0 small and faint, 1 as always).
 var drop_offset := Vector2.ZERO
 var drop_hidden := false
+var blink_left := 0.0  # seconds of white blink left (an arena's grace seconds; read off its mirrored timer, so every screen flickers in step)
 var drop_shadow := 1.0
 var bounds := Rect2()
 var ring_color := Color(1, 0.95, 0.8)
@@ -522,7 +523,8 @@ func _update_look(moved: Vector2, delta: float) -> void:
 		shadow.visible = shown
 	_hit_flash = maxf(0.0, _hit_flash - delta / 0.12)
 	var peak := 1.6 if _setting("reduce_flashing") else 3.0
-	sprite.self_modulate = Color.WHITE.lerp(Color(peak, peak, peak), _hit_flash)
+	var blink := 0.7 if blink_left > 0.0 and fmod(blink_left, 0.2) < 0.1 else 0.0
+	sprite.self_modulate = Color.WHITE.lerp(Color(peak, peak, peak), maxf(_hit_flash, blink))
 	_apply_drop_look(delta)
 	if _hit_stop > 0.0:
 		_hit_stop -= delta

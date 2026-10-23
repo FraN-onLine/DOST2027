@@ -7,7 +7,8 @@ extends Node2D
 # A god does one of these each frame, in this order of priority:
 #   * FROZEN  while frozen a god stands still, cannot tag and slowly thaws on its
 #             own (freeze_time) - or at once when a live god touches it, or when
-#             Hanan's dawn pulse reaches it. A mortal's swing never thaws a god.
+#             an ally's pulse reaches it. A mortal's swing never thaws a god. A god
+#             that just thawed blinks white and cannot be frozen for thaw_immunity.
 #   * WATCH   Bathala circles his base and never leaves the ring. While a mortal
 #             holds his base he turns and walks straight at the holder
 #             (watcher_speed x faster) until the hold breaks.
@@ -26,8 +27,8 @@ extends Node2D
 #   * Mayari, the moonlight (Patintero): moon_speed x slower, moon_reach x the
 #     tag reach (a faint circle shows it), and she guards the lane - she steps
 #     into a mortal's row instead of chasing it.
-#   * Tala's star throw and Hanan's dawn pulse are rules, so the arena runs them
-#     (BathalaArena); this node only draws Hanan's pulse ring.
+#   * Tala's star throw and every god's ally pulse (Hanan's is the big one) are
+#     rules, so the arena runs them (BathalaArena); this node only draws the ring.
 #
 # Touching a mortal freezes it - the BathalaArena owns that rule and every other
 # rule; this node only walks, decides a goal moment to moment and draws itself.
@@ -70,7 +71,7 @@ const ROLE_COLOR := {
 
 @export_category("Shockwave")
 @export var shock_cd := 5.0            # seconds between god shockwaves (0 = off)
-@export var shock_radius := 36.0       # how far the god's shockwave reaches
+@export var shock_radius := 18.0       # how far the god's shockwave reaches
 
 var god_id: StringName = &""
 var role: Role = Role.ATTACK
@@ -86,8 +87,10 @@ var freeze_left := 0.0
 # Set by the arena every frame (host) or tick (client).
 var speed_mult := 1.0                 # Bathala grows wary: every god gets faster
 var watch_target := Vector2.INF       # Bathala: the mortal holding his base, if any
-var pulse_radius := 120.0             # Hanan: how far her dawn pulse reaches
-var pulse_flash := 0.0                # Hanan: seconds left showing the pulse ring
+var pulse_radius := 90.0              # how far this god's ally pulse reaches (Hanan's is bigger)
+var pulse_flash := 0.0                # seconds left showing the pulse ring
+var thaw_immunity := 1.0              # seconds nothing can freeze this god after it thaws
+var immune_left := 0.0                # ...and how many are left (mirrored to the clients)
 
 # Apolaki's lunge (mirrored to the clients).
 var windup := 0.0                     # seconds left in the wind-up
@@ -152,10 +155,17 @@ func freeze_for(seconds: float) -> void:
 	lunge_left = 0.0
 
 
-# A live god's touch (or Hanan's dawn) thaws a frozen god at once.
+# A live god's touch (or any ally's pulse) thaws a frozen god at once.
 func unfreeze() -> void:
 	frozen = false
 	freeze_left = 0.0
+
+
+# Thawed by an ally (a touch, a pulse, a shockwave): free, and immune for a second.
+func thaw() -> void:
+	unfreeze()
+	immune_left = thaw_immunity
+
 
 # Is the shockwave off cooldown and able to fire?
 func shock_ready() -> bool:
@@ -174,6 +184,7 @@ func release_shock() -> void:
 # Back to the start of a round: no freeze, no lunge half-way through.
 func reset_round() -> void:
 	unfreeze()
+	immune_left = 0.0
 	windup = 0.0
 	lunge_left = 0.0
 	pulse_flash = 0.0
@@ -184,7 +195,7 @@ func reset_round() -> void:
 	_lunge_cd = lunge_interval
 
 
-# Hanan's dawn: show the ring of light for `seconds`.
+# The ally pulse: show the god's ring for `seconds`.
 func show_pulse(seconds: float) -> void:
 	pulse_flash = seconds
 
@@ -243,6 +254,7 @@ func _within_ring(point: Vector2) -> Vector2:
 # The host walks the god here each frame (a client mirrors it through the tick).
 func step(delta: float, mortals: Array) -> void:
 	_pulse += delta
+	immune_left = maxf(0.0, immune_left - delta)
 	pulse_flash = maxf(0.0, pulse_flash - delta)
 	# Shockwave cooldown and visual.
 	_shock_timer = maxf(0.0, _shock_timer - delta)
@@ -255,6 +267,7 @@ func step(delta: float, mortals: Array) -> void:
 		freeze_left = maxf(0.0, freeze_left - delta)
 		if freeze_left <= 0.0:
 			frozen = false  # thawed on its own
+			immune_left = thaw_immunity
 		_refresh_visual()
 		return
 	# Apolaki's lunge: the dash, then the wind-up before it, each a short state.
@@ -297,6 +310,12 @@ func is_frozen() -> bool:
 	return frozen
 
 
+# The white blink of the immunity second - read off the mirrored timer, so it
+# flickers in step on every screen.
+func blinking() -> bool:
+	return immune_left > 0.0 and fmod(immune_left, 0.2) < 0.1
+
+
 # A circle of `radius` for the Reach and Pulse lines (their width stays as drawn).
 func _circle(radius: float) -> PackedVector2Array:
 	var points := PackedVector2Array()
@@ -312,7 +331,7 @@ func _refresh_visual() -> void:
 		# A frozen god dims, a winding-up Apolaki flashes, a hunting god burns a
 		# little brighter.
 		var alpha := 0.55 if frozen else 0.92 + 0.08 * sin(_pulse * 5.0)
-		icon.modulate = Color(1, 1, 1, alpha) if windup > 0.0 and fmod(windup, 0.1) < 0.05 \
+		icon.modulate = Color(1, 1, 1, alpha) if (windup > 0.0 and fmod(windup, 0.1) < 0.05) or blinking() \
 			else Color(tint.r, tint.g, tint.b, alpha)
 	if ring != null:
 		# Bathala's ring carries his gold, so the dark grey still reads on the field.
@@ -324,9 +343,11 @@ func _refresh_visual() -> void:
 		if reach_ring.visible:
 			reach_ring.points = _circle(reach())
 	if pulse_ring != null:
-		pulse_ring.visible = god_id == &"hanan" and pulse_flash > 0.0
+		pulse_ring.visible = pulse_flash > 0.0
 		if pulse_ring.visible:
 			pulse_ring.points = _circle(pulse_radius)
+			var edge := UITokens.GOLD if god_id == &"bathala" else tint
+			pulse_ring.default_color = Color(edge.r, edge.g, edge.b, 0.7)
 	if lunge_line != null:
 		lunge_line.visible = windup > 0.0
 		if lunge_line.visible:

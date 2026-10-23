@@ -67,11 +67,11 @@ func _run() -> void:
 	var layout := _arena.arena_layout_fields()
 	_check((layout["gods"] as Array).size() == 5 and str(layout["gods"][2]["id"]) == "mayari", "the roster travels in the layout")
 	var tick_keys := _arena.arena_tick_fields().keys()
-	var wanted := ["god_hold", "hold", "holders", "stars", "dawn", "wary", "pity", "judgment"]
+	var wanted := ["god_hold", "hold", "holders", "stars", "pulses", "wary", "pity", "judgment"]
 	var has_all := true
 	for key in wanted:
 		has_all = has_all and tick_keys.has(key)
-	_check(has_all and _arena.arena_tick_fields()["gods"][0].has("windup"), "the tick carries both holds, the stars, the dawn, the wariness, the pity, the judgment and the lunge")
+	_check(has_all and _arena.arena_tick_fields()["gods"][0].has("windup"), "the tick carries both holds, the stars, the pulses, the wariness, the pity, the judgment and the lunge")
 
 	_arena._phase = Arena.Phase.PLAYING
 	_arena._trial_time = 90.0
@@ -258,16 +258,16 @@ func _run() -> void:
 	_tick(1)
 	_check(not tala.is_frozen(), "a live god touching a frozen god thaws it")
 	_fresh_round()
-	_arena.dawn_interval = 6.0
+	_arena.ally_pulse_interval = 5.0
 	hanan.global_position = FIELD + Vector2(0, 200)
 	tala.global_position = hanan.global_position + Vector2(80, 0)
 	mayari.global_position = hanan.global_position + Vector2(-200, 0)
 	tala.freeze_for(_arena.freeze_time)
 	mayari.freeze_for(_arena.freeze_time)
-	_arena._dawn_timer = DT
+	_arena._pulse_timers[_arena._gods.find(hanan)] = DT
 	_tick(1)
 	_check(not tala.is_frozen() and mayari.is_frozen(), "Hanan's dawn thaws the frozen gods in range, and only those")
-	_arena.dawn_interval = 0.0
+	_arena.ally_pulse_interval = 0.0
 
 	# --- Bathala grows wary -------------------------------------------------------
 	_arena._wary = 1
@@ -291,7 +291,7 @@ func _god(id: StringName) -> AgawanGod:
 # unless a test turns them on.
 func _fresh_round() -> void:
 	_arena.star_interval = 0.0
-	_arena.dawn_interval = 0.0
+	_arena.ally_pulse_interval = 0.0
 	_arena.arena_round_reset()
 	_arena._invuln.clear()
 	for god_node in _arena._gods:
