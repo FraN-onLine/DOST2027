@@ -191,6 +191,7 @@ func _build_gameplay() -> void:
 	_row(gameplay_tab, "Default player name", name_input)
 	_check_row(gameplay_tab, "Reduce flashing", "gameplay", "reduce_flashing")
 	_check_row(gameplay_tab, "Screen shake", "gameplay", "screen_shake")
+	_check_row(gameplay_tab, "Intro camera", "gameplay", "intro_camera")
 	_check_row(gameplay_tab, "Show FPS counter", "gameplay", "show_fps")
 
 

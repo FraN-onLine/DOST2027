@@ -67,6 +67,7 @@ animations = [{
 [node name="Arena" unique_id=628936061 instance=ExtResource("1_arena")]
 script = ExtResource("2_script")
 fixed_trial_time = 60.0
+intro_zoom = 2.2
 tag_radius = 26.0
 tagback_immunity = 1.0
 tagged_mercy = 1.0
@@ -456,3 +457,7 @@ theme_type_variation = &"HudLabel"
 text = "RIGHT CLICK - CHANT. Hit the keys to force them off the Langit."
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(755, 104)
+

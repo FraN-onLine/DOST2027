@@ -172,6 +172,9 @@ size_flags_vertical = 4
 layout_mode = 2
 value = 100.0
 
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(884, 127)
+
 [editable path="Zones/NorthWestGoal"]
 [editable path="Zones/NorthEastGoal"]
 [editable path="Zones/SouthWestGoal"]

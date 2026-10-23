@@ -166,3 +166,7 @@ grow_vertical = 2
 text = "RIGHT CLICK  DEFEND  READY"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(901, 89)
+

@@ -1577,6 +1577,7 @@ func _refresh_hud(delta: float) -> void:
 		callout_label.visible = false
 	if rules_card != null:
 		rules_card.visible = first_visit and _phase == Phase.COUNTDOWN
+		rules_card.modulate.a = hud_alpha
 	if taya_tip != null:
 		taya_tip.visible = _taya_tip_left > 0.0 and _taya == _my_id
 	var taya_at := taya_position()

@@ -38,6 +38,7 @@ func _run() -> void:
 		_arena.dialogue.advance()
 		guard += 1
 	_arena._phase = Arena.Phase.PLAYING
+	_arena._end_intro_shot()  # straight to play: no countdown, so no intro shot either
 	_arena._trial_time = 999.0  # the clock never runs out while the checks await physics frames
 	_arena.player.set_lock(false)
 	_arena.rules.local().favor = 500

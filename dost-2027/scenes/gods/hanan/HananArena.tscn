@@ -187,3 +187,7 @@ offset_bottom = 164.0
 theme_type_variation = &"HudLabel"
 theme_override_colors/font_color = Color(0.9098039, 0.72156864, 0.2901961, 1)
 text = "HOLD LEFT CLICK"
+
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(944, 92)
+

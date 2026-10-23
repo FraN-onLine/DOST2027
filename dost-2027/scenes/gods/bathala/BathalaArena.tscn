@@ -212,3 +212,7 @@ horizontal_alignment = 1
 
 [node name="Stars" type="Node2D" parent="." index="14" unique_id=467062211]
 z_index = 4
+
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(895, 82)
+

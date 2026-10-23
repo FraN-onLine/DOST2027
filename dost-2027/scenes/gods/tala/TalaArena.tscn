@@ -262,3 +262,6 @@ layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "THROW FROM THE LINE"
 
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(947, 119)
+
