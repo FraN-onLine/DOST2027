@@ -7,8 +7,8 @@ extends Arena
 @export var can_radius := 28.0
 @export var tala_radius := 34.0
 @export var tala_speed := 92.0
-@export var tala_min_y := 202.0
-@export var tala_max_y := 588.0
+@export var tala_min_y := 285.0
+@export var tala_max_y := 565.0
 @export var can_repair_time := 3.0
 @export var can_favor := 300
 # FAVOR lost two ways: when Tala catches your slipper, and when YOU walk into

@@ -26,14 +26,16 @@ extends Node2D
 #     dialogue_prefix. What the designer sees in the arena scene is what every
 #     player gets.
 #
-#   * THE SCREEN'S BANDS, right of the strip (every arena keeps to them):
-#       y   0 - 192  the clock (top centre), the god's overseer art - above the
-#                    field's top edge, never over it - and, at y 156, the
-#                    trial's status line (top-left, sized to its text)
-#       y 192 - 600  THE FIELD: the Border is drawn at x 244 - 1136 (892 x 408);
-#                    Langit Lupa narrows it per player count, centred on it
-#       y 608 - 640  the controls hint (a HintStrip: keys as keycaps, BODY text)
-#                    or the trial's own bars (Apolaki's duel, Mayari's attack)
+#   * THE SCREEN'S LAYOUT, right of the strip: a god is WATCHING, so the field is
+#     small and low and the god's overseer art stands huge behind and above it.
+#     Each arena draws its own Border (the old, hand-fitted field - no shared
+#     rectangle) and keeps to these rules:
+#       the overseer  is big, behind the HUD, and never moved for a HUD element -
+#                     move the element
+#       the status    line (and Apolaki's duel bars, Mayari's attack bar) sits in
+#                     the sky between the overseer and the field's top edge
+#       the hint      (a HintStrip: keys as keycaps, BODY text) sits in the band
+#                     under the field's bottom edge
 #     A hit's wash (FieldFlash) covers the field only, and the shade while a god
 #     speaks (FieldDim) the world only: neither ever tints a HUD.
 #
