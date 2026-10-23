@@ -15,14 +15,17 @@ script = ExtResource("1_talk")
 
 [node name="Photo" type="TextureRect" parent="." unique_id=2025508779]
 layout_mode = 1
-anchors_preset = 1
+anchors_preset = 3
 anchor_left = 1.0
+anchor_top = 1.0
 anchor_right = 1.0
+anchor_bottom = 1.0
 offset_left = -608.0
-offset_top = -66.0
+offset_top = -691.0
 offset_right = 49.0
-offset_bottom = 495.0
+offset_bottom = -130.0
 grow_horizontal = 0
+grow_vertical = 0
 mouse_filter = 2
 texture = ExtResource("2_f13ei")
 expand_mode = 1

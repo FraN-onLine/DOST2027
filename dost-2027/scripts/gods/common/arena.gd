@@ -255,9 +255,12 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 
 @export_category("Intro Camera")
 # The first "3 - 2 - 1" of a trial opens on the overseeing god (the scene's
-# FaceFocus marker) and pulls out to the arena by GO (see THE INTRO SHOT).
+# FaceFocus marker), pans across to the field and zooms out onto the arena by GO
+# (see THE INTRO SHOT).
 @export var intro_zoom := 3.0
-@export var intro_hold := 0.6           # seconds on the face before the pull-out
+@export var intro_hold := 0.2           # seconds still on the face before the pan
+@export var intro_pan_share := 0.7      # share of the countdown spent panning; the rest zooms out
+@export var intro_face_screen_x := 0.75 # how far across the screen the face sits when the shot opens
 
 @export_category("Network")
 @export var net_tick_rate := 10.0    # world state broadcasts per second
@@ -374,7 +377,8 @@ var _intro_played := false  # once per trial: later rounds (Bathala's) never rep
 var _intro_span := 0.0      # the shot's length: the countdown's
 var _intro_left := 0.0
 var _intro_hold := 0.0
-var _intro_from := Vector2.ZERO
+var _intro_open := Vector2.ZERO     # the camera's centre when the shot opens
+var _intro_pan_end := Vector2.ZERO  # ...and where the pan leaves it, over the field
 
 # --- multiplayer ---
 var _net: Node = null
@@ -2649,19 +2653,27 @@ func _draw_edge_arrows() -> void:
 
 # --- THE INTRO SHOT -------------------------------------------------------------
 # The first "3 - 2 - 1" of a trial is a short cinematic: a Camera2D of its own
-# opens on the watching god's face (the scene's FaceFocus marker) at intro_zoom,
-# holds intro_hold seconds and eases out (position and zoom) onto the normal view
-# exactly as the count reaches GO - the screen itself without the follow camera
-# (zoom 1, world = screen), the follow camera's own framing of the mortal with
-# it. Then the view is handed back: the shot's camera is freed and the screen is
-# world = screen again, or the follow camera is made current and cut to its aim.
+# opens at intro_zoom on the watching god's face (the scene's FaceFocus marker),
+# the face sitting intro_face_screen_x across the screen. After intro_hold seconds
+# it pans left, at that same zoom, from the god across the arena to the field's
+# middle (slowly in, then at a steady speed) - intro_pan_share of the countdown -
+# and the rest of the count zooms out (easing out) onto the normal view, landing
+# exactly on it as the count reaches GO: the screen itself without the follow
+# camera (zoom 1, world = screen), the follow camera's own framing of the mortal
+# with it. Then the view is handed back: the shot's camera is freed and the screen
+# is world = screen again, or the follow camera is made current and cut to its aim.
+# The camera's view stays inside the arena's drawn area (the screen at zoom 1), so
+# no void shows; a face too near the top is therefore a little above centre.
 # The HUD (hud_alpha: the arena's panels, the bottom band, the shell's strip and
-# clock) is hidden on the face and fades in on the pull-out; the big count stays.
+# clock) is hidden through the pan and fades in on the zoom-out; the big count stays.
 # Every screen plays it on its own from the countdown it already follows - no
 # message travels - and only this screen's view moves: the mortals stay locked
 # and no rule reads it. A countdown shorter than the shot squeezes the hold and the
-# pull-out into it; GO is never delayed (_start_trial cuts whatever is left).
+# pan into it; GO is never delayed (_start_trial cuts whatever is left).
 # Settings > Gameplay > Intro camera turns it off.
+
+const INTRO_EASE_IN := 0.25  # the share of the pan spent speeding up to its steady pace
+
 
 func _begin_intro_shot() -> void:
 	if _intro_played:
@@ -2672,13 +2684,16 @@ func _begin_intro_shot() -> void:
 		return
 	_intro_span = countdown_time
 	_intro_left = countdown_time
-	_intro_hold = minf(intro_hold, countdown_time * 0.5)
-	_intro_from = focus.global_position
+	_intro_hold = minf(intro_hold, countdown_time * intro_pan_share * 0.5)
+	var view := get_viewport_rect().size
+	var face := focus.global_position
+	_intro_open = _intro_inside(Vector2(face.x - (intro_face_screen_x - 0.5) * view.x / intro_zoom, face.y))
+	_intro_pan_end = _intro_inside(_field.get_center())
 	_intro_camera = Camera2D.new()
 	_intro_camera.name = "IntroCamera"
 	_intro_camera.limit_enabled = false  # the close-up is never clamped to the field
 	add_child(_intro_camera)
-	_intro_camera.global_position = _intro_from
+	_intro_camera.global_position = _intro_open
 	_intro_camera.zoom = Vector2.ONE * intro_zoom
 	_intro_camera.make_current()
 	_set_hud_alpha(0.0)
@@ -2691,12 +2706,37 @@ func _tick_intro_shot(delta: float) -> void:
 	if _intro_left <= 0.0 or _phase != Phase.COUNTDOWN:
 		_end_intro_shot()
 		return
-	var pull := maxf(0.001, _intro_span - _intro_hold)
-	var eased := smoothstep(0.0, 1.0, (_intro_span - _intro_left - _intro_hold) / pull)
+	var elapsed := _intro_span - _intro_left
+	var pan_end := _intro_span * clampf(intro_pan_share, 0.0, 1.0)
+	if elapsed < pan_end:
+		var run := clampf((elapsed - _intro_hold) / maxf(0.001, pan_end - _intro_hold), 0.0, 1.0)
+		_intro_camera.global_position = _intro_open.lerp(_intro_pan_end, _intro_pan_travelled(run))
+		_intro_camera.zoom = Vector2.ONE * intro_zoom
+		_set_hud_alpha(0.0)
+		return
+	var out := clampf((elapsed - pan_end) / maxf(0.001, _intro_span - pan_end), 0.0, 1.0)
+	var eased := 1.0 - (1.0 - out) * (1.0 - out)  # ease out
 	var target := intro_target()
-	_intro_camera.global_position = _intro_from.lerp(target.position, eased)
-	_intro_camera.zoom = Vector2.ONE * lerpf(intro_zoom, target.size.x, eased)
+	_intro_camera.global_position = _intro_pan_end.lerp(target.position, eased)
+	_intro_camera.zoom = Vector2.ONE * (intro_zoom * pow(target.size.x / intro_zoom, eased))
 	_set_hud_alpha(eased)
+
+
+# How much of the pan is done after `run` (0..1) of its time: it speeds up for
+# INTRO_EASE_IN of it, then keeps a steady pace.
+func _intro_pan_travelled(run: float) -> float:
+	var ease_in := INTRO_EASE_IN
+	var whole := 1.0 - ease_in * 0.5
+	if run < ease_in:
+		return run * run / (2.0 * ease_in) / whole
+	return (ease_in * 0.5 + run - ease_in) / whole
+
+
+# A camera centre moved so its view at intro_zoom stays inside the drawn area.
+func _intro_inside(centre: Vector2) -> Vector2:
+	var view := get_viewport_rect().size
+	var half := view * 0.5 / intro_zoom
+	return Vector2(clampf(centre.x, half.x, view.x - half.x), clampf(centre.y, half.y, view.y - half.y))
 
 
 func _end_intro_shot() -> void:

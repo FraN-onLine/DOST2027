@@ -3,7 +3,8 @@ extends SceneTree
 # Validation: Tala's blitz (the last blitz_duration seconds of the trial).
 #   * no blitz during the intro or the countdown
 #   * in blitz a second Tala exists, is visible, wears Tala's frames, and keeps
-#     standing blitz_second_offset ahead of her while she walks
+#     walking its own beat: the route mirrored, in a lane in front of her, so the
+#     two cross mid-route going opposite ways and it is never at Tala + an offset
 #   * the field pulses gold through BlitzGlow alone - Tala, the cans, the field
 #     root and the mortal are never tinted
 #   * a can pays round(can_favor * blitz_can_multiplier)
@@ -56,10 +57,32 @@ func _run() -> void:
 	_check(double.visible and double.sprite_frames != null and double.sprite_frames == (_arena.tala as AnimatedSprite2D).sprite_frames,
 		"the double is visible and wears Tala's frames")
 	_check(double.scale == _arena.tala.scale, "...at Tala's scale")
+	var tala_from: Vector2 = _arena.tala.global_position
+	var double_from := double.global_position
 	await _frames(90)
-	_check(double.global_position.distance_to(_arena.tala.global_position + _arena.blitz_second_offset) < 0.5,
-		"after 1.5 s the double still stands at Tala + offset")
+	var tala_went: Vector2 = _arena.tala.global_position - tala_from
+	var double_went := double.global_position - double_from
+	_check(tala_went.length() > 20.0 and double_went.length() > 20.0 and tala_went.y * double_went.y < 0.0,
+		"after 1.5 s Tala and the double have moved opposite ways along the route (%s / %s)" % [tala_went, double_went])
+	var lane_side := signf(_arena._shoot_x - _arena.tala.global_position.x)
+	_check(absf(double.global_position.distance_to(_arena._point_on_tala_path(_arena._tala_length - _arena._tala_distance)) - _arena.blitz_double_lane) < 1.0
+		and signf(double.global_position.x - _arena.tala.global_position.x) == lane_side,
+		"...the double on the mirrored spot of the route, a lane toward the throwing line")
+	_check(double.global_position.distance_to(_arena.tala.global_position + Vector2(_arena.blitz_double_lane * lane_side, 0.0)) > 20.0,
+		"...and not at Tala + the lane (it walks its own beat)")
+	_check(double.flip_h == (absf(double_went.x) >= absf(double_went.y) and double_went.x < 0.0 or absf(double_went.x) < absf(double_went.y) and double_went.y < 0.0),
+		"...facing the way IT travels")
 	_check(_arena._trial_time > 0.0 and _arena._blitz, "...and blitz is still on")
+
+	# Tala cutting a slipper off does not move the double with her: it walks on at its own pace.
+	var beat_before: float = _arena._double_distance
+	_arena._tala_seek = _arena.tala.global_position + Vector2(0.0, 40.0)
+	_arena._tala_distance = clampf(_arena._tala_distance + 80.0, 0.0, _arena._tala_length)  # she hurries
+	_arena._place_second_tala(0.1)
+	_check(absf(_arena._double_distance - beat_before) <= _arena.tala_speed * 0.1 + 0.01,
+		"while Tala intercepts the double keeps its own pace (%.1f px in 0.1 s)" % absf(_arena._double_distance - beat_before))
+	_arena._tala_seek = Vector2.INF
+	_arena._place_second_tala()
 
 	# --- the pulse is the field's alone -----------------------------------------
 	var glow: ColorRect = _arena.blitz_glow
@@ -104,9 +127,28 @@ func _run() -> void:
 	_check(me.favor == 400, "the double catching a slipper costs 100 FAVOR")
 	_check(is_equal_approx(_arena.player._stun, _arena.blitz_stun_time), "...and stuns the thrower for %.1f s (%.2f)" % [_arena.blitz_stun_time, _arena.player._stun])
 
+	# A slipper thrown along the double's lane is caught by the double, not by Tala.
 	_arena._slippers.clear()
 	_arena.player._stun = 0.0
 	_arena._modes[_arena._my_id] = "ready"
+	_arena._tala_distance = _arena._tala_length * 0.8   # Tala far down the route, the double high up it
+	_arena._place_tala()
+	_arena._place_second_tala()
+	_arena.player.global_position = Vector2(_arena._shoot_x - 100.0, double.global_position.y)
+	me.favor = 500
+	var tala_hits_before: int = _arena._tala_hits
+	_arena._start_throw(_arena._my_id, Vector2.RIGHT)
+	for index in range(100):
+		_arena._move_slippers(0.02)
+		if _arena._modes.get(_arena._my_id) == "retrieve":
+			break
+	_check(me.favor == 400 and _arena._tala_hits == tala_hits_before + 1 and is_equal_approx(_arena.player._stun, _arena.blitz_stun_time),
+		"a slipper thrown along the double's lane is caught by the double (FAVOR %d, stun %.2f)" % [me.favor, _arena.player._stun])
+
+	_arena._slippers.clear()
+	_arena.player._stun = 0.0
+	_arena._modes[_arena._my_id] = "ready"
+	_arena.player.global_position = lane
 	_arena.tala.global_position = lane + Vector2(150.0, 0.0)
 	double.global_position = Vector2(lane.x + 400.0, _arena._field.position.y + 5.0)
 	_arena._start_throw(_arena._my_id, Vector2.RIGHT)
