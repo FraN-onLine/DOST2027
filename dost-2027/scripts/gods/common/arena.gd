@@ -36,8 +36,8 @@ extends Node2D
 #                     the sky between the overseer and the field's top edge
 #       the hint      (a HintStrip: keys as keycaps, BODY text) sits in the band
 #                     under the field's bottom edge
-#     A hit's wash (FieldFlash) covers the field only, and the shade while a god
-#     speaks (FieldDim) the world only: neither ever tints a HUD.
+#     A hit's wash (FlashLayer/ScreenFlash) covers the whole screen; the shade
+#     while a god speaks (FieldDim) the world only, so it never dims a HUD.
 #
 #   * THE BANDANAS: every mortal (the local one, the ghosts, a solo bot) wears the
 #     same sprite, and only the bandana tells the players apart: set_bandana() on
@@ -282,10 +282,9 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var vision_mask: ColorRect = $VisionLayer/VisionMask
 @onready var sun_patch_layer: CanvasLayer = get_node_or_null("Patches")
-# The wash a landed hit paints over the FIELD (authored in Arena.tscn - this
-# script never builds nodes on the fly). It lives in the world, not on a
-# CanvasLayer, so it never tints the HUD; _flash_screen() fits it to the field.
-@onready var hit_flash: ColorRect = get_node_or_null("FieldFlash")
+# The wash a landed hit paints over the whole screen (authored in Arena.tscn -
+# this script never builds nodes on the fly).
+@onready var hit_flash: ColorRect = get_node_or_null("FlashLayer/ScreenFlash")
 # The shade over the world while a god speaks: the field dims, the HUD (every
 # CanvasLayer, the shell's panels too) stays as bright as ever.
 @onready var field_dim: ColorRect = get_node_or_null("FieldDim")
@@ -310,6 +309,7 @@ var _invuln: Dictionary = {}          # mortal id -> seconds of mercy left
 var _blind_time := 0.0                # seconds of darkness on THIS screen (never the caster's)
 var _blind_radius := 0.16
 var _free_grants := 0
+var _awaiting_grant: StringName = &""  # client: the favor asked of the host, not yet confirmed
 var _results: Dictionary = {}
 var _gain_pending: Dictionary = {}    # mortal id -> FAVOR gathered, not popped yet
 var _gain_timer := 0.0
@@ -385,6 +385,7 @@ func _ready() -> void:
 		rules.setup(god, _mortal_name(), Array(rival_names) if simulate_rivals else [], simulate_rivals)
 	rules.favor_changed.connect(_on_favor_changed)
 	rules.due_earned.connect(_on_due_earned)
+	rules.favor_granted.connect(_on_favor_granted)
 	rules.notice.connect(_on_notice)
 	rules.favor_fired.connect(_on_favor_fired)
 	rules.pamana_fired.connect(_on_pamana_fired)
@@ -970,8 +971,6 @@ func _flash_screen(tint: Color, peak: float) -> void:
 	_flash_left = flash_time
 	_flash_span = flash_time
 	if hit_flash != null:
-		hit_flash.position = _field.position
-		hit_flash.size = _field.size
 		hit_flash.color = _flash_tint
 		hit_flash.visible = true
 
@@ -1836,11 +1835,25 @@ func _on_favor_chosen(favor: GodFavor, free_grants_left: int) -> void:
 		_free_grants = free_grants_left
 		_publish_god_state()
 	else:
-		# Ask the host - the next FAVOR snapshot updates our favor list.
+		# Ask the host. GRANTED waits for the snapshot that carries the favor
+		# (_on_favor_granted), so a host refusal never shows it.
 		if _free_grants > 0:
 			_free_grants -= 1
+		_awaiting_grant = favor.id
 		if _net != null and _net.has_multiplayer_peer():
 			_net.rpc_id(1, "request_god_grant", favor.id)
+		return
+	_announce_grant(favor)
+
+
+func _on_favor_granted(player_id: int, favor: GodFavor) -> void:
+	if _authority or player_id != rules.local_id or favor.id != _awaiting_grant:
+		return
+	_awaiting_grant = &""
+	_announce_grant(favor)
+
+
+func _announce_grant(favor: GodFavor) -> void:
 	_show_banner("%s GRANTED" % favor.display_name.to_upper(), favor.color, 1.6)
 	_log("%s now belongs to you" % favor.display_name, favor.color)
 

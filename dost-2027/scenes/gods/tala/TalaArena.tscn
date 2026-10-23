@@ -192,6 +192,12 @@ sprite_frames = SubResource("SpriteFrames_wpc2v")
 autoplay = "default"
 frame_progress = 0.36153302
 
+[node name="BlitzGlow" type="ColorRect" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) unique_id=1894022107]
+visible = false
+z_index = -1
+mouse_filter = 2
+color = Color(1, 0.84, 0, 0.1)
+
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(350, 420)
 
