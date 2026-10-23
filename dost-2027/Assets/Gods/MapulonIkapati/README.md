@@ -13,8 +13,12 @@ is needed.
 | `Langit.png` | one sky platform (a cloud or a terraced rice-paddy block), centred, about 96 x 60 px. The shadow under it stays | `ArenaField/Langits/LangitN/Sprite` | the white `Body` rectangle (greyed, with the `Lock` shape, on the screen of a runner it is closed to) |
 | `Langit-Crumble.png` | the crack / crumble animation, a horizontal strip of square-ish frames (the frame count is read from width / height). It plays over the platform during the warning before a crumble | `ArenaField/Langits/LangitN/Crumble` | the platform shakes and fades instead |
 | `Taya-Marker.png` | the marker floating over the Taya's head | `TayaMarker/Sprite` | the green ring (the "TAYA" tag shows either way) |
-| `God-Taya.png` | Mapulon & Ikapati on the field as the opening Taya, centred on the body, about 87 px tall (1.5 mortals; `god_height` on the arena) | `GodLook/Art` on the gods' body (made in code, `_spawn_god`) | Ikapati's overseer sprite (`IkapatiOverseer-Sheet.png`, 3 frames looping, `god_height` tall) over a ring in the pair's accent; the mortal sprite on the body is always hidden |
 | `MapulonIkapati-Overseer.png` | the pair watching the field, like `Assets/Gods/Tala/Tala-Overseer.png` (one image) | `ArenaField/Overseer` | hidden |
+
+The gods on the field as the opening Taya are not a drop-in file any more: they are
+their own scene, `scenes/gods/mapulon_ikapati/IkapatiTaya.tscn`. Put the frames in
+its `GodLook/Art` SpriteFrames, clips `idle`, `walk`, `chant` and `tag` (see
+`UI/theme/ART_SLOTS.md`, "God scenes"). The Godot placeholder stays until then.
 
 The platform size the rules use is `langit_size` on the arena (96 x 60). If the
 art is a different size, change `langit_size` too so the safe area matches what

@@ -32,10 +32,16 @@ extends Node2D
 #     rectangle) and keeps to these rules:
 #       the overseer  is big, behind the HUD, and never moved for a HUD element -
 #                     move the element
-#       the status    line (and Apolaki's duel bars, Mayari's attack bar) sits in
-#                     the sky between the overseer and the field's top edge
-#       the hint      (a HintStrip: keys as keycaps, BODY text) sits in the band
-#                     under the field's bottom edge
+#       the band      (BandLayer/Band, shared) runs along the bottom of the
+#                     screen right of the strip and holds every trial's action
+#                     UI in two rows: row 1 (band_state) the trial's live state -
+#                     its Status line, Apolaki's duel bars, Mayari's attack bar -
+#                     authored as children of BandLayer/Band/Rows/State in the
+#                     god's own scene; row 2 the controls hint (hint_label, a
+#                     HintStrip: keys as keycaps, BODY text). It may cover the
+#                     field's lowest pixels and turns see-through while our
+#                     mortal stands under it; it steps aside while a god speaks.
+#                     Big announcements (banners, callouts) stay centred.
 #     A hit's wash (FlashLayer/ScreenFlash) covers the whole screen; the shade
 #     while a god speaks (FieldDim) the world only, so it never dims a HUD.
 #
@@ -137,6 +143,10 @@ signal trial_complete
 signal trial_time_changed(seconds: float)
 
 const UI_STRIP_WIDTH := 238.0
+# Where a god's scene parents its row-1 nodes (see THE SCREEN'S LAYOUT above).
+const BAND_STATE := "BandLayer/Band/Rows/State/"
+# The band's opacity while our mortal stands under it.
+const BAND_SEE_THROUGH := 0.35
 
 # The colour a favor zone glows while a god is lighting it.
 const FAVOR_COLOR := Color(1.0, 0.86, 0.25)
@@ -243,6 +253,12 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 @export var edge_arrow_size := 14.0     # the off-screen pointers (edge_targets)
 @export var edge_arrow_inset := 18.0    # how far inside the visible edge they sit
 
+@export_category("Intro Camera")
+# The first "3 - 2 - 1" of a trial opens on the overseeing god (the scene's
+# FaceFocus marker) and pulls out to the arena by GO (see THE INTRO SHOT).
+@export var intro_zoom := 3.0
+@export var intro_hold := 0.6           # seconds on the face before the pull-out
+
 @export_category("Network")
 @export var net_tick_rate := 10.0    # world state broadcasts per second
 @export var net_state_rate := 5.0    # FAVOR snapshots per second
@@ -288,6 +304,10 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 # The shade over the world while a god speaks: the field dims, the HUD (every
 # CanvasLayer, the shell's panels too) stays as bright as ever.
 @onready var field_dim: ColorRect = get_node_or_null("FieldDim")
+# The bottom band and its two rows (THE SCREEN'S LAYOUT).
+@onready var band: PanelContainer = get_node_or_null("BandLayer/Band")
+@onready var band_state: HBoxContainer = get_node_or_null("BandLayer/Band/Rows/State")
+@onready var hint_label: HintStrip = get_node_or_null("BandLayer/Band/Rows/Hint")
 
 var god: God
 var rules: GodMatch
@@ -295,6 +315,9 @@ var hud: Control
 var dialogue: Control
 var due_menu: Control
 var camera: Camera2D = null      # the follow camera (null: the whole field, world = screen)
+# How much of the HUD shows (0 hidden, 1 as normal): the intro shot fades it, the
+# shell reads it for its own panels and clock.
+var hud_alpha := 1.0
 var _edge_arrows: Control = null  # draws the off-screen pointers, on the HUD layer
 
 # The mortal's walking field and its authored spawn (every round starts on the
@@ -345,6 +368,13 @@ var _shake_power := 1.0
 var _flash_left := 0.0
 var _flash_span := 0.0
 var _flash_tint := Color(1, 1, 1, 1)
+# The intro shot (see THE INTRO SHOT).
+var _intro_camera: Camera2D = null
+var _intro_played := false  # once per trial: later rounds (Bathala's) never replay it
+var _intro_span := 0.0      # the shot's length: the countdown's
+var _intro_left := 0.0
+var _intro_hold := 0.0
+var _intro_from := Vector2.ZERO
 
 # --- multiplayer ---
 var _net: Node = null
@@ -608,10 +638,12 @@ func _start_countdown() -> void:
 		camera.reset_smoothing()  # a new round cuts to the spawn, it does not pan there
 	arena_round_reset()
 	_reset_screen_impact()  # and the screen itself starts the round at rest
+	_begin_intro_shot()
 
 
 func _start_trial() -> void:
 	_phase = Phase.PLAYING
+	_end_intro_shot()  # GO is never late: whatever is left of the shot is cut
 	_trial_time = trial_time
 	trial_time_changed.emit(_trial_time)
 	_invuln.clear()
@@ -684,7 +716,9 @@ func _process(delta: float) -> void:
 	_watch_local_pamana()
 	_tick_shake(delta)
 	_tick_flash(delta)
+	_tick_intro_shot(delta)
 	_tick_field_dim()
+	_tick_band()
 	_dash_cd = maxf(0.0, _dash_cd - delta)
 	if _dash_buffered > 0.0:
 		_dash_buffered = maxf(0.0, _dash_buffered - delta)
@@ -982,6 +1016,17 @@ func _tick_field_dim() -> void:
 		field_dim.visible = dialogue != null and dialogue.is_active()
 
 
+# The bottom band steps aside for the dialogue box (both sit at the bottom) and is
+# see-through while our mortal's feet are under it, so the field it covers stays
+# readable.
+func _tick_band() -> void:
+	if band == null:
+		return
+	band.visible = not dialogue.is_active()
+	var under := band.get_global_rect().grow(8.0).has_point(player.get_global_transform_with_canvas().origin)
+	band.modulate.a = (BAND_SEE_THROUGH if under else 1.0) * hud_alpha
+
+
 func _tick_flash(delta: float) -> void:
 	if hit_flash == null:
 		return
@@ -1179,6 +1224,7 @@ func _continue_dialogue() -> void:
 			# A client runs no countdown of its own: it waits for the host's
 			# ticks to walk it through the 3 - 2 - 1 and into the trial.
 			_phase = Phase.COUNTDOWN
+			_begin_intro_shot()
 		return
 	if embedded and not final_trial:
 		trial_complete.emit()
@@ -1189,6 +1235,7 @@ func _continue_dialogue() -> void:
 
 func _end_trial() -> void:
 	_phase = Phase.RESULTS
+	_end_intro_shot()
 	player.set_lock(true)
 	_blind_time = 0.0
 	_gain_pending.clear()
@@ -1539,6 +1586,11 @@ func reduce_flashing() -> bool:
 func screen_shake_allowed() -> bool:
 	var settings := get_node_or_null("/root/Settings")
 	return settings == null or bool(settings.call("screen_shake_enabled"))
+
+
+func intro_camera_allowed() -> bool:
+	var settings := get_node_or_null("/root/Settings")
+	return settings == null or bool(settings.call("intro_camera_enabled"))
 
 
 # With "reduce flashing" on a patch fades in over 0.3s; it covers the same area
@@ -2104,6 +2156,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 		_enter_playing()
 	elif remote_phase == int(Phase.COUNTDOWN) and _phase == Phase.INTRO:
 		_phase = Phase.COUNTDOWN
+		_begin_intro_shot()
 
 	# Mirror the god's announcements.
 	var banner := str(state.get("banner", ""))
@@ -2120,6 +2173,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 # dialogue is put away and the mortal may move.
 func _enter_playing() -> void:
 	_phase = Phase.PLAYING
+	_end_intro_shot()
 	if dialogue.is_active():
 		dialogue.close_now()
 	player.set_lock(false)
@@ -2530,10 +2584,10 @@ func _exit_tree() -> void:
 	# A Camera2D that leaves the tree leaves the view where it last put it: give
 	# the screen back to whatever comes next (the finale, the lobby) unless the
 	# next arena's camera has already taken it.
-	if camera == null:
+	if camera == null and _intro_camera == null:
 		return
 	var viewport := get_viewport()
-	if viewport != null and (viewport.get_camera_2d() == null or viewport.get_camera_2d() == camera):
+	if viewport != null and (viewport.get_camera_2d() == null or viewport.get_camera_2d() in [camera, _intro_camera]):
 		viewport.canvas_transform = Transform2D.IDENTITY
 
 
@@ -2562,7 +2616,7 @@ func _build_edge_arrows() -> void:
 # points. Public so the checks can read it.
 func edge_arrows() -> Array[Dictionary]:
 	var arrows: Array[Dictionary] = []
-	if camera == null or _edge_arrows == null:
+	if camera == null or _edge_arrows == null or _intro_camera != null:
 		return arrows
 	var view := _edge_arrows.size
 	var shown := Rect2(Vector2(UI_STRIP_WIDTH, 0.0), view - Vector2(UI_STRIP_WIDTH, 0.0)).grow(-edge_arrow_inset)
@@ -2591,6 +2645,101 @@ func _draw_edge_arrows() -> void:
 		_edge_arrows.draw_colored_polygon(points, tint)
 		points.append(tip)
 		_edge_arrows.draw_polyline(points, UITokens.NIGHT_900, 2.0)
+
+
+# --- THE INTRO SHOT -------------------------------------------------------------
+# The first "3 - 2 - 1" of a trial is a short cinematic: a Camera2D of its own
+# opens on the watching god's face (the scene's FaceFocus marker) at intro_zoom,
+# holds intro_hold seconds and eases out (position and zoom) onto the normal view
+# exactly as the count reaches GO - the screen itself without the follow camera
+# (zoom 1, world = screen), the follow camera's own framing of the mortal with
+# it. Then the view is handed back: the shot's camera is freed and the screen is
+# world = screen again, or the follow camera is made current and cut to its aim.
+# The HUD (hud_alpha: the arena's panels, the bottom band, the shell's strip and
+# clock) is hidden on the face and fades in on the pull-out; the big count stays.
+# Every screen plays it on its own from the countdown it already follows - no
+# message travels - and only this screen's view moves: the mortals stay locked
+# and no rule reads it. A countdown shorter than the shot squeezes the hold and the
+# pull-out into it; GO is never delayed (_start_trial cuts whatever is left).
+# Settings > Gameplay > Intro camera turns it off.
+
+func _begin_intro_shot() -> void:
+	if _intro_played:
+		return
+	_intro_played = true
+	var focus := get_node_or_null("FaceFocus") as Node2D
+	if focus == null or countdown_time <= 0.0 or not intro_camera_allowed():
+		return
+	_intro_span = countdown_time
+	_intro_left = countdown_time
+	_intro_hold = minf(intro_hold, countdown_time * 0.5)
+	_intro_from = focus.global_position
+	_intro_camera = Camera2D.new()
+	_intro_camera.name = "IntroCamera"
+	_intro_camera.limit_enabled = false  # the close-up is never clamped to the field
+	add_child(_intro_camera)
+	_intro_camera.global_position = _intro_from
+	_intro_camera.zoom = Vector2.ONE * intro_zoom
+	_intro_camera.make_current()
+	_set_hud_alpha(0.0)
+
+
+func _tick_intro_shot(delta: float) -> void:
+	if _intro_camera == null:
+		return
+	_intro_left = maxf(0.0, _intro_left - delta)
+	if _intro_left <= 0.0 or _phase != Phase.COUNTDOWN:
+		_end_intro_shot()
+		return
+	var pull := maxf(0.001, _intro_span - _intro_hold)
+	var eased := smoothstep(0.0, 1.0, (_intro_span - _intro_left - _intro_hold) / pull)
+	var target := intro_target()
+	_intro_camera.global_position = _intro_from.lerp(target.position, eased)
+	_intro_camera.zoom = Vector2.ONE * lerpf(intro_zoom, target.size.x, eased)
+	_set_hud_alpha(eased)
+
+
+func _end_intro_shot() -> void:
+	if _intro_camera == null:
+		return
+	_intro_camera.free()
+	_intro_camera = null
+	if camera != null:
+		camera.make_current()
+		camera.reset_smoothing()
+	else:
+		get_viewport().canvas_transform = Transform2D.IDENTITY
+	_set_hud_alpha(1.0)
+
+
+# Where the shot lands, as Rect2(view centre, Vector2(zoom, zoom)): the screen's
+# centre at zoom 1, or the follow camera's aim held inside its limits (what it
+# shows once it is current and cut there).
+func intro_target() -> Rect2:
+	var view := get_viewport_rect().size
+	if camera == null:
+		return Rect2(view * 0.5, Vector2.ONE)
+	var half := view * 0.5 / follow_zoom
+	var aim := camera.global_position
+	var centre := Vector2(
+		clampf(aim.x, camera.limit_left + half.x, maxf(camera.limit_left + half.x, camera.limit_right - half.x)),
+		clampf(aim.y, camera.limit_top + half.y, maxf(camera.limit_top + half.y, camera.limit_bottom - half.y)))
+	return Rect2(centre, Vector2.ONE * follow_zoom)
+
+
+# The shot's camera while it plays (null otherwise) - for the checks.
+func intro_camera() -> Camera2D:
+	return _intro_camera
+
+
+func _set_hud_alpha(alpha: float) -> void:
+	hud_alpha = alpha
+	if hud == null:
+		return
+	for part in [^"StatsPanel", ^"TrialPanel", ^"TopRight", ^"EventLabel", ^"SkillCards"]:
+		var node := hud.get_node_or_null(part) as CanvasItem
+		if node != null:
+			node.modulate.a = alpha
 
 
 # --- TAPPABLE FAVOR PANELS ---------------------------------------------------

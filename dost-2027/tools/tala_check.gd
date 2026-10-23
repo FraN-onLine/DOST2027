@@ -39,6 +39,7 @@ func _run() -> void:
 	while _arena.dialogue.is_active():
 		_arena.dialogue.advance()
 	_arena._phase = Arena.Phase.PLAYING
+	_arena._end_intro_shot()  # straight to play: no countdown, so no intro shot either
 	_arena.player.set_lock(false)
 	_arena.player.global_position = _lane()
 	_arena._update_local_bounds()

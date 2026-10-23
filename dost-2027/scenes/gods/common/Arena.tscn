@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://caeyjvhbdf8ae" path="res://scenes/gods/common/Mortal.tscn" id="3_mortal"]
 [ext_resource type="Shader" uid="uid://y0uyfc41fh00" path="res://UI/GodsArena/vision_mask.gdshader" id="4_vision"]
 [ext_resource type="Texture2D" uid="uid://cbxhacid8hdcr" path="res://Assets/Gods/Apolaki/Sun-Patch.png" id="5_hxyp3"]
+[ext_resource type="Script" uid="uid://bpe8osuir3cim" path="res://UI/GodsArena/hint_strip.gd" id="6_hint"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_strip"]
 size = Vector2(244, 654)
@@ -187,6 +188,36 @@ color = Color(0, 0, 0, 1)
 
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=139203851]
 layer = 10
+
+[node name="BandLayer" type="CanvasLayer" parent="." unique_id=1958472020]
+layer = 12
+
+[node name="Band" type="PanelContainer" parent="BandLayer" unique_id=1958472021]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 238.0
+offset_top = -40.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"PanelHud"
+
+[node name="Rows" type="VBoxContainer" parent="BandLayer/Band" unique_id=1958472022]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="State" type="HBoxContainer" parent="BandLayer/Band/Rows" unique_id=1958472023]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Hint" type="PanelContainer" parent="BandLayer/Band/Rows" unique_id=1958472024]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("6_hint")
 
 [node name="FieldDim" type="ColorRect" parent="." unique_id=1958472013]
 visible = false

@@ -69,9 +69,9 @@ const SHOCK_SCENE := preload("res://scenes/gods/mayari/Shockwave.tscn")
 @onready var zones_root: Node2D = $Zones
 @onready var clones_root: Node2D = $Clones
 @onready var shocks_root: Node2D = $Shocks
-@onready var attack_bar: ProgressBar = get_node_or_null("AttackHud/Bar")
-@onready var attack_label: Label = get_node_or_null("AttackHud/Label")
-@onready var attack_icon: TextureRect = get_node_or_null("AttackHud/Icon")
+@onready var attack_bar: ProgressBar = get_node_or_null(BAND_STATE + "Bar")
+@onready var attack_label: Label = get_node_or_null(BAND_STATE + "Label")
+@onready var attack_icon: TextureRect = get_node_or_null(BAND_STATE + "Icon")
 
 var _zones: Array = []
 var _clones: Array = []
@@ -403,7 +403,7 @@ func _process(delta: float) -> void:
 	_update_blitz()
 	# During blitz the whole arena pulses a bluish hue. Only the host needs the
 	# favor loss, but the pulse is drawn on every screen. CanvasLayer UI
-	# (AttackHud, UILayer) is not affected by parent modulation.
+	# (the bottom band, UILayer) is not affected by parent modulation.
 	if _blitz:
 		_blitz_pulse += delta * 3.0  # cycles about 3 times per second
 		var pulse := sin(_blitz_pulse) * 0.5 + 0.5  # 0..1

@@ -1,0 +1,56 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gods/hanan/hanan_baka.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/godot_placeholder.svg" id="2_placeholder"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_low"]
+atlas = ExtResource("2_placeholder")
+region = Rect2(0, 64, 128, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sitting"]
+atlas = ExtResource("2_placeholder")
+region = Rect2(0, 32, 128, 96)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_baka"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_low")
+}],
+"loop": true,
+"name": &"low",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sitting")
+}],
+"loop": true,
+"name": &"sitting",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_placeholder")
+}],
+"loop": true,
+"name": &"standing",
+"speed": 5.0
+}]
+
+[node name="HananBaka" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Art" type="AnimatedSprite2D" parent="."]
+scale = Vector2(0.6, 0.6)
+sprite_frames = SubResource("SpriteFrames_baka")
+animation = &"low"
+
+[node name="Name" type="Label" parent="."]
+offset_left = -26.0
+offset_top = 4.0
+offset_right = 26.0
+offset_bottom = 18.0
+theme_type_variation = &"WorldLabel"
+text = "HANAN"
+horizontal_alignment = 1

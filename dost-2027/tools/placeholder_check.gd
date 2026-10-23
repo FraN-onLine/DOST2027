@@ -3,7 +3,9 @@ extends SceneTree
 # Validation: the free placeholder art (Assets/Placeholders, CREDITS.md) and the
 # one-shot effects built on it (Arena.spawn_effect / hit_effects / announce_hit).
 #   * nothing in the project - scenes, resources, scripts, project.godot - points at
-#     the Godot logo any more, and the logo file is gone
+#     the Godot logo any more, and the logo file is gone; the one copy kept on
+#     purpose (GODOT_PLACEHOLDER) stands in only for the two god scenes waiting for
+#     art (ALLOWED_GODOT) and fails for any other user
 #   * every picture under Assets/Placeholders has a line in CREDITS.md with a source
 #     URL and the CC0 licence
 #   * every effect in Arena.EFFECTS spawns a sprite that grows, fades and frees
@@ -18,6 +20,12 @@ extends SceneTree
 const ROOT := "res://"
 const SKIP_DIRS: Array[String] = ["addons", ".godot", "tools"]
 const EXTENSIONS: Array[String] = ["tscn", "tres", "gd", "godot", "cfg"]
+# The Godot logo, kept as the stand-in art of exactly these scenes (CREDITS.md).
+const GODOT_PLACEHOLDER := "godot_placeholder" + ".svg"  # (split, so this file never finds itself)
+const ALLOWED_GODOT: Array[String] = [
+	"res://scenes/gods/mapulon_ikapati/IkapatiTaya.tscn",
+	"res://scenes/gods/hanan/HananBaka.tscn",
+]
 
 var _problems := 0
 
@@ -55,17 +63,26 @@ func _run() -> void:
 			users.append(path)
 	_check(users.is_empty(), "nothing points at the Godot logo (%s)" % str(users))
 	_check(not FileAccess.file_exists(ROOT + logo), "...and the logo file is not in the project")
+	var godot_users: Array[String] = []
+	for path in files:
+		if FileAccess.get_file_as_string(path).contains(GODOT_PLACEHOLDER):
+			godot_users.append(path)
+	var strays := godot_users.filter(func(path: String) -> bool: return not ALLOWED_GODOT.has(path))
+	_check(strays.is_empty() and godot_users.size() == ALLOWED_GODOT.size(),
+		"the Godot placeholder stands in only for %s (used by %s)" % [str(ALLOWED_GODOT), str(godot_users)])
 
 	# --- every placeholder is credited ------------------------------------------------------
 	var credits := FileAccess.get_file_as_string("res://Assets/Placeholders/CREDITS.md")
 	var pictures: Array[String] = []
-	_files("res://Assets/Placeholders", ["png"], pictures)
+	_files("res://Assets/Placeholders", ["png", "svg"], pictures)
 	var missing: Array[String] = []
 	for path in pictures:
 		if not credits.contains(path.trim_prefix("res://Assets/Placeholders/")):
 			missing.append(path)
 	_check(pictures.size() >= 9 and missing.is_empty(), "every one of the %d placeholder pictures is in CREDITS.md (missing: %s)" % [pictures.size(), str(missing)])
 	_check(credits.contains("https://kenney.nl") and credits.contains("CC0"), "...with its source and the CC0 licence")
+	_check(credits.contains(GODOT_PLACEHOLDER) and credits.contains("Andrea Calabr") and credits.contains("CC BY 4.0"),
+		"...and the Godot placeholder with its author and CC BY 4.0")
 
 	# --- the effects ----------------------------------------------------------------------------
 	var view := SubViewport.new()

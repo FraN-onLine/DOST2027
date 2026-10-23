@@ -404,6 +404,10 @@ func _on_trial_time_changed(seconds: float) -> void:
 
 
 func _process(delta: float) -> void:
+	# The arena's intro shot hides the strip and the clock on the god's face.
+	var alpha: float = arena.hud_alpha if arena != null and is_instance_valid(arena) and "hud_alpha" in arena else 1.0
+	for part in [own_panel, $HudLayer/OtherPlayersPanel, timer_label]:
+		part.modulate.a = alpha
 	_refresh_local_stats()
 	if rules != null:
 		_update_panel_stats()

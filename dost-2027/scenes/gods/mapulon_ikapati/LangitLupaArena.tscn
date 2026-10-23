@@ -5,7 +5,6 @@
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://ds4dxa5j0omwb" path="res://Assets/Gods/MapulonIkapati/IkapatiOverseer-Sheet.png" id="4_3punl"]
 [ext_resource type="Texture2D" uid="uid://dyjktf2v021td" path="res://Assets/Gods/MapulonIkapati/MapulonOverSeer-Sheet.png" id="5_t7fk7"]
-[ext_resource type="Script" path="res://UI/GodsArena/hint_strip.gd" id="hint_strip"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_t7fk7"]
 atlas = ExtResource("4_3punl")
@@ -68,6 +67,7 @@ animations = [{
 [node name="Arena" unique_id=628936061 instance=ExtResource("1_arena")]
 script = ExtResource("2_script")
 fixed_trial_time = 60.0
+intro_zoom = 2.2
 tag_radius = 26.0
 tagback_immunity = 1.0
 tagged_mercy = 1.0
@@ -400,12 +400,8 @@ default_color = Color(0.9490196, 0.9098039, 0.8117647, 0.35)
 [node name="LangitHud" type="CanvasLayer" parent="." index="14" unique_id=1870373423]
 layer = 12
 
-[node name="Status" type="Label" parent="LangitHud" index="1" unique_id=100621347]
-anchors_preset = 0
-offset_left = 262
-offset_top = 590
-offset_right = 262
-offset_bottom = 614
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=100621347]
+layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "ON THE LUPA     DASH READY"
 
@@ -419,19 +415,6 @@ offset_bottom = 150.0
 grow_horizontal = 2
 theme_type_variation = &"HudCallout"
 horizontal_alignment = 1
-
-[node name="Hint" type="PanelContainer" parent="LangitHud" index="3" unique_id=659937284]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 262
-offset_top = -34
-offset_right = 262
-offset_bottom = -2
-grow_vertical = 0
-mouse_filter = 2
-script = ExtResource("hint_strip")
-text = "[SHIFT] DASH"
 
 [node name="RulesCard" type="PanelContainer" parent="LangitHud" index="4" unique_id=552142326]
 visible = false
@@ -474,3 +457,7 @@ theme_type_variation = &"HudLabel"
 text = "RIGHT CLICK - CHANT. Hit the keys to force them off the Langit."
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(755, 104)
+

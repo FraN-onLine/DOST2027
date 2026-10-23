@@ -94,20 +94,21 @@ extends Arena
 # run when a chant reaches its fourth word, hop now and then for the crossing
 # FAVOR, and chase (or chant) when they are it.
 #
-# THE GODS' LOOK: the god body is a mortal body with its mortal sprite hidden and
-# the pair's own look on it - Ikapati's overseer sprite (IkapatiOverseer-Sheet.png,
-# playing as an idle loop) standing god_height tall (about 1.5 mortals) with her
-# feet where a mortal's are, flipped to face where they walk, over a ring of the
-# pair's accent on the ground and under the usual name tag and Taya marker (both
-# lifted above her head). God-Taya.png replaces her when it exists. At GO the
+# THE GODS' LOOK: the god body is its own scene (IkapatiTaya.tscn, ikapati_taya.gd):
+# a mortal body with its mortal sprite hidden and the pair's look authored on it -
+# an AnimatedSprite2D (clips idle / walk / chant / tag, the Godot placeholder until
+# the art lands) standing god_height tall (about 1.5 mortals) with its feet where a
+# mortal's are, flipped to face where they walk, over a ring of the pair's accent
+# on the ground and under the usual name tag and Taya marker (both lifted above its
+# head). This file only tells it what the gods are doing (_draw_god). At GO the
 # banner says MAPULON & IKAPATI ARE TAYA! on every screen, the body pops in
 # (god_puff_time), and the overseer standing in the scene's ArenaField is hidden
 # for as long as the god body is on the field, so there is never a second Ikapati.
 #
-# The art is drop-in (see Assets/Gods/MapulonIkapati/README.md; the gods' body is
-# God-Taya.png): each file is used
-# when it exists and the placeholder stays when it does not. Every number is an
-# @export - tune it in the inspector. The dash itself lives in the base (Dash).
+# The rest of the art is drop-in (see Assets/Gods/MapulonIkapati/README.md): each
+# file is used when it exists and the placeholder stays when it does not. Every
+# number is an @export - tune it in the inspector. The dash itself lives in the
+# base (Dash).
 
 const ART_DIR := "res://Assets/Gods/MapulonIkapati/"
 const SCREEN_SIZE := Vector2(1152.0, 648.0)  # the authored arena (see arena.gd)
@@ -121,16 +122,8 @@ const RHYME: Array[String] = ["LANGIT...", "LUPA...", "IMPYERNO!"]
 const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down", &"move_left"]
 # The Taya id while Mapulon & Ikapati are it (-1 is "no Taya"; mortals are >= 1).
 const GOD_TAYA := -2
-# The gods' look (see THE GODS' LOOK): the overseer sheet's frames, the figure's
-# height inside a frame (the sheet cuts her off at the waist, so the frame's bottom
-# is her "feet"), and a mortal's height and the line its feet stand on, measured
-# from the mortal's position (lam-ang.png at Mortal.tscn's scale; the feet are
-# Mortal.tscn's Shadow line).
-const GOD_SHEET := "IkapatiOverseer-Sheet.png"
-const GOD_FRAME := Vector2i(130, 99)
-const GOD_ART_HEIGHT := 88.0
-const MORTAL_HEIGHT := 78.0
-const MORTAL_FEET := 17.0
+# The gods' body as Taya (see THE GODS' LOOK).
+const GOD_TAYA_SCENE := preload("res://scenes/gods/mapulon_ikapati/IkapatiTaya.tscn")
 const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are Taya first!"
 
 @export_category("Langit Lupa")
@@ -215,9 +208,8 @@ const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are
 @onready var god_overseer: AnimatedSprite2D = get_node_or_null("ArenaField/GodOverSeer")
 @onready var background: Sprite2D = get_node_or_null("Background")
 @onready var bots_root: Node2D = get_node_or_null("Bots")
-@onready var status_label: Label = get_node_or_null("LangitHud/Status")
+@onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 @onready var callout_label: Label = get_node_or_null("LangitHud/Callout")
-@onready var hint_label: HintStrip = get_node_or_null("LangitHud/Hint")
 @onready var rules_card: Control = get_node_or_null("LangitHud/RulesCard")
 @onready var taya_tip: Control = get_node_or_null("LangitHud/TayaTip")
 
@@ -266,14 +258,12 @@ var _taya_tip_left := 0.0
 var _taya_tip_done := false
 var _paid := false
 # The gods as Taya (host-run; clients mirror _god_at, _god_leave and _god_hunt):
-var _god_body: ArenaMortal
+var _god_body: IkapatiTaya
 var _god_at := Vector2.INF           # where the gods stand (INF: off the field)
 var _god_time := 0.0                 # host: seconds the gods have been Taya
 var _god_hunt := -1                  # the runner the safety valve hunts (-1: none)
 var _god_leave := 0.0                # seconds left of the fade after their tag
 var _god_said := false               # this screen showed their line over the body
-var _god_look: Node2D                # the pair's look on the body (the puff scales it)
-var _god_art: Node2D                 # ...its picture, flipped to the way they walk
 var _god_lift := 0.0                 # px the name tag and the Taya marker sit above a mortal's
 
 
@@ -1195,69 +1185,13 @@ func _bot_beat() -> float:
 
 # --- THE GODS AS TAYA ----------------------------------------------------------
 
-# The gods' body: a mortal body whose own sprite is hidden, wearing the pair's look
-# (see THE GODS' LOOK) - God-Taya.png when the art exists, Ikapati's overseer
-# sprite otherwise. Hidden until GO.
+# The gods' body (IkapatiTaya.tscn), standing god_height tall. Hidden until GO.
 func _spawn_god() -> void:
-	_god_body = MORTAL_SCENE.instantiate()
+	_god_body = GOD_TAYA_SCENE.instantiate()
+	_god_body.god_height = god_height
 	(bots_root if bots_root != null else self).add_child(_god_body)
-	_god_body.set_lock(true)  # moved by this script on the host, mirrored elsewhere
-	_ghostly(_god_body)
-	_god_body.ring_color = UITokens.god_accent(god)
-	_god_body.sprite.visible = false  # not a mortal: the Lamang sprite stays hidden
-	_god_lift = maxf(0.0, god_height - MORTAL_HEIGHT)
-	_god_body.set_display_name(god.display_name, UITokens.god_text(god))
-	_god_body.name_tag.position.y -= _god_lift  # above their head, not over it
-	_god_body.floating_text.position.y -= _god_lift
-	# GodLook sits at a mortal's feet, so the puff grows from the ground up.
-	_god_look = Node2D.new()
-	_god_look.name = "GodLook"
-	_god_look.position = Vector2(0.0, MORTAL_FEET)
-	_god_body.add_child(_god_look)
-	var ring := Line2D.new()  # the pair's accent on the ground, under their feet
-	ring.name = "GodRing"
-	ring.width = 2.0
-	ring.default_color = UITokens.god_accent(god)
-	ring.closed = true
-	for step in range(24):
-		ring.add_point(Vector2.from_angle(TAU * step / 24.0) * Vector2(26.0, 9.0))
-	_god_look.add_child(ring)
-	var drawn := art("God-Taya.png")
-	if drawn != null:
-		var still := Sprite2D.new()
-		still.texture = drawn
-		still.position.y = -MORTAL_FEET  # centred on the body, as the art is drawn
-		_god_art = still
-	else:
-		var sheet := art(GOD_SHEET)
-		if sheet != null:
-			_god_art = _ikapati_sprite(sheet)
-		else:
-			var icon := Sprite2D.new()  # no art at all: the god's icon floats over the ring
-			icon.texture = god.icon
-			icon.scale = Vector2.ONE * (28.0 / maxf(1.0, float(god.icon.get_height())))
-			icon.position.y = -god_height
-			_god_art = icon
-	_god_look.add_child(_god_art)
+	_god_lift = _god_body.lift
 	_god_body.visible = false
-
-
-# Ikapati, looping her frames, standing god_height tall with the frame's bottom on
-# the look's origin (her "feet").
-func _ikapati_sprite(sheet: Texture2D) -> AnimatedSprite2D:
-	var frames := SpriteFrames.new()
-	frames.set_animation_speed("default", 5.0)
-	for index in range(maxi(1, sheet.get_width() / GOD_FRAME.x)):
-		var frame := AtlasTexture.new()
-		frame.atlas = sheet
-		frame.region = Rect2(Vector2(index * GOD_FRAME.x, 0.0), Vector2(GOD_FRAME))
-		frames.add_frame("default", frame)
-	var sprite := AnimatedSprite2D.new()
-	sprite.sprite_frames = frames
-	sprite.scale = Vector2.ONE * (god_height / GOD_ART_HEIGHT)
-	sprite.position.y = -GOD_FRAME.y * 0.5 * sprite.scale.y
-	sprite.play("default")
-	return sprite
 
 
 # Host: Mapulon & Ikapati are the Taya.
@@ -1334,27 +1268,25 @@ func _draw_god(delta: float) -> void:
 	if _god_body == null:
 		return
 	var shown := _god_at != Vector2.INF and _phase == Phase.PLAYING
+	var was := _god_body.global_position if _god_body.visible else Vector2.INF  # popping in is not a step
 	if shown and (_authority or not _god_body.visible or _god_body.global_position.distance_to(_god_at) > ghost_snap_distance):
 		_god_body.global_position = _god_at
 	elif shown:
 		_god_body.global_position = _god_body.global_position.lerp(_god_at, minf(1.0, ghost_smoothing * delta))
 	if shown and not _god_body.visible:
-		_puff_god()
+		_god_body.appear(god_puff_time)
 	_god_body.visible = shown
 	if god_overseer != null:
 		god_overseer.visible = not shown  # one Ikapati at a time
-	_god_art.set("flip_h", _god_body.facing < 0)
+	_god_body.set_facing(_god_body.facing)
 	_god_body.modulate.a = _god_leave / maxf(0.01, god_leave_time) if _god_leave > 0.0 else 1.0
 	# Their line over the body too: the tagged mortal's own banner says YOU ARE TAYA.
 	if _god_leave > 0.0 and not _god_said and shown:
-		_god_body.show_floating_text(god_tag_line, UITokens.god_text(god), god_leave_time + 0.6)
+		_god_body.leave(god_tag_line, UITokens.god_text(god), god_leave_time + 0.6)
+	elif _god_leave <= 0.0:
+		var walking := was != Vector2.INF and _god_body.global_position.distance_to(was) > 0.1
+		_god_body.play_state(&"chant" if _chanting and _taya == GOD_TAYA else &"walk" if walking else &"idle")
 	_god_said = _god_leave > 0.0
-
-
-# The gods pop in: their look grows from their feet with a little overshoot.
-func _puff_god() -> void:
-	_god_look.scale = Vector2.ONE * 0.2
-	create_tween().tween_property(_god_look, "scale", Vector2.ONE, god_puff_time) 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 # --- INPUT -------------------------------------------------------------------
@@ -1578,6 +1510,7 @@ func _refresh_hud(delta: float) -> void:
 		callout_label.visible = false
 	if rules_card != null:
 		rules_card.visible = first_visit and _phase == Phase.COUNTDOWN
+		rules_card.modulate.a = hud_alpha
 	if taya_tip != null:
 		taya_tip.visible = _taya_tip_left > 0.0 and _taya == _my_id
 	var taya_at := taya_position()

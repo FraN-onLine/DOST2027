@@ -35,7 +35,7 @@ const DEFAULTS := {
 	"video": {"window_mode": 0, "resolution": Vector2i(1152, 648), "vsync": true, "max_fps": 0, "ui_scale": 100},
 	# bandana_color: the player's last pick in the lobby (UITokens.BANDANA_COLORS),
 	# asked for again next time and given if it is free.
-	"gameplay": {"player_name": "", "reduce_flashing": false, "screen_shake": true, "show_fps": false, "bandana_color": 0},
+	"gameplay": {"player_name": "", "reduce_flashing": false, "screen_shake": true, "intro_camera": true, "show_fps": false, "bandana_color": 0},
 }
 
 var config_path := "user://settings.cfg"
@@ -247,6 +247,11 @@ func screen_shake_enabled() -> bool:
 
 func reduce_flashing() -> bool:
 	return get_value("gameplay", "reduce_flashing")
+
+
+# The countdown's close-up on the watching god (Arena's intro shot).
+func intro_camera_enabled() -> bool:
+	return get_value("gameplay", "intro_camera")
 
 
 # Saved name if the player set one, otherwise a random suggestion.

@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://hlq046tgceac" path="res://scripts/gods/hanan/hanan_arena.gd" id="2_pmmhp"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://dnax1ilo8tx4p" path="res://Assets/Gods/Hanan/HananOverseer-Sheet.png" id="4_2uhhy"]
-[ext_resource type="Script" path="res://UI/GodsArena/hint_strip.gd" id="hint_strip"]
+[ext_resource type="PackedScene" path="res://scenes/gods/hanan/HananBaka.tscn" id="5_baka"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_w0dj0"]
 atlas = ExtResource("4_2uhhy")
@@ -73,26 +73,8 @@ points = PackedVector2Array(258, 240, 1010, 240, 1010, 590, 258, 590, 258, 240)
 width = 4.0
 default_color = Color(1, 0.62, 0.55, 0)
 
-[node name="Baka" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=4442098]
+[node name="Baka" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=4442098 instance=ExtResource("5_baka")]
 position = Vector2(620, 470)
-
-[node name="Sprite" type="Sprite2D" parent="ArenaField/Baka" index="0" unique_id=1130681991]
-visible = false
-
-[node name="Body" type="ColorRect" parent="ArenaField/Baka" index="1" unique_id=1296804247]
-offset_left = -40.0
-offset_top = -70.0
-offset_right = 40.0
-color = Color(0.45, 0.3, 0.2, 1)
-
-[node name="Name" type="Label" parent="ArenaField/Baka" index="2" unique_id=1017803844]
-offset_left = -26.0
-offset_top = -46.0
-offset_right = 26.0
-offset_bottom = -24.0
-theme_type_variation = &"WorldLabel"
-text = "BAKA"
-horizontal_alignment = 1
 
 [node name="Overseer" type="Sprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=2122756111]
 visible = false
@@ -112,12 +94,8 @@ position = Vector2(400, 470)
 [node name="HananHud" type="CanvasLayer" parent="." index="9" unique_id=81470394]
 layer = 12
 
-[node name="Status" type="Label" parent="HananHud" index="0" unique_id=1400636208]
-anchors_preset = 0
-offset_left = 258
-offset_top = 210
-offset_right = 258
-offset_bottom = 234
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1400636208]
+layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "LEVEL 1  LOW BAKA"
 
@@ -131,19 +109,6 @@ offset_bottom = 150.0
 grow_horizontal = 2
 theme_type_variation = &"HudCallout"
 horizontal_alignment = 1
-
-[node name="Hint" type="PanelContainer" parent="HananHud" index="2" unique_id=770398069]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 258
-offset_top = -40
-offset_right = 258
-offset_bottom = -8
-grow_vertical = 0
-mouse_filter = 2
-script = ExtResource("hint_strip")
-text = "[LEFT CLICK] LEAP"
 
 [node name="BarLayer" type="CanvasLayer" parent="." index="10" unique_id=1058177752]
 layer = 4
@@ -205,3 +170,7 @@ offset_bottom = 164.0
 theme_type_variation = &"HudLabel"
 theme_override_colors/font_color = Color(0.9098039, 0.72156864, 0.2901961, 1)
 text = "HOLD LEFT CLICK"
+
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(944, 92)
+

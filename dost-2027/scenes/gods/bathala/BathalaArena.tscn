@@ -4,7 +4,6 @@
 [ext_resource type="Script" uid="uid://c3lilpohgea6w" path="res://scripts/gods/bathala/bathala_arena.gd" id="2_arena"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://cdkt78lh7iqvd" path="res://Assets/Gods/Bathala/bathalaoverseer-Sheet.png" id="4_pvjnw"]
-[ext_resource type="Script" path="res://UI/GodsArena/hint_strip.gd" id="hint_strip"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cet4o"]
 atlas = ExtResource("4_pvjnw")
@@ -195,27 +194,10 @@ horizontal_alignment = 1
 [node name="AgawanHud" type="CanvasLayer" parent="." index="13" unique_id=1328790674]
 layer = 12
 
-[node name="Status" type="Label" parent="AgawanHud" index="0" unique_id=1077757494]
-anchors_preset = 0
-offset_left = 262
-offset_top = 290
-offset_right = 262
-offset_bottom = 314
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1077757494]
+layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "ON THE FIELD     ATTACK READY     ROUND 1"
-
-[node name="Hint" type="PanelContainer" parent="AgawanHud" index="1" unique_id=908270617]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 262
-offset_top = -40
-offset_right = 262
-offset_bottom = -8
-grow_vertical = 0
-mouse_filter = 2
-script = ExtResource("hint_strip")
-text = "[LEFT CLICK] ATTACK"
 
 [node name="Callout" type="Label" parent="AgawanHud" index="2" unique_id=1214418893]
 visible = false
@@ -230,3 +212,7 @@ horizontal_alignment = 1
 
 [node name="Stars" type="Node2D" parent="." index="14" unique_id=467062211]
 z_index = 4
+
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(895, 82)
+

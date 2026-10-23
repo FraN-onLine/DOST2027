@@ -38,6 +38,7 @@ func _run() -> void:
 		_arena.dialogue.advance()
 		guard += 1
 	_arena._phase = Arena.Phase.PLAYING
+	_arena._end_intro_shot()  # straight to play: no countdown, so no intro shot either
 	_arena._trial_time = 999.0  # the clock never runs out while the checks await physics frames
 	_arena.player.set_lock(false)
 	_arena.rules.local().favor = 500
@@ -51,9 +52,12 @@ func _run() -> void:
 	_check(bar_layer != null and _arena.bar.get_parent() == bar_layer, "the balance bar lives on its own layer")
 	_check(bar_layer != null and bar_layer.layer < vision.layer and bar_layer.layer < patches.layer,
 		"the bar is drawn below Mayari's blackout (%d) and Apolaki's sun patches (%d)" % [vision.layer, patches.layer])
+	var band_layer: CanvasLayer = _arena.get_node_or_null("BandLayer")
 	_check(label_layer != null and label_layer.layer > vision.layer and label_layer.layer > patches.layer
-		and _arena.status_label.get_parent() == label_layer and _arena.callout_label.get_parent() == label_layer
-		and _arena.hint_label.get_parent() == label_layer, "the status, callout and hint labels are drawn above them")
+		and _arena.callout_label.get_parent() == label_layer, "the callout is drawn above them")
+	_check(band_layer != null and band_layer.layer > vision.layer and band_layer.layer > patches.layer
+		and _arena.status_label.get_canvas_layer_node() == band_layer and _arena.hint_label.get_canvas_layer_node() == band_layer,
+		"the status and hint, in the bottom band, are drawn above them too")
 	_arena.begin_vault()
 	_arena._refresh_hud(0.0)
 	var feet: Vector2 = _arena.player.get_global_transform_with_canvas().origin
@@ -370,28 +374,40 @@ func _run() -> void:
 			"level %d keeps the box on the gauge" % level)
 		_arena._leave_vault()
 
-	# --- the art is drop-in --------------------------------------------------------------
-	var has_baka_art := ResourceLoader.exists("res://Assets/Gods/Hanan/Baka.png")
-	_check(_arena.baka_body.visible != has_baka_art and _arena.baka_sprite.visible == has_baka_art,
-		"the Baka shows its art when Baka.png exists, the rectangle otherwise")
+	# --- Hanan is the Baka: her scene shows the level --------------------------------------
+	var baka: HananBaka = _arena.baka
+	_check(baka != null and baka.scene_file_path == "res://scenes/gods/hanan/HananBaka.tscn" and baka.name == "Baka",
+		"ArenaField/Baka is the HananBaka scene")
+	var clips := baka.art.sprite_frames.get_animation_names()
+	clips.sort()
+	_check(clips == PackedStringArray(["low", "sitting", "standing"]), "...one SpriteFrames with low / sitting / standing (%s)" % str(clips))
 	_check(_arena.overseer.visible == ResourceLoader.exists("res://Assets/Gods/Hanan/Hanan-Overseer.png"),
 		"the overseer shows only when Hanan-Overseer.png exists")
 	_check(_arena.get_node_or_null("ArenaField/Baka/Name") != null, "the Baka keeps its Name label")
-	_arena._use_baka_art(null)
+	var shown: Array[StringName] = []
+	var tall: Array[float] = []
+	for level in range(1, 6):
+		_arena._level = level
+		_arena._show_baka_height()
+		shown.append(baka.clip())
+		var frame := baka.art.sprite_frames.get_frame_texture(baka.art.animation, 0)
+		tall.append(frame.get_height() * baka.art.scale.y)
+		_check(is_equal_approx(baka.art.position.y + tall[-1] * 0.5, 0.0), "level %d: she stands on the Baka's origin" % level)
+	_check(shown == [&"low", &"sitting", &"standing", &"standing", &"standing"],
+		"levels 1, 2, 3+ play low, sitting, standing (%s)" % str(shown))
+	_check(tall[0] < tall[1] and tall[1] < tall[2] and tall[2] < tall[3] and tall[3] < tall[4],
+		"...each level stands taller than the last (%s)" % str(tall))
+	var size_before := _arena.current_box_size()
 	_arena._level = 1
 	_arena._show_baka_height()
-	var low: float = _arena.baka.scale.y
-	_arena._level = 4
-	_arena._show_baka_height()
-	_check(_arena.baka.scale.y > low, "without art the rectangle grows taller each level")
-	var strip := ImageTexture.create_from_image(Image.create(500, 100, false, Image.FORMAT_RGBA8))
-	_arena._use_baka_art(strip)
-	_check(_arena.baka_sprite.visible and not _arena.baka_body.visible and _arena.baka_sprite.hframes == 5,
-		"a 5-frame Baka.png strip replaces the rectangle")
-	_check(_arena.baka_sprite.frame == 3 and _arena.baka.scale.y == 1.0, "the strip shows the frame of the level instead of stretching")
-	var single := ImageTexture.create_from_image(Image.create(80, 70, false, Image.FORMAT_RGBA8))
-	_arena._use_baka_art(single)
-	_check(_arena.baka_sprite.hframes == 1 and _arena.baka.scale.y > low, "a single Baka.png is stretched taller like the rectangle")
+	_check(is_equal_approx(_arena.current_box_size(), _arena.box_sizes[0]) and size_before == _arena.box_sizes[4],
+		"the vault reads the level's numbers, never the art")
+	baka.bump()
+	await process_frame  # a tween takes its first step on the frame after it starts
+	await process_frame
+	_check(baka._bump.is_running() and absf(baka.rotation) > 0.0, "a trip bumps her (%.3f rad)" % baka.rotation)
+	await baka._bump.finished
+	_check(is_zero_approx(baka.rotation), "...and she settles back (%.3f rad)" % baka.rotation)
 	_arena._apply_art()
 
 	# --- the trial ends mid-vault: what it earned is banked --------------------------------

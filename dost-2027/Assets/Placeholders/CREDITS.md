@@ -25,8 +25,11 @@ Packs:
 | `fx/hit_spark.png` | Particle Pack, `star_09.png` | 128x128 | Kenney | CC0 1.0 | The spark where an attack lands (`Arena.EFFECTS[&"spark"]`) |
 | `fx/hit_slash.png` | Particle Pack, `scratch_01.png` | 128x128 | Kenney | CC0 1.0 | The slash along the blow (`Arena.EFFECTS[&"slash"]`) |
 | `fx/impact_ring.png` | Particle Pack, `circle_03.png` | 128x128 | Kenney | CC0 1.0 | The ring on the target (`Arena.EFFECTS[&"impact"]`) |
+| `godot_placeholder.svg` | The Godot logo (the engine's default `icon.svg`, unchanged) | 128x128 | Andrea Calabró | CC BY 4.0 | Stand-in frames of two god scenes until their art lands, and nowhere else (`tools/placeholder_check.gd` enforces it): `IkapatiTaya.tscn` (Langit Lupa's god Taya) and `HananBaka.tscn` (Hanan as the Baka) |
 
 Licence text: <https://creativecommons.org/publicdomain/zero/1.0/>
 
-The Godot logo (`icon.svg`, CC BY 4.0) used to stand in for all of these; it is no longer
-in the project.
+The Godot logo (`icon.svg`, CC BY 4.0) used to stand in for all of these. One copy is back,
+as `godot_placeholder.svg`, for the two god scenes above only: Godot logo by Andrea
+Calabró, licensed under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>), from
+<https://godotengine.org/press/>. Unlike the CC0 files it must stay credited while it ships.

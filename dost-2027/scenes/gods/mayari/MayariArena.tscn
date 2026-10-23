@@ -153,35 +153,27 @@ position = Vector2(292, 533)
 [node name="Shocks" type="Node2D" parent="." index="10" unique_id=1265799116]
 z_index = 2
 
-[node name="AttackHud" type="CanvasLayer" parent="." index="11" unique_id=622389083]
-layer = 11
+[node name="Icon" type="TextureRect" parent="BandLayer/Band/Rows/State" unique_id=654105676]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+texture = ExtResource("7_icon")
+expand_mode = 1
 
-[node name="Label" type="Label" parent="AttackHud" index="0" unique_id=1966288468]
-anchors_preset = 0
-offset_left = 284.0
-offset_top = 356.0
-offset_right = 464.0
-offset_bottom = 384.0
+[node name="Label" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1966288468]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "ATTACK  READY"
 horizontal_alignment = 1
 
-[node name="Icon" type="TextureRect" parent="AttackHud" index="1" unique_id=654105676]
-anchors_preset = 0
-offset_left = 244.0
-offset_top = 354.0
-offset_right = 276.0
-offset_bottom = 386.0
-texture = ExtResource("7_icon")
-expand_mode = 1
-
-[node name="Bar" type="ProgressBar" parent="AttackHud" index="2" unique_id=1942084484]
-anchors_preset = 0
-offset_left = 472.0
-offset_top = 362.0
-offset_right = 712.0
-offset_bottom = 378.0
+[node name="Bar" type="ProgressBar" parent="BandLayer/Band/Rows/State" unique_id=1942084484]
+custom_minimum_size = Vector2(240, 16)
+size_flags_vertical = 4
+layout_mode = 2
 value = 100.0
+
+[node name="FaceFocus" type="Marker2D" parent="."]
+position = Vector2(884, 127)
 
 [editable path="Zones/NorthWestGoal"]
 [editable path="Zones/NorthEastGoal"]
