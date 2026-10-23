@@ -128,13 +128,15 @@ dash_enabled = true
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
 modulate = Color(0.75, 0.95, 0.7, 1)
-position = Vector2(704, -8)
-scale = Vector2(7, 8)
+position = Vector2(654.75, 274)
+scale = Vector2(6.5475, 4.87)
 texture = ExtResource("3_bg")
 metadata/_edit_lock_ = true
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1864643911]
-points = PackedVector2Array(244, 192, 1136, 192, 1136, 600, 244, 600, 244, 192)
+position = Vector2(0, 304.66937)
+scale = Vector2(1, 0.48185483)
+points = PackedVector2Array(262, 96, 1130, 96, 1130, 584, 262, 584, 262, 96)
 width = 4.0
 default_color = Color(0.56, 0.78, 0.33, 0.8)
 
@@ -142,7 +144,7 @@ default_color = Color(0.56, 0.78, 0.33, 0.8)
 
 [node name="Langit1" type="Node2D" parent="ArenaField/Langits" index="0" unique_id=642933886]
 visible = false
-position = Vector2(535.853, 346.55)
+position = Vector2(546, 440)
 
 [node name="Shadow" type="ColorRect" parent="ArenaField/Langits/Langit1" index="0" unique_id=126215759]
 offset_left = -42.0
@@ -190,7 +192,7 @@ width = 2.0
 default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
 
 [node name="Langit2" type="Node2D" parent="ArenaField/Langits" index="1" unique_id=1471394696]
-position = Vector2(922.249, 415.954)
+position = Vector2(922, 480)
 
 [node name="Shadow" type="ColorRect" parent="ArenaField/Langits/Langit2" index="0" unique_id=1412803449]
 offset_left = -42.0
@@ -241,21 +243,21 @@ width = 2.0
 default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=632666614]
-position = Vector2(832, 113)
-scale = Vector2(1.6, 1.6)
+position = Vector2(615, 192)
+scale = Vector2(3.6833231, 3.2276123)
 sprite_frames = SubResource("SpriteFrames_4he5h")
 autoplay = "default"
 frame_progress = 0.050460998
 
 [node name="GodOverSeer2" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1831042744]
-position = Vector2(1032, 113)
-scale = Vector2(1.6, 1.6)
+position = Vector2(952, 189)
+scale = Vector2(3.6833231, 3.2276123)
 sprite_frames = SubResource("SpriteFrames_r1xhw")
 autoplay = "default"
 frame_progress = 0.030867117
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
-position = Vector2(406.369, 346.55)
+position = Vector2(420, 440)
 
 [node name="Bots" type="Node2D" parent="." index="10" unique_id=2040126219]
 z_index = 3
@@ -400,10 +402,10 @@ layer = 12
 
 [node name="Status" type="Label" parent="LangitHud" index="1" unique_id=100621347]
 anchors_preset = 0
-offset_left = 244.0
-offset_top = 156.0
-offset_right = 244.0
-offset_bottom = 180.0
+offset_left = 262
+offset_top = 590
+offset_right = 262
+offset_bottom = 614
 theme_type_variation = &"HudLabel"
 text = "ON THE LUPA     DASH READY"
 
@@ -422,10 +424,10 @@ horizontal_alignment = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 244.0
-offset_top = -40.0
-offset_right = 244.0
-offset_bottom = -8.0
+offset_left = 262
+offset_top = -34
+offset_right = 262
+offset_bottom = -2
 grow_vertical = 0
 mouse_filter = 2
 script = ExtResource("hint_strip")
@@ -434,9 +436,9 @@ text = "[SHIFT] DASH"
 [node name="RulesCard" type="PanelContainer" parent="LangitHud" index="4" unique_id=552142326]
 visible = false
 offset_left = 386.0
-offset_top = 204.0
+offset_top = 168.0
 offset_right = 1006.0
-offset_bottom = 244.0
+offset_bottom = 208.0
 mouse_filter = 2
 theme_type_variation = &"PanelHud"
 
@@ -465,9 +467,9 @@ autowrap_mode = 3
 [node name="TayaTip" type="Label" parent="LangitHud" index="5" unique_id=1324479048]
 visible = false
 offset_left = 386.0
-offset_top = 204.0
+offset_top = 168.0
 offset_right = 1006.0
-offset_bottom = 228.0
+offset_bottom = 192.0
 theme_type_variation = &"HudLabel"
 text = "RIGHT CLICK - CHANT. Hit the keys to force them off the Langit."
 horizontal_alignment = 1

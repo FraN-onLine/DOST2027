@@ -67,63 +67,65 @@ embedded = true
 dialogue_prefix = "apolaki"
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
-position = Vector2(704, -8)
-scale = Vector2(7, 8)
+position = Vector2(654.75, 274)
+scale = Vector2(6.5474997, 4.87)
 texture = ExtResource("4_bg")
 metadata/_edit_lock_ = true
 
 [node name="Apolaki" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1246256867 instance=ExtResource("3_duelist")]
-position = Vector2(820.227, 326.489)
+position = Vector2(831, 474)
 scale = Vector2(2.0653045, 1.9356914)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1955814452]
-position = Vector2(1016, 100)
-scale = Vector2(1.84, 1.84)
+position = Vector2(952.00006, 173)
+scale = Vector2(3.9358778, 3.6552243)
 sprite_frames = SubResource("SpriteFrames_overseer")
 autoplay = "default"
 frame_progress = 0.11239928
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=15752441]
-points = PackedVector2Array(244, 192, 1136, 192, 1136, 600, 244, 600, 244, 192)
+position = Vector2(193.45038, 247.55435)
+scale = Vector2(0.8759542, 0.67663044)
+points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
 width = 4.0
 default_color = Color(0.54901963, 0.8509804, 1, 0)
 
 [node name="Sunbursts" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=479780834]
 
 [node name="Border" type="Line2D" parent="." index="3" unique_id=2116842975]
-points = PackedVector2Array(244, 119.103, 1136, 119.103, 1136, 599.199, 244, 599.199, 244, 119.103)
+position = Vector2(193.45038, 178.20657)
+scale = Vector2(0.8759542, 0.79619557)
+points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
 width = 4.0
 default_color = Color(0.54901963, 0.8509804, 1, 0)
 
 [node name="Player" parent="." index="6" unique_id=1489401219]
-position = Vector2(432.483, 353.288)
+position = Vector2(435, 490)
 scale = Vector2(2.0233405, 1.8783596)
 
 [node name="DuelHud" type="CanvasLayer" parent="." index="10" unique_id=1284817974]
 layer = 12
 
 [node name="State" type="Label" parent="DuelHud" index="0" unique_id=470594257]
+anchors_preset = 0
 offset_left = 244.0
-offset_top = 156.0
+offset_top = 226.0
 offset_right = 244.0
-offset_bottom = 180.0
+offset_bottom = 250.0
 theme_type_variation = &"HudLabel"
 text = "APOLAKI WATCHES"
 
-[node name="Bars" type="HBoxContainer" parent="DuelHud" index="1" unique_id=1232068069]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
+[node name="Bars" type="VBoxContainer" parent="DuelHud" index="1" unique_id=1232068069]
+anchors_preset = 0
 offset_left = 244.0
-offset_top = -42.0
+offset_top = 256.0
 offset_right = 244.0
-offset_bottom = -6.0
-grow_vertical = 0
+offset_bottom = 336.0
 mouse_filter = 2
 theme_override_constants/separation = 8
 
 [node name="StrikeBar" type="PanelContainer" parent="DuelHud/Bars" index="0" unique_id=2064542693]
-custom_minimum_size = Vector2(340, 36)
+custom_minimum_size = Vector2(290, 36)
 layout_mode = 2
 theme_type_variation = &"PanelHud"
 
@@ -150,7 +152,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="DefendBar" type="PanelContainer" parent="DuelHud/Bars" index="1" unique_id=481221735]
-custom_minimum_size = Vector2(340, 36)
+custom_minimum_size = Vector2(290, 36)
 layout_mode = 2
 theme_type_variation = &"PanelHud"
 

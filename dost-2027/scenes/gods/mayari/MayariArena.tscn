@@ -56,28 +56,33 @@ shock_force = 280.0
 embedded = true
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
-position = Vector2(704, -8)
-scale = Vector2(7, 8)
+position = Vector2(654.75, 274.00003)
+scale = Vector2(6.5474997, 4.87)
 texture = ExtResource("3_bg")
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1630902986]
-points = PackedVector2Array(244, 192, 1136, 192, 1136, 600, 244, 600, 244, 192)
+position = Vector2(193.45038, 247.55435)
+scale = Vector2(0.8759542, 0.67663044)
+points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
 width = 4.0
 default_color = Color(0.54901963, 0.8509804, 1, 0)
 
 [node name="StartLine" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=851158272]
-points = PackedVector2Array(289.527, 204.732, 289.527, 598.993)
+position = Vector2(187, 260.0769)
+scale = Vector2(1, 0.65384614)
+points = PackedVector2Array(102, 216, 102, 576)
 width = 2.0
 default_color = Color(1, 1, 1, 0)
 
 [node name="MidLine" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=1363416227]
-points = PackedVector2Array(753.645, 192, 753.645, 600)
+position = Vector2(187, 60)
+points = PackedVector2Array(576, 216, 576, 576)
 width = 2.0
 default_color = Color(1, 1, 1, 0.08)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1907198770]
-position = Vector2(985.10004, -149.75)
-scale = Vector2(5.229231, 5.285)
+position = Vector2(935, 131)
+scale = Vector2(4.145794, 4.291193)
 sprite_frames = SubResource("SpriteFrames_overseer")
 autoplay = "default"
 frame_progress = 0.43127793
@@ -86,64 +91,64 @@ frame_progress = 0.43127793
 z_index = 2
 
 [node name="NorthWestGoal" parent="Zones" index="0" unique_id=524009136 instance=ExtResource("4_goal")]
-position = Vector2(537.252, 298.014)
+position = Vector2(542, 457)
 zone_label = "NW GOAL"
 
 [node name="Fill" parent="Zones/NorthWestGoal" index="0" unique_id=1499717694]
-offset_left = -145.894
-offset_top = -95.473
-offset_right = 136.102
-offset_bottom = 103.848
+offset_left = -149.0
+offset_top = -57.0
+offset_right = 139.0
+offset_bottom = 62.0
 
 [node name="NorthEastGoal" parent="Zones" index="1" unique_id=23302251 instance=ExtResource("4_goal")]
-position = Vector2(768.332, 272.89)
+position = Vector2(778, 442)
 zone_label = "NE GOAL"
 
 [node name="Fill" parent="Zones/NorthEastGoal" index="0" unique_id=1499717694]
-offset_right = 244.788
-offset_bottom = 133.997
+offset_right = 250.0
+offset_bottom = 80.0
 
 [node name="SouthWestGoal" parent="Zones" index="2" unique_id=685731529 instance=ExtResource("4_goal")]
-position = Vector2(541.169, 483.936)
+position = Vector2(546, 568)
 zone_label = "SW GOAL"
 
 [node name="Fill" parent="Zones/SouthWestGoal" index="0" unique_id=1499717694]
-offset_left = -149.81
-offset_right = 132.186
-offset_bottom = 117.248
+offset_left = -153.0
+offset_right = 135.0
+offset_bottom = 70.0
 
 [node name="SouthEastGoal" parent="Zones" index="3" unique_id=2080354879 instance=ExtResource("4_goal")]
-position = Vector2(755.603, 448.761)
+position = Vector2(765, 547)
 
 [node name="Fill" parent="Zones/SouthEastGoal" index="0" unique_id=1499717694]
-offset_left = -71.478
-offset_top = -28.474
-offset_right = 257.517
-offset_bottom = 152.422
+offset_left = -73.0
+offset_top = -17.0
+offset_right = 263.0
+offset_bottom = 91.0
 
 [node name="Clones" type="Node2D" parent="." index="4" unique_id=1473703624]
 z_index = 3
 
 [node name="MayariHorizontal" parent="Clones" index="0" unique_id=128257843 instance=ExtResource("5_clone")]
-position = Vector2(673.354, 406.887)
+position = Vector2(681, 522)
 
 [node name="Path" parent="Clones/MayariHorizontal" index="0" unique_id=690695134]
-position = Vector2(-313.52, 4.187)
-scale = Vector2(2.874, 3.071)
+position = Vector2(-320.19513, 2.5)
+scale = Vector2(2.9349594, 1.8333334)
 
 [node name="MayariVertical" parent="Clones" index="1" unique_id=147704602 instance=ExtResource("5_clone")]
-position = Vector2(755.603, 306.389)
+position = Vector2(765, 462)
 
 [node name="Path" parent="Clones/MayariVertical" index="0" unique_id=690695134]
-position = Vector2(-79.311, -107.218)
-scale = Vector2(0.979, 1.668)
+position = Vector2(-81, -64.01219)
+scale = Vector2(1, 0.99593496)
 points = PackedVector2Array(0, 0, 0, 54.24623, 0, 240)
 
 [node name="Icon" parent="Clones/MayariVertical" index="1" unique_id=683970908]
 position = Vector2(-7.6293945e-06, 0)
 
 [node name="Player" parent="." index="7" unique_id=1489401219]
-position = Vector2(292.464, 425.312)
+position = Vector2(292, 533)
 
 [node name="Shocks" type="Node2D" parent="." index="10" unique_id=1265799116]
 z_index = 2
@@ -152,39 +157,30 @@ z_index = 2
 layer = 11
 
 [node name="Label" type="Label" parent="AttackHud" index="0" unique_id=1966288468]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
+anchors_preset = 0
 offset_left = 284.0
-offset_top = -38.0
+offset_top = 356.0
 offset_right = 464.0
-offset_bottom = -10.0
-grow_vertical = 0
+offset_bottom = 384.0
 theme_type_variation = &"HudLabel"
 text = "ATTACK  READY"
 horizontal_alignment = 1
 
 [node name="Icon" type="TextureRect" parent="AttackHud" index="1" unique_id=654105676]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
+anchors_preset = 0
 offset_left = 244.0
-offset_top = -40.0
+offset_top = 354.0
 offset_right = 276.0
-offset_bottom = -8.0
-grow_vertical = 0
+offset_bottom = 386.0
 texture = ExtResource("7_icon")
 expand_mode = 1
 
 [node name="Bar" type="ProgressBar" parent="AttackHud" index="2" unique_id=1942084484]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
+anchors_preset = 0
 offset_left = 472.0
-offset_top = -32.0
+offset_top = 362.0
 offset_right = 712.0
-offset_bottom = -16.0
-grow_vertical = 0
+offset_bottom = 378.0
 value = 100.0
 
 [editable path="Zones/NorthWestGoal"]
