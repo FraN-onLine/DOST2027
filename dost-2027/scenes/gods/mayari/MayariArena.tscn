@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dwhxsrh6kuqbg" path="res://scenes/gods/mayari/MayariGoal.tscn" id="4_goal"]
 [ext_resource type="Texture2D" uid="uid://d3vr2n1evain" path="res://Assets/Gods/Mayari/MayariOverseer-Sheet.png" id="4_qvw0k"]
 [ext_resource type="PackedScene" uid="uid://svxrl6j6aa6k" path="res://scenes/gods/mayari/MayariClone.tscn" id="5_clone"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/attack.png" id="7_icon"]
+[ext_resource type="Texture2D" uid="uid://bykenkwb22d04" path="res://Assets/Placeholders/attack.png" id="7_icon"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_wlxev"]
 atlas = ExtResource("4_qvw0k")
@@ -47,6 +47,7 @@ rival_knock_mult = 2.5
 blitz_time = 30.0
 blitz_switch_interval = 2.5
 blitz_gain_mult = 2.0
+god_blitz_mode = true
 shock_radius = 130.0
 shock_expand_time = 0.45
 shock_cooldown = 1.2
@@ -75,8 +76,8 @@ width = 2.0
 default_color = Color(1, 1, 1, 0.08)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1907198770]
-position = Vector2(1016, 100)
-scale = Vector2(1.84, 1.84)
+position = Vector2(985.10004, -149.75)
+scale = Vector2(5.229231, 5.285)
 sprite_frames = SubResource("SpriteFrames_overseer")
 autoplay = "default"
 frame_progress = 0.43127793
