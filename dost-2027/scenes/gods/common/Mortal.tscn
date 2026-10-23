@@ -1,12 +1,27 @@
 [gd_scene format=3 uid="uid://caeyjvhbdf8ae"]
 
 [ext_resource type="Script" uid="uid://mbsvj8vbhmue" path="res://scripts/gods/common/mortal.gd" id="1_mortal"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/glow.png" id="2_icon"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/fx/stun_star.png" id="7_stun"]
+[ext_resource type="Texture2D" uid="uid://6tbenjtl5de6" path="res://Assets/Placeholders/glow.png" id="2_icon"]
 [ext_resource type="Texture2D" uid="uid://cphb53fo1gfxn" path="res://Assets/Player/Lamang-Sheet.png" id="3_af5nn"]
 [ext_resource type="Texture2D" uid="uid://dxphlrugle2gr" path="res://Assets/Gods/lam-ang.png" id="4_6r6jq"]
 [ext_resource type="Shader" uid="uid://coxohuv3bowvg" path="res://scenes/gods/common/bandana_swap.gdshader" id="4_bandana"]
 [ext_resource type="Texture2D" uid="uid://cxkcpecrakrk6" path="res://Assets/Gods/lam-ang-walking.png" id="6_fxuyk"]
+[ext_resource type="Texture2D" uid="uid://tuodoq57kabn" path="res://Assets/Placeholders/fx/stun_star.png" id="7_stun"]
+
+[sub_resource type="Gradient" id="Gradient_shadow"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0, 0, 0, 0.35, 0, 0, 0, 0.28, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_shadow"]
+gradient = SubResource("Gradient_shadow")
+width = 32
+height = 32
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="Gradient" id="Gradient_dust"]
+colors = PackedColorArray(1, 1, 1, 0.8, 1, 1, 1, 0)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bandana"]
 shader = ExtResource("4_bandana")
@@ -178,43 +193,27 @@ animations = [{
 }]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_mortal"]
-radius = 46.0
+radius = 60.0
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_af5nn"]
 radius = 24.0
-
-[sub_resource type="Gradient" id="Gradient_shadow"]
-offsets = PackedFloat32Array(0, 0.55, 1)
-colors = PackedColorArray(0, 0, 0, 0.35, 0, 0, 0, 0.28, 0, 0, 0, 0)
-
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_shadow"]
-gradient = SubResource("Gradient_shadow")
-width = 32
-height = 32
-fill = 1
-fill_from = Vector2(0.5, 0.5)
-fill_to = Vector2(1, 0.5)
-
-[sub_resource type="Gradient" id="Gradient_dust"]
-colors = PackedColorArray(1, 1, 1, 0.8, 1, 1, 1, 0)
 
 [node name="Mortal" type="CharacterBody2D" unique_id=680107735]
 motion_mode = 1
 script = ExtResource("1_mortal")
 
-[node name="Shadow" type="Sprite2D" parent="."]
+[node name="Shadow" type="Sprite2D" parent="." unique_id=1802100385]
 position = Vector2(0, 17)
 scale = Vector2(1.1, 0.34)
 texture = SubResource("GradientTexture2D_shadow")
 
-[node name="Dust" type="CPUParticles2D" parent="."]
+[node name="Dust" type="CPUParticles2D" parent="." unique_id=1774720922]
 position = Vector2(0, 17)
 emitting = false
 amount = 5
 lifetime = 0.32
 one_shot = true
 explosiveness = 1.0
-local_coords = false
 emission_shape = 3
 emission_rect_extents = Vector2(8, 1)
 direction = Vector2(0, -1)
@@ -229,18 +228,18 @@ scale_amount_max = 4.0
 color = Color(0.62, 0.5, 0.36, 0.75)
 color_ramp = SubResource("Gradient_dust")
 
-[node name="Afterimages" type="Node2D" parent="."]
+[node name="Afterimages" type="Node2D" parent="." unique_id=527571401]
 
-[node name="Afterimage1" type="Sprite2D" parent="Afterimages"]
+[node name="Afterimage1" type="Sprite2D" parent="Afterimages" unique_id=386317771]
 visible = false
 
-[node name="Afterimage2" type="Sprite2D" parent="Afterimages"]
+[node name="Afterimage2" type="Sprite2D" parent="Afterimages" unique_id=1327769387]
 visible = false
 
-[node name="Afterimage3" type="Sprite2D" parent="Afterimages"]
+[node name="Afterimage3" type="Sprite2D" parent="Afterimages" unique_id=285422501]
 visible = false
 
-[node name="Afterimage4" type="Sprite2D" parent="Afterimages"]
+[node name="Afterimage4" type="Sprite2D" parent="Afterimages" unique_id=1530567896]
 visible = false
 
 [node name="Glow" type="Sprite2D" parent="." unique_id=1591973812]
@@ -260,22 +259,22 @@ autoplay = "default"
 frame = 8
 frame_progress = 1.0
 
-[node name="StunStars" type="Node2D" parent="."]
+[node name="StunStars" type="Node2D" parent="." unique_id=1837210819]
 visible = false
 z_index = 2
 position = Vector2(0, -64)
 
-[node name="Star1" type="Sprite2D" parent="StunStars"]
+[node name="Star1" type="Sprite2D" parent="StunStars" unique_id=1448548755]
 modulate = Color(1, 0.9, 0.35, 1)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("7_stun")
 
-[node name="Star2" type="Sprite2D" parent="StunStars"]
+[node name="Star2" type="Sprite2D" parent="StunStars" unique_id=852686760]
 modulate = Color(1, 0.9, 0.35, 1)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("7_stun")
 
-[node name="Star3" type="Sprite2D" parent="StunStars"]
+[node name="Star3" type="Sprite2D" parent="StunStars" unique_id=1476700813]
 modulate = Color(1, 0.9, 0.35, 1)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("7_stun")
@@ -284,8 +283,8 @@ texture = ExtResource("7_stun")
 position = Vector2(0, -7)
 
 [node name="Collision" type="CollisionShape2D" parent="Arnis-Damage-Area" unique_id=542910038]
+position = Vector2(0, -15)
 shape = SubResource("CircleShape2D_mortal")
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1298435770]
 position = Vector2(0, -7)
@@ -311,9 +310,9 @@ offset_bottom = -74.0
 theme_type_variation = &"WorldValue"
 horizontal_alignment = 1
 
-[node name="Steps" type="AudioStreamPlayer2D" parent="."]
+[node name="Steps" type="AudioStreamPlayer2D" parent="." unique_id=20773347]
 position = Vector2(0, 17)
 bus = &"SFX"
 
-[node name="Whoosh" type="AudioStreamPlayer2D" parent="."]
+[node name="Whoosh" type="AudioStreamPlayer2D" parent="." unique_id=166317865]
 bus = &"SFX"

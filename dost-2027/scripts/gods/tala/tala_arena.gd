@@ -11,6 +11,12 @@ extends Arena
 @export var tala_max_y := 565.0
 @export var can_repair_time := 3.0
 @export var can_favor := 300
+# BLITZ MODE: the last blitz_duration seconds of the trial. Cans pay double,
+# a second Tala stands in front of the first, her catching your slipper stuns
+# you for blitz_stun_time seconds, and the field pulses gold.
+@export var blitz_duration := 30.0   # seconds at the end when blitz runs
+@export var blitz_stun_time := 1.0   # seconds you are stunned when the second Tala catches you
+@export var blitz_second_offset := Vector2(64.0, 0.0)   # how far ahead of Tala her double stands
 # FAVOR lost two ways: when Tala catches your slipper, and when YOU walk into
 # her - running into the guard costs the same as her grabbing your footwear.
 @export var tala_penalty := 100
@@ -87,6 +93,12 @@ var _seek_cd := 0.0         # seconds before she may intercept again
 # The host's word on where she stands while intercepting (the route knows
 # nothing about it); Vector2.INF whenever she is simply walking her beat.
 var _tala_seek := Vector2.INF
+# BLITZ STATE
+var _blitz := false           # are we in blitz right now? (derived from _trial_time, same on every screen)
+var _blitz_time := 0.0        # seconds of blitz left (host-side copy)
+var _second_tala: Node2D = null   # her double - walks in front of Tala herself during blitz
+var _blitz_stun: Dictionary = {}  # mortal id -> seconds left of stun from the second Tala's catch
+var _field_tint_base: Color = Color.WHITE   # the field's authored tint, restored when blitz ends
 
 
 func _ready() -> void:
@@ -171,6 +183,71 @@ func _place_tala() -> void:
 	tala.global_position = _point_on_tala_path(_tala_distance)
 
 
+# --- BLITZ MODE --------------------------------------------------------------
+# In the last blitz_duration seconds: cans pay double, a second Tala stands in
+# front of the first, her catching your slipper stuns you, and the field
+# pulses gold. Every screen derives blitz from _trial_time so they all enter
+# and leave it together.
+
+func _update_blitz(delta: float) -> void:
+	var blitz_now := _trial_time <= blitz_duration
+	if blitz_now == _blitz:
+		return
+	_blitz = blitz_now
+	if _blitz:
+		_blitz_time = blitz_duration
+		_spawn_second_tala()
+		_field_tint_base = field_root.modulate if field_root != null else Color.WHITE
+		_log("BLITZ! Double points, second Tala, gold field!", Color(1.0, 0.84, 0.0))
+	else:
+		_despawn_second_tala()
+		if field_root != null:
+			field_root.modulate = _field_tint_base
+
+	if _blitz:
+		_blitz_time = maxf(0.0, _blitz_time - delta)
+		# Keep the second Tala in front of the first
+		_place_second_tala()
+		# Pulse the field gold during blitz
+		if field_root != null:
+			var pulse := 0.5 + 0.5 * sin(_blitz_time * 8.0)
+			field_root.modulate = _field_tint_base.lerp(Color(1.0, 0.84, 0.0), pulse)
+
+func _spawn_second_tala() -> void:
+	if _second_tala != null or tala == null:
+		return
+	var parent: Node2D = tala.get_parent()
+	if parent == null:
+		return
+	_second_tala = Sprite2D.new()
+	_second_tala.name = "SecondTala"
+	# Copy Tala's appearance if she has a sprite child
+	var tala_sprite: Sprite2D = tala.get_node_or_null("Sprite2D")
+	var tala_anim: AnimatedSprite2D = tala.get_node_or_null("AnimatedSprite2D")
+	if tala_anim != null and tala_anim.sprite_frames != null:
+		var anim: AnimatedSprite2D = AnimatedSprite2D.new()
+		anim.sprite_frames = tala_anim.sprite_frames.duplicate()
+		anim.play(tala_anim.animation)
+		_second_tala.add_child(anim)
+	elif tala_sprite != null and tala_sprite.texture != null:
+		var s: Sprite2D = Sprite2D.new()
+		s.texture = tala_sprite.texture
+		_second_tala.add_child(s)
+	parent.add_child(_second_tala)
+	_place_second_tala()
+
+func _despawn_second_tala() -> void:
+	if _second_tala != null and is_instance_valid(_second_tala):
+		_second_tala.queue_free()
+	_second_tala = null
+
+func _place_second_tala() -> void:
+	if _second_tala == null or tala == null:
+		return
+	# The second Tala stands in front of Tala (toward the line / negative x)
+	_second_tala.global_position = tala.global_position + blitz_second_offset
+
+
 func arena_rules_tick(delta: float) -> void:
 	if not _authority:
 		return
@@ -200,6 +277,8 @@ func arena_round_reset() -> void:
 	_seek_time = 0.0
 	_seek_cd = 0.0
 	_tala_seek = Vector2.INF
+	_blitz = false
+	_despawn_second_tala()
 	if tala != null and _tala_knots.size() < 2:
 		tala.position.y = (tala_min_y + tala_max_y) * 0.5
 	_place_tala()
@@ -242,6 +321,7 @@ func _refresh_can(can_index: int) -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	_update_blitz(delta)
 	_update_local_bounds()
 	_render_slippers()
 	_refresh_status()
@@ -479,6 +559,11 @@ func _move_slippers(delta: float) -> void:
 			if tala_t < nearest_t:
 				nearest_t = tala_t
 				result = "tala"
+		if _second_tala != null and _blitz:
+			var second_t := _segment_circle(start, finish, _second_tala.global_position, tala_radius)
+			if second_t < nearest_t:
+				nearest_t = second_t
+				result = "second_tala"
 		var distance := start.distance_to(finish)
 		var travelled := float(slipper.get("travelled", 0.0))
 		if not _field.has_point(finish):
@@ -502,11 +587,13 @@ func _move_slippers(delta: float) -> void:
 			_slippers.erase(owner)
 		elif result == "tala":
 			_resolve_tala_catch(int(owner))
+		elif result == "second_tala":
+			_resolve_tala_catch(int(owner), true)
 		else:
 			_drop_slipper(int(owner), landing)
 
 
-func _resolve_tala_catch(owner: int) -> void:
+func _resolve_tala_catch(owner: int, is_second: bool = false) -> void:
 	# Her catch lands with weight: the thrower's screen answers with the shared
 	# shake and wash. The host owns the count, so the thrower shakes on their
 	# own screen whichever peer hosts the round: a direct kick here covers the
@@ -518,6 +605,11 @@ func _resolve_tala_catch(owner: int) -> void:
 	_tala_hits += 1
 	_tala_hit_owner = owner
 	_seen_tala_hits = _tala_hits
+	if is_second:
+		# The second Tala's catch stuns the thrower for blitz_stun_time seconds
+		knock_mortal(owner, _second_tala.global_position, blitz_stun_time, 0.0, true)
+		if owner == _my_id:
+			_log("The second Tala caught your slipper - stunned!", Color(1, 0.5, 0.45))
 	if owner == _my_id:
 		_shake_tala_hit()
 
@@ -528,7 +620,8 @@ func _resolve_can(owner: int, can_index: int) -> void:
 	_can_repair[can_index] = can_repair_time
 	announce_hit(-1, _cans[can_index].global_position, Vector2.RIGHT, 0.0)  # ...and on the can
 	_refresh_can(can_index)
-	bank_favor(can_favor, "knocking down a tin can", owner)
+	var blitz_favor := can_favor * (2 if _blitz else 1)
+	bank_favor(blitz_favor, "knocking down a tin can" + (" (BLITZ)" if _blitz else ""), owner)
 	_modes[owner] = "ready"
 	if owner == _my_id:
 		_local_mode = "ready"
@@ -666,6 +759,7 @@ func arena_tick_fields() -> Dictionary:
 		"can_hit_owner": _can_hit_owner,
 		"tala_hits": _tala_hits,
 		"tala_hit_owner": _tala_hit_owner,
+	"blitz": _blitz,
 	}
 
 
@@ -673,6 +767,7 @@ func arena_read_tick(state: Dictionary) -> void:
 	# Tala is placed by how far along her route the host says she is, so every
 	# screen walks the very path the designer drew - unless she is cutting a
 	# slipper off, where the host's own word puts her instead.
+	_blitz = bool(state.get("blitz", _blitz))
 	_tala_seek = state.get("tala_seek", Vector2.INF)
 	_tala_dir = float(state.get("tala_direction", _tala_dir))
 	if state.has("tala_distance"):
