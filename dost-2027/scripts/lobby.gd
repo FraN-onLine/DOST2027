@@ -35,6 +35,7 @@ const COPIED_SECONDS := 1.5
 @onready var lobby_id_box: HBoxContainer = $Page/VBox/Header/LobbyIdBox
 @onready var lobby_id_label = $Page/VBox/Header/LobbyIdBox/LobbyIdLabel
 @onready var copy_button: Button = $Page/VBox/Header/LobbyIdBox/CopyButton
+@onready var ips_line: LineEdit = $Page/VBox/IpsLine
 # The run setup: everyone reads it in one line in "The run", and OPTIONS opens
 # the full panel (editable for the host, read-only for clients).
 @onready var run_summary_label: Label = $Page/VBox/Scroll/Columns/Side/RunCard/VBox/Row/RunSummaryLabel
@@ -70,6 +71,10 @@ func _ready():
 		# Show the lobby ID so friends can join directly - no IP/port needed
 		lobby_id_label.text = Network.lobby_id
 		lobby_id_box.visible = true
+		# ...and the IPs, for friends on a VPN where the broadcast never reaches them
+		ips_line.text = HostAddress.ips_line(IP.get_local_addresses(), Network.host_port())
+		ips_line.add_theme_color_override("font_uneditable_color", UITokens.MUTED)
+		ips_line.visible = ips_line.text != ""
 		# Prefill name with the host's random name
 		var my_id = multiplayer.get_unique_id()
 		if my_id in Network.players:

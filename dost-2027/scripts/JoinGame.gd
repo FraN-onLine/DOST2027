@@ -18,10 +18,16 @@ const DOT_SECONDS := 0.6
 @onready var name_input = $CenterContainer/Columns/FormCard/VBox/NameInput
 @onready var lobby_id_input = $CenterContainer/Columns/FormCard/VBox/LobbyIdInput
 @onready var join_lobby_button = $CenterContainer/Columns/FormCard/VBox/JoinLobbyButton
+@onready var ip_input: LineEdit = $CenterContainer/Columns/FormCard/VBox/IpInput
+@onready var join_ip_button: Button = $CenterContainer/Columns/FormCard/VBox/JoinIpButton
+
+const IP_JOIN_SECONDS := 6.0  # ENet waits far longer than a friend will
 
 var host_items := {}  # host_key -> PanelContainer (one row card)
 var _search_timer: Timer
 var _dots := 0
+var _ip_timer: Timer
+var _ip_target := ""
 var _searching := true
 
 func _ready():
@@ -31,6 +37,14 @@ func _ready():
 	join_lobby_button.pressed.connect(_on_join_lobby_pressed)
 	lobby_id_input.text_submitted.connect(_on_lobby_id_submitted)
 	lobby_id_input.text_changed.connect(_on_lobby_id_changed)
+	join_ip_button.pressed.connect(_join_by_ip)
+	ip_input.text_submitted.connect(func(_text: String) -> void: _join_by_ip())
+	ip_input.text = Settings.get_value("gameplay", "last_ip")
+	_ip_timer = Timer.new()
+	_ip_timer.one_shot = true
+	_ip_timer.wait_time = IP_JOIN_SECONDS
+	add_child(_ip_timer)
+	_ip_timer.timeout.connect(_on_ip_timeout)
 	
 	# Connect to network discovery signals
 	Network.host_discovered.connect(_on_host_discovered)
@@ -123,11 +137,49 @@ func _join_by_lobby_id():
 	Network.set_my_name(chosen_name)
 	
 	status_label.text = "Looking for lobby %s..." % lobby_code.to_upper()
-	refresh_button.disabled = true
-	back_button.disabled = true
-	join_lobby_button.disabled = true
+	_set_joining(true)
 	
 	Network.join_lobby(lobby_code)
+
+# JOIN BY IP: "host" or "host:port" (an IPv4 address or a name like a Tailscale
+# MagicDNS one), for the VPNs a broadcast never crosses.
+func _join_by_ip() -> void:
+	if join_ip_button.disabled:
+		return
+	var parsed := HostAddress.parse(ip_input.text)
+	if not parsed["ok"]:
+		status_label.text = parsed["error"]
+		return
+	var host: String = parsed["host"]
+	var ip := host if host.is_valid_ip_address() else IP.resolve_hostname(host, IP.TYPE_IPV4)
+	if ip.is_empty():
+		status_label.text = "Could not find that host"
+		return
+	var chosen_name: String = name_input.text.strip_edges()
+	if chosen_name.is_empty():
+		chosen_name = Network.RANDOM_NAMES[randi() % Network.RANDOM_NAMES.size()]
+	Network.set_my_name(chosen_name)
+	Settings.set_value("gameplay", "last_ip", ip_input.text.strip_edges())
+	Settings.save()
+	_ip_target = ip
+	status_label.text = "Connecting to %s..." % ip
+	_set_joining(true)
+	_ip_timer.start()
+	Network.join_host(ip, int(parsed["port"]))
+
+
+func _on_ip_timeout() -> void:
+	Network.leave_host()
+	_set_joining(false)
+	status_label.text = "No answer from %s. Check the IP, the VPN, and the host's firewall." % _ip_target
+
+
+func _set_joining(joining: bool) -> void:
+	refresh_button.disabled = joining
+	back_button.disabled = joining
+	join_lobby_button.disabled = joining
+	join_ip_button.disabled = joining
+
 
 func _refresh_host_list():
 	# Clear existing host entries immediately (not deferred) to prevent overlap
@@ -232,17 +284,14 @@ func _on_host_pressed(host_key: String):
 	Network.set_my_name(chosen_name)
 	
 	status_label.text = "Connecting to %s..." % str(info["name"])
-	refresh_button.disabled = true
-	back_button.disabled = true
-	join_lobby_button.disabled = true
+	_set_joining(true)
 	
 	# Join the host using the discovered IP and port
 	Network.join_host(str(info["ip"]), int(info["port"]))
 
 func _on_network_connected(success: bool, reason: String):
-	refresh_button.disabled = false
-	back_button.disabled = false
-	join_lobby_button.disabled = false
+	_ip_timer.stop()
+	_set_joining(false)
 	
 	if success:
 		Network.stop_discovery()
