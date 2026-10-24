@@ -478,6 +478,42 @@ func _run() -> void:
 	_arena._update_blitz(DT)
 	_check(not _arena._blitz and not _arena.blitz_glow.visible and is_equal_approx(_arena.earn_rate(), 40.0), "(back to a normal trial for the rest)")
 
+	# --- standing about costs FAVOR ---------------------------------------------------------
+	_arena._enter_run()
+	_arena.player.set_lock(false)
+	_arena.player.global_position = _arena.baka.global_position + Vector2(400.0, 0.0)  # clear of the trigger
+	_arena.rules.local().favor = 500
+	_arena._tick_hanan(4.9)
+	_check(_arena.rules.local().favor == 500, "4.9 s idle costs nothing")
+	_arena._tick_hanan(0.2)
+	_check(_arena.rules.local().favor == 300, "5 s idle in RUN costs idle_penalty (%d)" % _arena.rules.local().favor)
+	_arena._tick_hanan(5.0)
+	_check(_arena.rules.local().favor == 100, "...and 10 s costs 400 in all (%d)" % _arena.rules.local().favor)
+	_arena._tick_hanan(5.0)
+	_check(_arena.rules.local().favor == 0, "FAVOR never goes below 0 (%d)" % _arena.rules.local().favor)
+	_arena._tick_hanan(5.0)
+	_check(_arena.rules.local().favor == 0, "nothing is taken at 0 FAVOR")
+	_arena.rules.local().favor = 500
+	_arena._enter_run()
+	_arena._tick_hanan(4.9)
+	_arena.begin_vault()
+	_arena._tick_idle(10.0)
+	_check(_arena.rules.local().favor == 500 and is_equal_approx(_arena._idle_left, _arena.idle_time),
+		"a vault started at 4.9 s costs nothing, and the clock pauses during it")
+	_arena._vault_state = HananArena.Vault.STUMBLE
+	_arena._tick_idle(10.0)
+	_check(_arena.rules.local().favor == 500, "the clock is paused during a stumble")
+	_arena._enter_run()
+	_check(is_equal_approx(_arena._idle_left, _arena.idle_time), "back in RUN it restarts at a full idle_time")
+	_arena.player.set_lock(true)
+	_arena._tick_idle(10.0)
+	_check(_arena.rules.local().favor == 500, "nothing is taken while the mortal is locked")
+	_arena.player.set_lock(false)
+	_arena._tick_idle(3.5)
+	_check(_arena.callout_label.visible and _arena.callout_label.text.begins_with("LEAP!"), "the last 2 s warn LEAP!")
+	_check(_arena.arena_local_effects().size() == 1, "...and the effect timers count the IDLE down")
+	_arena._enter_run()
+
 	# --- the trial ends mid-vault: what it earned is banked --------------------------------
 	_arena._level = 1
 	_arena._enter_run()

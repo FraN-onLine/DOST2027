@@ -136,6 +136,32 @@ func _run() -> void:
 	_check(synced.icon.animation == &"blocking",
 		"a client replays the block from the host's hit count")
 
+	# --- SHE FACES THE WAY SHE WALKS --------------------------------------------
+	var walker: MayariClone = _arena._clones[0]
+	var at := walker.global_position
+	walker._last_pos = Vector2.INF
+	walker._face_movement()
+	walker.global_position = at + Vector2(5, 0)
+	walker._face_movement()
+	_check(not walker.icon.flip_h, "walking right she faces right")
+	walker.global_position = at
+	walker._face_movement()
+	_check(walker.icon.flip_h, "walking left she is flipped")
+	walker.global_position = at + Vector2(-0.2, 0)
+	walker._face_movement()
+	_check(walker.icon.flip_h, "a tiny move keeps her facing")
+	walker._face_movement()
+	_check(walker.icon.flip_h, "standing still keeps her facing")
+	walker.global_position = at + Vector2(-0.2, 5)
+	walker._last_vertical = 0
+	walker._face_movement()
+	walker.global_position = at + Vector2(-0.2, 10)
+	walker._face_movement()
+	_check(walker.icon.flip_h, "walking on down a vertical line does not turn her")
+	walker.global_position = at + Vector2(-0.2, 5)
+	walker._face_movement()
+	_check(not walker.icon.flip_h, "reversing on a vertical line turns her round")
+
 	print("Mayari / patintero checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
 	quit(1 if _problems > 0 else 0)

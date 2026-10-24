@@ -10,7 +10,7 @@ extends Arena
 @export var tala_min_y := 285.0
 @export var tala_max_y := 565.0
 @export var can_repair_time := 3.0
-@export var can_favor := 300
+@export var can_favor := 250
 # BLITZ MODE: the last blitz_duration seconds of the trial. Cans pay
 # blitz_can_multiplier, a second Tala walks her own beat (the first one's route
 # the other way round, in a lane blitz_double_lane in front of it), a catch by
@@ -222,6 +222,7 @@ func _spawn_second_tala() -> void:
 	_second_tala.sprite_frames = source.sprite_frames
 	_second_tala.scale = source.scale
 	_second_tala.material = source.material
+	_second_tala.flip_h = source.flip_h  # her facing, which never changes while she walks
 	source.get_parent().add_child(_second_tala)
 	_place_second_tala()
 
@@ -264,7 +265,6 @@ func _place_second_tala(delta := 0.0) -> void:
 	_second_tala.global_position = spot
 	if travelled.length() < 0.01:
 		return
-	_second_tala.flip_h = travelled.x < 0.0 if absf(travelled.x) >= absf(travelled.y) else travelled.y < 0.0
 	var clip := &"walk" if _second_tala.sprite_frames.has_animation(&"walk") else (tala as AnimatedSprite2D).animation
 	if _second_tala.animation != clip or not _second_tala.is_playing():
 		_second_tala.play(clip)
