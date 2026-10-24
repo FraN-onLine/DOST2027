@@ -2,9 +2,9 @@
 
 [ext_resource type="Script" uid="uid://mbsvj8vbhmue" path="res://scripts/gods/common/mortal.gd" id="1_mortal"]
 [ext_resource type="Texture2D" uid="uid://6tbenjtl5de6" path="res://Assets/Placeholders/glow.png" id="2_icon"]
-[ext_resource type="Texture2D" uid="uid://cphb53fo1gfxn" path="res://Assets/Player/Lamang-Sheet.png" id="3_af5nn"]
 [ext_resource type="Texture2D" uid="uid://dxphlrugle2gr" path="res://Assets/Gods/lam-ang.png" id="4_6r6jq"]
 [ext_resource type="Shader" uid="uid://coxohuv3bowvg" path="res://scenes/gods/common/bandana_swap.gdshader" id="4_bandana"]
+[ext_resource type="Texture2D" uid="uid://n6m5mlk13yrf" path="res://Assets/Gods/lam-ang_block.png" id="5_fxuyk"]
 [ext_resource type="Texture2D" uid="uid://cxkcpecrakrk6" path="res://Assets/Gods/lam-ang-walking.png" id="6_fxuyk"]
 [ext_resource type="Texture2D" uid="uid://tuodoq57kabn" path="res://Assets/Placeholders/fx/stun_star.png" id="7_stun"]
 
@@ -44,25 +44,21 @@ region = Rect2(0, 0, 64, 64)
 atlas = ExtResource("4_6r6jq")
 region = Rect2(64, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_d10"]
-atlas = ExtResource("3_af5nn")
-region = Rect2(640, 0, 64, 64)
+[sub_resource type="AtlasTexture" id="AtlasTexture_cfrcs"]
+atlas = ExtResource("5_fxuyk")
+region = Rect2(0, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_d11"]
-atlas = ExtResource("3_af5nn")
-region = Rect2(704, 0, 64, 64)
+[sub_resource type="AtlasTexture" id="AtlasTexture_kakcg"]
+atlas = ExtResource("5_fxuyk")
+region = Rect2(64, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_d12"]
-atlas = ExtResource("3_af5nn")
-region = Rect2(768, 0, 64, 64)
+[sub_resource type="AtlasTexture" id="AtlasTexture_km0sa"]
+atlas = ExtResource("5_fxuyk")
+region = Rect2(128, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_d13"]
-atlas = ExtResource("3_af5nn")
-region = Rect2(832, 0, 64, 64)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_d14"]
-atlas = ExtResource("3_af5nn")
-region = Rect2(896, 0, 64, 64)
+[sub_resource type="AtlasTexture" id="AtlasTexture_sihek"]
+atlas = ExtResource("5_fxuyk")
+region = Rect2(192, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_wwxri"]
 atlas = ExtResource("4_6r6jq")
@@ -127,19 +123,19 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d10")
+"texture": SubResource("AtlasTexture_cfrcs")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d11")
+"texture": SubResource("AtlasTexture_kakcg")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d12")
+"texture": SubResource("AtlasTexture_km0sa")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d13")
+"texture": SubResource("AtlasTexture_sihek")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d14")
+"texture": SubResource("AtlasTexture_km0sa")
 }],
 "loop": 0,
 "name": &"defend-arnis",
@@ -254,10 +250,9 @@ material = SubResource("ShaderMaterial_bandana")
 position = Vector2(0, -31.5)
 scale = Vector2(1.7078125, 1.6453125)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-animation = &"hit-arnis"
+animation = &"walk"
 autoplay = "default"
-frame = 8
-frame_progress = 1.0
+frame_progress = 0.26999635
 
 [node name="StunStars" type="Node2D" parent="." unique_id=1837210819]
 visible = false

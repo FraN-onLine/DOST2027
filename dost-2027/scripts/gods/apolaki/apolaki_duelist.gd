@@ -46,11 +46,11 @@ const ANIM_DEFEND := &"defend"  # the raised-stick guard
 @export var speed := 74.0           # how fast he closes the distance
 @export var keep_distance := 80.0   # how close he stands while idle
 @export var reach := 92.0           # HIS AREA: a swing only lands this close
-@export var attack_hit_open_frame := 4   # his swing is live from this frame...
-@export var attack_hit_close_frame := 7  # ...through this one of the clip
-@export var idle_time := 0.9        # how long he watches before his next move
+@export var attack_hit_open_frame := 5   # his swing is live from this frame...
+@export var attack_hit_close_frame := 8  # ...through this one of the clip
+@export var idle_time := 0.7        # how long he watches before his next move
 @export var attack_time := 1.0      # how long one swing lasts (its clip plays out)
-@export var defend_time := 0.9      # how long a guard holds
+@export var defend_time := 1.6      # how long a guard holds
 @export var defend_chance := 0.35   # how often his next move is a guard
 # The sheet is drawn facing LEFT, so he is mirrored when the mortal stands to
 # his right. Flip this if a new sheet is drawn the other way round.

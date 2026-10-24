@@ -4,7 +4,9 @@
 [ext_resource type="Script" uid="uid://hlq046tgceac" path="res://scripts/gods/hanan/hanan_arena.gd" id="2_pmmhp"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://dnax1ilo8tx4p" path="res://Assets/Gods/Hanan/HananOverseer-Sheet.png" id="4_2uhhy"]
-[ext_resource type="PackedScene" path="res://scenes/gods/hanan/HananBaka.tscn" id="5_baka"]
+[ext_resource type="PackedScene" uid="uid://dp4er0w7jxl38" path="res://scenes/gods/hanan/HananBaka.tscn" id="5_baka"]
+[ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="6_nrrp5"]
+[ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="7_q1ga2"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_w0dj0"]
 atlas = ExtResource("4_2uhhy")
@@ -35,18 +37,20 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Arena" unique_id=628936061 instance=ExtResource("1_43mqu")]
+[node name="Arena2" unique_id=628936061 instance=ExtResource("1_43mqu")]
 script = ExtResource("2_pmmhp")
-god_id = &"hanan"
-embedded = true
-dialogue_prefix = "hanan"
-shake_pixels = 5.0
 vault_window = 3.0
 grace_time = 0.35
 vaults_per_level = 3
 favor_per_second = 40.0
 combo_step = 0.25
 combo_cap = 3.0
+trip_penalty_base = 40
+trip_penalty_per_level = 20
+mercy_trips = 2
+ready_time = 0.6
+vault_span = 140.0
+practice_box_scale = 1.5
 bank_interval = 0.5
 stumble_time = 1.0
 stumble_force = 320.0
@@ -61,8 +65,13 @@ box_sizes = null
 drift_speeds = null
 burst_multiplier = 3.2
 bar_offset = Vector2(36, 0)
+god_id = &"hanan"
+embedded = true
+dialogue_prefix = "hanan"
+shake_pixels = 5.0
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
+visible = false
 position = Vector2(654.75, 274)
 scale = Vector2(6.5475, 4.87)
 texture = ExtResource("3_bg")
@@ -82,8 +91,9 @@ position = Vector2(984, 185)
 scale = Vector2(3, 3)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1341370406]
-position = Vector2(956.79205, 174.3834)
-scale = Vector2(3.710893, 3.522897)
+z_index = -1
+position = Vector2(956.00006, 185)
+scale = Vector2(3.7724304, 3.6464646)
 sprite_frames = SubResource("SpriteFrames_q1ga2")
 autoplay = "default"
 frame_progress = 0.046383616
@@ -94,12 +104,7 @@ position = Vector2(400, 470)
 [node name="HananHud" type="CanvasLayer" parent="." index="9" unique_id=81470394]
 layer = 12
 
-[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1400636208]
-layout_mode = 2
-theme_type_variation = &"HudLabel"
-text = "LEVEL 1  LOW BAKA"
-
-[node name="Callout" type="Label" parent="HananHud" index="1" unique_id=50663764]
+[node name="Callout" type="Label" parent="HananHud" index="0" unique_id=50663764]
 visible = false
 anchors_preset = 5
 anchor_left = 0.5
@@ -171,6 +176,21 @@ theme_type_variation = &"HudLabel"
 theme_override_colors/font_color = Color(0.9098039, 0.72156864, 0.2901961, 1)
 text = "HOLD LEFT CLICK"
 
-[node name="FaceFocus" type="Marker2D" parent="."]
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=1400636208]
+layout_mode = 2
+theme_type_variation = &"HudLabel"
+text = "LEVEL 1  LOW BAKA"
+
+[node name="FaceFocus" type="Marker2D" parent="." index="14" unique_id=1096640058]
 position = Vector2(944, 92)
 
+[node name="Arena1" type="Sprite2D" parent="." index="15" unique_id=894276810]
+position = Vector2(656, 270.00003)
+scale = Vector2(2.0124998, 2.2680554)
+texture = ExtResource("6_nrrp5")
+
+[node name="TempBackground" type="Sprite2D" parent="." index="16" unique_id=758506210]
+z_index = -2
+position = Vector2(575.75, 318.5)
+scale = Vector2(0.6040356, 0.63663363)
+texture = ExtResource("7_q1ga2")

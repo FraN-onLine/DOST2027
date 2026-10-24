@@ -391,8 +391,12 @@ func _run() -> void:
 		_arena._show_baka_height()
 		shown.append(baka.clip())
 		var frame := baka.art.sprite_frames.get_frame_texture(baka.art.animation, 0)
-		tall.append(frame.get_height() * baka.art.scale.y)
-		_check(is_equal_approx(baka.art.position.y + tall[-1] * 0.5, 0.0), "level %d: she stands on the Baka's origin" % level)
+		var tallest_figure := 0.0
+		for index in range(baka.art.sprite_frames.get_frame_count(baka.art.animation)):
+			tallest_figure = maxf(tallest_figure, _figure_height(baka.art.sprite_frames.get_frame_texture(baka.art.animation, index)))
+		tall.append(tallest_figure * baka.art.scale.y)
+		_check(is_equal_approx(baka.art.position.y + frame.get_height() * 0.5 * baka.art.scale.y, 0.0),
+			"level %d: she stands on the Baka's origin" % level)
 	_check(shown == [&"low", &"sitting", &"standing", &"standing", &"standing"],
 		"levels 1, 2, 3+ play low, sitting, standing (%s)" % str(shown))
 	_check(tall[0] < tall[1] and tall[1] < tall[2] and tall[2] < tall[3] and tall[3] < tall[4],
@@ -402,6 +406,9 @@ func _run() -> void:
 	_arena._show_baka_height()
 	_check(is_equal_approx(_arena.current_box_size(), _arena.box_sizes[0]) and size_before == _arena.box_sizes[4],
 		"the vault reads the level's numbers, never the art")
+	var authored: AnimatedSprite2D = (load("res://scenes/gods/hanan/HananBaka.tscn") as PackedScene).instantiate().get_node("Art")
+	_check(baka.art.scale == authored.scale, "she is drawn at the size authored on Art, never scaled down (%s)" % str(baka.art.scale))
+	authored.get_parent().free()
 	baka.bump()
 	await process_frame  # a tween takes its first step on the frame after it starts
 	await process_frame
@@ -426,6 +433,19 @@ func _run() -> void:
 	print("Hanan arena checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
 	quit(1 if _problems > 0 else 0)
+
+
+# The pixels the figure fills in a frame, top to bottom (frames carry padding).
+func _figure_height(texture: Texture2D) -> float:
+	var image := texture.get_image()
+	var top := image.get_height()
+	var bottom := -1
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			if image.get_pixel(x, y).a > 0.05:
+				top = mini(top, y)
+				bottom = maxi(bottom, y)
+	return float(bottom - top + 1) if bottom >= 0 else 0.0
 
 
 func _check(condition: bool, label: String) -> void:

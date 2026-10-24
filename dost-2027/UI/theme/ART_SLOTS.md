@@ -96,7 +96,7 @@ edge of the frame and the figure centred.
 | Clip | Scene / node | Expected frame size | Notes |
 |---|---|---|---|
 | `idle`, `chasing` | `scenes/gods/mapulon_ikapati/IkapatiTaya.tscn`, `GodLook/Art` | 64x64 (figure ~43 px; drawn 78 px tall, a mortal's height: `god_height` on the arena) | Mapulon & Ikapati as Langit Lupa's opening Taya. `idle` standing, `chasing` on the move (a missing clip falls back to idle). Facing right; it is flipped to walk left. If the figure does not fill the frame's height, set `figure_height` on the scene's root (43 for the current art). |
-| `low`, `sitting`, `standing` | `scenes/gods/hanan/HananBaka.tscn`, `Art` | 96x64 (`low`), 96x96 (`sitting`), 96x128 (`standing`); drawn at `art_scale` 0.6 | Hanan as the Baka. Level 1 `low` (crouched), 2 `sitting` (bent), 3+ `standing`; High Baka and Over the Moon stretch `standing` taller (`taller_per_level`). Keep the heights clearly different so the levels read. |
+| `low`, `sitting`, `standing` | `scenes/gods/hanan/HananBaka.tscn`, `Art` | 64x64 frames, drawn at the `Art` node's own scale in the scene (2.61 x 2.52 for the current art) | Hanan as the Baka. Level 1 `low` (crouched), 2 `sitting` (bent), 3+ `standing`; High Baka and Over the Moon stretch `standing` taller (`taller_per_level`). Keep the heights clearly different so the levels read. |
 
 ## The preparation area (scene art, also placeholders)
 

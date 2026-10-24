@@ -8,26 +8,28 @@ extends Node2D
 #   sitting   bent / sitting   (level 2, Sitting Baka)
 #   standing  standing tall    (level 3, Standing Baka; High Baka and Over the Moon
 #                               stand taller still: standing, stretched per level)
-# Every clip is the Godot placeholder until the art lands (cut to a different height
-# per clip so the levels read): drop the frames into the same clips, nothing else
-# changes. Whatever the frame size, Art stands on the node's origin (her feet).
+# Each clip's pose carries the height (the frames stay one size). Art keeps the
+# scale authored on it in the scene - she is drawn large on the field - and every
+# level past Standing Baka stretches her taller. Whatever the frame size, she
+# stands on the node's origin (her feet).
 #
 # The arena owns the game: it calls set_level() when the level changes and bump()
 # on a trip. Nothing here is read back - the vault's numbers stay the level's.
 
 const CLIPS: Array[StringName] = [&"low", &"sitting", &"standing"]
 
-@export var art_scale := 0.6         # the art's size on the field
 @export var taller_per_level := 0.2  # the stretch for each level past Standing Baka
 @export var bump_time := 0.25        # the trip's wobble, seconds
 
 @onready var art: AnimatedSprite2D = $Art
 
 var level := 1
+var _base_scale := Vector2.ONE  # Art's authored size; the levels only stretch it taller
 var _bump: Tween
 
 
 func _ready() -> void:
+	_base_scale = art.scale
 	set_level(level)
 
 
@@ -38,7 +40,7 @@ func set_level(value: int) -> void:
 	if art.sprite_frames != null and art.sprite_frames.has_animation(clip):
 		art.play(clip)
 	var stretch := 1.0 + taller_per_level * maxi(0, level - CLIPS.size())
-	art.scale = Vector2(art_scale, art_scale * stretch)
+	art.scale = Vector2(_base_scale.x, _base_scale.y * stretch)
 	var frame := art.sprite_frames.get_frame_texture(art.animation, art.frame) if art.sprite_frames != null else null
 	art.position.y = -float(frame.get_height()) * 0.5 * art.scale.y if frame != null else 0.0
 

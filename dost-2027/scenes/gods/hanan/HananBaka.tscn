@@ -1,52 +1,187 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dp4er0w7jxl38"]
 
-[ext_resource type="Script" path="res://scripts/gods/hanan/hanan_baka.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/godot_placeholder.svg" id="2_placeholder"]
+[ext_resource type="Script" uid="uid://bkswliuele51l" path="res://scripts/gods/hanan/hanan_baka.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://6egyolf8g7pe" path="res://Assets/Gods/Hanan/hanan_sleeping.png" id="2_w6874"]
+[ext_resource type="Texture2D" uid="uid://c3t8akwshlq8x" path="res://Assets/Gods/Hanan/hanan_alert.png" id="3_ld5oc"]
+[ext_resource type="Texture2D" uid="uid://cdadl5eqvqgjn" path="res://Assets/Gods/Hanan/hanan_waking.png" id="4_n8yid"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_low"]
-atlas = ExtResource("2_placeholder")
-region = Rect2(0, 64, 128, 64)
+[sub_resource type="AtlasTexture" id="AtlasTexture_f527u"]
+atlas = ExtResource("2_w6874")
+region = Rect2(0, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_sitting"]
-atlas = ExtResource("2_placeholder")
-region = Rect2(0, 32, 128, 96)
+[sub_resource type="AtlasTexture" id="AtlasTexture_l18yp"]
+atlas = ExtResource("2_w6874")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rgj6u"]
+atlas = ExtResource("2_w6874")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rqfms"]
+atlas = ExtResource("2_w6874")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_y1fej"]
+atlas = ExtResource("2_w6874")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0jj81"]
+atlas = ExtResource("2_w6874")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jci8q"]
+atlas = ExtResource("2_w6874")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s38sn"]
+atlas = ExtResource("2_w6874")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fcsdb"]
+atlas = ExtResource("3_ld5oc")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qifr2"]
+atlas = ExtResource("3_ld5oc")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fuijo"]
+atlas = ExtResource("3_ld5oc")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3psp3"]
+atlas = ExtResource("3_ld5oc")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lfmxj"]
+atlas = ExtResource("3_ld5oc")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0a5j2"]
+atlas = ExtResource("4_n8yid")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c7r3p"]
+atlas = ExtResource("4_n8yid")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cmk5k"]
+atlas = ExtResource("4_n8yid")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_88y1g"]
+atlas = ExtResource("4_n8yid")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ujxbp"]
+atlas = ExtResource("4_n8yid")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6foc7"]
+atlas = ExtResource("4_n8yid")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_acky3"]
+atlas = ExtResource("4_n8yid")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jq2m8"]
+atlas = ExtResource("4_n8yid")
+region = Rect2(448, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_baka"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_low")
+"texture": SubResource("AtlasTexture_f527u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l18yp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rgj6u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rqfms")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_y1fej")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0jj81")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jci8q")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s38sn")
 }],
-"loop": true,
+"loop": 1,
 "name": &"low",
-"speed": 5.0
+"speed": 8.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_sitting")
+"texture": SubResource("AtlasTexture_fcsdb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qifr2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fuijo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3psp3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lfmxj")
 }],
-"loop": true,
+"loop": 1,
 "name": &"sitting",
 "speed": 5.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("2_placeholder")
+"texture": SubResource("AtlasTexture_0a5j2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c7r3p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cmk5k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_88y1g")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ujxbp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6foc7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_acky3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jq2m8")
 }],
-"loop": true,
+"loop": 1,
 "name": &"standing",
 "speed": 5.0
 }]
 
-[node name="HananBaka" type="Node2D"]
+[node name="HananBaka" type="Node2D" unique_id=1102609045]
 script = ExtResource("1_script")
 
-[node name="Art" type="AnimatedSprite2D" parent="."]
-scale = Vector2(0.6, 0.6)
+[node name="Art" type="AnimatedSprite2D" parent="." unique_id=426739875]
+position = Vector2(1.5258789e-05, -80)
+scale = Vector2(2.6124997, 2.51875)
 sprite_frames = SubResource("SpriteFrames_baka")
-animation = &"low"
+animation = &"standing"
+autoplay = "low"
+frame_progress = 0.39143193
 
-[node name="Name" type="Label" parent="."]
+[node name="Name" type="Label" parent="." unique_id=167140903]
 offset_left = -26.0
 offset_top = 4.0
 offset_right = 26.0
