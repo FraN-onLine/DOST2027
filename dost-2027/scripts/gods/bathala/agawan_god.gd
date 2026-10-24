@@ -108,7 +108,7 @@ var _shock_timer := 0.0               # cooldown until next shockwave
 var shocking := false                 # visual: shockwave active this frame
 var shock_left := 0.0                 # visual: seconds left showing shock ring
 
-@onready var icon: Sprite2D = get_node_or_null("Icon")
+@onready var icon: AnimatedSprite2D = get_node_or_null("Icon")
 @onready var ring: Line2D = get_node_or_null("Ring")
 @onready var reach_ring: Line2D = get_node_or_null("Reach")
 @onready var pulse_ring: Line2D = get_node_or_null("Pulse")

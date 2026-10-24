@@ -1,7 +1,50 @@
 [gd_scene format=3 uid="uid://mayari001"]
 
-[ext_resource type="Script" uid="uid://mayari_script" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/god.png" id="2_icon"]
+[ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
+[ext_resource type="Texture2D" uid="uid://bodaxyc16j8dj" path="res://Assets/Gods/Mayari/mayari_idle.png" id="2_cuobb"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xhclv"]
+atlas = ExtResource("2_cuobb")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mhcif"]
+atlas = ExtResource("2_cuobb")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hg6ol"]
+atlas = ExtResource("2_cuobb")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hhbhh"]
+atlas = ExtResource("2_cuobb")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pjfcj"]
+atlas = ExtResource("2_cuobb")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xhclv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mhcif")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hg6ol")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hhbhh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pjfcj")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="Mayari" type="Node2D" unique_id=1701970279]
 script = ExtResource("1_god")
@@ -29,9 +72,11 @@ points = PackedVector2Array(0, 0, 140, 0)
 width = 3.0
 default_color = Color(1, 0.62, 0.55, 0.6)
 
-[node name="Icon" type="Sprite2D" parent="." unique_id=393452195]
+[node name="Icon" type="AnimatedSprite2D" parent="." unique_id=1099484071]
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_icon")
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+frame_progress = 0.47368652
+flip_h = true
 
 [node name="Name" type="Label" parent="." unique_id=1279801228]
 offset_left = -55.0

@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://8kjnfw7bjul7" path="res://Assets/Gods/Tala/can2.png" id="4_28pec"]
 [ext_resource type="Texture2D" uid="uid://b6vjr6hvao45f" path="res://Assets/Gods/Tala/can1.png" id="5_8urks"]
-[ext_resource type="Texture2D" uid="uid://dqltvlxohlij3" path="res://Assets/Gods/Tala/Tala-Sheet.png" id="5_28pec"]
+[ext_resource type="Texture2D" uid="uid://dwoegfk45t20c" path="res://Assets/Gods/Tala/tala_mini.png" id="6_28pec"]
 [ext_resource type="Texture2D" uid="uid://c5faeg35jn743" path="res://Assets/Gods/Tala/TalaOverseer-Sheet.png" id="7_28pec"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cgjks"]
@@ -36,16 +36,48 @@ animations = [{
 }]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kthyc"]
-atlas = ExtResource("5_28pec")
+atlas = ExtResource("6_28pec")
 region = Rect2(0, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_sff6p"]
-atlas = ExtResource("5_28pec")
+atlas = ExtResource("6_28pec")
 region = Rect2(64, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_rl0e3"]
-atlas = ExtResource("5_28pec")
+atlas = ExtResource("6_28pec")
 region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kw4qf"]
+atlas = ExtResource("6_28pec")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jhx3u"]
+atlas = ExtResource("6_28pec")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_abkg1"]
+atlas = ExtResource("6_28pec")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iplod"]
+atlas = ExtResource("6_28pec")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rf0bt"]
+atlas = ExtResource("6_28pec")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hy3af"]
+atlas = ExtResource("6_28pec")
+region = Rect2(512, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l0q4u"]
+atlas = ExtResource("6_28pec")
+region = Rect2(576, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e14ky"]
+atlas = ExtResource("6_28pec")
+region = Rect2(640, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_yf5fn"]
 animations = [{
@@ -58,6 +90,30 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_rl0e3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kw4qf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jhx3u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_abkg1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iplod")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rf0bt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hy3af")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l0q4u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e14ky")
 }],
 "loop": 2,
 "name": &"default",
@@ -104,6 +160,10 @@ tala_min_y = 285.0
 tala_max_y = 565.0
 can_repair_time = 3.0
 can_favor = 300
+blitz_duration = 30.0
+blitz_can_multiplier = 1.25
+blitz_stun_time = 1.0
+blitz_double_lane = 64.0
 tala_penalty = 100
 can_hit_shake_time = 0.12
 tala_hit_shake_time = 0.15
@@ -178,11 +238,12 @@ animation = &"hittable"
 autoplay = "hittable"
 
 [node name="Tala" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="6" unique_id=1560858802]
-position = Vector2(835.99994, 426)
-scale = Vector2(1.404091, 1.4874569)
+z_index = 1
+position = Vector2(835, 416)
+scale = Vector2(2.0614219, 2.1656036)
 sprite_frames = SubResource("SpriteFrames_yf5fn")
 autoplay = "default"
-frame_progress = 0.29051828
+frame_progress = 0.9625631
 
 [node name="OverSeerGod" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="7" unique_id=287992503]
 position = Vector2(949.00006, 164)
@@ -191,7 +252,7 @@ sprite_frames = SubResource("SpriteFrames_wpc2v")
 autoplay = "default"
 frame_progress = 0.36153302
 
-[node name="BlitzGlow" type="ColorRect" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) unique_id=1894022107]
+[node name="BlitzGlow" type="ColorRect" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="8" unique_id=1894022107]
 visible = false
 z_index = -1
 mouse_filter = 2
@@ -257,11 +318,10 @@ offset_bottom = -5.0
 [node name="Slippers" type="Node2D" parent="." index="9" unique_id=1663118273]
 z_index = 6
 
-[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1709965248]
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=1709965248]
 layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "THROW FROM THE LINE"
 
-[node name="FaceFocus" type="Marker2D" parent="."]
+[node name="FaceFocus" type="Marker2D" parent="." index="13" unique_id=661980921]
 position = Vector2(947, 119)
-

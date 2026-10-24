@@ -10,6 +10,8 @@ extends SceneTree
 #     mortal - by her touch and by a shockwave,
 #   * a clone touching you answers on YOUR screen - the shared shake and wash
 #     (the same one Apolaki's duel uses),
+#   * a clone braces (blocking animation) when she catches a mortal, then
+#     settles back into her idle loop - and a client replays it,
 #   * Mayari's own sprite is never modulated - the glow is gone.
 #
 # Run: godot --headless --path <project> -s res://tools/mayari_check.gd
@@ -120,6 +122,19 @@ func _run() -> void:
 		"even a hunt leaves the sprite unmodulated")
 	_check(clone.path.default_color.a > patrol_line.a,
 		"the hunt still lights the path line instead")
+
+	# --- HER TOUCH BRACES HER, THEN SHE RETURNS TO IDLE -------------------------
+	clone.block()
+	_check(clone.icon.animation == &"blocking",
+		"a mortal running into her snaps her into the blocking stance")
+	_check(clone.block_count() == 1, "the touch is counted so clients can replay it")
+	await create_timer(0.8).timeout
+	_check(clone.icon.animation == &"default",
+		"the block plays once, then she settles back into her idle loop")
+	var synced: MayariClone = _arena._clones[1]
+	synced.set_block_count(1)
+	_check(synced.icon.animation == &"blocking",
+		"a client replays the block from the host's hit count")
 
 	print("Mayari / patintero checks: %d problem(s)" % _problems)
 	print("--- DONE ---")

@@ -1,7 +1,92 @@
 [gd_scene format=3 uid="uid://tala001"]
 
-[ext_resource type="Script" uid="uid://tala_script" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/god.png" id="2_icon"]
+[ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
+[ext_resource type="Texture2D" uid="uid://dwoegfk45t20c" path="res://Assets/Gods/Tala/tala_mini.png" id="2_ir5cw"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ou2qn"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gjvdn"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dmqnw"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_to2vm"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mwtgh"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wotl2"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jpa7m"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j7mve"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wnvor"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(512, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h83w2"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(576, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_grk74"]
+atlas = ExtResource("2_ir5cw")
+region = Rect2(640, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ou2qn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gjvdn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dmqnw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_to2vm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mwtgh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wotl2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jpa7m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_j7mve")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wnvor")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h83w2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_grk74")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="Tala" type="Node2D" unique_id=1701970278]
 script = ExtResource("1_god")
@@ -29,9 +114,10 @@ points = PackedVector2Array(0, 0, 140, 0)
 width = 3.0
 default_color = Color(0.55, 0.85, 1, 0.6)
 
-[node name="Icon" type="Sprite2D" parent="." unique_id=393452194]
+[node name="Icon" type="AnimatedSprite2D" parent="." unique_id=1271203838]
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_icon")
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+frame_progress = 0.7861355
 
 [node name="Name" type="Label" parent="." unique_id=1279801227]
 offset_left = -55.0

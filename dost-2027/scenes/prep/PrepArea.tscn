@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://b3hkvrfg3hjsl" path="res://Assets/Placeholders/god.png" id="3_icon"]
 [ext_resource type="PackedScene" path="res://UI/GodsArena/tindahan_menu.tscn" id="4_shop"]
 [ext_resource type="Texture2D" uid="uid://dbmukqcfnx0ge" path="res://Assets/Altar.png" id="5_dlnq4"]
+[ext_resource type="Texture2D" uid="uid://1rudp71seeoq" path="res://Assets/Gods/merchant.png" id="6_dlnq4"]
 [ext_resource type="Texture2D" uid="uid://47ujncj6jm7f" path="res://Assets/Map/lobbymap.png" id="7_161xv"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_h5hph"]
@@ -91,12 +92,13 @@ default_color = Color(0.78, 0.78, 0.82, 0.6)
 
 [node name="Ground" type="ColorRect" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1460488952]
 z_index = -1
-offset_left = 292.0
-offset_top = 106.0
-offset_right = 1108.0
-offset_bottom = 558.0
+offset_left = 291.0
+offset_top = 100.0
+offset_right = 1107.0
+offset_bottom = 552.0
 mouse_filter = 2
 color = Color(0.105882354, 0.14509805, 0.27058825, 0.6)
+metadata/_edit_lock_ = true
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(700, 460)
@@ -133,7 +135,7 @@ frame_progress = 0.5407333
 position = Vector2(440, 300)
 
 [node name="GodIcon" type="Sprite2D" parent="Camp/Altar" index="0" unique_id=1442026637]
-position = Vector2(0, -32)
+position = Vector2(0, -69)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("3_icon")
 
@@ -156,35 +158,15 @@ text = "F - GOD'S DUE"
 horizontal_alignment = 1
 
 [node name="Sprite2D" type="Sprite2D" parent="Camp/Altar" index="3" unique_id=729452783]
-position = Vector2(9.536743e-07, 17)
-scale = Vector2(1.28125, 1.3125)
+position = Vector2(1.1444092e-05, 9.00001)
+scale = Vector2(1.6093752, 1.7187498)
 texture = ExtResource("5_dlnq4")
+metadata/_edit_lock_ = true
 
 [node name="Stall" type="Node2D" parent="Camp" index="2" unique_id=317150400]
 position = Vector2(960, 300)
 
-[node name="Shopkeeper" type="Sprite2D" parent="Camp/Stall" index="0" unique_id=1608646637]
-modulate = Color(0.95, 0.91, 0.81, 1)
-position = Vector2(0, -26)
-scale = Vector2(0.26, 0.26)
-texture = ExtResource("3_icon")
-
-[node name="Awning" type="ColorRect" parent="Camp/Stall" index="1" unique_id=1860414360]
-offset_left = -76.0
-offset_top = -78.0
-offset_right = 76.0
-offset_bottom = -60.0
-mouse_filter = 2
-color = Color(0.7254902, 0.5411765, 0.16470589, 1)
-
-[node name="Counter" type="ColorRect" parent="Camp/Stall" index="2" unique_id=315037161]
-offset_left = -64.0
-offset_right = 64.0
-offset_bottom = 36.0
-mouse_filter = 2
-color = Color(0.45, 0.31, 0.18, 1)
-
-[node name="Name" type="Label" parent="Camp/Stall" index="3" unique_id=686986482]
+[node name="Name" type="Label" parent="Camp/Stall" index="0" unique_id=686986482]
 offset_left = -90.0
 offset_top = 40.0
 offset_right = 90.0
@@ -193,7 +175,7 @@ theme_type_variation = &"WorldLabel"
 text = "TINDAHAN"
 horizontal_alignment = 1
 
-[node name="Hint" type="Label" parent="Camp/Stall" index="4" unique_id=270025467]
+[node name="Hint" type="Label" parent="Camp/Stall" index="1" unique_id=270025467]
 visible = false
 offset_left = -110.0
 offset_top = 60.0
@@ -202,6 +184,10 @@ offset_bottom = 80.0
 theme_type_variation = &"WorldLabel"
 text = "LEFT CLICK - TINDAHAN"
 horizontal_alignment = 1
+
+[node name="Sprite2D" type="Sprite2D" parent="Camp/Stall" index="2" unique_id=436124641]
+position = Vector2(0, -25)
+texture = ExtResource("6_dlnq4")
 
 [node name="PrepHud" type="CanvasLayer" parent="." index="12" unique_id=801358590]
 layer = 12
@@ -222,7 +208,6 @@ horizontal_alignment = 1
 [node name="Tindahan" parent="PrepHud" index="1" unique_id=1600641913 instance=ExtResource("4_shop")]
 
 [node name="Lobbymap" type="Sprite2D" parent="." index="13" unique_id=86944327]
-position = Vector2(639, 278.00003)
-scale = Vector2(1.1276041, 1.2160494)
+position = Vector2(656.00006, 211.99998)
+scale = Vector2(1.190199, 1.3442805)
 texture = ExtResource("7_161xv")
-metadata/_edit_lock_ = true

@@ -1,7 +1,40 @@
 [gd_scene format=3 uid="uid://svxrl6j6aa6k"]
 
 [ext_resource type="Script" uid="uid://bqg47sp01iupr" path="res://scripts/gods/mayari/mayari_clone.gd" id="1_clone"]
-[ext_resource type="Texture2D" uid="uid://deex22f5n28n3" path="res://Assets/Gods/Mayari/Mayari-Clone-Sheet.png" id="2_365sk"]
+[ext_resource type="Texture2D" uid="uid://bodaxyc16j8dj" path="res://Assets/Gods/Mayari/mayari_idle.png" id="2_365sk"]
+[ext_resource type="Texture2D" uid="uid://s3eoja8vx51a" path="res://Assets/Gods/Mayari/mayari_block.png" id="2_80202"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3wsmc"]
+atlas = ExtResource("2_80202")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kgu0n"]
+atlas = ExtResource("2_80202")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1e8os"]
+atlas = ExtResource("2_80202")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x70sk"]
+atlas = ExtResource("2_80202")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qw24t"]
+atlas = ExtResource("2_80202")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ij72q"]
+atlas = ExtResource("2_80202")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x0qdb"]
+atlas = ExtResource("2_80202")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ksm0h"]
+atlas = ExtResource("2_80202")
+region = Rect2(448, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_80202"]
 atlas = ExtResource("2_365sk")
@@ -19,8 +52,41 @@ region = Rect2(128, 0, 64, 64)
 atlas = ExtResource("2_365sk")
 region = Rect2(192, 0, 64, 64)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_kjtyk"]
+atlas = ExtResource("2_365sk")
+region = Rect2(256, 0, 64, 64)
+
 [sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
 animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3wsmc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kgu0n")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1e8os")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x70sk")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qw24t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ij72q")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x0qdb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ksm0h")
+}],
+"loop": 0,
+"name": &"blocking",
+"speed": 16.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_80202")
@@ -33,10 +99,13 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_bbn4k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kjtyk")
 }],
 "loop": 1,
 "name": &"default",
-"speed": 6.0
+"speed": 7.0
 }]
 
 [node name="MayariClone" type="Node2D" unique_id=1921702138]
@@ -49,11 +118,11 @@ width = 3.0
 default_color = Color(0.55, 0.85, 1, 0.22)
 
 [node name="Icon" type="AnimatedSprite2D" parent="." unique_id=683970908]
-position = Vector2(-3.8146973e-06, 0)
-scale = Vector2(1.455625, 1.2837499)
+position = Vector2(0, -19)
+scale = Vector2(1.8840626, 1.829375)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
 autoplay = "default"
-frame_progress = 0.11915929
+frame_progress = 0.36140636
 
 [node name="Name" type="Label" parent="." unique_id=832109828]
 offset_left = -55.0

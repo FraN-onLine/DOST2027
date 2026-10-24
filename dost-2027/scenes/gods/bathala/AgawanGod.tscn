@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://c8qw4bas3g1a0"]
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/god.png" id="2_icon"]
 
 [node name="AgawanGod" type="Node2D" unique_id=1701970276]
 script = ExtResource("1_god")
@@ -29,9 +28,8 @@ points = PackedVector2Array(0, 0, 140, 0)
 width = 3.0
 default_color = Color(1, 0.55, 0.2, 0.6)
 
-[node name="Icon" type="Sprite2D" parent="." unique_id=393452192]
+[node name="Icon" type="AnimatedSprite2D" parent="." unique_id=566699691]
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_icon")
 
 [node name="Name" type="Label" parent="." unique_id=1279801225]
 offset_left = -55.0

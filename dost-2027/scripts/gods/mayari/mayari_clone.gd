@@ -47,6 +47,7 @@ var _targets := PackedVector2Array()  # where the mortals are (host-fed)
 var _hunting := false
 var _hunt_left := 0.0
 var _hunt_timer := 0.0
+var _blocks := 0  # how many mortals she has braced against - clients replay each
 
 @onready var path: Line2D = get_node_or_null("Path")
 @onready var icon: AnimatedSprite2D = get_node_or_null("Icon")
@@ -56,6 +57,8 @@ var _hunt_timer := 0.0
 func _ready() -> void:
 	_read_path()
 	_hunt_timer = hunt_interval
+	if icon != null:
+		icon.animation_finished.connect(_on_icon_animation_finished)
 
 
 # How long the authored path is (0.0 when the clone has no usable path).
@@ -82,6 +85,36 @@ func set_targets(positions: PackedVector2Array) -> void:
 # Mirrored from the host on a client, where the walk is not simulated.
 func set_hunting(value: bool) -> void:
 	_hunting = value
+
+
+# A mortal ran into her: brace for the blocking stance, then melt back to idle.
+func block() -> void:
+	_blocks += 1
+	_play_block()
+
+
+# How many times she has braced. The arena mirrors this so a client sees the
+# hit even when it lands between two network ticks.
+func block_count() -> int:
+	return _blocks
+
+
+func set_block_count(value: int) -> void:
+	if value <= _blocks:
+		return
+	_blocks = value
+	_play_block()
+
+
+func _play_block() -> void:
+	if icon != null:
+		icon.play(&"blocking")
+
+
+func _on_icon_animation_finished() -> void:
+	# The block plays once (it does not loop); the idle loop takes over again.
+	if icon != null and icon.animation == &"blocking":
+		icon.play(&"default")
 
 
 # Read the authored Line2D once: its points become the fixed route to walk.
@@ -115,6 +148,8 @@ func restart() -> void:
 	_hunting = false
 	_hunt_left = 0.0
 	_hunt_timer = hunt_interval
+	if icon != null:
+		icon.play(&"default")
 	if _total <= 0.01:
 		return
 	_distance = _start_distance

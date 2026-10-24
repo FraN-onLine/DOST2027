@@ -194,11 +194,13 @@ func arena_read_layout(layout: Dictionary) -> void:
 func arena_tick_fields() -> Dictionary:
 	var clones: Array = []
 	var hunts: Array = []
+	var blocks: Array = []
 	for clone in _clones:
 		if is_instance_valid(clone):
 			clones.append(clone.global_position)
 			hunts.append(clone.is_hunting())
-	return {"clones": clones, "hunts": hunts}
+			blocks.append(clone.block_count())
+	return {"clones": clones, "hunts": hunts, "blocks": blocks}
 
 
 func arena_read_tick(state: Dictionary) -> void:
@@ -206,6 +208,7 @@ func arena_read_tick(state: Dictionary) -> void:
 	# positions the host sends, it never walks them itself.
 	var clone_positions: Array = state.get("clones", [])
 	var hunts: Array = state.get("hunts", [])
+	var blocks: Array = state.get("blocks", [])
 	for index in range(mini(clone_positions.size(), _clones.size())):
 		var clone = _clones[index]
 		if not is_instance_valid(clone):
@@ -213,6 +216,8 @@ func arena_read_tick(state: Dictionary) -> void:
 		clone.sync_position(clone_positions[index])
 		if index < hunts.size():
 			clone.set_hunting(bool(hunts[index]))
+		if index < blocks.size():
+			clone.set_block_count(int(blocks[index]))
 
 
 # --- ZONES -------------------------------------------------------------------
@@ -366,6 +371,7 @@ func _knock_force_for(mortal_id: int, base := 0.0) -> float:
 
 func _on_clone_hit(clone: MayariClone, mortal_id: int) -> void:
 	set_mortal_invuln(mortal_id, invuln_time)
+	clone.block()
 	var lost := lose_favor(clone_penalty, "Mayari's clone", mortal_id)
 	# Shove the mortal away from the clone it ran into - on whichever screen
 	# simulates that mortal (the base does the local / remote split) - and let
