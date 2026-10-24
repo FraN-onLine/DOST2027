@@ -1,8 +1,9 @@
 extends SceneTree
 
 # Validation: the Agawan Base balance pass.
-#   * every live god pulses every 5s and thaws the frozen gods within 90 (Hanan's
-#     dawn reaches 120); a frozen god never pulses; mortals are never touched
+#   * every live god pulses every 5s, throwing the players' expanding wave, and
+#     thaws the frozen gods within 90 (Hanan's dawn reaches 120); a frozen god
+#     never pulses; mortals are never touched
 #   * a mortal's attack is one shockwave per 5s; the waves are 65 (mortal) and 18 (god)
 #   * nobody can be frozen on their own base, by any source, and a refused freeze
 #     pops SAFE
@@ -72,8 +73,38 @@ func _run() -> void:
 		_tick(1)
 		steps += 1
 	_check(not apolaki.is_frozen(), "a frozen god thaws within 5s of a live ally pulsing 70 px away (%.2fs)" % (steps * DT))
-	_check(tala.pulse_flash > 0.0, "...and the ally's ring was shown")
+	_check(tala.pulses_released > 0, "...and the ally's pulse is counted for the clients")
 	_check(is_equal_approx(apolaki.immune_left, 1.0), "...and it comes out immune")
+
+	# --- a god's pulse is the same expanding ring a mortal throws --------------------
+	_fresh_round()
+	tala = _god(&"tala")
+	for god_node in _arena._gods:
+		if god_node != tala:
+			god_node.freeze_for(30.0)
+	tala.global_position = FIELD
+	var pulses_before := tala.pulses_released
+	var pulse_waves_before := _arena.shocks_root.get_child_count()
+	var pulse_steps := 0
+	while tala.pulses_released == pulses_before and pulse_steps < 41:
+		_tick(1)
+		pulse_steps += 1
+	_check(tala.pulses_released == pulses_before + 1, "a live god's pulse is counted for the clients")
+	_check(_arena.shocks_root.get_child_count() == pulse_waves_before + 1, "the pulse throws one expanding ring")
+	if _arena.shocks_root.get_child_count() > pulse_waves_before:
+		var pulse_wave: MayariShockwave = _arena.shocks_root.get_child(_arena.shocks_root.get_child_count() - 1)
+		_check(is_equal_approx(pulse_wave.max_scale * pulse_wave.base_radius, tala.pulse_radius),
+			"the pulse ring grows to the god's pulse reach, not the mortal's 65 px")
+
+	# The client draws the pulse from the host's count too.
+	var pulse_tick: Dictionary = _arena.arena_tick_fields()
+	_arena.arena_read_tick(pulse_tick)  # first tick after a rebuild: adopt, do not replay
+	var client_pulses_before := _arena.shocks_root.get_child_count()
+	var tala_state: Dictionary = pulse_tick["gods"][_arena._gods.find(tala)]
+	tala_state["pulse"] = tala.pulses_released + 1
+	_arena.arena_read_tick(pulse_tick)
+	_check(_arena.shocks_root.get_child_count() == client_pulses_before + 1,
+		"a client draws the god's pulse from the tick")
 
 	_fresh_round()
 	apolaki.global_position = FIELD

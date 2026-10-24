@@ -96,8 +96,8 @@ extends Arena
 #
 # THE GODS' LOOK: the god body is its own scene (IkapatiTaya.tscn, ikapati_taya.gd):
 # a mortal body with its mortal sprite hidden and the pair's look authored on it -
-# an AnimatedSprite2D (clips idle / walk / chant / tag, the Godot placeholder until
-# the art lands) standing god_height tall (about 1.5 mortals) with its feet where a
+# an AnimatedSprite2D (clips idle / chasing, the Godot placeholder until the art
+# lands) standing god_height tall (a mortal's height) with its feet where a
 # mortal's are, flipped to face where they walk, over a ring of the pair's accent
 # on the ground and under the usual name tag and Taya marker (both lifted above its
 # head). This file only tells it what the gods are doing (_draw_god). At GO the
@@ -194,7 +194,7 @@ const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are
 @export var god_hunt_speed := 230.0      # their walk while hunting
 @export var god_leave_time := 0.8        # seconds the gods take to fade out after their tag
 @export var god_tag_line := "MAPULON: \"IKAW NA!\""
-@export var god_height := 87.0           # px the god body stands (a mortal is 78)
+@export var god_height := 78.0           # px the god body stands (a mortal is 78)
 @export var god_puff_time := 0.35        # seconds the god body takes to pop in at GO
 
 @onready var langits_root: Node2D = get_node_or_null("ArenaField/Langits")
@@ -1294,7 +1294,7 @@ func _draw_god(delta: float) -> void:
 		_god_body.leave(god_tag_line, UITokens.god_text(god), god_leave_time + 0.6)
 	elif _god_leave <= 0.0:
 		var walking := was != Vector2.INF and _god_body.global_position.distance_to(was) > 0.1
-		_god_body.play_state(&"chant" if _chanting and _taya == GOD_TAYA else &"walk" if walking else &"idle")
+		_god_body.play_state(&"chant" if _chanting and _taya == GOD_TAYA else &"chasing" if walking else &"idle")
 	_god_said = _god_leave > 0.0
 
 

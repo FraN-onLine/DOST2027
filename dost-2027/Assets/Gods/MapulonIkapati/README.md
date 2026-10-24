@@ -17,7 +17,7 @@ is needed.
 
 The gods on the field as the opening Taya are not a drop-in file any more: they are
 their own scene, `scenes/gods/mapulon_ikapati/IkapatiTaya.tscn`. Put the frames in
-its `GodLook/Art` SpriteFrames, clips `idle`, `walk`, `chant` and `tag` (see
+its `GodLook/Art` SpriteFrames, clips `idle` and `chasing` (see
 `UI/theme/ART_SLOTS.md`, "God scenes"). The Godot placeholder stays until then.
 
 The platform size the rules use is `langit_size` on the arena (96 x 60). If the

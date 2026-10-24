@@ -106,12 +106,13 @@ func _run() -> void:
 	var god_art := body.art
 	var clips := god_art.sprite_frames.get_animation_names()
 	clips.sort()
-	_check(clips == PackedStringArray(["chant", "idle", "tag", "walk"]), "...its one SpriteFrames holds idle / walk / chant / tag (%s)" % str(clips))
+	_check(clips == PackedStringArray(["chasing", "idle"]), "...its one SpriteFrames holds idle / chasing (%s)" % str(clips))
 	_check(god_art.is_playing() and god_art.animation == &"idle" and god_art.visible, "...standing still it plays idle (%s)" % god_art.animation)
 	var stands: float = _arena.god_height
-	var frame_height := float(god_art.sprite_frames.get_frame_texture(god_art.animation, 0).get_height())
-	_check(is_equal_approx(frame_height * god_art.scale.y, stands),
-		"...scaled to stand %d px, about 1.5 mortals (%.2f)" % [stands, stands / IkapatiTaya.MORTAL_HEIGHT])
+	var frame_height := float(god_art.sprite_frames.get_frame_texture(&"idle", 0).get_height())
+	var figure := _figure_height(god_art.sprite_frames.get_frame_texture(&"idle", 0))
+	_check(is_equal_approx(stands, IkapatiTaya.MORTAL_HEIGHT) and absf(figure * god_art.scale.y - IkapatiTaya.MORTAL_HEIGHT) <= 4.0,
+		"...the drawn figure stands as tall as a mortal (%.0f px; frame padding ignored)" % (figure * god_art.scale.y))
 	_check(is_equal_approx(body.look.global_position.y - body.global_position.y, body.shadow.position.y)
 		and is_equal_approx(god_art.position.y + frame_height * 0.5 * god_art.scale.y, 0.0),
 		"...with its feet on the line a mortal's feet are on")
@@ -126,17 +127,13 @@ func _run() -> void:
 	_check(bool(god_art.flip_h), "she turns to face the way they walk (left)")
 	_arena._god_at += Vector2(-6, 0)
 	_arena._process(0.0)
-	_check(god_art.animation == &"walk", "walking, the body plays walk (%s)" % god_art.animation)
+	_check(god_art.animation == &"chasing", "moving, the body switches to the chasing clip (%s)" % god_art.animation)
+	_arena._process(0.0)
+	_check(god_art.animation == &"idle", "stopping again, it settles back to idle (%s)" % god_art.animation)
 	_arena._chanting = true
 	_arena._process(0.0)
-	_check(god_art.animation == &"chant", "chanting, it plays chant (%s)" % god_art.animation)
+	_check(god_art.animation == &"idle", "chanting before a chant clip lands, it falls back to idle (%s)" % god_art.animation)
 	_arena._chanting = false
-	_arena._god_leave = _arena.god_leave_time
-	_arena._process(0.0)
-	_check(god_art.animation == &"tag", "after their tag it plays tag (%s)" % god_art.animation)
-	_arena._god_leave = 0.0
-	_arena._god_said = false
-	_arena._process(0.0)
 	_check(is_equal_approx(_arena.taya_marker.global_position.y, _arena._god_body.global_position.y - _arena._god_lift),
 		"the Taya marker sits above her head, not over it")
 
@@ -711,6 +708,19 @@ func _put(id: int, at: Vector2) -> void:
 		_arena.player.global_position = at
 	else:
 		_arena._mortal_positions[id] = at
+
+
+# The pixels the figure fills in a frame, top to bottom (frames carry padding).
+func _figure_height(texture: Texture2D) -> float:
+	var image := texture.get_image()
+	var top := image.get_height()
+	var bottom := -1
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			if image.get_pixel(x, y).a > 0.05:
+				top = mini(top, y)
+				bottom = maxi(bottom, y)
+	return float(bottom - top + 1) if bottom >= 0 else 0.0
 
 
 func _check(condition: bool, label: String) -> void:

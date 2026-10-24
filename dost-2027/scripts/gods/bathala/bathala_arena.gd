@@ -35,7 +35,8 @@ extends Arena
 #       keeps its own timer (staggered by god index, paused while it is frozen).
 #       Hanan's dawn is the same pulse with a bigger ring (dawn_radius), so she is
 #       still the medic worth freezing first. The timers ride the state tick, and
-#       the rings are drawn from the gods' pulse flash, so every screen sees them.
+#       every pulse throws the same expanding wave a mortal's swing does, so every
+#       screen sees it.
 #
 # TAGGING / FREEZING
 #   A mortal ATTACKS (left click / `attack`). The swing reaches tag_radius:
@@ -145,7 +146,6 @@ const SAFE_GOD_OFFSET := Vector2(0.0, -44.0)
 @export var ally_pulse_interval := 5.0      # seconds between a god's pulses (0 = off)
 @export var ally_pulse_radius := 90.0       # the pulse thaws every frozen god this close
 @export var dawn_radius := 120.0            # Hanan's bigger pulse: she is the medic
-@export var dawn_flash := 0.5               # how long the ring shows
 
 @export_category("Bathala's pity")
 @export var pity_hold := 0.6                # the last-place mortal's hold (0 = off)
@@ -185,7 +185,8 @@ var _god_hold := 0.0                  # 0..1, the gods' hold on the mortals' bas
 var _stars: Array[Dictionary] = []    # Tala's stars: {pos, vel, left}
 var _star_cd := 0.0
 var _pulse_timers: Array[float] = []   # per god index: seconds to its next ally pulse (host; mirrored)
-var _seen_god_shocks: Array[int] = [] # client: per god index, the waves it has already drawn
+var _seen_god_shocks: Array[int] = [] # client: per god index, the shockwaves it has already drawn
+var _seen_god_pulses: Array[int] = [] # client: per god index, the pulses it has already drawn
 var _thaw_immune := {}                # mortal id -> seconds it cannot be frozen after thawing (host; mirrored)
 var _safe_flash := {}                 # target key -> seconds its SAFE popup stays claimed (host; mirrored)
 var _safe_shown := {}                 # the SAFE popups this screen has already popped
@@ -246,6 +247,7 @@ func _build_gods(roster: Array) -> void:
 	_frozen_gods.clear()
 	_pulse_timers.clear()
 	_seen_god_shocks.clear()
+	_seen_god_pulses.clear()
 	if gods_root == null or _bathala_base == Vector2.ZERO:
 		return
 	for id in roster + ["bathala"]:
@@ -519,7 +521,8 @@ func _tick_ally_pulses(delta: float) -> void:
 		if _pulse_timers[index] > 0.0:
 			continue
 		_pulse_timers[index] = ally_pulse_interval
-		god_node.show_pulse(dawn_flash)
+		god_node.release_pulse()
+		_spawn_god_pulse(god_node)
 		for other_index in range(_gods.size()):
 			var other: AgawanGod = _gods[other_index]
 			if other != god_node and other.is_frozen() and other.global_position.distance_to(god_node.global_position) <= god_node.pulse_radius:
@@ -796,6 +799,24 @@ func _spawn_shockwave(origin: Vector2, radius := 0.0) -> MayariShockwave:
 func _spawn_god_shockwave(god_node: AgawanGod) -> void:
 	_spawn_shockwave(god_node.global_position, god_node.shock_radius + 18.0)
 
+# A god's ally pulse: the same expanding ring, grown to the reach that thaws.
+func _spawn_god_pulse(god_node: AgawanGod) -> void:
+	_spawn_shockwave(god_node.global_position, god_node.pulse_radius)
+
+# A host counter of released waves, mirrored here: -1 adopts the first count seen
+# after a rebuild, and a bigger count means one more wave to draw on this screen.
+func _wave_count_rose(seen: Array[int], index: int, count: int) -> bool:
+	if seen.size() != _gods.size():
+		seen.resize(_gods.size())
+		seen.fill(-1)
+	if seen[index] < 0:
+		seen[index] = count
+		return false
+	if count > seen[index]:
+		seen[index] = count
+		return true
+	return false
+
 # The host's copy of a wave: it grows the real area and resolves hits.
 func _start_shock(origin: Vector2, caster_id: int, wave: MayariShockwave) -> void:
 	wave.set_manual_animation(true)
@@ -984,7 +1005,7 @@ func arena_tick_fields() -> Dictionary:
 			"left": god_node.freeze_left,
 			"windup": god_node.windup,
 			"lunge": [god_node.lunge_dir.x, god_node.lunge_dir.y],
-			"pulse": god_node.pulse_flash,
+			"pulse": god_node.pulses_released,
 			"immune": god_node.immune_left,
 			"shock": god_node.shocks_released,
 		})
@@ -1024,18 +1045,12 @@ func arena_read_tick(state: Dictionary) -> void:
 		var lunge: Array = entry.get("lunge", [])
 		if lunge.size() == 2:
 			god_node.lunge_dir = Vector2(float(lunge[0]), float(lunge[1]))
-		god_node.pulse_flash = float(entry.get("pulse", 0.0))
 		god_node.immune_left = float(entry.get("immune", 0.0))
 		# A new count means the host released a wave: draw the same ring here.
-		var shocks := int(entry.get("shock", 0))
-		if _seen_god_shocks.size() != _gods.size():
-			_seen_god_shocks.resize(_gods.size())
-			_seen_god_shocks.fill(-1)  # first tick after a rebuild - adopt, do not replay
-		if _seen_god_shocks[index] < 0:
-			_seen_god_shocks[index] = shocks
-		elif shocks > _seen_god_shocks[index]:
-			_seen_god_shocks[index] = shocks
+		if _wave_count_rose(_seen_god_shocks, index, int(entry.get("shock", 0))):
 			_spawn_god_shockwave(god_node)
+		if _wave_count_rose(_seen_god_pulses, index, int(entry.get("pulse", 0))):
+			_spawn_god_pulse(god_node)
 		god_node._refresh_visual()
 	_frozen_mortals.clear()
 	var frozen: Dictionary = state.get("frozen", {})

@@ -6,9 +6,9 @@ extends ArenaMortal
 # arena moves it like a ghost (host-run, mirrored on every client) - wearing the
 # pair's own look, authored in the scene: the mortal sprite stays hidden, GodLook
 # sits on a mortal's feet line (the pop-in grows it from there) and holds the
-# accent ring and Art, an AnimatedSprite2D whose clips idle / walk / chant / tag
-# live in one SpriteFrames. Every clip is the Godot placeholder until the art lands:
-# drop the frames into the same clips and nothing else changes. Art stands
+# accent ring and Art, an AnimatedSprite2D whose clips idle / chasing live in one
+# SpriteFrames. Every clip is the Godot placeholder until the art lands: drop the
+# frames into the same clips and nothing else changes. Art stands
 # god_height tall with its feet on GodLook's origin, whatever the frame size; the
 # name tag and the floating line ride above its head (`lift`).
 #
@@ -18,8 +18,8 @@ extends ArenaMortal
 const MORTAL_HEIGHT := 78.0  # a mortal's height, px (lam-ang.png at Mortal.tscn's scale)
 
 @export var god_id: StringName = &"mapulon_ikapati"
-@export var god_height := 87.0    # px the gods stand (the arena hands in its own)
-@export var figure_height := 0.0  # px of a frame the figure fills (0: the whole frame)
+@export var god_height := MORTAL_HEIGHT  # px the gods stand (the arena hands in its own)
+@export var figure_height := 0.0         # px of a frame the figure fills (0: the whole frame)
 
 @onready var look: Node2D = $GodLook
 @onready var ring: Line2D = $GodLook/GodRing
@@ -42,10 +42,14 @@ func _ready() -> void:
 	play_state(&"idle")
 
 
-# idle, walk, chant or tag.
+# idle, chasing, or any other clip the SpriteFrames grows. A missing clip (say,
+# chanting before a chant animation lands) falls back to idle, so a still god
+# never keeps the run cycle.
 func play_state(state: StringName) -> void:
-	if art.sprite_frames == null or not art.sprite_frames.has_animation(state):
+	if art.sprite_frames == null:
 		return
+	if not art.sprite_frames.has_animation(state):
+		state = &"idle"
 	if art.animation != state or not art.is_playing():
 		art.play(state)
 	_stand()

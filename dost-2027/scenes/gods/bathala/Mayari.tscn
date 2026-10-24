@@ -60,12 +60,6 @@ points = PackedVector2Array(20, 0, 19.32, 5.13, 17.32, 9.89, 14.14, 14.14, 9.89,
 width = 1.5
 default_color = Color(1, 0.62, 0.55, 0.3)
 
-[node name="Pulse" type="Line2D" parent="." unique_id=1772539836]
-visible = false
-points = PackedVector2Array(20, 0, 19.32, 5.13, 17.32, 9.89, 14.14, 14.14, 9.89, 17.32, 5.13, 19.32, 0, 20, -5.13, 19.32, -9.89, 17.32, -14.14, 14.14, -17.32, 9.89, -19.32, 5.13, -20, 0, -19.32, -5.13, -17.32, -9.89, -14.14, -14.14, -9.89, -17.32, -5.13, -19.32, 0, -20, 5.13, -19.32, 9.89, -17.32, 14.14, -14.14, 17.32, -9.89, 19.32, -5.13, 20, 0)
-width = 2.0
-default_color = Color(1, 0.62, 0.55, 0.7)
-
 [node name="Lunge" type="Line2D" parent="." unique_id=1047591347]
 visible = false
 points = PackedVector2Array(0, 0, 140, 0)

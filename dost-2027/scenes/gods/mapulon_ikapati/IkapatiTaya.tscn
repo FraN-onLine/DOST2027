@@ -156,32 +156,79 @@ animations = [{
 "speed": 5.0
 }]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_vq6ap"]
+atlas = ExtResource("6_du37m")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l7i5p"]
+atlas = ExtResource("6_du37m")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1m1fo"]
+atlas = ExtResource("6_du37m")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_du37m"]
+atlas = ExtResource("6_du37m")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6nmie"]
+atlas = ExtResource("6_du37m")
+region = Rect2(64, 0, 64, 64)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_0hi1p"]
 atlas = ExtResource("6_du37m")
 region = Rect2(0, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_86gur"]
 atlas = ExtResource("6_du37m")
-region = Rect2(64, 0, 64, 64)
+region = Rect2(512, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_0k31f"]
 atlas = ExtResource("6_du37m")
-region = Rect2(128, 0, 64, 64)
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dq8db"]
+atlas = ExtResource("6_du37m")
+region = Rect2(384, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_d7r0a"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_0hi1p")
+"texture": SubResource("AtlasTexture_vq6ap")
 }, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l7i5p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1m1fo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_du37m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6nmie")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0hi1p")
+}],
+"loop": 1,
+"name": &"chasing",
+"speed": 8.0
+}, {
+"frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_86gur")
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_0k31f")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dq8db")
 }],
 "loop": 1,
-"name": &"default",
+"name": &"idle",
 "speed": 5.0
 }]
 
@@ -190,10 +237,11 @@ collision_layer = 0
 collision_mask = 0
 script = ExtResource("2_script")
 god_id = &"mapulon_ikapati"
-god_height = 87.0
-figure_height = 0.0
+god_height = 78.0
+figure_height = 43.0
 
 [node name="Sprite" parent="." index="4" unique_id=348660814]
+visible = false
 sprite_frames = SubResource("SpriteFrames_6nmie")
 animation = &"default"
 frame = 0
@@ -208,6 +256,9 @@ closed = true
 width = 2.0
 
 [node name="Art" type="AnimatedSprite2D" parent="GodLook" index="1" unique_id=1225223201]
-position = Vector2(0, -62.5)
-scale = Vector2(2.4375, 2.078125)
+position = Vector2(-1.9073486e-06, -56)
+scale = Vector2(2.15625, 1.828125)
 sprite_frames = SubResource("SpriteFrames_d7r0a")
+animation = &"chasing"
+autoplay = "idle"
+frame_progress = 0.11309487

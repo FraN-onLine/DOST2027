@@ -62,7 +62,6 @@ star_life = 4.0
 ally_pulse_interval = 5.0
 ally_pulse_radius = 90.0
 dawn_radius = 120.0
-dawn_flash = 0.5
 pity_hold = 0.6
 wary_speed_step = 0.05
 wary_speed_cap = 0.25

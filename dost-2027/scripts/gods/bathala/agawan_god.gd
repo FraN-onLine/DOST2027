@@ -28,7 +28,8 @@ extends Node2D
 #     tag reach (a faint circle shows it), and she guards the lane - she steps
 #     into a mortal's row instead of chasing it.
 #   * Tala's star throw and every god's ally pulse (Hanan's is the big one) are
-#     rules, so the arena runs them (BathalaArena); this node only draws the ring.
+#     rules, so the arena runs them (BathalaArena); this node only counts them so
+#     every screen draws the same expanding wave.
 #     Every god also releases its own wave on a cooldown (the same expanding
 #     shockwave a mortal's swing throws); the arena runs it and draws it.
 #
@@ -90,7 +91,7 @@ var freeze_left := 0.0
 var speed_mult := 1.0                 # Bathala grows wary: every god gets faster
 var watch_target := Vector2.INF       # Bathala: the mortal holding his base, if any
 var pulse_radius := 90.0              # how far this god's ally pulse reaches (Hanan's is bigger)
-var pulse_flash := 0.0                # seconds left showing the pulse ring
+var pulses_released := 0              # how many ally pulses it has sent - clients replay each
 var thaw_immunity := 1.0              # seconds nothing can freeze this god after it thaws
 var immune_left := 0.0                # ...and how many are left (mirrored to the clients)
 
@@ -112,7 +113,6 @@ var shocks_released := 0              # how many waves it has thrown - clients r
 @onready var icon: AnimatedSprite2D = get_node_or_null("Icon")
 @onready var ring: Line2D = get_node_or_null("Ring")
 @onready var reach_ring: Line2D = get_node_or_null("Reach")
-@onready var pulse_ring: Line2D = get_node_or_null("Pulse")
 @onready var lunge_line: Line2D = get_node_or_null("Lunge")
 @onready var name_label: Label = get_node_or_null("Name")
 @onready var timer_label: Label = get_node_or_null("Timer")
@@ -187,15 +187,14 @@ func reset_round() -> void:
 	immune_left = 0.0
 	windup = 0.0
 	lunge_left = 0.0
-	pulse_flash = 0.0
 	_shock_timer = 0.0
 	watch_target = Vector2.INF
 	_lunge_cd = lunge_interval
 
 
-# The ally pulse: show the god's ring for `seconds`.
-func show_pulse(seconds: float) -> void:
-	pulse_flash = seconds
+# The ally pulse: count it so every screen draws the expanding ring.
+func release_pulse() -> void:
+	pulses_released += 1
 
 
 # Where this god wants to walk this frame. `mortals` holds the positions of the
@@ -253,7 +252,6 @@ func _within_ring(point: Vector2) -> Vector2:
 func step(delta: float, mortals: Array) -> void:
 	_pulse += delta
 	immune_left = maxf(0.0, immune_left - delta)
-	pulse_flash = maxf(0.0, pulse_flash - delta)
 	# Shockwave cooldown.
 	_shock_timer = maxf(0.0, _shock_timer - delta)
 	if frozen:
@@ -335,12 +333,6 @@ func _refresh_visual() -> void:
 		reach_ring.visible = god_id == &"mayari" and not frozen
 		if reach_ring.visible:
 			reach_ring.points = _circle(reach())
-	if pulse_ring != null:
-		pulse_ring.visible = pulse_flash > 0.0
-		if pulse_ring.visible:
-			pulse_ring.points = _circle(pulse_radius)
-			var edge := UITokens.GOLD if god_id == &"bathala" else tint
-			pulse_ring.default_color = Color(edge.r, edge.g, edge.b, 0.7)
 	if lunge_line != null:
 		lunge_line.visible = windup > 0.0
 		if lunge_line.visible:
