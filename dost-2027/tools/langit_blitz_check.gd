@@ -3,8 +3,9 @@ extends SceneTree
 # Validation: Langit Lupa's right-click chant, the one-Langit-at-a-time crumble
 # and Ikapati's blitz. The chant starts on `defend` (right click) and never on
 # `attack`, even with an old binding that put Defend on left click (which Settings
-# migrates back); a runner stepping off a Langit crumbles only that one, and a new
-# one forms within about 1 s at a legal spot; a full chant dooms the occupied
+# migrates back); a Langit crumbles cloud_life (5 s) after a runner first steps on it
+# - not when they step off - and a new one forms within about 1 s at a legal spot; a
+# Taya starts no countdown; a full chant dooms the occupied
 # Langit, which crumble after swap_time (not before, even when their runner steps
 # off) and form again; the bots re-target when their Langit crumbles; at 30 s left
 # the blitz is on and the season turns every 3 s; Ikapati comes back as a second
@@ -95,21 +96,34 @@ func _run() -> void:
 		bot.queue_free()
 	_arena._bots.clear()
 
-	# --- stepping off crumbles only that Langit ------------------------------------------------
+	# --- a Langit crumbles cloud_life after a runner's first step, not on leave --------------------
 	_reset(3)
 	_put(3, FAR)
 	_put(1, SPOTS[0])
-	_put(2, SPOTS[1])
+	_put(2, FAR + Vector2(0, -60))
 	_tick(DT)
 	var ids: Array[int] = _arena._cloud_id.duplicate()
-	_check(_arena.is_safe(1) and _arena.is_safe(2), "(two runners on two Langit)")
+	_check(is_equal_approx(_arena.cloud_life, 5.0) and is_equal_approx(_arena._cloud_burn[0], 5.0),
+		"a runner's first step starts a 5 s countdown on that Langit (%s)" % str(_arena._cloud_burn))
+	_check(_arena._cloud_burn[1] < 0.0 and _arena._cloud_burn[2] < 0.0, "...and only on the one a runner stands on")
 	_put(1, LUPA)
 	_tick(DT)
-	_check(_arena._cloud_state[0] == LangitLupaArena.Cloud.CRUMBLING, "stepping off a Langit crumbles it")
-	_check(_arena._cloud_state[1] == LangitLupaArena.Cloud.SOLID and _arena._cloud_state[2] == LangitLupaArena.Cloud.SOLID,
-		"...and only that one")
+	_check(_arena._cloud_state[0] == LangitLupaArena.Cloud.SOLID and _arena._cloud_burn[0] < 5.0, "stepping off crumbles nothing: its countdown just runs on")
+	_put(2, SPOTS[0])  # (the other runner steps onto the same Langit and stays)
+	_tick(DT)
+	_check(_arena._cloud_burn[0] < 5.0 - DT, "...and other feet on it do not reset it (%.3f)" % _arena._cloud_burn[0])
 	_arena._draw_langits(0.0)
-	_check((_arena.langits_root.get_child(0) as Node2D).visible and (_arena.langits_root.get_child(1) as Node2D).modulate.a == 1.0,
+	var title := (_arena.langits_root.get_child(0) as Node2D).get_node("Name") as Label
+	_check(title.text == "LANGIT 5", "the Langit shows its countdown (%s)" % title.text)
+	var elapsed := 3.0 * DT  # (the step-off and the next tick, then this one)
+	while elapsed < 6.0 and _arena._cloud_state[0] == LangitLupaArena.Cloud.SOLID:
+		_tick(DT)
+		elapsed += DT
+	_check(_arena._cloud_state[0] == LangitLupaArena.Cloud.CRUMBLING and absf(elapsed - 5.0) <= 2.0 * DT,
+		"it crumbles 5 s after the first step (%.2fs)" % elapsed)
+	_check(_arena._cloud_state[1] == LangitLupaArena.Cloud.SOLID and _arena._cloud_state[2] == LangitLupaArena.Cloud.SOLID, "...and only that one")
+	_arena._draw_langits(0.0)
+	_check((_arena.langits_root.get_child(0) as Node2D).visible and (_arena.langits_root.get_child(2) as Node2D).modulate.a == 1.0,
 		"...it is still drawn while it shakes, and the others are not touched")
 	var formed_at := -1.0
 	var gone_seen := false
@@ -121,15 +135,35 @@ func _run() -> void:
 		if _arena._cloud_id[0] != ids[0]:
 			formed_at = time
 	_check(gone_seen, "it falls (GONE) after its shake")
+	_check(not _arena.is_safe(2), "whoever still stood on it drops to the Lupa")
 	_check(formed_at > 0.0 and formed_at <= 1.05, "a new Langit forms in its slot within about 1 s (%.1fs)" % formed_at)
+	_check(_arena._cloud_burn[0] < 0.0, "...with a fresh clock (nobody has stepped on it)")
 	var area: Rect2 = _arena._langit_area()
 	var legal := area.has_point(_arena._langits[0])
 	for other in [1, 2]:
 		legal = legal and not _arena.langit_rect(0).grow(4.0).intersects(_arena.langit_rect(other))
 	_check(legal, "...at a legal spot: on the field, clear of the UI strip, on no other Langit (%s)" % str(_arena._langits[0]))
-	_check(_arena._langits[1] == SPOTS[1] and _arena._langits[2] == SPOTS[2] and _arena._cloud_id[1] == ids[1] and _arena._cloud_id[2] == ids[2],
-		"the other Langit never moved")
+	_check(_arena._langits[2] == SPOTS[2] and _arena._cloud_id[2] == ids[2], "the empty Langit never moved")
 	_check(_arena._season_timer > 900.0, "(no season turned: the slot moved by itself)")
+
+	# --- the Taya starts nothing; the last second shakes; bots shy from a dying Langit ------------
+	_reset(3)
+	_put(3, SPOTS[2])  # the Taya on a Langit
+	_put(1, FAR)
+	_put(2, FAR + Vector2(0, -60))
+	for step in range(4):
+		_tick(DT)
+	_check(_arena._cloud_burn.all(func(left: float) -> bool: return left < 0.0), "a Taya standing on or near a Langit starts no countdown (%s)" % str(_arena._cloud_burn))
+	_put(1, SPOTS[0])
+	_tick(DT)
+	_arena._cloud_burn[0] = _arena.shift_warning - 0.1
+	_arena._draw_langits(0.0)
+	var cloud := _arena.langits_root.get_child(0) as Node2D
+	_check(is_equal_approx(cloud.modulate.a, 0.55), "in its last second a Langit shakes and fades (%.2f)" % cloud.modulate.a)
+	_arena._cloud_burn[0] = _arena.bot_unsafe_life - 0.1
+	_check(not _arena._lasting(0) and _arena._lasting(1), "a bot treats a Langit under 1.5 s as unsafe")
+	_arena._cloud_burn[0] = _arena.bot_unsafe_life + 0.5
+	_check(_arena._lasting(0), "...and one with more left as fine")
 
 	# --- a full chant dooms the occupied Langit; they crumble after swap_time --------------------
 	_reset(3)

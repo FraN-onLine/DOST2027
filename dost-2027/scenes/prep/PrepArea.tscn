@@ -73,6 +73,21 @@ animations = [{
 "speed": 5.0
 }]
 
+[sub_resource type="Gradient" id="Gradient_glow"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(1, 0.62, 0.25, 0.85, 1, 0.45, 0.12, 0.35, 1, 0.4, 0.1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
+gradient = SubResource("Gradient_glow")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_glow"]
+blend_mode = 1
+
 [node name="PrepArea" unique_id=580867236 instance=ExtResource("1_base")]
 script = ExtResource("2_prep")
 prep_time = 20.0
@@ -115,13 +130,10 @@ z_index = 1
 [node name="Campfire" type="Node2D" parent="Camp" index="0" unique_id=1947551979]
 position = Vector2(700, 340)
 
-[node name="Glow" type="ColorRect" parent="Camp/Campfire" index="0" unique_id=1385838085]
-offset_left = -44.0
-offset_top = -44.0
-offset_right = 44.0
-offset_bottom = 44.0
-mouse_filter = 2
-color = Color(0.9098039, 0.72156864, 0.2901961, 0.12)
+[node name="Glow" type="Sprite2D" parent="Camp/Campfire" index="0"]
+material = SubResource("CanvasItemMaterial_glow")
+scale = Vector2(1.09375, 1.09375)
+texture = SubResource("GradientTexture2D_glow")
 
 [node name="Flame" type="AnimatedSprite2D" parent="Camp/Campfire" index="1" unique_id=1221586135]
 modulate = Color(0.96, 0.6, 0.25, 0.95)
@@ -130,6 +142,12 @@ scale = Vector2(1.5162497, 1.485)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
 autoplay = "default"
 frame_progress = 0.5407333
+
+[node name="Light" type="PointLight2D" parent="Camp/Campfire" index="2"]
+color = Color(1, 0.62, 0.3, 1)
+energy = 0.35
+texture = SubResource("GradientTexture2D_glow")
+texture_scale = 2.4
 
 [node name="Altar" type="Node2D" parent="Camp" index="1" unique_id=518928254]
 position = Vector2(440, 300)

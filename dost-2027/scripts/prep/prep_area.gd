@@ -64,7 +64,10 @@ const ALTAR_ICON_SIZE := 48.0  # the god on the altar, whatever size its icon is
 @onready var next_label: Label = $PrepHud/Next
 @onready var ready_label: Label = get_node(BAND_STATE + "Ready")
 @onready var shop: Control = $PrepHud/Tindahan
+@onready var fire_glow: Sprite2D = $Camp/Campfire/Glow
+@onready var fire_light: PointLight2D = $Camp/Campfire/Light
 
+var _flicker := 1.0                     # the campfire's glow, wobbling 0.9 - 1.1 (visual only, not synced)
 var rng: RandomNumberGenerator = null   # the run's own, handed over by the Game shell
 var _time_left := 0.0
 var _closed := false
@@ -383,6 +386,7 @@ func is_closed() -> bool:
 # own clock, the network plumbing the base offers, and this screen's HUD.
 
 func _process(delta: float) -> void:
+	_tick_fire(delta)
 	_tick_field_dim()
 	_tick_band()
 	if _authority:
@@ -405,6 +409,16 @@ func _process(delta: float) -> void:
 	_flush_favor_popups(delta)
 	_move_ghosts(delta)
 	_refresh_prep_hud()
+
+
+# The campfire's glow breathes: its scale and alpha chase a new random value in
+# 0.9 - 1.1 (0.98 - 1.02 with Reduce Flashing on) a few times a second.
+func _tick_fire(delta: float) -> void:
+	var spread := 0.02 if reduce_flashing() else 0.1
+	_flicker = lerpf(_flicker, randf_range(1.0 - spread, 1.0 + spread), minf(1.0, delta * 8.0))
+	fire_glow.scale = Vector2.ONE * 1.09375 * _flicker
+	fire_glow.modulate.a = _flicker
+	fire_light.energy = 0.35 * _flicker
 
 
 func _refresh_prep_hud() -> void:

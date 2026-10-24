@@ -4,7 +4,7 @@ extends SceneTree
 #   * every live god pulses every 5s, throwing the players' expanding wave, and
 #     thaws the frozen gods within 90 (Hanan's dawn reaches 120); a frozen god
 #     never pulses; mortals are never touched
-#   * a mortal's attack is one shockwave per 5s; the waves are 65 (mortal) and 18 (god)
+#   * a mortal's attack is one shockwave per 2.5s; the waves are 65 (mortal) and 18 (god)
 #   * nobody can be frozen on their own base, by any source, and a refused freeze
 #     pops SAFE
 #   * a mortal or god that just thawed cannot be frozen for 1s, however it thawed
@@ -21,6 +21,13 @@ var _problems := 0
 
 func _initialize() -> void:
 	_run()
+
+
+# The drawn height of the character art alone: the used rect of the current frame
+# (no transparent padding) times the sprite's on-screen scale.
+func _art_height(sprite: AnimatedSprite2D) -> float:
+	var frame := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	return frame.get_image().get_used_rect().size.y * absf(sprite.global_scale.y)
 
 
 func _frames(count: int) -> void:
@@ -49,10 +56,17 @@ func _run() -> void:
 	_check(is_equal_approx(_arena.ally_pulse_interval, 5.0) and is_equal_approx(_arena.ally_pulse_radius, 90.0),
 		"every god pulses every 5s, 90 px wide")
 	_check(is_equal_approx(_arena.dawn_radius, 120.0), "Hanan's dawn keeps its bigger 120 px ring")
-	_check(is_equal_approx(_arena.attack_cooldown, 5.0), "the mortal's attack recharges in 5s")
+	_check(is_equal_approx(_arena.attack_cooldown, 2.5), "the mortal's attack recharges in 2.5s")
 	_check(is_equal_approx(_arena.shock_radius, 65.0), "the mortal's shockwave is 65 px")
 	_check(is_equal_approx(_god(&"apolaki").shock_radius, 18.0), "a god's shockwave is 18 px")
 	_check(is_equal_approx(_arena.thaw_immunity, 1.0), "a thaw buys 1s of immunity")
+
+	# --- every god stands as tall as a mortal (visual only) -----------------------
+	var mortal_height := _art_height(_arena.player.get_node("Sprite") as AnimatedSprite2D)
+	for god_id in _arena.roster_ids():
+		var tall := _art_height(_god(StringName(god_id)).icon)
+		_check(absf(tall - mortal_height) <= mortal_height * 0.1,
+			"%s's art stands %.0f px, a mortal's %.0f px (within 10%%)" % [god_id, tall, mortal_height])
 
 	# --- the pulse: the nearest live ally thaws a frozen god ----------------------
 	_fresh_round()
@@ -148,24 +162,24 @@ func _run() -> void:
 	_tick(41)
 	_check(not mayari.is_frozen(), "...but reaches 80 px")
 
-	# --- the mortal's attack: one shockwave per 5s -----------------------------------
+	# --- the mortal's attack: one shockwave per 2.5s -----------------------------------
 	_fresh_round()
 	_arena._shocks.clear()
 	_arena._shock_cd = 0.0
 	_arena.player.global_position = FIELD
 	_arena._try_attack()
-	_check(_arena._shocks.size() == 1 and is_equal_approx(_arena._shock_cd, 5.0), "an attack starts a 5s recharge")
+	_check(_arena._shocks.size() == 1 and is_equal_approx(_arena._shock_cd, 2.5), "an attack starts a 2.5s recharge")
 	var wave: MayariShockwave = _arena._shocks[0]["wave"]
 	_check(is_equal_approx(wave.max_scale * wave.base_radius, 65.0), "the drawn wave grows to 65 px (%.1f)" % (wave.max_scale * wave.base_radius))
-	_arena._process(4.9)
+	_arena._process(2.4)
 	var before: int = _arena._shocks.size()
 	_arena._try_attack()
-	_check(_arena._shocks.size() == before and is_equal_approx(_arena._shock_cd, 0.1), "a second attack within 5s is refused (recharge left %.1fs)" % _arena._shock_cd)
+	_check(_arena._shocks.size() == before and is_equal_approx(_arena._shock_cd, 0.1), "a second attack within 2.5s is refused (recharge left %.1fs)" % _arena._shock_cd)
 	_arena._process(0.2)
 	_arena._try_attack()
-	_check(is_equal_approx(_arena._shock_cd, 5.0) and not _arena._shocks.is_empty(), "...and one after 5s works")
+	_check(is_equal_approx(_arena._shock_cd, 2.5) and not _arena._shocks.is_empty(), "...and one after 2.5s works")
 	_arena._refresh_hud(0.0)
-	_check(_arena.status_label != null and _arena.status_label.text.contains("ATTACK 5.0s"), "the bottom band counts the recharge (%s)" % (_arena.status_label.text if _arena.status_label != null else "-"))
+	_check(_arena.status_label != null and _arena.status_label.text.contains("ATTACK 2.5s"), "the bottom band counts the recharge (%s)" % (_arena.status_label.text if _arena.status_label != null else "-"))
 	for shock in _arena._shocks:
 		if is_instance_valid(shock["wave"]):
 			shock["wave"].queue_free()
