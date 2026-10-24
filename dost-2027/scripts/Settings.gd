@@ -108,7 +108,18 @@ func load_config() -> void:
 			var spec: Variant = cfg.get_value("controls", action)
 			if spec is Dictionary and spec_to_event(spec) != null:
 				_values["controls"][action] = spec
+	# An older build could save Defend on Attack's button (left click). Defend is
+	# Langit Lupa's right-click chant, so it goes back to its default, once (saved).
+	var controls: Dictionary = _values.get("controls", {})
+	var attack: Variant = controls.get("attack")
+	if attack == null and not _default_events.get("attack", []).is_empty():
+		attack = event_to_spec(_default_events["attack"][0])
+	var migrated: bool = attack != null and controls.get("defend") == attack
+	if migrated:
+		controls.erase("defend")
 	_apply_all()
+	if migrated:
+		save()
 
 
 func save() -> void:

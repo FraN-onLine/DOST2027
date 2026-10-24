@@ -8,7 +8,9 @@ extends SceneTree
 #
 # At GO the gods are the Taya on both screens (banner, body, marker, no second
 # Ikapati), the host's chant shows on the client over the gods' heads, and when
-# the gods tag the client the fade-out and the hand-over reach it too.
+# the gods tag the client the fade-out and the hand-over reach it too. Then the
+# blitz: the banner, Ikapati back as a second Taya (two markers) and a Langit
+# crumbling and forming alone reach the client.
 
 const PORT := 24690
 const PORT_FILE := "user://langit_god_net_host.txt"
@@ -103,6 +105,18 @@ func _run() -> void:
 	await _until(func() -> bool: return false, 4.0)  # the client watches the fade and the hand-over
 	_check(arena._god_at == Vector2.INF and not arena._god_body.visible and arena.god_overseer.visible,
 		"the gods are gone from the host's field and the overseer is back")
+
+	# --- the blitz: Ikapati comes back as a second Taya; one Langit crumbles alone -----------------
+	arena._trial_time = arena.langit_blitz_time + 0.2
+	_check(await _until(func() -> bool: return arena._blitz, 3.0), "the blitz starts on the host at %ds left" % int(arena.langit_blitz_time))
+	_check(arena.second_taya() and arena._taya == client_id, "Ikapati is back as a second Taya beside the client")
+	await _until(func() -> bool: return false, 2.0)  # the client checks the banner and the two markers
+	for attempt in range(6):
+		if arena._cloud_state[0] == LangitLupaArena.Cloud.SOLID and arena._cloud_timer[0] <= 0.0:
+			arena._crumble(0)
+		await _until(func() -> bool: return false, 1.0)
+	_check(arena._blitz and arena.second_taya(), "...and she is still hunting at the end")
+	await _until(func() -> bool: return false, 2.0)
 	_finish()
 
 
