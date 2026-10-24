@@ -1,19 +1,15 @@
 [gd_scene format=3 uid="uid://hanan001"]
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
-[ext_resource type="Texture2D" uid="uid://dnax1ilo8tx4p" path="res://Assets/Gods/Hanan/HananOverseer-Sheet.png" id="2_x2xqd"]
+[ext_resource type="Texture2D" uid="uid://ljnu4g1qof31" path="res://Assets/Gods/Hanan/hanan_block.png" id="2_x2xqd"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kmmsn"]
 atlas = ExtResource("2_x2xqd")
-region = Rect2(0, 0, 130, 99)
+region = Rect2(64, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_urshk"]
 atlas = ExtResource("2_x2xqd")
-region = Rect2(130, 0, 130, 99)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_3splp"]
-atlas = ExtResource("2_x2xqd")
-region = Rect2(260, 0, 130, 99)
+region = Rect2(192, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
 animations = [{
@@ -23,9 +19,6 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_urshk")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_3splp")
 }],
 "loop": 1,
 "name": &"default",
@@ -56,10 +49,10 @@ width = 3.0
 default_color = Color(0.7, 0.85, 1, 0.6)
 
 [node name="Icon" type="AnimatedSprite2D" parent="." unique_id=537896355]
-position = Vector2(0, -26.1)
-scale = Vector2(0.8906, 0.8906)
+position = Vector2(7.1525574e-07, -44)
+scale = Vector2(1.773425, 1.828125)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-frame_progress = 0.33666223
+frame_progress = 0.50071216
 
 [node name="Name" type="Label" parent="." unique_id=1279801229]
 offset_left = -55.0

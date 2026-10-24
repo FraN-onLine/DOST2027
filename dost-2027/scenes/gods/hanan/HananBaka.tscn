@@ -174,8 +174,8 @@ animations = [{
 script = ExtResource("1_script")
 
 [node name="Art" type="AnimatedSprite2D" parent="." unique_id=426739875]
-position = Vector2(1.5258789e-05, -80)
-scale = Vector2(2.6124997, 2.51875)
+position = Vector2(0, -106)
+scale = Vector2(3.4312494, 3.321875)
 sprite_frames = SubResource("SpriteFrames_baka")
 animation = &"standing"
 autoplay = "low"
