@@ -244,6 +244,10 @@ func join_lobby(lobby_id_to_join: String) -> void:
 	emit_signal("connected", false, "resolving_lobby_id")
 
 
+func host_port() -> int:
+	return _current_port
+
+
 func leave_host() -> void:
 	stop_host_discovery()
 	_cancel_lobby_join()

@@ -35,7 +35,7 @@ const DEFAULTS := {
 	"video": {"window_mode": 0, "resolution": Vector2i(1152, 648), "vsync": true, "max_fps": 0, "ui_scale": 100},
 	# bandana_color: the player's last pick in the lobby (UITokens.BANDANA_COLORS),
 	# asked for again next time and given if it is free.
-	"gameplay": {"player_name": "", "reduce_flashing": false, "screen_shake": true, "intro_camera": true, "show_fps": false, "bandana_color": 0},
+	"gameplay": {"player_name": "", "reduce_flashing": false, "screen_shake": true, "intro_camera": true, "show_fps": false, "bandana_color": 0, "last_ip": ""},
 }
 
 var config_path := "user://settings.cfg"
@@ -155,6 +155,8 @@ func _clean(section: String, key: String, value: Variant) -> Variant:
 			return value if value.x >= 640 and value.y >= 360 else fallback
 		"player_name":
 			return (value as String).strip_edges().left(20)
+		"last_ip":
+			return (value as String).strip_edges().left(80)
 		"bandana_color":
 			return value if value in range(UITokens.BANDANA_COLORS.size()) else fallback
 	return value

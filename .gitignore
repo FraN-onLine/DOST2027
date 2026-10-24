@@ -1,2 +1,5 @@
 .tmp_frames
 
+
+# Windows exports (see dost-2027/EXPORT.md)
+builds/

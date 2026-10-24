@@ -66,7 +66,7 @@ text = "JOIN GAME"
 custom_minimum_size = Vector2(288, 0)
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
-text = "Pick a game on your network, or type its lobby ID."
+text = "Pick a game on your network, or type its lobby ID or IP."
 autowrap_mode = 3
 
 [node name="NameGap" type="Control" parent="CenterContainer/Columns/FormCard/VBox"]
@@ -108,6 +108,28 @@ custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "JOIN BY LOBBY ID"
+
+[node name="IpGap" type="Control" parent="CenterContainer/Columns/FormCard/VBox"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="IpLabel" type="Label" parent="CenterContainer/Columns/FormCard/VBox"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "HOST IP"
+
+[node name="IpInput" type="LineEdit" parent="CenterContainer/Columns/FormCard/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+placeholder_text = "e.g. 10.147.17.23[:port]"
+max_length = 80
+
+[node name="JoinIpButton" type="Button" parent="CenterContainer/Columns/FormCard/VBox"]
+custom_minimum_size = Vector2(260, 44)
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
+text = "JOIN BY IP"
 
 [node name="NetworkCard" type="PanelContainer" parent="CenterContainer/Columns"]
 custom_minimum_size = Vector2(400, 0)
