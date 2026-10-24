@@ -1,35 +1,32 @@
 [gd_scene format=3 uid="uid://mayari001"]
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
-[ext_resource type="Texture2D" uid="uid://bodaxyc16j8dj" path="res://Assets/Gods/Mayari/mayari_idle.png" id="2_cuobb"]
-[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_xhclv"]
-atlas = ExtResource("2_cuobb")
-region = Rect2(0, 0, 64, 64)
+[ext_resource type="Texture2D" uid="uid://ox3gr6tutlof" path="res://Assets/Gods/Mayari/mayari_idle_agawan.png" id="3_xhclv"]
+[ext_resource type="Texture2D" uid="uid://br3spaju6v8a1" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_mhcif"]
-atlas = ExtResource("2_cuobb")
-region = Rect2(64, 0, 64, 64)
+atlas = ExtResource("3_xhclv")
+region = Rect2(0, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hg6ol"]
-atlas = ExtResource("2_cuobb")
-region = Rect2(128, 0, 64, 64)
+atlas = ExtResource("3_xhclv")
+region = Rect2(64, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hhbhh"]
-atlas = ExtResource("2_cuobb")
-region = Rect2(192, 0, 64, 64)
+atlas = ExtResource("3_xhclv")
+region = Rect2(128, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_pjfcj"]
-atlas = ExtResource("2_cuobb")
+atlas = ExtResource("3_xhclv")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_at5ac"]
+atlas = ExtResource("3_xhclv")
 region = Rect2(256, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
 animations = [{
 "frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_xhclv")
-}, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_mhcif")
 }, {
@@ -41,6 +38,9 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_pjfcj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_at5ac")
 }],
 "loop": 1,
 "name": &"default",
@@ -50,8 +50,8 @@ animations = [{
 [node name="Mayari" type="Node2D" unique_id=1701970279]
 script = ExtResource("1_god")
 
-[node name="Shadow" type="Sprite2D" parent="."]
-position = Vector2(0, 17.0)
+[node name="Shadow" type="Sprite2D" parent="." unique_id=1793896476]
+position = Vector2(0, 17)
 scale = Vector2(1.49, 0.46)
 texture = ExtResource("shadow_tex")
 
@@ -79,7 +79,8 @@ default_color = Color(1, 0.62, 0.55, 0.6)
 position = Vector2(0, -32.4)
 scale = Vector2(1.7627, 1.7627)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-frame_progress = 0.47368652
+autoplay = "default"
+frame_progress = 0.30562285
 flip_h = true
 
 [node name="Name" type="Label" parent="." unique_id=1279801228]

@@ -4,6 +4,8 @@
 [ext_resource type="Script" uid="uid://c3lilpohgea6w" path="res://scripts/gods/bathala/bathala_arena.gd" id="2_arena"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://cdkt78lh7iqvd" path="res://Assets/Gods/Bathala/bathalaoverseer-Sheet.png" id="4_pvjnw"]
+[ext_resource type="Texture2D" uid="uid://xrc5okbm51jb" path="res://Assets/animatedbg.png" id="5_mwcwi"]
+[ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="6_jybcx"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cet4o"]
 atlas = ExtResource("4_pvjnw")
@@ -34,14 +36,68 @@ animations = [{
 "speed": 5.0
 }]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_l75by"]
+atlas = ExtResource("5_mwcwi")
+region = Rect2(0, 0, 1908, 1010)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qmwyn"]
+atlas = ExtResource("5_mwcwi")
+region = Rect2(1908, 0, 1908, 1010)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uxxwf"]
+atlas = ExtResource("5_mwcwi")
+region = Rect2(3816, 0, 1908, 1010)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5fjrf"]
+atlas = ExtResource("5_mwcwi")
+region = Rect2(5724, 0, 1908, 1010)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yerrk"]
+atlas = ExtResource("5_mwcwi")
+region = Rect2(7632, 0, 1908, 1010)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_jybcx"]
+animations = [{
+"frames": [{
+"duration": 2.9,
+"texture": SubResource("AtlasTexture_l75by")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qmwyn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uxxwf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5fjrf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yerrk")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l75by")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l75by")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 8.0
+}, {
+"frames": [],
+"loop": 1,
+"name": &"new_animation",
+"speed": 5.0
+}]
+
 [node name="BathalaArena" unique_id=1876534474 instance=ExtResource("1_base")]
 script = ExtResource("2_arena")
 freeze_time = 5.0
 tag_radius = 34.0
 attack_cooldown = 2.5
-shock_radius = 65.0
-shock_expand_time = 0.45
 thaw_immunity = 1.0
+shock_radius = 90.0
+shock_expand_time = 0.45
 base_radius = 46.0
 thaw_touch = 40.0
 hold_to_capture = 1.0
@@ -73,19 +129,22 @@ embedded = true
 dialogue_prefix = "bathala"
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
+visible = false
 modulate = Color(0.55, 0.55, 0.6, 1)
 position = Vector2(636, 240.00003)
 scale = Vector2(6.5475, 4.87)
 texture = ExtResource("3_bg")
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=970090949]
-position = Vector2(0, 266.7339)
-scale = Vector2(1, 0.5463709)
+visible = false
+position = Vector2(0, 334.30646)
+scale = Vector2(1, 0.43145162)
 points = PackedVector2Array(262, 96, 1130, 96, 1130, 584, 262, 584, 262, 96)
 width = 4.0
 default_color = Color(0.78, 0.78, 0.82, 0.8)
 
 [node name="SectionLeft" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1800574664]
+visible = false
 position = Vector2(523.125, 277.08746)
 scale = Vector2(0.0625, 0.5271545)
 points = PackedVector2Array(560, 96, 560, 584)
@@ -93,6 +152,7 @@ width = 2.0
 default_color = Color(0.78, 0.78, 0.82, 0.35)
 
 [node name="SectionRight" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=1510647598]
+visible = false
 position = Vector2(0, 278.7073)
 scale = Vector2(1, 0.5243903)
 points = PackedVector2Array(900, 96, 900, 584)
@@ -100,26 +160,27 @@ width = 2.0
 default_color = Color(0.78, 0.78, 0.82, 0.35)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1242689336]
-position = Vector2(962, 155)
-scale = Vector2(3.6833231, 3.2276123)
+z_index = -1
+position = Vector2(944, 189)
+scale = Vector2(4.1032, 3.8259273)
 sprite_frames = SubResource("SpriteFrames_y7s8a")
 autoplay = "default"
 frame_progress = 0.519802
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
-position = Vector2(360, 470)
+position = Vector2(360, 496)
 
 [node name="Bases" type="Node2D" parent="." index="9" unique_id=1224575092]
 z_index = 1
 
 [node name="Mine" type="Node2D" parent="Bases" index="0" unique_id=1844672177]
-position = Vector2(360, 456)
+position = Vector2(360, 482)
 
 [node name="Fill" type="ColorRect" parent="Bases/Mine" index="0" unique_id=1257788309]
-offset_left = -46.0
-offset_top = -46.0
-offset_right = 46.0
-offset_bottom = 46.0
+offset_left = -49.0
+offset_top = -50.0
+offset_right = 43.0
+offset_bottom = 42.0
 mouse_filter = 2
 color = Color(0.7, 1, 0.8, 0.18)
 metadata/_edit_use_anchors_ = true
@@ -144,7 +205,7 @@ horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="Bathala" type="Node2D" parent="Bases" index="1" unique_id=1980799891]
-position = Vector2(1049, 463)
+position = Vector2(1049, 482)
 
 [node name="Fill" type="ColorRect" parent="Bases/Bathala" index="0" unique_id=674682801]
 offset_left = -46.0
@@ -195,12 +256,7 @@ horizontal_alignment = 1
 [node name="AgawanHud" type="CanvasLayer" parent="." index="13" unique_id=1328790674]
 layer = 12
 
-[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1077757494]
-layout_mode = 2
-theme_type_variation = &"HudLabel"
-text = "ON THE FIELD     ATTACK READY     ROUND 1"
-
-[node name="Callout" type="Label" parent="AgawanHud" index="2" unique_id=1214418893]
+[node name="Callout" type="Label" parent="AgawanHud" index="0" unique_id=1214418893]
 visible = false
 anchors_preset = 5
 anchor_left = 0.5
@@ -214,6 +270,26 @@ horizontal_alignment = 1
 [node name="Stars" type="Node2D" parent="." index="14" unique_id=467062211]
 z_index = 4
 
-[node name="FaceFocus" type="Marker2D" parent="."]
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=1077757494]
+layout_mode = 2
+theme_type_variation = &"HudLabel"
+text = "ON THE FIELD     ATTACK READY     ROUND 1"
+
+[node name="FaceFocus" type="Marker2D" parent="." index="18" unique_id=1873636568]
 position = Vector2(895, 82)
 
+[node name="ArenaBG" type="Node2D" parent="." index="19" unique_id=1076702210]
+position = Vector2(944, 92)
+
+[node name="TempBackground" type="AnimatedSprite2D" parent="ArenaBG" index="0" unique_id=1227853012]
+z_index = -2
+position = Vector2(-368.25, 226.5)
+scale = Vector2(0.6040356, 0.63663363)
+sprite_frames = SubResource("SpriteFrames_jybcx")
+autoplay = "default"
+frame_progress = 0.1850318
+
+[node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=329244984]
+position = Vector2(-288, 178.00003)
+scale = Vector2(2.0124998, 2.2680554)
+texture = ExtResource("6_jybcx")

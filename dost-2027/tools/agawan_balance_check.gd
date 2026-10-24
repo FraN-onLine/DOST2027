@@ -4,7 +4,9 @@ extends SceneTree
 #   * every live god pulses every 5s, throwing the players' expanding wave, and
 #     thaws the frozen gods within 90 (Hanan's dawn reaches 120); a frozen god
 #     never pulses; mortals are never touched
-#   * a mortal's attack is one shockwave per 2.5s; the waves are 65 (mortal) and 18 (god)
+#   * a mortal's attack is one shockwave per 2.5s; the waves are 90 (mortal) and 18 (god)
+#   * a god only throws its wave every 12s, and only with a mortal within 140 px;
+#     a frozen god stays frozen for 5s
 #   * nobody can be frozen on their own base, by any source, and a refused freeze
 #     pops SAFE
 #   * a mortal or god that just thawed cannot be frozen for 1s, however it thawed
@@ -56,14 +58,18 @@ func _run() -> void:
 	_arena._phase = Arena.Phase.PLAYING
 	_arena._trial_time = 90.0
 	_arena.player.set_lock(false)
+	# The original 3-god setup these checks were tuned on (Bathala comes on top).
+	_arena._build_gods(["apolaki", "tala"])
 
 	# --- the new numbers ---------------------------------------------------------
 	_check(is_equal_approx(_arena.ally_pulse_interval, 5.0) and is_equal_approx(_arena.ally_pulse_radius, 90.0),
 		"every god pulses every 5s, 90 px wide")
 	_check(is_equal_approx(_arena.dawn_radius, 120.0), "Hanan's dawn keeps its bigger 120 px ring")
 	_check(is_equal_approx(_arena.attack_cooldown, 2.5), "the mortal's attack recharges in 2.5s")
-	_check(is_equal_approx(_arena.shock_radius, 65.0), "the mortal's shockwave is 65 px")
+	_check(is_equal_approx(_arena.shock_radius, 90.0), "the mortal's shockwave matches the gods at 90 px")
 	_check(is_equal_approx(_god(&"apolaki").shock_radius, 18.0), "a god's shockwave is 18 px")
+	_check(is_equal_approx(_god(&"apolaki").shock_cd, 12.0), "a god's wave recharges in 12s")
+	_check(is_equal_approx(_god(&"apolaki").god_freeze_time, 5.0), "a frozen god stays frozen 5s")
 	_check(is_equal_approx(_arena.thaw_immunity, 1.0), "a thaw buys 1s of immunity")
 
 	# --- every god stands as tall as a mortal (visual only) -----------------------
@@ -124,7 +130,7 @@ func _run() -> void:
 	if _arena.shocks_root.get_child_count() > pulse_waves_before:
 		var pulse_wave: MayariShockwave = _arena.shocks_root.get_child(_arena.shocks_root.get_child_count() - 1)
 		_check(is_equal_approx(pulse_wave.max_scale * pulse_wave.base_radius, tala.pulse_radius),
-			"the pulse ring grows to the god's pulse reach, not the mortal's 65 px")
+			"the pulse ring grows to the god's pulse reach, not the mortal's 90 px")
 
 	# The client draws the pulse from the host's count too.
 	var pulse_tick: Dictionary = _arena.arena_tick_fields()
@@ -156,8 +162,13 @@ func _run() -> void:
 	_arena._frozen_mortals.clear()
 
 	# --- Hanan reaches 120, the others 90 ------------------------------------------
-	_arena._build_gods(BathalaArena.roster_for(4))
+	_arena._build_gods(["apolaki", "tala", "mayari", "hanan"])
 	_fresh_round()
+	# --- no god is tinted: the art keeps its own colours ---------------------------
+	for god_node in _arena._gods:
+		var tint := god_node.icon.modulate
+		_check(is_equal_approx(tint.r, 1.0) and is_equal_approx(tint.g, 1.0) and is_equal_approx(tint.b, 1.0),
+			"%s's art is untinted (%s)" % [god_node.god_id, str(tint)])
 	var hanan := _god(&"hanan")
 	var mayari := _god(&"mayari")
 	tala = _god(&"tala")
@@ -186,7 +197,7 @@ func _run() -> void:
 	_arena._try_attack()
 	_check(_arena._shocks.size() == 1 and is_equal_approx(_arena._shock_cd, 2.5), "an attack starts a 2.5s recharge")
 	var wave: MayariShockwave = _arena._shocks[0]["wave"]
-	_check(is_equal_approx(wave.max_scale * wave.base_radius, 65.0), "the drawn wave grows to 65 px (%.1f)" % (wave.max_scale * wave.base_radius))
+	_check(is_equal_approx(wave.max_scale * wave.base_radius, 90.0), "the drawn wave grows to 90 px (%.1f)" % (wave.max_scale * wave.base_radius))
 	_arena._process(2.4)
 	var before: int = _arena._shocks.size()
 	_arena._try_attack()
@@ -206,11 +217,11 @@ func _run() -> void:
 	apolaki = _god(&"apolaki")
 	tala = _god(&"tala")
 	apolaki.global_position = FIELD + Vector2(70, 0)
-	tala.global_position = FIELD + Vector2(0, 100)
+	tala.global_position = FIELD + Vector2(0, 120)
 	_arena._start_shock(FIELD, 1, _arena._spawn_shockwave(FIELD))
 	for step in range(8):
 		_arena._tick_shocks(0.25)
-	_check(apolaki.is_frozen() and not tala.is_frozen(), "the mortal's wave freezes a god 70 px out and misses one 100 px out")
+	_check(apolaki.is_frozen() and not tala.is_frozen(), "the mortal's wave freezes a god 70 px out and misses one 120 px out")
 	_fresh_round()
 	apolaki.global_position = FIELD
 	tala.global_position = FIELD + Vector2(30, 0)
@@ -226,6 +237,11 @@ func _run() -> void:
 	_fresh_round()
 	apolaki.global_position = FIELD
 	tala.global_position = FIELD + Vector2(15, 0)
+	var quiet_release := apolaki.shocks_released
+	_arena._tick_god_shocks(DT)
+	_check(apolaki.shocks_released == quiet_release and not tala.is_frozen(),
+		"a god holds its wave with no mortal nearby")
+	_arena.player.global_position = FIELD + Vector2(0, 60)
 	var waves_before := _arena.shocks_root.get_child_count()
 	var released_before := apolaki.shocks_released
 	_arena._tick_god_shocks(DT)
@@ -234,8 +250,10 @@ func _run() -> void:
 		"a released god wave throws the same expanding ring a mortal's swing does")
 	var god_wave: MayariShockwave = _arena.shocks_root.get_child(waves_after - 1)
 	_check(is_equal_approx(god_wave.max_scale * god_wave.base_radius, apolaki.shock_radius + 18.0),
-		"the god's ring grows to its freeze reach, not the mortal's 65 px")
+		"the god's ring grows to its freeze reach, not the mortal's 90 px")
 	_check(apolaki.shocks_released == released_before + 1, "the release is counted for the clients")
+	_arena._tick_god_shocks(DT)
+	_check(apolaki.shocks_released == released_before + 1, "...and its 12s recharge holds the next one back")
 
 	# The client mirrors the host's count into the same ring.
 	var tick_state: Dictionary = _arena.arena_tick_fields()
@@ -374,6 +392,195 @@ func _run() -> void:
 	_check(_arena._safe_flash.has(2) and _arena._safe_flash.has("g1"), "the SAFE popups ride the tick")
 	_check(_arena._pulse_timers == timers, "every god's pulse timer rides the tick")
 
+	# --- a god's touch leaves its mark ---------------------------------------------
+	_fresh_round()
+	_arena._mortal_positions[2] = FIELD
+	var apolaki_touch := _god(&"apolaki")
+	apolaki_touch.global_position = FIELD
+	_arena._tag_mortals_from(apolaki_touch)
+	_check(_arena._is_frozen(2) and (_arena._sun_patches.get(2, []) as Array).size() == 1,
+		"Apolaki's touch freezes the mortal and burns a Sun Patch onto it")
+	_arena._tick_sun_favors(_arena.apolaki_sun_duration + 0.1)
+	_check(not _arena._sun_patches.has(2), "...and the patch burns out")
+	_fresh_round()
+	_arena._mortal_positions[2] = FIELD
+	var mayari_touch := _god(&"mayari")
+	mayari_touch.global_position = FIELD
+	_arena._tag_mortals_from(mayari_touch)
+	_check(_arena._is_frozen(2) and is_equal_approx(float(_arena._blind_mortals.get(2, 0.0)), 2.0),
+		"Mayari's touch freezes the mortal and blinds it for 2s")
+	_arena._tick_status_effects(1.0)
+	_check(is_equal_approx(float(_arena._blind_mortals.get(2, 0.0)), 1.0), "...the blind counts down")
+	_arena._tick_status_effects(1.1)
+	_check(not _arena._blind_mortals.has(2), "...and ends")
+	_fresh_round()
+	_arena._mortal_positions[2] = _arena._my_base + Vector2(8, 0)
+	apolaki_touch.global_position = _arena._mortal_positions[2]
+	_arena._tag_mortals_from(apolaki_touch)
+	_check(not _arena._is_frozen(2) and not _arena._sun_patches.has(2),
+		"a touch refused on the mortal's base leaves no Sun Patch")
+	_fresh_round()
+	_arena._blind_mortal(_arena._my_id, 2.0)
+	var blind_state: Dictionary = _arena.arena_tick_fields()
+	_arena._blind_time = 0.0
+	_arena._blind_mortals.clear()
+	_arena.arena_read_tick(blind_state)
+	_check(_arena._blind_time > 1.9, "a blind on us reaches our screen through the tick")
+	_arena._blind_time = 0.0
+
+	# --- Hanan's stunning light -----------------------------------------------------
+	_fresh_round()
+	_arena.stun_interval = 10.0
+	_arena._stun_cd = 0.0
+	var light_field: Vector2 = _arena._field.get_center()
+	_arena._mortal_positions[2] = light_field
+	var hanan_thrower := _god(&"hanan")
+	hanan_thrower.global_position = light_field + Vector2(150, 0)
+	_arena._tick_stars(DT)
+	_check(_arena._stars.size() == 1 and str(_arena._stars[0].get("kind", "")) == "stun",
+		"Hanan throws a stunning light at the nearest mortal")
+	_arena._stars[0]["pos"] = _arena._mortal_positions[2]
+	_arena._stars[0]["vel"] = Vector2.ZERO
+	_arena._tick_stars(DT)
+	_check(_arena._stun_mortals.has(2) and not _arena._is_frozen(2),
+		"the light stuns the mortal it hits, never freezes it")
+	_fresh_round()
+	_arena.stun_interval = 10.0
+	_arena._stun_cd = 10.0
+	_arena._mortal_positions[2] = light_field
+	hanan_thrower.global_position = light_field + Vector2(150, 0)
+	_tick(79)
+	_check(_arena._stars.is_empty(), "Hanan's light is not due before 10s")
+	_tick(1)
+	_check(_arena._stars.size() == 1, "...and one is thrown on the 10th second")
+	var stun_state: Dictionary = _arena.arena_tick_fields()
+	_check(str((stun_state["stars"][0] as Array)[2]) == "stun", "the light's kind rides the tick")
+	_fresh_round()
+	_arena._mortal_positions[2] = _arena._bathala_base
+	_arena._stun_mortals[2] = 1.0
+	_arena._check_capture(0.4)
+	_check(_arena._holders == 0 and is_zero_approx(_arena._hold_progress), "a stunned mortal holds no capture")
+
+	# --- Tala's jaunt ---------------------------------------------------------------
+	_fresh_round()
+	_arena.teleport_interval = 12.0
+	_arena._teleport_cd = 0.0
+	var jaunter := _god(&"tala")
+	var frozen_friend := _god(&"hanan")
+	jaunter.global_position = FIELD
+	frozen_friend.global_position = FIELD + Vector2(200, 0)
+	frozen_friend.freeze_for(30.0)
+	_arena._tick_tala_teleport(0.0)
+	_check(jaunter.teleport_phase == 1 and jaunter.icon.modulate.r > 1.0,
+		"Tala turns white for the second before the jaunt")
+	_arena._teleport_target = _arena._gods.find(frozen_friend)
+	_arena._tick_tala_teleport(1.1)
+	_check(jaunter.teleport_phase == 2 and is_zero_approx(jaunter.modulate.a), "...then vanishes")
+	_arena._tick_tala_teleport(0.3)
+	_check(jaunter.teleport_phase == 0 and jaunter.global_position.distance_to(frozen_friend.global_position) <= 60.0,
+		"...and reappears beside another god")
+	_check(not frozen_friend.is_frozen() and frozen_friend.immune_left > 0.0,
+		"...thawing that god if it was frozen")
+	_fresh_round()
+	_arena.teleport_interval = 12.0
+	_arena._teleport_cd = 0.0
+	jaunter.global_position = FIELD
+	_arena._tick_tala_teleport(0.0)
+	_arena._freeze_god(_arena._gods.find(jaunter), 5.0, 1)
+	_check(jaunter.is_frozen() and jaunter.teleport_phase == 0, "freezing Tala calls the jaunt off")
+	_fresh_round()
+	_arena.teleport_interval = 12.0
+	_arena._teleport_cd = 0.0
+	_arena._stars.clear()
+	jaunter.global_position = FIELD
+	_god(&"hanan").global_position = FIELD + Vector2(80, 0)
+	_god(&"apolaki").global_position = FIELD + Vector2(20, 0)
+	_god(&"hanan").freeze_for(30.0)
+	_arena.player.global_position = FIELD + Vector2(0, 60)
+	_arena._tick_tala_teleport(0.0)
+	_arena.star_interval = 1.0
+	_arena._star_cd = 0.0
+	_arena._pulse_timers[_arena._gods.find(jaunter)] = 0.0
+	jaunter._shock_timer = 0.0
+	var jaunt_pulses := jaunter.pulses_released
+	var jaunt_shocks := jaunter.shocks_released
+	_arena._tick_stars(DT)
+	_arena._tick_ally_pulses(DT)
+	_arena._tick_god_shocks(DT)
+	_check(_arena._stars.is_empty() and jaunter.pulses_released == jaunt_pulses
+		and jaunter.shocks_released == jaunt_shocks,
+		"a jaunting Tala throws, pulses and shocks nothing")
+	_fresh_round()
+	_arena.teleport_interval = 12.0
+	jaunter.teleport_phase = 2
+	jaunter.teleport_left = 0.2
+	jaunter._refresh_visual()
+	var jaunt_state: Dictionary = _arena.arena_tick_fields()
+	jaunter.teleport_phase = 0
+	jaunter._refresh_visual()
+	_arena.arena_read_tick(jaunt_state)
+	_check(jaunter.teleport_phase == 2 and is_zero_approx(jaunter.modulate.a),
+		"a client plays the jaunt from the tick")
+
+	# --- every god faces the way it walks ------------------------------------------
+	_fresh_round()
+	var walker := _god(&"apolaki")
+	walker.global_position = FIELD
+	walker.move_speed = 150.0
+	walker.speed_mult = 1.0
+	walker.target_center = FIELD + Vector2(600, 0)
+	walker.step(0.2, [])
+	_check(walker.icon.flip_h, "a left-drawn god flips while walking right")
+	walker.target_center = FIELD - Vector2(600, 0)
+	walker.step(0.2, [])
+	_check(not walker.icon.flip_h, "...and shows the sheet as drawn when walking back left")
+	# A client learns the turn from the reported positions only.
+	walker.place(walker.global_position + Vector2(30, 0))
+	walker._refresh_visual()
+	_check(walker.icon.flip_h, "a client flips the god from the reported walk")
+	walker.place(walker.global_position - Vector2(30, 0))
+	walker._refresh_visual()
+	_check(not walker.icon.flip_h, "...and back again")
+	# Mayari's scene keeps her authored right-facing stance until she walks.
+	var mayari_scene := (load("res://scenes/gods/bathala/Mayari.tscn") as PackedScene).instantiate() as AgawanGod
+	view.add_child(mayari_scene)
+	_check(mayari_scene.icon.flip_h, "Mayari starts flipped to her authored right-facing stance")
+	mayari_scene.queue_free()
+
+	# --- defenders leave the base on a sortie, then walk home ----------------------
+	_fresh_round()
+	var defender := _god(&"tala")
+	var home: Vector2 = _arena._bathala_base
+	defender.global_position = home
+	defender.move_speed = 150.0
+	defender.speed_mult = 1.0
+	defender.sortie_interval = 8.0
+	defender.sortie_time = 4.0
+	defender.sortie_reach = 200.0
+	defender._sortie_cd = 0.0
+	var out_far := 0.0
+	var sortie_seen := false
+	for step in range(32):  # four seconds, one sortie long
+		_arena.arena_rules_tick(DT)
+		sortie_seen = sortie_seen or defender._sortie_left > 0.0
+		out_far = maxf(out_far, defender.global_position.distance_to(home))
+	_check(sortie_seen and out_far > 120.0, "a defender leaves Bathala's base on a sortie (%.0f px out)" % out_far)
+	for step in range(48):  # six seconds: hoof it home
+		_arena.arena_rules_tick(DT)
+	_check(defender.global_position.distance_to(home) < 80.0, "...and walks home when the sortie is over")
+	_check(_god(&"bathala")._sortie_left == 0.0, "Bathala never leaves his ring on a sortie")
+
+	# --- every round draws a fresh enemy roster ------------------------------------
+	_arena._build_gods(["apolaki", "tala"])
+	var before_ids: Array = _arena.roster_ids()
+	var before_nodes: Array = _arena._gods.duplicate()
+	_arena._start_round()
+	var after_ids: Array = _arena.roster_ids()
+	var rebuilt: bool = after_ids.size() == before_ids.size() and after_ids.back() == "bathala"
+	for index in range(mini(before_nodes.size(), _arena._gods.size())):
+		rebuilt = rebuilt and before_nodes[index] != _arena._gods[index]
+	_check(rebuilt, "every round rebuilds the enemy gods from a fresh draw, Bathala last")
+
 	print("Agawan balance checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
 	quit(1 if _problems > 0 else 0)
@@ -387,9 +594,16 @@ func _god(id: StringName) -> AgawanGod:
 # meets the gods it puts somewhere. Tala's star stays off unless a test turns it on.
 func _fresh_round() -> void:
 	_arena.star_interval = 0.0
+	_arena.stun_interval = 0.0
+	_arena.teleport_interval = 0.0
 	_arena.arena_round_reset()
 	_arena._invuln.clear()
 	_arena._mortal_positions.clear()
+	_arena._blind_time = 0.0
+	_arena._sun_patches.clear()
+	_arena._sun_patch_sources.clear()
+	_arena.clear_sun_patches()
+	_arena.player.global_position = Vector2(2000, 2000)
 	for god_node in _arena._gods:
 		god_node.move_speed = 0.0
 		god_node.lunge_interval = 0.0

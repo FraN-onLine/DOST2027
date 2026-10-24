@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
 [ext_resource type="Texture2D" uid="uid://ljnu4g1qof31" path="res://Assets/Gods/Hanan/hanan_block.png" id="2_x2xqd"]
-[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
+[ext_resource type="Texture2D" uid="uid://br3spaju6v8a1" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kmmsn"]
 atlas = ExtResource("2_x2xqd")
@@ -29,7 +29,7 @@ animations = [{
 [node name="Hanan" type="Node2D" unique_id=1701970280]
 script = ExtResource("1_god")
 
-[node name="Shadow" type="Sprite2D" parent="."]
+[node name="Shadow" type="Sprite2D" parent="." unique_id=407848525]
 position = Vector2(0, 16)
 scale = Vector2(1.5, 0.46)
 texture = ExtResource("shadow_tex")
@@ -58,7 +58,8 @@ default_color = Color(0.7, 0.85, 1, 0.6)
 position = Vector2(7.1525574e-07, -44)
 scale = Vector2(1.773425, 1.828125)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-frame_progress = 0.50071216
+autoplay = "default"
+frame_progress = 0.0070283134
 
 [node name="Name" type="Label" parent="." unique_id=1279801229]
 offset_left = -55.0

@@ -12,8 +12,9 @@ extends Node2D
 #   * WATCH   Bathala circles his base and never leaves the ring. While a mortal
 #             holds his base he turns and walks straight at the holder
 #             (watcher_speed x faster) until the hold breaks.
-#   * DEFEND  the defensive gods (Tala, Hanan) stay near Bathala's base and chase
-#             any mortal within defend_wake of it.
+#   * DEFEND  the defensive gods (Tala, Hanan) stay near Bathala's base, chase
+#             any mortal within defend_wake of it, and every sortie_interval
+#             seconds step out toward the mortals' base for sortie_time.
 #   * ATTACK  the offensive gods (Apolaki, Mayari) push into the mortals' base and
 #             try to hold it (the arena counts the hold). They chase a mortal only
 #             when one is within chase_radius and off its safe base, and fall back
@@ -27,11 +28,17 @@ extends Node2D
 #   * Mayari, the moonlight (Patintero): moon_speed x slower, moon_reach x the
 #     tag reach (a faint circle shows it), and she guards the lane - she steps
 #     into a mortal's row instead of chasing it.
-#   * Tala's star throw and every god's ally pulse (Hanan's is the big one) are
-#     rules, so the arena runs them (BathalaArena); this node only counts them so
-#     every screen draws the same expanding wave.
-#     Every god also releases its own wave on a cooldown (the same expanding
-#     shockwave a mortal's swing throws); the arena runs it and draws it.
+#   * Tala's star throw, Hanan's stunning light, Tala's jaunt and every god's
+#     ally pulse (Hanan's is the big one) are rules, so the arena runs them
+#     (BathalaArena); this node only counts them and draws the state the arena
+#     mirrors (a pulse wave, a white second then gone).
+#     Every god also releases its own wave now and then (the same expanding
+#     shockwave a mortal's swing throws), but only when a mortal is close enough
+#     to be in the fight; the arena runs it and draws it.
+#
+# Every god turns to face the way it walks; the sheets are drawn facing left, so
+# art_facing is -1 and a god flips when it travels back to the right. A scene may
+# author its Icon flipped (Mayari does): that is the god's resting facing.
 #
 # Touching a mortal freezes it - the BathalaArena owns that rule and every other
 # rule; this node only walks, decides a goal moment to moment and draws itself.
@@ -51,6 +58,7 @@ const ROLE_COLOR := {
 }
 
 @export var move_speed := 150.0        # how fast the god walks (the mortal runs 215)
+@export var art_facing := -1           # the sheets face left (1 = a sheet drawn facing right)
 @export var tag_radius := 24.0         # how close before a touch counts as a tag
 @export var guard_radius := 90.0       # how far Bathala circles his base
 @export var defend_wake := 210.0       # a mortal this close to Bathala's base wakes a defender
@@ -70,10 +78,16 @@ const ROLE_COLOR := {
 
 @export_category("Bathala - the watcher")
 @export var watcher_speed := 1.2       # his walk at a holder, as a multiple of move_speed (0 = off)
-@export var god_freeze_time := 10.0    # seconds a frozen god stays frozen (mortals: 5s)
+@export var god_freeze_time := 5.0     # seconds a frozen god stays frozen (mortals: 5s)
+
+@export_category("Defenders - sorties")
+@export var sortie_interval := 8.0     # seconds a defender holds the base between sorties (0 = off)
+@export var sortie_time := 3.5         # seconds it stays out before returning
+@export var sortie_reach := 240.0      # how far from Bathala's base it pushes
 
 @export_category("Shockwave")
-@export var shock_cd := 5.0            # seconds between god shockwaves (0 = off)
+@export var shock_cd := 12.0           # seconds between god shockwaves (0 = off)
+@export var shock_notice := 140.0      # a wave needs a mortal this close (0 = anywhere)
 @export var shock_radius := 18.0       # how far the god's shockwave reaches
 
 var god_id: StringName = &""
@@ -105,10 +119,18 @@ var _wander := Vector2.ZERO
 var _pulse := 0.0
 var _lunge_cd := 0.0
 var _chasing := false                 # the goal this frame is a mortal
+var _facing := -1                     # the way the art is shown: 1 right, -1 left
+var _sortie_cd := 0.0                 # seconds before a defender's next sortie
+var _sortie_left := 0.0               # seconds left out of the base on a sortie
+var _sortie_target := Vector2.ZERO    # the point a sortie is headed for
 
 # Shockwave (mirrored to the clients).
 var _shock_timer := 0.0               # cooldown until next shockwave
 var shocks_released := 0              # how many waves it has thrown - clients replay each
+
+# Tala's jaunt (mirrored to the clients): 1 is the white second, 2 is gone.
+var teleport_phase := 0
+var teleport_left := 0.0
 
 @onready var icon: AnimatedSprite2D = get_node_or_null("Icon")
 @onready var ring: Line2D = get_node_or_null("Ring")
@@ -120,6 +142,8 @@ var shocks_released := 0              # how many waves it has thrown - clients r
 
 func _ready() -> void:
 	_lunge_cd = lunge_interval
+	_facing = -art_facing if icon != null and icon.flip_h else art_facing
+	_sortie_cd = sortie_interval * randf_range(0.4, 1.0)
 	_refresh_visual()
 
 
@@ -189,7 +213,12 @@ func reset_round() -> void:
 	lunge_left = 0.0
 	_shock_timer = 0.0
 	watch_target = Vector2.INF
+	teleport_phase = 0
+	teleport_left = 0.0
 	_lunge_cd = lunge_interval
+	_sortie_left = 0.0
+	_sortie_cd = sortie_interval * randf_range(0.4, 1.0)
+	_sortie_target = base_center
 
 
 # The ally pulse: count it so every screen draws the expanding ring.
@@ -212,6 +241,11 @@ func _desired_position(mortals: Array) -> Vector2:
 		if raider != Vector2.INF and raider.distance_to(base_center) < defend_wake:
 			_chasing = true
 			return raider
+		if _sortie_left > 0.0:
+			return _sortie_target + _wander * 0.35
+		if sortie_interval > 0.0 and sortie_time > 0.0 and _sortie_cd <= 0.0:
+			_begin_sortie()
+			return _sortie_target + _wander * 0.35
 		return base_center + _wander
 	# An attacker drops back only for a mortal at Bathala's base...
 	if raider != Vector2.INF and raider.distance_to(base_center) < attack_switch:
@@ -227,6 +261,23 @@ func _desired_position(mortals: Array) -> Vector2:
 		return near
 	# ...and otherwise pushes into the mortals' base and holds it.
 	return target_center + _wander * 0.5
+
+
+# A defender steps out toward the mortals' base, with a little sideways spread,
+# then holds that spot until the sortie time runs out and walks home.
+func _begin_sortie() -> void:
+	_sortie_left = sortie_time
+	_sortie_cd = sortie_interval
+	var out := target_center - base_center
+	if out.length_squared() < 0.01:
+		out = Vector2.LEFT
+	out = out.normalized().rotated(randf_range(-0.45, 0.45))
+	_sortie_target = base_center + out * sortie_reach
+
+
+func _face_travel(dx: float) -> void:
+	if absf(dx) > 0.01:
+		_facing = 1 if dx > 0.0 else -1
 
 
 func _nearest(mortals: Array, from: Vector2) -> Vector2:
@@ -261,10 +312,21 @@ func step(delta: float, mortals: Array) -> void:
 			immune_left = thaw_immunity
 		_refresh_visual()
 		return
+	# A defender's sortie clock: out for sortie_time, then the wait at home.
+	if _sortie_left > 0.0:
+		_sortie_left = maxf(0.0, _sortie_left - delta)
+	elif role == Role.DEFEND and god_id != &"bathala":
+		_sortie_cd = maxf(0.0, _sortie_cd - delta)
+	# Tala's jaunt holds her still: the arena owns the white second and the jump.
+	if teleport_phase > 0:
+		_refresh_visual()
+		return
 	# Apolaki's lunge: the dash, then the wind-up before it, each a short state.
 	if lunge_left > 0.0:
+		var from := global_position.x
 		lunge_left = maxf(0.0, lunge_left - delta)
 		global_position += lunge_dir * (lunge_distance / maxf(0.01, lunge_time)) * delta
+		_face_travel(global_position.x - from)
 		_refresh_visual()
 		return
 	if windup > 0.0:
@@ -285,15 +347,19 @@ func step(delta: float, mortals: Array) -> void:
 			and goal.distance_to(global_position) > 1.0:
 		_lunge_cd = lunge_interval
 		lunge_dir = (goal - global_position).normalized()
+		_face_travel(lunge_dir.x)
 		windup = lunge_windup
 		_refresh_visual()
 		return
+	var from := global_position.x
 	global_position = global_position.move_toward(goal, speed() * delta)
+	_face_travel(global_position.x - from)
 	_refresh_visual()
 
 
 # Mirror pose on a client.
 func place(at: Vector2) -> void:
+	_face_travel(at.x - global_position.x)
 	global_position = at
 
 
@@ -317,16 +383,22 @@ func _circle(radius: float) -> PackedVector2Array:
 
 
 func _refresh_visual() -> void:
-	var tint := god_color()
+	# Tala's jaunt: the white second, then every part of her gone.
+	modulate = Color(1, 1, 1, 0.0 if teleport_phase == 2 else 1.0)
 	if icon != null:
-		# A frozen god dims, a winding-up Apolaki flashes, a hunting god burns a
-		# little brighter.
+		# A frozen god dims, a thawing one blinks, a winding-up Apolaki flashes and
+		# a hunting god burns a little brighter. The art keeps its own colours.
 		var alpha := 0.55 if frozen else 0.92 + 0.08 * sin(_pulse * 5.0)
-		icon.modulate = Color(1, 1, 1, alpha) if (windup > 0.0 and fmod(windup, 0.1) < 0.05) or blinking() \
-			else Color(tint.r, tint.g, tint.b, alpha)
+		if blinking():
+			alpha = 0.35
+		elif windup > 0.0 and fmod(windup, 0.1) < 0.05:
+			alpha = 1.0
+		# A jaunting Tala burns white for her wind-up.
+		icon.modulate = Color(2.4, 2.4, 2.4, alpha) if teleport_phase == 1 else Color(1, 1, 1, alpha)
+		icon.flip_h = _facing != art_facing
 	if ring != null:
 		# Bathala's ring carries his gold, so the dark grey still reads on the field.
-		var edge := UITokens.GOLD if god_id == &"bathala" else tint
+		var edge := UITokens.GOLD if god_id == &"bathala" else god_color()
 		ring.default_color = Color(edge.r, edge.g, edge.b, 0.5 if god_id != &"bathala" else 0.85)
 		ring.visible = not frozen
 	if reach_ring != null:

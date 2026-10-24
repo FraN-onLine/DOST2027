@@ -6,8 +6,23 @@
 [ext_resource type="Texture2D" uid="uid://b3hkvrfg3hjsl" path="res://Assets/Placeholders/god.png" id="3_icon"]
 [ext_resource type="PackedScene" path="res://UI/GodsArena/tindahan_menu.tscn" id="4_shop"]
 [ext_resource type="Texture2D" uid="uid://dbmukqcfnx0ge" path="res://Assets/Altar.png" id="5_dlnq4"]
-[ext_resource type="Texture2D" uid="uid://1rudp71seeoq" path="res://Assets/Gods/merchant.png" id="6_dlnq4"]
+[ext_resource type="Texture2D" uid="uid://ciq01reskd3lr" path="res://Assets/Gods/Bulawan.png" id="6_dlnq4"]
 [ext_resource type="Texture2D" uid="uid://47ujncj6jm7f" path="res://Assets/Map/lobbymap.png" id="7_161xv"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_glow"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_glow"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(1, 0.62, 0.25, 0.85, 1, 0.45, 0.12, 0.35, 1, 0.4, 0.1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
+gradient = SubResource("Gradient_glow")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_h5hph"]
 atlas = ExtResource("3_161xv")
@@ -73,20 +88,27 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="Gradient" id="Gradient_glow"]
-offsets = PackedFloat32Array(0, 0.4, 1)
-colors = PackedColorArray(1, 0.62, 0.25, 0.85, 1, 0.45, 0.12, 0.35, 1, 0.4, 0.1, 0)
+[sub_resource type="AtlasTexture" id="AtlasTexture_yu7e0"]
+atlas = ExtResource("6_dlnq4")
+region = Rect2(0, 0, 146, 146)
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
-gradient = SubResource("Gradient_glow")
-width = 128
-height = 128
-fill = 1
-fill_from = Vector2(0.5, 0.5)
-fill_to = Vector2(1, 0.5)
+[sub_resource type="AtlasTexture" id="AtlasTexture_10wso"]
+atlas = ExtResource("6_dlnq4")
+region = Rect2(146, 0, 146, 146)
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_glow"]
-blend_mode = 1
+[sub_resource type="SpriteFrames" id="SpriteFrames_yf5fn"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yu7e0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_10wso")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 2.0
+}]
 
 [node name="PrepArea" unique_id=580867236 instance=ExtResource("1_base")]
 script = ExtResource("2_prep")
@@ -130,7 +152,7 @@ z_index = 1
 [node name="Campfire" type="Node2D" parent="Camp" index="0" unique_id=1947551979]
 position = Vector2(700, 340)
 
-[node name="Glow" type="Sprite2D" parent="Camp/Campfire" index="0"]
+[node name="Glow" type="Sprite2D" parent="Camp/Campfire" index="0" unique_id=331625039]
 material = SubResource("CanvasItemMaterial_glow")
 scale = Vector2(1.09375, 1.09375)
 texture = SubResource("GradientTexture2D_glow")
@@ -143,7 +165,7 @@ sprite_frames = SubResource("SpriteFrames_g4v7s")
 autoplay = "default"
 frame_progress = 0.5407333
 
-[node name="Light" type="PointLight2D" parent="Camp/Campfire" index="2"]
+[node name="Light" type="PointLight2D" parent="Camp/Campfire" index="2" unique_id=791809299]
 color = Color(1, 0.62, 0.3, 1)
 energy = 0.35
 texture = SubResource("GradientTexture2D_glow")
@@ -190,7 +212,7 @@ offset_top = 40.0
 offset_right = 90.0
 offset_bottom = 60.0
 theme_type_variation = &"WorldLabel"
-text = "TINDAHAN"
+text = "BURIGADANG PALA SINAKLANG BULAWAN"
 horizontal_alignment = 1
 
 [node name="Hint" type="Label" parent="Camp/Stall" index="1" unique_id=270025467]
@@ -203,9 +225,10 @@ theme_type_variation = &"WorldLabel"
 text = "LEFT CLICK - TINDAHAN"
 horizontal_alignment = 1
 
-[node name="Sprite2D" type="Sprite2D" parent="Camp/Stall" index="2" unique_id=436124641]
+[node name="Sprite2D" type="AnimatedSprite2D" parent="Camp/Stall" index="2" unique_id=365941367]
 position = Vector2(0, -25)
-texture = ExtResource("6_dlnq4")
+sprite_frames = SubResource("SpriteFrames_yf5fn")
+frame_progress = 0.6213704
 
 [node name="PrepHud" type="CanvasLayer" parent="." index="12" unique_id=801358590]
 layer = 12

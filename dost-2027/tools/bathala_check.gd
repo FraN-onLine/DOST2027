@@ -50,14 +50,33 @@ func _run() -> void:
 	_check(_arena._my_base != Vector2.ZERO and _arena._bathala_base != Vector2.ZERO, "both bases are authored on the field")
 	_check(_arena._bathala_base.x > _arena._my_base.x, "Bathala's base sits across the field from ours")
 
-	# --- the roster: one god per mortal plus Bathala, in slot order -------------
-	_check(_arena.roster_ids() == ["apolaki", "tala", "bathala"], "solo testing meets 2+1 (%s)" % str(_arena.roster_ids()))
+	# --- the roster: random gods, Bathala always in the last slot ------------------
+	var solo: Array = _arena.roster_ids()
+	var solo_unique := {}
+	for id in solo:
+		solo_unique[id] = true
+	_check(solo.size() == 3 and solo[2] == "bathala" and solo_unique.size() == solo.size(),
+		"solo testing meets two different gods plus Bathala (%s)" % str(solo))
 	_check(BathalaArena.roster_for(1).size() == 2, "one mortal still gets two gods")
-	var order := ["apolaki", "tala", "mayari", "hanan"]
+	var drawn_seen := {}
+	for roll in range(200):
+		for id in BathalaArena.roster_for(1):
+			drawn_seen[id] = true
+	_check(drawn_seen.size() == 4, "the draw is random: all four gods come up over 200 solo rolls (%s)" % str(drawn_seen.keys()))
 	for players in [2, 3, 4]:
-		_arena._build_gods(BathalaArena.roster_for(players))
-		var expected: Array = order.slice(0, players) + ["bathala"]
-		_check(_arena.roster_ids() == expected, "%d players meet %d+1 in slot order (%s)" % [players, players, str(_arena.roster_ids())])
+		var drawn: Array = BathalaArena.roster_for(players)
+		var drawn_unique := {}
+		for id in drawn:
+			drawn_unique[id] = true
+		_check(drawn.size() == players and drawn_unique.size() == players and not drawn.has("bathala"),
+			"%d players draw %d different gods from the four (%s)" % [players, players, str(drawn)])
+	_arena._build_gods(BathalaArena.roster_for(4))
+	var full: Array = _arena.roster_ids()
+	var full_unique := {}
+	for id in full:
+		full_unique[id] = true
+	_check(full.size() == 5 and full[4] == "bathala" and full_unique.size() == 5,
+		"four players meet all four gods, plus Bathala (%s)" % str(full))
 	var roles_ok := true
 	for god_node in _arena._gods:
 		var attacks := god_node.god_id == &"apolaki" or god_node.god_id == &"mayari"
@@ -65,7 +84,10 @@ func _run() -> void:
 			roles_ok = false
 	_check(roles_ok, "Apolaki and Mayari attack; Tala, Hanan and Bathala defend")
 	var layout := _arena.arena_layout_fields()
-	_check((layout["gods"] as Array).size() == 5 and str(layout["gods"][2]["id"]) == "mayari", "the roster travels in the layout")
+	var layout_ids: Array = []
+	for entry in layout["gods"]:
+		layout_ids.append(str(entry["id"]))
+	_check(layout_ids == full, "the roster travels in the layout (%s)" % str(layout_ids))
 	var tick_keys := _arena.arena_tick_fields().keys()
 	var wanted := ["god_hold", "hold", "holders", "stars", "pulses", "wary", "pity", "judgment"]
 	var has_all := true
@@ -291,6 +313,8 @@ func _god(id: StringName) -> AgawanGod:
 # unless a test turns them on.
 func _fresh_round() -> void:
 	_arena.star_interval = 0.0
+	_arena.stun_interval = 0.0
+	_arena.teleport_interval = 0.0
 	_arena.ally_pulse_interval = 0.0
 	_arena.arena_round_reset()
 	_arena._invuln.clear()

@@ -22,14 +22,20 @@ extends Arena
 #   thaw_immunity seconds after thawing (see _freeze_god / _freeze_mortal).
 #
 # THE GODS: one per mortal, plus Bathala (2 players: 2+1 ... 4 players: 4+1;
-#   solo testing meets 2+1). The slots fill in ROSTER order - Apolaki (offense),
-#   Tala (defense), Mayari (offense), Hanan (defense) - and Bathala always circles
-#   his own base. Each god plays like their own trial (see agawan_god.gd):
+#   solo testing meets 2+1). Every slot but Bathala's is a random draw from the
+#   four - Apolaki (offense), Tala (defense), Mayari (offense), Hanan (defense) -
+#   redrawn every round, and Bathala always circles his own base. Each god plays
+#   like their own trial (see agawan_god.gd):
 #     * Apolaki lunges, Mayari reaches further and guards the lanes, Bathala walks
 #       at whoever holds his base.
 #     * Tala throws a slow star every star_interval at the nearest mortal in the
 #       common field: it freezes on a hit, it can be dodged, and a swing breaks
 #       it (+star_break_favor). The host moves the stars; the tick carries them.
+#     * Hanan throws a stunning light every stun_interval: it stuns and shoves
+#       whoever it hits (the same hit a knockback uses), and never freezes.
+#     * Tala now and then turns white for teleport_windup, vanishes for
+#       teleport_gone, and reappears beside another god - thawing it if it was
+#       frozen. Freezing her mid-jaunt calls the jaunt off.
 #     * EVERY live god (Bathala too) pulses a ring every ally_pulse_interval that
 #       thaws each frozen god within ally_pulse_radius - never a mortal. Each god
 #       keeps its own timer (staggered by god index, paused while it is frozen).
@@ -39,11 +45,14 @@ extends Arena
 #       screen sees it.
 #
 # TAGGING / FREEZING
-#   A mortal ATTACKS (left click / `attack`). The swing reaches tag_radius:
+#   A mortal ATTACKS (left click / `attack`). The swing reaches shock_radius
+#   (90 px, as far as a god's pulse):
 #     * a live enemy GOD outside Bathala's base -> it FREEZES, +tag_god_favor.
 #     * a FROZEN ally mortal                   -> it THAWS, +unfreeze_favor.
 #     * one of Tala's stars                    -> it breaks, +star_break_favor.
-#   A god touching a mortal off its base freezes it: -tagged_favor. FROZEN MEANS
+#   A god touching a mortal off its base freezes it: -tagged_favor, and its touch
+#   leaves a mark: Apolaki's burns a Sun Patch onto the mortal, Mayari's blinds
+#   that mortal's screen for mayari_blind_time seconds. FROZEN MEANS
 #   FROZEN: a frozen mortal cannot move, attack, dash or capture until it thaws
 #   (freeze_time, a 5-4-3-2-1 over its head) or a teammate's swing thaws it, and
 #   it then blinks white for thaw_immunity seconds in which nothing freezes it.
@@ -110,6 +119,7 @@ const GOD_MARGIN := Vector2(24.0, 24.0)
 const PITY_OFFSET := Vector2(-80.0, -96.0)
 const SAFE_TIME := 1.5          # a SAFE popup is not repeated on the same target sooner than this
 const SAFE_GOD_OFFSET := Vector2(0.0, -44.0)
+const JAUNT_OFFSET := Vector2(-48.0, 0.0)  # where Tala lands beside the god she picks
 
 @export_category("Agawan Base")
 @export var freeze_time := 5.0              # seconds a tagged god/mortal stays frozen
@@ -118,7 +128,7 @@ const SAFE_GOD_OFFSET := Vector2(0.0, -44.0)
 @export var thaw_immunity := 1.0            # seconds nothing can freeze a mortal / god that just thawed
 
 @export_category("Shockwave (replaces arnis)")
-@export var shock_radius := 65.0            # full radius of the attack wave
+@export var shock_radius := 90.0            # full radius of the attack wave (as far as a god's pulse)
 @export var shock_expand_time := 0.45       # seconds the wave takes to reach full size
 @export var base_radius := 46.0             # how big a base zone reads, in pixels
 @export var thaw_touch := 40.0              # a live god this close to a frozen god thaws it
@@ -141,6 +151,24 @@ const SAFE_GOD_OFFSET := Vector2(0.0, -44.0)
 @export var star_speed := 150.0             # slow enough to dodge
 @export var star_radius := 10.0
 @export var star_life := 4.0                # seconds before a missed star fades
+
+@export_category("Hanan - the stunning light")
+@export var stun_interval := 10.0           # seconds between her orbs (0 = off)
+@export var stun_speed := 170.0
+@export var stun_radius := 11.0
+@export var stun_life := 4.0
+@export var stun_time := 1.8                # seconds the mortal is stunned
+@export var stun_force := 380.0             # the shove that comes with it
+
+@export_category("Apolaki and Mayari - their touch")
+@export var apolaki_sun_count := 1          # Sun Patches left by Apolaki's touch
+@export var apolaki_sun_duration := 3.0
+@export var mayari_blind_time := 2.0        # seconds Mayari's touch blinds the mortal
+
+@export_category("Tala - the jaunt")
+@export var teleport_interval := 12.0       # seconds between her jaunts (0 = off)
+@export var teleport_windup := 1.0          # the white second before she vanishes
+@export var teleport_gone := 0.25           # seconds she is off the field
 
 @export_category("Ally pulse (every god) and Hanan's dawn")
 @export var ally_pulse_interval := 5.0      # seconds between a god's pulses (0 = off)
@@ -182,8 +210,13 @@ var _hold_progress := 0.0             # 0..1, the mortals' hold on Bathala's bas
 var _holders := 0                     # how many mortals are holding it
 var _holder_pos := Vector2.INF        # where the first holder stands (Bathala walks at it)
 var _god_hold := 0.0                  # 0..1, the gods' hold on the mortals' base
-var _stars: Array[Dictionary] = []    # Tala's stars: {pos, vel, left}
+var _stars: Array[Dictionary] = []    # Tala's stars and Hanan's lights: {kind, pos, vel, left}
 var _star_cd := 0.0
+var _stun_cd := 0.0                   # Hanan's next orb
+var _blind_mortals := {}              # mortal id -> seconds blinded (host; mirrored)
+var _stun_mortals := {}               # mortal id -> seconds stunned (host; mirrored)
+var _teleport_cd := 0.0               # Tala's next jaunt
+var _teleport_target := -1            # the god she will land beside
 var _pulse_timers: Array[float] = []   # per god index: seconds to its next ally pulse (host; mirrored)
 var _seen_god_shocks: Array[int] = [] # client: per god index, the shockwaves it has already drawn
 var _seen_god_pulses: Array[int] = [] # client: per god index, the pulses it has already drawn
@@ -213,10 +246,13 @@ func shares_mortal_positions() -> bool:
 	return true
 
 
-# The god slots for `mortals` players, in fill order: one god per mortal, never
-# fewer than two, never more than the four names (Bathala comes on top).
+# The god slots for `mortals` players: a random draw from the four, one god per
+# mortal, never fewer than two, never more than the four names (Bathala comes on
+# top, not part of the draw).
 static func roster_for(mortals: int) -> Array:
-	return ROSTER.slice(0, clampi(mortals, MIN_GODS, ROSTER.size()))
+	var draw := ROSTER.duplicate()
+	draw.shuffle()
+	return draw.slice(0, clampi(mortals, MIN_GODS, ROSTER.size()))
 
 
 func collect_units() -> void:
@@ -248,6 +284,7 @@ func _build_gods(roster: Array) -> void:
 	_pulse_timers.clear()
 	_seen_god_shocks.clear()
 	_seen_god_pulses.clear()
+	_teleport_target = -1
 	if gods_root == null or _bathala_base == Vector2.ZERO:
 		return
 	for id in roster + ["bathala"]:
@@ -292,12 +329,17 @@ func arena_round_reset() -> void:
 	_god_hold = 0.0
 	_stars.clear()
 	_star_cd = star_interval
+	_stun_cd = stun_interval
 	_pause = 0.0
 	_count = 0.0
 	_frozen_mortals.clear()
 	_frozen_gods.clear()
 	_thaw_immune.clear()
 	_safe_flash.clear()
+	_blind_mortals.clear()
+	_stun_mortals.clear()
+	_teleport_cd = teleport_interval * randf_range(0.6, 1.0)
+	_teleport_target = -1
 	_reset_pulse_timers()
 	for index in range(_gods.size()):
 		var god_node: AgawanGod = _gods[index]
@@ -388,6 +430,7 @@ func arena_rules_tick(delta: float) -> void:
 	if _count > 0.0:
 		_tick_round_count(delta)
 		return
+	_tick_tala_teleport(delta)
 	var live := _live_mortal_positions()
 	for index in range(_gods.size()):
 		var god_node: AgawanGod = _gods[index]
@@ -400,10 +443,13 @@ func arena_rules_tick(delta: float) -> void:
 			_frozen_gods[index] = god_node.freeze_left
 			continue
 		_frozen_gods.erase(index)
+		if god_node.teleport_phase == 2:
+			continue  # vanished mid-jaunt: no touch, no thaw
 		_tag_mortals_from(god_node)
 		_thaw_gods_near(god_node)
 	_tick_ally_pulses(delta)
 	_tick_immunity(delta)
+	_tick_status_effects(delta)
 	_tick_stars(delta)
 	_tick_shocks(delta)
 	_tick_god_shocks(delta)
@@ -420,6 +466,14 @@ func _live_mortal_positions() -> Array:
 		if not _is_frozen(int(entry["id"])):
 			out.append(entry["pos"])
 	return out
+
+
+# Is a live mortal close enough for a god's move to be part of the fight?
+func _mortal_near(pos: Vector2, radius: float) -> bool:
+	for other in _live_mortal_positions():
+		if pos.distance_to(other) <= radius:
+			return true
+	return false
 
 
 func _on_my_base(pos: Vector2) -> bool:
@@ -459,7 +513,7 @@ func _tag_mortals_from(god_node: AgawanGod) -> void:
 		var mortal_id := int(entry["id"])
 		var pos: Vector2 = entry["pos"]
 		if _taggable(mortal_id, pos) and pos.distance_to(god_node.global_position) <= maxf(god_node.reach(), player.radius):
-			_freeze_mortal(mortal_id, god_node.global_position)
+			_freeze_mortal(mortal_id, god_node.global_position, god_node.god_id)
 
 
 # A live god touching a frozen god thaws it ("opponent gods can do the same").
@@ -471,19 +525,138 @@ func _thaw_gods_near(god_node: AgawanGod) -> void:
 			_frozen_gods.erase(index)
 
 
-# EVERY way a mortal gets frozen ends here (a god's touch, Apolaki's lunge, Mayari's
-# reach, Tala's star): a refused freeze pops SAFE and changes nothing.
-func _freeze_mortal(mortal_id: int, from: Vector2) -> void:
-	if _is_frozen(mortal_id):
+# Tala's jaunt: every teleport_interval of her being live she turns white for
+# teleport_windup, vanishes for teleport_gone, then lands beside another god -
+# thawing it if it was frozen. Freezing her mid-jaunt calls it off.
+func _tick_tala_teleport(delta: float) -> void:
+	if teleport_interval <= 0.0:
 		return
+	var tala := _god_by_id(&"tala")
+	if tala == null or tala.is_frozen():
+		return
+	if tala.teleport_phase == 0:
+		_teleport_cd = maxf(0.0, _teleport_cd - delta)
+		if _teleport_cd <= 0.0 and not _begin_jaunt(tala):
+			_teleport_cd = teleport_interval
+		return
+	tala.teleport_left = maxf(0.0, tala.teleport_left - delta)
+	if tala.teleport_left > 0.0:
+		return
+	if tala.teleport_phase == 1:
+		tala.teleport_phase = 2
+		tala.teleport_left = teleport_gone
+		tala._refresh_visual()
+		return
+	_land_jaunt(tala)
+
+
+func _begin_jaunt(tala: AgawanGod) -> bool:
+	var choices: Array[int] = []
+	for index in range(_gods.size()):
+		if _gods[index] != tala:
+			choices.append(index)
+	if choices.is_empty():
+		return false
+	_teleport_target = choices.pick_random()
+	tala.teleport_phase = 1
+	tala.teleport_left = teleport_windup
+	tala._refresh_visual()
+	return true
+
+
+func _land_jaunt(tala: AgawanGod) -> void:
+	if _teleport_target >= 0 and _teleport_target < _gods.size():
+		var target: AgawanGod = _gods[_teleport_target]
+		tala.global_position = target.global_position + JAUNT_OFFSET
+		if target.is_frozen():
+			target.thaw()
+			_frozen_gods.erase(_teleport_target)
+	tala.teleport_phase = 0
+	tala.teleport_left = 0.0
+	_teleport_target = -1
+	_teleport_cd = teleport_interval
+	tala._refresh_visual()
+
+
+# A freeze lands on Tala while she is jaunting: she stays where she was and the
+# white second is called off.
+func _cancel_jaunt(tala: AgawanGod) -> void:
+	if tala.teleport_phase == 0:
+		return
+	tala.teleport_phase = 0
+	tala.teleport_left = 0.0
+	_teleport_target = -1
+	_teleport_cd = teleport_interval
+	tala._refresh_visual()
+
+
+# EVERY way a mortal gets frozen ends here (a god's touch, Apolaki's lunge, Mayari's
+# reach, Tala's star): a refused freeze pops SAFE and changes nothing. `source` is
+# the god whose touch landed it, so its own mark follows the freeze.
+func _freeze_mortal(mortal_id: int, from: Vector2, source := &"") -> bool:
+	if _is_frozen(mortal_id):
+		return false
 	var pos := mortal_position(mortal_id)
 	if pos != Vector2.INF and not can_freeze_mortal(mortal_id, pos):
 		_flash_safe(mortal_id)
-		return
+		return false
 	_frozen_mortals[mortal_id] = freeze_time
 	lose_favor(tagged_favor, "Tagged by a god", mortal_id)
 	knock_mortal(mortal_id, from, 0.3, 260.0)
 	spawn_popup("TAGGED", Arena.POPUP_LOSS_COLOR, popup_origin(mortal_id))
+	_apply_touch_effect(source, mortal_id)
+	return true
+
+
+# A god's touch leaves its mark: Apolaki burns a Sun Patch onto the mortal,
+# Mayari blinds that mortal's screen. Every other god's touch only freezes.
+func _apply_touch_effect(source: StringName, mortal_id: int) -> void:
+	if source == &"apolaki":
+		_add_sun_patches(mortal_id, apolaki_sun_count, apolaki_sun_duration)
+	elif source == &"mayari":
+		_blind_mortal(mortal_id, mayari_blind_time)
+
+
+func _blind_mortal(mortal_id: int, seconds: float) -> void:
+	if seconds <= 0.0:
+		return
+	var mortal := rules.mortal(mortal_id)
+	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
+		return
+	_blind_mortals[mortal_id] = maxf(float(_blind_mortals.get(mortal_id, 0.0)), seconds)
+	if mortal_id == _my_id:
+		_blind_time = maxf(_blind_time, seconds)
+	else:
+		spawn_popup("BLINDED", UITokens.STAR, popup_origin(mortal_id))
+
+
+# Hanan's light: the same shove a knockback uses, with the stun on top. The
+# owner's screen gets it through the ordinary hit message, this side keeps the
+# timer so a stunned mortal holds nothing.
+func _stun_mortal(mortal_id: int, from: Vector2) -> void:
+	if stun_time <= 0.0:
+		return
+	_stun_mortals[mortal_id] = maxf(float(_stun_mortals.get(mortal_id, 0.0)), stun_time)
+	knock_mortal(mortal_id, from, stun_time, stun_force, true)
+	spawn_popup("STUNNED", UITokens.GOLD, popup_origin(mortal_id))
+
+
+func _is_stunned(mortal_id: int) -> bool:
+	return float(_stun_mortals.get(mortal_id, 0.0)) > 0.0
+
+
+func _tick_status_effects(delta: float) -> void:
+	_tick_effect_timers(_blind_mortals, delta)
+	_tick_effect_timers(_stun_mortals, delta)
+
+
+func _tick_effect_timers(timers: Dictionary, delta: float) -> void:
+	for mortal_id in timers.keys().duplicate():
+		var left := float(timers[mortal_id]) - delta
+		if left <= 0.0:
+			timers.erase(mortal_id)
+		else:
+			timers[mortal_id] = left
 
 
 func _is_frozen(mortal_id: int) -> bool:
@@ -515,7 +688,7 @@ func _tick_ally_pulses(delta: float) -> void:
 		_pulse_timers.append(ally_pulse_interval)
 	for index in range(_gods.size()):
 		var god_node: AgawanGod = _gods[index]
-		if god_node.is_frozen():
+		if god_node.is_frozen() or god_node.teleport_phase != 0:
 			continue
 		_pulse_timers[index] -= delta
 		if _pulse_timers[index] > 0.0:
@@ -580,27 +753,39 @@ func _refresh_blinks() -> void:
 			node.blink_left = float(_thaw_immune.get(int(mortal_id), 0.0))
 
 
-# Tala's star: every star_interval of her being live she throws one slow star at
-# the nearest mortal in the common field. It freezes whoever it hits, and fades
-# on the mortals' base, at the field's edge or after star_life.
+# Tala's star (a freeze) and Hanan's light (a stun): each throws at the nearest
+# mortal in the common field on her own clock. A star freezes whoever it hits, a
+# light stuns them; both fade on the mortals' base, at the field's edge or after
+# their life. Only Tala's stars are broken by a swing.
 func _tick_stars(delta: float) -> void:
 	var tala := _god_by_id(&"tala")
-	if tala != null and star_interval > 0.0 and not tala.is_frozen():
+	if tala != null and star_interval > 0.0 and not tala.is_frozen() and tala.teleport_phase == 0:
 		_star_cd -= delta
 		if _star_cd <= 0.0:
 			_star_cd = star_interval
 			_throw_star(tala.global_position)
+	var hanan := _god_by_id(&"hanan")
+	if hanan != null and stun_interval > 0.0 and not hanan.is_frozen():
+		_stun_cd -= delta
+		if _stun_cd <= 0.0:
+			_stun_cd = stun_interval
+			_throw_light(hanan.global_position)
 	for at in range(_stars.size() - 1, -1, -1):
 		var star: Dictionary = _stars[at]
+		var kind := str(star.get("kind", "star"))
 		star["pos"] = (star["pos"] as Vector2) + (star["vel"] as Vector2) * delta
 		star["left"] = float(star["left"]) - delta
 		var pos: Vector2 = star["pos"]
 		var gone := float(star["left"]) <= 0.0 or _on_my_base(pos) or (_field.size != Vector2.ZERO and not _field.has_point(pos))
 		if not gone:
+			var reach := (stun_radius if kind == "stun" else star_radius) + player.radius
 			for entry in mortal_entries():
 				var mortal_id := int(entry["id"])
-				if _taggable(mortal_id, entry["pos"]) and pos.distance_to(entry["pos"]) <= star_radius + player.radius:
-					_freeze_mortal(mortal_id, pos)
+				if _taggable(mortal_id, entry["pos"]) and pos.distance_to(entry["pos"]) <= reach:
+					if kind == "stun":
+						_stun_mortal(mortal_id, pos)
+					else:
+						_freeze_mortal(mortal_id, pos)
 					gone = true
 					break
 		if gone:
@@ -608,20 +793,37 @@ func _tick_stars(delta: float) -> void:
 
 
 func _throw_star(from: Vector2) -> void:
+	var best := _throw_target(from, true)
+	if best == Vector2.INF:
+		return
+	_stars.append({"kind": "star", "pos": from, "vel": (best - from).normalized() * star_speed, "left": star_life})
+
+
+func _throw_light(from: Vector2) -> void:
+	var best := _throw_target(from, false)
+	if best == Vector2.INF:
+		return
+	_stars.append({"kind": "stun", "pos": from, "vel": (best - from).normalized() * stun_speed, "left": stun_life})
+
+
+# The nearest mortal both projectiles can be aimed at: live, off its own base,
+# not holding Bathala's base. A star also skips one it could not freeze.
+func _throw_target(from: Vector2, must_freeze: bool) -> Vector2:
 	var best := Vector2.INF
 	for entry in mortal_entries():
+		var mortal_id := int(entry["id"])
 		var pos: Vector2 = entry["pos"]
-		if not _taggable(int(entry["id"]), pos) or _in_bathala_base(pos) or not can_freeze_mortal(int(entry["id"]), pos):
+		if not _taggable(mortal_id, pos) or _on_my_base(pos) or _in_bathala_base(pos):
+			continue
+		if must_freeze and not can_freeze_mortal(mortal_id, pos):
 			continue
 		if best == Vector2.INF or pos.distance_squared_to(from) < best.distance_squared_to(from):
 			best = pos
-	if best == Vector2.INF:
-		return
-	_stars.append({"pos": from, "vel": (best - from).normalized() * star_speed, "left": star_life})
+	return best
 
 
-# Mortals standing in Bathala's base hold the capture. A frozen mortal holds
-# nothing. More holders hold faster, and the pitied mortal's hold is shorter.
+# Mortals standing in Bathala's base hold the capture. A frozen or stunned mortal
+# holds nothing. More holders hold faster, and the pitied mortal's hold is shorter.
 func _check_capture(delta: float) -> void:
 	if _bathala_base == Vector2.ZERO:
 		return
@@ -629,7 +831,7 @@ func _check_capture(delta: float) -> void:
 	_holder_pos = Vector2.INF
 	for entry in mortal_entries():
 		var mortal_id := int(entry["id"])
-		if not _is_frozen(mortal_id) and _in_bathala_base(entry["pos"]):
+		if not _is_frozen(mortal_id) and not _is_stunned(mortal_id) and _in_bathala_base(entry["pos"]):
 			holders.append(mortal_id)
 			if _holder_pos == Vector2.INF:
 				_holder_pos = entry["pos"]
@@ -692,12 +894,15 @@ func _end_round(banner: String, color: Color) -> void:
 		_publish_layout()
 
 
-# The pause is over: everyone back to spawn and the round's "3 - 2 - 1".
+# The pause is over: a fresh enemy draw, everyone back to spawn and the round's
+# "3 - 2 - 1". Bathala always comes on top of the draw.
 func _start_round() -> void:
+	_build_gods(roster_for(_field_mortal_ids().size()))
 	arena_round_reset()
 	_count = countdown_time
 	_round_count_shown = -1
 	_on_round_count_began()
+	_publish_layout()
 
 
 func _tick_round_count(delta: float) -> void:
@@ -779,6 +984,7 @@ func _freeze_god(index: int, seconds: float, caster_id: int = -1) -> void:
 		return
 	god_node.freeze_for(seconds)
 	_frozen_gods[index] = seconds
+	_cancel_jaunt(god_node)
 	bank_favor(tag_god_favor, "Tagged a god", caster_id)
 	_show_banner("GOD FROZEN!", UITokens.GOLD, 1.2)
 
@@ -858,8 +1064,10 @@ func _tick_shocks(delta: float) -> void:
 				_thaw_mortal(mortal_id)
 				bank_favor(unfreeze_favor, "Unfroze an ally", int(shock["caster"]))
 				spawn_popup("THAWED", Arena.POPUP_GAIN_COLOR, popup_origin(mortal_id))
-		# Break Tala's stars in reach.
+		# Break Tala's stars in reach. Hanan's light is only dodged.
 		for at in range(_stars.size() - 1, -1, -1):
+			if str(_stars[at].get("kind", "star")) == "stun":
+				continue
 			if (_stars[at]["pos"] as Vector2).distance_to(shock["origin"]) <= radius + star_radius:
 				_stars.remove_at(at)
 				bank_favor(star_break_favor, "Broke Tala's star", int(shock["caster"]))
@@ -867,15 +1075,17 @@ func _tick_shocks(delta: float) -> void:
 			alive.append(shock)
 	_shocks = alive
 
-# A god releases a shockwave on a 5s cooldown: it tags (freezes) enemy gods
-# not at Bathala's base, and thaws (unfreezes) frozen ally gods within reach.
-# Runs on the host (authority) only.
-func _tick_god_shocks(delta: float) -> void:
+# A god releases a wave sparingly (shock_cd seconds), and only when a live
+# mortal is within shock_notice so it happens in the player's fight, not off
+# screen: it tags (freezes) enemy gods not at Bathala's base, and thaws
+# (unfreezes) frozen ally gods within reach. Runs on the host (authority) only.
+func _tick_god_shocks(_delta: float) -> void:
 	for index in range(_gods.size()):
 		var god_node: AgawanGod = _gods[index]
-		if not is_instance_valid(god_node) or god_node.is_frozen():
+		if not is_instance_valid(god_node) or god_node.is_frozen() or god_node.teleport_phase != 0:
 			continue
-		god_node._shock_timer = maxf(0.0, god_node._shock_timer - delta)
+		if god_node.shock_notice > 0.0 and not _mortal_near(god_node.global_position, god_node.shock_notice):
+			continue
 		if god_node._shock_timer > 0.0:
 			continue
 		# Look for any target: an enemy god to freeze (not at Bathala's base)
@@ -992,10 +1202,10 @@ func arena_read_layout(layout: Dictionary) -> void:
 	_apply_tint()  # the base re-tints the field with the god's grey on every layout
 
 
-# The fast per-tick state: each god's pose, freeze, trait and released waves,
-# the frozen mortals, both holds, Tala's stars, every god's pulse timer, the
-# thaw immunities, the SAFE popups, and the finale's state. The host runs the
-# rules; the clients only draw this.
+# The fast per-tick state: each god's pose, freeze, trait, jaunt and released
+# waves, the frozen mortals, both holds, the projectiles, every god's pulse timer,
+# the thaw immunities, blindness and stuns, the SAFE popups, and the finale's
+# state. The host runs the rules; the clients only draw this.
 func arena_tick_fields() -> Dictionary:
 	var gods: Array = []
 	for god_node in _gods:
@@ -1008,23 +1218,31 @@ func arena_tick_fields() -> Dictionary:
 			"pulse": god_node.pulses_released,
 			"immune": god_node.immune_left,
 			"shock": god_node.shocks_released,
+			"tp": god_node.teleport_phase,
 		})
 	var frozen: Dictionary = {}
 	for mortal_id in _frozen_mortals.keys():
 		frozen[str(mortal_id)] = float(_frozen_mortals[mortal_id])
 	var stars: Array = []
 	for star in _stars:
-		stars.append([(star["pos"] as Vector2).x, (star["pos"] as Vector2).y])
+		stars.append([(star["pos"] as Vector2).x, (star["pos"] as Vector2).y, str(star.get("kind", "star"))])
 	var safe: Dictionary = {}
 	for key in _safe_flash.keys():
 		safe[str(key)] = float(_safe_flash[key])
 	var immune: Dictionary = {}
 	for mortal_id in _thaw_immune.keys():
 		immune[str(mortal_id)] = float(_thaw_immune[mortal_id])
+	var blind := {}
+	for mortal_id in _blind_mortals.keys():
+		blind[str(mortal_id)] = float(_blind_mortals[mortal_id])
+	var stun := {}
+	for mortal_id in _stun_mortals.keys():
+		stun[str(mortal_id)] = float(_stun_mortals[mortal_id])
 	return {
 		"gods": gods, "frozen": frozen, "immune": immune, "safe": safe,
 		"hold": _hold_progress, "holders": _holders, "god_hold": _god_hold,
 		"stars": stars, "pulses": _pulse_timers.duplicate(), "wary": _wary, "pity": _pity_id,
+		"blind": blind, "stun": stun,
 		"judgment": _judgment, "pause": _pause, "count": _count, "round": _round,
 	}
 
@@ -1046,6 +1264,7 @@ func arena_read_tick(state: Dictionary) -> void:
 		if lunge.size() == 2:
 			god_node.lunge_dir = Vector2(float(lunge[0]), float(lunge[1]))
 		god_node.immune_left = float(entry.get("immune", 0.0))
+		god_node.teleport_phase = int(entry.get("tp", 0))
 		# A new count means the host released a wave: draw the same ring here.
 		if _wave_count_rose(_seen_god_shocks, index, int(entry.get("shock", 0))):
 			_spawn_god_shockwave(god_node)
@@ -1061,7 +1280,12 @@ func arena_read_tick(state: Dictionary) -> void:
 	_god_hold = float(state.get("god_hold", 0.0))
 	_stars.clear()
 	for star in state.get("stars", []):
-		_stars.append({"pos": Vector2(float(star[0]), float(star[1])), "vel": Vector2.ZERO, "left": 1.0})
+		_stars.append({
+			"kind": str(star[2]) if star.size() > 2 else "star",
+			"pos": Vector2(float(star[0]), float(star[1])),
+			"vel": Vector2.ZERO,
+			"left": 1.0,
+		})
 	_pulse_timers.clear()
 	for left in state.get("pulses", []):
 		_pulse_timers.append(float(left))
@@ -1073,6 +1297,22 @@ func arena_read_tick(state: Dictionary) -> void:
 	var safe: Dictionary = state.get("safe", {})
 	for key in safe.keys():
 		_safe_flash[int(key) if str(key).is_valid_int() else str(key)] = float(safe[key])
+	_blind_mortals.clear()
+	var blind: Dictionary = state.get("blind", {})
+	for key in blind.keys():
+		_blind_mortals[int(key)] = float(blind[key])
+	var my_blind := float(_blind_mortals.get(_my_id, 0.0))
+	var local_mortal := rules.local() if rules != null else null
+	var sheltered := local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0
+	if my_blind > 0.0 and not sheltered:
+		_blind_time = maxf(_blind_time, my_blind)
+	_stun_mortals.clear()
+	var stunned: Dictionary = state.get("stun", {})
+	for key in stunned.keys():
+		_stun_mortals[int(key)] = float(stunned[key])
+	var my_stun := float(_stun_mortals.get(_my_id, 0.0))
+	if my_stun > player.stun_left():
+		player.stun(my_stun)
 	_wary = int(state.get("wary", _wary))
 	_pity_id = int(state.get("pity", -1))
 	_round = int(state.get("round", _round))
@@ -1149,7 +1389,7 @@ func _refresh_lock() -> void:
 
 
 # The world marks every screen draws from the host's state: a 5-4-3-2-1 over
-# each frozen mortal, the pity tag, both hold rings and Tala's stars.
+# each frozen mortal, the pity tag, both hold rings and the projectiles.
 func _refresh_marks() -> void:
 	if marks_root != null:
 		for id in _frozen_mortals.keys():
@@ -1191,8 +1431,11 @@ func _refresh_marks() -> void:
 		for index in range(_star_nodes.size()):
 			_star_nodes[index].visible = index < _stars.size()
 			if index < _stars.size():
+				var kind := str(_stars[index].get("kind", "star"))
 				_star_nodes[index].global_position = _stars[index]["pos"]
 				_star_nodes[index].rotation += 0.15
+				_star_nodes[index].modulate = UITokens.STAR if kind == "star" else AgawanGod.ROLE_COLOR["hanan"]
+				_star_nodes[index].scale = Vector2(0.16, 0.16) if kind == "star" else Vector2(0.19, 0.19)
 
 
 # A ring that fills clockwise from the top as `fraction` goes 0 -> 1.
@@ -1278,8 +1521,15 @@ func _callout(text: String) -> void:
 func _refresh_hud(delta: float) -> void:
 	if status_label != null:
 		var here := player.global_position
-		var stance := "FROZEN %d" % int(ceil(float(_frozen_mortals[_my_id]))) if _is_frozen(_my_id) \
-			else ("DEFENDING" if _on_my_base(here) else ("CAPTURING!" if _in_bathala_base(here) else "ON THE FIELD"))
+		var stance := "ON THE FIELD"
+		if _is_frozen(_my_id):
+			stance = "FROZEN %d" % int(ceil(float(_frozen_mortals[_my_id])))
+		elif _is_stunned(_my_id):
+			stance = "STUNNED %d" % int(ceil(float(_stun_mortals[_my_id])))
+		elif _on_my_base(here):
+			stance = "DEFENDING"
+		elif _in_bathala_base(here):
+			stance = "CAPTURING!"
 		var swing := "ATTACK READY" if _shock_cd <= 0.0 else "ATTACK %.1fs" % _shock_cd
 		var judged := "     FINAL JUDGMENT" if _judgment else ""
 		status_label.text = "%s     %s     ROUND %d%s" % [stance, swing, _round, judged]

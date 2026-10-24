@@ -118,6 +118,7 @@ scale = Vector2(6.5474997, 4.87)
 texture = ExtResource("3_bg")
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1630902986]
+visible = false
 position = Vector2(193.45038, 247.55435)
 scale = Vector2(0.8759542, 0.67663044)
 points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
@@ -242,7 +243,7 @@ position = Vector2(-368.25, 226.5)
 scale = Vector2(0.6040356, 0.63663363)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
 autoplay = "default"
-frame_progress = 0.8973033
+frame_progress = 0.43312997
 
 [node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=470849593]
 position = Vector2(-288, 178.00003)
