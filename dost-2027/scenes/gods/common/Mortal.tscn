@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://6tbenjtl5de6" path="res://Assets/Placeholders/glow.png" id="2_icon"]
 [ext_resource type="Texture2D" uid="uid://dxphlrugle2gr" path="res://Assets/Gods/lam-ang.png" id="4_6r6jq"]
 [ext_resource type="Shader" uid="uid://coxohuv3bowvg" path="res://scenes/gods/common/bandana_swap.gdshader" id="4_bandana"]
+[ext_resource type="Texture2D" uid="uid://dpwh7shqufoeg" path="res://Assets/Gods/lam-ang_idle.png" id="4_c8rod"]
 [ext_resource type="Texture2D" uid="uid://n6m5mlk13yrf" path="res://Assets/Gods/lam-ang_block.png" id="5_fxuyk"]
 [ext_resource type="Texture2D" uid="uid://cxkcpecrakrk6" path="res://Assets/Gods/lam-ang-walking.png" id="6_fxuyk"]
 [ext_resource type="Texture2D" uid="uid://tuodoq57kabn" path="res://Assets/Placeholders/fx/stun_star.png" id="7_stun"]
@@ -36,13 +37,21 @@ shader_parameter/cloak_mid = Vector4(0.294118, 0, 0, 1)
 shader_parameter/cloak_dark = Vector4(0.164706, 0, 0, 1)
 shader_parameter/tolerance = 0.012
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_c8rod"]
-atlas = ExtResource("4_6r6jq")
+[sub_resource type="AtlasTexture" id="AtlasTexture_nxx0t"]
+atlas = ExtResource("4_c8rod")
 region = Rect2(0, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_nxx0t"]
-atlas = ExtResource("4_6r6jq")
+[sub_resource type="AtlasTexture" id="AtlasTexture_442en"]
+atlas = ExtResource("4_c8rod")
 region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eoywi"]
+atlas = ExtResource("4_c8rod")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sknkf"]
+atlas = ExtResource("4_c8rod")
+region = Rect2(192, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cfrcs"]
 atlas = ExtResource("5_fxuyk")
@@ -112,10 +121,16 @@ region = Rect2(128, 0, 64, 64)
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_c8rod")
+"texture": SubResource("AtlasTexture_nxx0t")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_nxx0t")
+"texture": SubResource("AtlasTexture_442en")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eoywi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sknkf")
 }],
 "loop": 1,
 "name": &"default",
@@ -250,9 +265,8 @@ material = SubResource("ShaderMaterial_bandana")
 position = Vector2(0, -31.5)
 scale = Vector2(1.7078125, 1.6453125)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-animation = &"walk"
 autoplay = "default"
-frame_progress = 0.26999635
+frame_progress = 0.7220145
 
 [node name="StunStars" type="Node2D" parent="." unique_id=1837210819]
 visible = false
