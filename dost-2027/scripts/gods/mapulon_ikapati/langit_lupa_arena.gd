@@ -63,12 +63,15 @@ extends Arena
 #   host-run, sent in the tick; clients only draw them): SOLID -> CRUMBLING
 #   (crumble_time of shaking, still safe) -> GONE (reform_delay, nobody is safe on
 #   it) -> FORMING (langit_fade_in, safe, fading in at a fresh legal spot) -> SOLID.
-#   A runner stepping off a SOLID Langit (onto the Lupa or onto another one)
-#   crumbles it at once - under anyone else still on it - and it forms again
-#   elsewhere about 0.9 s later. Only that slot moves; a season turn moves them all.
-#   A SOLID Langit with a timer is doomed by an ALIS (below); stepping off a doomed
-#   one does not crumble it early. _closed and _last_left hold Langit ids, so a
-#   Langit that formed again in the same slot is a new one.
+#   THE LANGIT'S LIFE: the first time a runner (never a Taya) is on a SOLID Langit it
+#   starts a cloud_life countdown (_cloud_burn). It never resets or pauses - not when
+#   the runner steps off, not when others step on. It shakes and reddens as it runs
+#   out; at 0 it crumbles under anyone still on it, and a new one forms elsewhere
+#   about reform_delay + crumble_time later. Stepping off crumbles nothing. Only that
+#   slot moves; a season turn moves them all (and a season or ALIS crumble that comes
+#   first wins).
+#   A SOLID Langit with a timer is doomed by an ALIS (below). _closed and _last_left
+#   hold Langit ids, so a Langit that formed again in the same slot is a new one.
 #
 # THE CHANT (RIGHT CLICK, the `defend` action, while chant_cooldown is ready;
 # never on `attack`, even with an old saved binding that put both on one button)
@@ -149,7 +152,7 @@ extends Arena
 # The rest of the art is drop-in (see Assets/Gods/MapulonIkapati/README.md): each
 # file is used when it exists and the placeholder stays when it does not. Every
 # number is an @export - tune it in the inspector. The dash itself lives in the
-# base (Dash).
+# base (Dash); here the scene shortens it to dash_distance 77 (the base's is 110).
 
 const ART_DIR := "res://Assets/Gods/MapulonIkapati/"
 const SCREEN_SIZE := Vector2(1152.0, 648.0)  # the authored arena (see arena.gd)
@@ -195,7 +198,9 @@ enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 @export_category("Seasons")
 @export var season_interval := 12.0      # seconds between two crumbles
 @export var shift_warning := 1.0         # seconds of shaking before a crumble
-@export var crumble_time := 0.4          # one Langit's shake after its runner steps off (or its ALIS window ends)
+@export var crumble_time := 0.4          # one Langit's shake once its life (or its ALIS window) is over
+@export var cloud_life := 5.0            # seconds a Langit lasts once a runner first steps on it
+@export var bot_unsafe_life := 1.5       # solo bots treat a Langit with less life left than this as unsafe
 @export var reform_delay := 0.5          # seconds a crumbled Langit is gone before it forms again elsewhere
 
 @export_category("Blitz")
@@ -273,6 +278,7 @@ var _langits: Array[Vector2] = []    # Langit centres, one per slot
 var _cloud_id: Array[int] = []       # each slot's Langit (a new id every time one forms)
 var _cloud_state: Array[int] = []    # each slot's Cloud
 var _cloud_timer: Array[float] = []  # seconds left in that state (SOLID: to its ALIS crumble, 0 = none)
+var _cloud_burn: Array[float] = []   # seconds of cloud_life left once a runner stepped on it (-1 = nobody has)
 var _next_cloud := 0                 # host: the next Langit id
 var _season := 0                     # how many layouts the field has had
 var _season_timer := 0.0             # seconds to the next crumble
@@ -479,6 +485,7 @@ func arena_tick_fields() -> Dictionary:
 		"cloud_id": _cloud_id.duplicate(),
 		"cloud_state": _cloud_state.duplicate(),
 		"cloud_timer": _cloud_timer.duplicate(),
+		"cloud_burn": _cloud_burn.duplicate(),
 		"blitz": _blitz,
 		"season": _season,
 		"season_left": _season_timer,
@@ -513,6 +520,7 @@ func arena_read_tick(state: Dictionary) -> void:
 	_cloud_id.assign(state.get("cloud_id", _cloud_id))
 	_cloud_state.assign(state.get("cloud_state", _cloud_state))
 	_cloud_timer.assign(state.get("cloud_timer", _cloud_timer))
+	_cloud_burn.assign(state.get("cloud_burn", _cloud_burn))
 	_season = int(state.get("season", _season))
 	_chanting = bool(state.get("chanting", _chanting))
 	_chant_step = int(state.get("chant_step", _chant_step))
@@ -966,8 +974,8 @@ func _shove(mortal_id: int, from: Vector2) -> void:
 
 # --- CROSSINGS -----------------------------------------------------------------
 
-# Host, every frame: who stepped off a Langit (it crumbles behind them), who
-# reached one, and whether a Taya came close on the way.
+# Host, every frame: who reached a Langit (the first runner on it starts its life
+# clock), who stepped off one, and whether a Taya came close on the way.
 func _tick_crossings() -> void:
 	var hunters := _hunter_spots()
 	for entry in mortal_entries():
@@ -978,6 +986,7 @@ func _tick_crossings() -> void:
 		var at := langit_index_at(id, pos)
 		var was := int(_on.get(id, -1))
 		var near := hunters.any(func(hunter: Vector2) -> bool: return pos.distance_to(hunter) <= close_call_radius)
+		_light_cloud(at)
 		if at == was:
 			if at < 0 and near:
 				_close_call[id] = true
@@ -986,10 +995,14 @@ func _tick_crossings() -> void:
 		if was >= 0 and was < _langits.size():
 			_last_left[id] = _cloud_id[was]
 			_close_call[id] = near
-			if not _doomed(was):
-				_crumble(was)
 		if at >= 0 and _cloud_id[at] != int(_last_left.get(id, -1)):
 			_pay_crossing(id)
+
+
+# A runner is on Langit `index`: the first one starts its cloud_life clock.
+func _light_cloud(index: int) -> void:
+	if index >= 0 and _cloud_burn[index] < 0.0 and _cloud_state[index] in [Cloud.SOLID, Cloud.FORMING]:
+		_cloud_burn[index] = cloud_life
 
 
 func _pay_crossing(mortal_id: int) -> void:
@@ -1077,7 +1090,7 @@ func _place_langits() -> void:
 
 
 func _clear_clouds() -> void:
-	for slots in [_langits, _cloud_id, _cloud_state, _cloud_timer]:
+	for slots in [_langits, _cloud_id, _cloud_state, _cloud_timer, _cloud_burn]:
 		slots.clear()
 
 
@@ -1087,6 +1100,7 @@ func _add_cloud(spot: Vector2, state := Cloud.SOLID, timer := 0.0) -> void:
 	_next_cloud += 1
 	_cloud_state.append(state)
 	_cloud_timer.append(timer)
+	_cloud_burn.append(-1.0)
 
 
 # Where a Langit centre may land: inside the field, clear of the UI strip.
@@ -1132,6 +1146,11 @@ func _langit_spot_ok(spot: Vector2, hunters: Array[Vector2], relax := 0, skip :=
 func _tick_clouds(delta: float) -> void:
 	for index in range(_langits.size()):
 		var left := _cloud_timer[index] - delta
+		if _cloud_burn[index] >= 0.0 and _cloud_state[index] in [Cloud.SOLID, Cloud.FORMING]:
+			_cloud_burn[index] = maxf(0.0, _cloud_burn[index] - delta)
+			if _cloud_burn[index] <= 0.0:
+				_crumble(index)
+				continue  # (CRUMBLING takes the crumble_time clock from here)
 		match _cloud_state[index]:
 			Cloud.SOLID:
 				if _cloud_timer[index] > 0.0:
@@ -1192,10 +1211,14 @@ func _reform(index: int) -> void:
 	_next_cloud += 1
 	_cloud_state[index] = Cloud.FORMING
 	_cloud_timer[index] = langit_fade_in
+	_cloud_burn[index] = -1.0
 
 
-# A Langit worth running for: not falling, not doomed, not gone.
+# A Langit worth running for: not falling, not doomed, not gone, and (for the bots)
+# with more than bot_unsafe_life of its cloud_life left.
 func _lasting(index: int) -> bool:
+	if _cloud_burn[index] >= 0.0 and _cloud_burn[index] < bot_unsafe_life:
+		return false
 	return _cloud_state[index] == Cloud.FORMING or (_cloud_state[index] == Cloud.SOLID and _cloud_timer[index] <= 0.0)
 
 
@@ -1203,11 +1226,12 @@ func _lasting(index: int) -> bool:
 func _cloud_life(index: int) -> float:
 	if index < 0:
 		return 0.0
+	var burn := _cloud_burn[index] + crumble_time if _cloud_burn[index] >= 0.0 else INF
 	if _doomed(index):
-		return _cloud_timer[index] + crumble_time
+		return minf(_cloud_timer[index] + crumble_time, burn)
 	if _cloud_state[index] == Cloud.CRUMBLING:
 		return _cloud_timer[index]
-	return 0.0 if _cloud_state[index] == Cloud.GONE else INF
+	return 0.0 if _cloud_state[index] == Cloud.GONE else burn
 
 
 # The slot holding Langit `cloud` (-1: it is gone, or never was).
@@ -1728,8 +1752,12 @@ func _draw_langits(delta: float) -> void:
 			continue
 		if not _authority:
 			_cloud_timer[index] = maxf(0.0, _cloud_timer[index] - delta)
+			if _cloud_burn[index] > 0.0 and state in [Cloud.SOLID, Cloud.FORMING]:
+				_cloud_burn[index] = maxf(0.0, _cloud_burn[index] - delta)
 		var falling := state == Cloud.CRUMBLING
-		var shaking := season_shake or falling
+		var burn := _cloud_burn[index] if state in [Cloud.SOLID, Cloud.FORMING] else -1.0
+		var burning := burn >= 0.0
+		var shaking := season_shake or falling or (burning and burn <= shift_warning)
 		var jitter := Vector2.ZERO
 		if shaking and screen_shake_allowed():
 			jitter = Vector2(randf_range(-2.0, 2.0), randf_range(-2.0, 2.0))
@@ -1739,14 +1767,18 @@ func _draw_langits(delta: float) -> void:
 		var alpha := 1.0
 		if state == Cloud.FORMING:
 			alpha = clampf(1.0 - _cloud_timer[index] / maxf(0.01, langit_fade_in), 0.0, 1.0)
-		node.modulate = Color(shade, shade, shade + 0.05, alpha * (0.55 if shaking else 1.0))
+		var heat := 1.0 - burn / maxf(0.01, cloud_life) if burning else 0.0  # 0 fresh -> 1 about to go
+		node.modulate = Color(shade, shade * (1.0 - 0.45 * heat), (shade + 0.05) * (1.0 - 0.6 * heat), alpha * (0.55 if shaking else 1.0))
+		var title := node.get_node_or_null("Name") as Label
+		if title != null:
+			title.text = "LANGIT %d" % int(ceil(burn)) if burning else "LANGIT"
 		var lock := node.get_node_or_null("Lock") as CanvasItem
 		if lock != null:
 			lock.visible = closed
 		var crumble := node.get_node_or_null("Crumble") as Sprite2D
 		if crumble != null and crumble.texture != null:
-			crumble.visible = shaking
-			var done := 1.0 - (_cloud_timer[index] / maxf(0.01, crumble_time) if falling else _season_timer / maxf(0.01, warning))
+			crumble.visible = shaking or burning
+			var done := heat if burning and not falling else 1.0 - (_cloud_timer[index] / maxf(0.01, crumble_time) if falling else _season_timer / maxf(0.01, warning))
 			crumble.frame = clampi(int(done * crumble.hframes), 0, crumble.hframes - 1)
 
 

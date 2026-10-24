@@ -114,7 +114,7 @@ const SAFE_GOD_OFFSET := Vector2(0.0, -44.0)
 @export_category("Agawan Base")
 @export var freeze_time := 5.0              # seconds a tagged god/mortal stays frozen
 @export var tag_radius := 34.0              # the mortal's attack reach
-@export var attack_cooldown := 5.0          # seconds between two attacks (shockwave cooldown)
+@export var attack_cooldown := 2.5          # seconds between two attacks (shockwave cooldown)
 @export var thaw_immunity := 1.0            # seconds nothing can freeze a mortal / god that just thawed
 
 @export_category("Shockwave (replaces arnis)")

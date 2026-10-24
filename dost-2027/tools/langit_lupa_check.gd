@@ -628,7 +628,8 @@ func _run() -> void:
 	for step in range(20):
 		await physics_frame
 	var moved := _arena.player.global_position.x - start.x
-	_check(moved > 90.0 and moved < 130.0, "a dash covers about 110px (%.1f)" % moved)
+	_check(is_equal_approx(_arena.dash_distance, 77.0), "the dash is 77 px, 30%% shorter than the base's 110 (%.1f)" % _arena.dash_distance)
+	_check(moved > 62.0 and moved < 95.0, "a dash covers about 77px (%.1f)" % moved)
 	_check(not _arena.try_dash(), "the dash respects its cooldown")
 	_check(is_equal_approx(_arena.dash_cooldown, 1.6) and _arena.dash_cooldown_left() > 1.0, "...of 1.6s (%.2fs left)" % _arena.dash_cooldown_left())
 	_arena._dash_cd = 0.0

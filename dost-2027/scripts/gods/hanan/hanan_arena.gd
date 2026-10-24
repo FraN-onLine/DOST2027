@@ -46,6 +46,17 @@ extends Arena
 #            not count for mercy, and "HOLD LEFT CLICK" waits beside the bar
 #            until the button is first held. It still pays FAVOR.
 #
+# THE BLITZ (the last baka_blitz_time seconds, derived from the shared clock so every
+# screen enters it together). The vault stays this mortal's own, so the state is local.
+#   - FAVOR earned in the box pays baka_blitz_favor times (trip penalties do not change).
+#   - From the NEXT vault on (never one already running) the bar is INVERTED: HOLD
+#     LEFT CLICK to sink the indicator, let go and it rises. Lift and gravity swap
+#     roles. That vault's window also runs baka_blitz_extra_time seconds longer.
+#   - The field pulses in Hanan's colour (a field-only overlay, never the mortal,
+#     the Baka or the HUD), and the HUD says the controls are inverted: a banner, a
+#     line in the bottom band, the hint strip, an arrow on the bar while held, and an
+#     INVERTED! callout at the start of each blitz vault.
+#
 # The bar works in 0..1 "bar heights" (0 = bottom of the gauge), so the HUD only
 # has to scale it to pixels. Every number is an @export - tune it in the inspector.
 
@@ -61,6 +72,9 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 
 @export_category("Luksong Baka")
 @export var vault_window := 3.0            # seconds the balance bar runs per vault
+@export var baka_blitz_time := 30.0        # the last seconds: inverted bar, more FAVOR, longer vaults
+@export var baka_blitz_favor := 1.2        # times the FAVOR earned in the box during the blitz
+@export var baka_blitz_extra_time := 2.0   # seconds added to vault_window for a vault that opens in the blitz
 @export var grace_time := 0.35             # seconds outside the box before a trip
 @export var vaults_per_level := 3          # clean vaults that advance the level
 @export var favor_per_second := 40.0       # FAVOR/s inside the box, times the combo
@@ -110,6 +124,8 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @onready var hold_prompt: Label = get_node_or_null("BarLayer/Bar/HoldPrompt")
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 @onready var callout_label: Label = get_node_or_null("HananHud/Callout")
+@onready var blitz_glow: Sprite2D = get_node_or_null("ArenaBG/BlitzGlow")  # a soft oval on the arena floor, under the Baka and the mortal
+@onready var sink_arrow: Polygon2D = get_node_or_null("BarLayer/Bar/SinkArrow")
 
 var _vault_state := Vault.RUN
 var _level := 1
@@ -120,6 +136,10 @@ var _trips_in_row := 0  # trips at this level since the last clean vault (Hanan'
 var _combo := 1.0
 var _holding := false
 var _vault_left := 0.0
+var _vault_total := 0.0   # this vault's window (longer when it opened in the blitz)
+var _blitz := false       # the last baka_blitz_time seconds (from the shared clock, same on every screen)
+var _blitz_vault := false # this vault opened in the blitz: inverted bar, longer window
+var _blitz_phase := 0.0   # the field pulse's clock
 var _outside_time := 0.0
 var _state_timer := 0.0
 var _ind_pos := 0.0
@@ -179,6 +199,10 @@ func arena_round_reset() -> void:
 	_held_once = false
 	_pending_gain = 0.0
 	_holding = false
+	_blitz = false
+	_blitz_vault = false
+	if blitz_glow != null:
+		blitz_glow.visible = false
 	_leave_vault()
 	_enter_run(false)  # the base put the mortal on its spawn and unlocks it when the round starts
 	_set_callout("", Color.WHITE, 0.0)
@@ -222,6 +246,7 @@ func _process(delta: float) -> void:
 
 
 func _tick_hanan(delta: float) -> void:
+	_update_blitz(delta)
 	if _phase != Phase.PLAYING:
 		_holding = false
 		if _vault_state != Vault.RUN:
@@ -242,7 +267,28 @@ func _tick_hanan(delta: float) -> void:
 				_enter_run()
 
 
-# Hold LEFT CLICK to rise. Read in _input (not _unhandled_input) because the shell
+# --- THE BLITZ ---------------------------------------------------------------
+
+func _update_blitz(delta: float) -> void:
+	var blitz_now := _phase == Phase.PLAYING and _trial_time <= baka_blitz_time
+	if blitz_now != _blitz:
+		_blitz = blitz_now
+		if _blitz:
+			_show_banner("BLITZ! CONTROLS INVERTED", UITokens.god_accent(god), 2.5)
+			_log("BLITZ! The bar is inverted from the next leap: hold to sink. FAVOR x%.1f" % baka_blitz_favor, UITokens.god_accent(god))
+	if blitz_glow == null:
+		return
+	blitz_glow.visible = _blitz
+	if not _blitz:
+		return
+	blitz_glow.global_position = _field.get_center()
+	blitz_glow.scale = _field.size / Vector2(blitz_glow.texture.get_size())
+	_blitz_phase += delta * 3.0
+	var accent := UITokens.god_accent(god)
+	blitz_glow.modulate = Color(accent.r, accent.g, accent.b, 0.12 if reduce_flashing() else 0.08 + 0.2 * (sin(_blitz_phase) * 0.5 + 0.5))
+
+
+# Hold LEFT CLICK to rise (in a blitz vault: to sink). Read in _input (not _unhandled_input) because the shell
 # draws a full-screen Control over the arena and a GUI mouse event would never
 # reach us otherwise - the same reason Apolaki reads his buttons here.
 func _input(event: InputEvent) -> void:
@@ -273,7 +319,9 @@ func _enter_run(unlock := true) -> void:
 # and opens with the READY beat - the bar up, the indicator held in the box.
 func begin_vault() -> void:
 	_vault_state = Vault.VAULT
-	_vault_left = vault_window
+	_blitz_vault = _blitz
+	_vault_total = vault_window + (baka_blitz_extra_time if _blitz_vault else 0.0)
+	_vault_left = _vault_total
 	_ready_left = ready_time
 	_practice_vault = _practice
 	_practice = false
@@ -296,7 +344,8 @@ func begin_vault() -> void:
 	_ground_y = player.global_position.y
 	player.set_lock(true)
 	player.scale = Vector2(1.0, 0.85)  # the crouch
-	_set_callout("READY...", god.color, ready_time)
+	_set_callout("READY...
+INVERTED!" if _blitz_vault else "READY...", god.color, ready_time)
 
 
 func _tick_vault(delta: float) -> void:
@@ -323,7 +372,7 @@ func _tick_vault(delta: float) -> void:
 	_step_box(delta)
 	if is_inside_box():
 		_outside_time = 0.0
-		_pending_gain += favor_per_second * _combo * delta
+		_pending_gain += earn_rate() * delta
 	else:
 		_outside_time += delta
 		if _outside_time > grace_time:
@@ -334,15 +383,23 @@ func _tick_vault(delta: float) -> void:
 		_bank_timer = bank_interval
 		_bank()
 	_vault_left -= delta
-	var across := smoothstep(0.0, 1.0, 1.0 - _vault_left / maxf(0.01, vault_window))
+	var across := smoothstep(0.0, 1.0, 1.0 - _vault_left / maxf(0.01, _vault_total))
 	player.global_position = Vector2(lerpf(_from_x, _to_x, across), _ground_y - _ind_pos * jump_height)
 	if _vault_left <= 0.0:
 		_clean_vault()
 
 
-# Floaty on purpose: the button is an acceleration, not a position.
+# FAVOR per second inside the box: the rate, the combo and the blitz's bonus.
+func earn_rate() -> float:
+	return favor_per_second * _combo * (baka_blitz_favor if _blitz else 1.0)
+
+
+# Floaty on purpose: the button is an acceleration, not a position. In a blitz
+# vault lift and gravity swap roles: held sinks, let go rises.
 func _step_indicator(delta: float) -> void:
 	var accel := lift_accel if _holding else -gravity
+	if _blitz_vault:
+		accel = -gravity if _holding else lift_accel
 	_ind_vel = clampf(_ind_vel + accel * delta, -max_speed, max_speed)
 	_ind_pos += _ind_vel * delta
 	if _ind_pos < 0.0:
@@ -522,7 +579,7 @@ func _refresh_hud(delta: float) -> void:
 	var in_vault := _vault_state == Vault.VAULT
 	if rate_label != null:
 		rate_label.visible = in_vault and _ready_left <= 0.0 and is_inside_box()
-		rate_label.text = "+%d/s  x%.2f" % [int(round(favor_per_second * _combo)), _combo]
+		rate_label.text = "+%d/s  x%.2f" % [int(round(earn_rate())), _combo]
 	if hold_prompt != null:
 		hold_prompt.visible = in_vault and _practice_vault and not _held_once
 		if hold_prompt.visible:
@@ -539,12 +596,22 @@ func _refresh_hud(delta: float) -> void:
 			indicator.size.y = marker
 			indicator.position.y = (1.0 - _ind_pos) * track - marker * 0.5
 			box.color = Color(0.7, 1, 0.8, 0.55) if is_inside_box() else Color(1, 0.5, 0.45, 0.55)
+		if sink_arrow != null:  # inverted: an arrow beside the indicator while the button sinks it
+			sink_arrow.visible = in_vault and _blitz_vault and _holding and indicator != null
+			if indicator != null:
+				sink_arrow.position = Vector2(-22.0, indicator.position.y + indicator.size.y * 0.5)
 	if status_label != null:
 		status_label.text = "LEVEL %d  %s     COMBO x%.2f     CLEAN %d  TRIPS %d" % [
 			_level, level_name(), _combo, _clean_total, _trips]
+		if _blitz:  # (a leap already running keeps the old controls until it ends)
+			status_label.text = ("INVERTED: HOLD TO SINK" if _blitz_vault or not in_vault else "INVERTED AFTER THIS LEAP") + "     " + status_label.text
 	if hint_label != null:
-		hint_label.text = "HOLD %s TO RISE   LET GO TO FALL   KEEP THE JUMP IN THE BOX" % key_cap(&"attack") if in_vault \
-			else "RUN INTO THE BAKA TO LEAP   %s" % favor_keys_hint()
+		if in_vault and _blitz_vault:
+			hint_label.text = "%s HOLD TO SINK, LET GO TO RISE   KEEP THE JUMP IN THE BOX" % key_cap(&"attack")
+		elif in_vault:
+			hint_label.text = "HOLD %s TO RISE   LET GO TO FALL   KEEP THE JUMP IN THE BOX" % key_cap(&"attack")
+		else:
+			hint_label.text = "RUN INTO THE BAKA TO LEAP   %s" % favor_keys_hint()
 	# Over the Moon shakes the field and the bar - never the labels, which must
 	# stay readable - unless the player turned shaking off.
 	var shake := Vector2.ZERO

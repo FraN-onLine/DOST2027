@@ -89,6 +89,8 @@ season_interval = 12.0
 shift_warning = 1.0
 crumble_time = 0.4
 reform_delay = 0.5
+cloud_life = 5.0
+bot_unsafe_life = 1.5
 langit_blitz_time = 30.0
 blitz_season_interval = 3.0
 blitz_shift_warning = 0.6
@@ -131,6 +133,7 @@ embedded = true
 dialogue_prefix = "mapulon_ikapati"
 trial_time = 60.0
 dash_enabled = true
+dash_distance = 77.0
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
 visible = false

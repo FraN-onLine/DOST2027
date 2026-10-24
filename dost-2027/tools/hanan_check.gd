@@ -417,6 +417,67 @@ func _run() -> void:
 	_check(is_zero_approx(baka.rotation), "...and she settles back (%.3f rad)" % baka.rotation)
 	_arena._apply_art()
 
+	# --- the blitz: the last 30 s ---------------------------------------------------------
+	_arena._leave_vault()
+	_arena._enter_run()
+	_arena._level = 1
+	_arena._practice = false
+	_arena._combo = 1.0
+	_arena._trial_time = 31.0
+	_arena._update_blitz(DT)
+	_check(not _arena._blitz and not _arena.blitz_glow.visible, "with 31 s left there is no blitz yet")
+	_arena.begin_vault()
+	_check(not _arena._blitz_vault and is_equal_approx(_arena._vault_total, 3.0) and is_equal_approx(_arena._vault_left, 3.0), "a normal vault runs vault_window (3 s)")
+	_arena._ready_left = 0.0
+	_arena._trial_time = 30.0
+	_arena._update_blitz(DT)
+	_check(_arena._blitz and _arena.blitz_glow.visible, "at 30 s left the blitz is on, and the field pulses")
+	_arena._ind_pos = 0.5
+	_arena._ind_vel = 0.0
+	_arena._holding = true
+	for step in range(10):
+		_arena._step_indicator(DT)
+	_check(_arena._ind_pos > 0.5 and not _arena._blitz_vault, "a vault already running at 30 s is not inverted: holding still raises it (%.2f)" % _arena._ind_pos)
+	_arena._holding = false
+	_arena._leave_vault()
+	_arena._enter_run()
+	_arena.begin_vault()
+	_check(_arena._blitz_vault and is_equal_approx(_arena._vault_total, 5.0) and is_equal_approx(_arena._vault_left, 5.0),
+		"the next vault is a blitz vault with 5 s on the bar (%.1f)" % _arena._vault_left)
+	_check(_arena.callout_label.visible and _arena.callout_label.text.contains("INVERTED!"), "...opening with an INVERTED! callout (%s)" % _arena.callout_label.text.replace("
+", " "))
+	_arena._ready_left = 0.0
+	_arena._ind_pos = 0.5
+	_arena._ind_vel = 0.0
+	_arena._holding = true
+	for step in range(15):
+		_arena._step_indicator(DT)
+	_check(_arena._ind_pos < 0.5 and _arena._ind_vel < 0.0, "inverted: holding lowers the indicator (%.2f)" % _arena._ind_pos)
+	_arena._refresh_hud(0.0)
+	_check(_arena.sink_arrow.visible, "...with an arrow on the bar pointing down while held")
+	_check(_arena.status_label.text.begins_with("INVERTED: HOLD TO SINK") and _arena.hint_label.text.contains("HOLD TO SINK, LET GO TO RISE"),
+		"...the band says INVERTED: HOLD TO SINK and the hint says how (%s | %s)" % [_arena.status_label.text.left(24), _arena.hint_label.text.left(40)])
+	_arena._holding = false
+	_arena._ind_pos = 0.5
+	_arena._ind_vel = 0.0
+	for step in range(15):
+		_arena._step_indicator(DT)
+	_check(_arena._ind_pos > 0.5, "...and letting go raises it (%.2f)" % _arena._ind_pos)
+	_arena._refresh_hud(0.0)
+	_check(not _arena.sink_arrow.visible, "the arrow hides when the button is let go")
+	_check(is_equal_approx(_arena.earn_rate(), 48.0), "FAVOR in the box pays x1.2 in the blitz (%.1f/s)" % _arena.earn_rate())
+	_arena._pending_gain = 0.0
+	_arena._ind_pos = _arena._box_center
+	_arena._ind_vel = 0.0
+	_arena._tick_vault(0.1)
+	_check(is_equal_approx(_arena._pending_gain, 4.8), "...banked in the pending gain (%.2f for 0.1 s)" % _arena._pending_gain)
+	_check(_arena.trip_penalty() == 40, "trip penalties are unchanged")
+	_arena._leave_vault()
+	_arena._enter_run()
+	_arena._trial_time = 999.0
+	_arena._update_blitz(DT)
+	_check(not _arena._blitz and not _arena.blitz_glow.visible and is_equal_approx(_arena.earn_rate(), 40.0), "(back to a normal trial for the rest)")
+
 	# --- the trial ends mid-vault: what it earned is banked --------------------------------
 	_arena._level = 1
 	_arena._enter_run()
