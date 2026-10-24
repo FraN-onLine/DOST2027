@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god_ext"]
 [ext_resource type="Texture2D" uid="uid://vns3qafqf82" path="res://Assets/Gods/Bathala/bathala-Sheet.png" id="2_fgbxp"]
+[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_p2an7"]
 atlas = ExtResource("2_fgbxp")
@@ -34,6 +35,11 @@ animations = [{
 
 [node name="Bathala" type="Node2D" unique_id=1701970281]
 script = ExtResource("1_god_ext")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+position = Vector2(0, 17.0)
+scale = Vector2(2.15, 0.67)
+texture = ExtResource("shadow_tex")
 
 [node name="Ring" type="Line2D" parent="." unique_id=594871799]
 position = Vector2(0, 18)

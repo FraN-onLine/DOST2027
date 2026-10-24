@@ -11,7 +11,8 @@ extends SceneTree
 # the blitz is on and the season turns every 3 s; Ikapati comes back as a second
 # Taya if the gods had left, and stays if they are still Taya; her first tag as
 # the only Taya makes that runner Taya and she stays; with a mortal Taya her tag
-# costs the runner tag_steal and passes nothing; she never leaves in the blitz.
+# also passes the Taya to the runner (tag_steal, mercy for the old one, her chant
+# cancelled); she never leaves in the blitz.
 # Run: godot --headless --path <project> -s res://tools/langit_blitz_check.gd
 
 const DT := 0.125  # exact in binary, so the timers land on the beat
@@ -226,21 +227,34 @@ func _run() -> void:
 	var tick := _arena.arena_tick_fields()
 	_check(tick.get("blitz") == true and tick.has("god_at") and tick.has("god_step") and tick.has("cloud_state") and tick.has("cloud_id"),
 		"the blitz, Ikapati and every Langit's state ride the tick")
-	# her tag passes nothing while a mortal is Taya
+	# her tag passes the Taya to the runner while a mortal (3) is Taya
 	_arena._god_time = 999.0
 	_arena._move_god(DT)
 	_check(_arena.god_hunt_id() == -1, "her safety-valve hunt is off in the blitz")
 	_put(1, _arena._god_at + Vector2(10, 0))
 	_set_favor(1000, 1000, 1000)
 	_arena._streak[1] = 3
+	_arena._chanting = true  # the mortal Taya is mid-chant
+	_arena._chant_step = 2
 	_arena._check_god_tag()
-	_check(_arena.taya_id() == 3, "her tag does not change the Taya")
+	_check(_arena.taya_id() == 1, "Ikapati tags runner B: B is the mortal Taya now (%d)" % _arena.taya_id())
 	_check(_rules.mortal(1).favor == 1000 - _arena.tag_steal and _rules.mortal(3).favor == 1000 and _rules.mortal(2).favor == 1000,
-		"...it costs the runner tag_steal, and nobody gains it (%d / %d)" % [_rules.mortal(1).favor, _rules.mortal(3).favor])
-	_check(_arena.streak_of(1) == 0, "...and ends their streak")
-	_check(_arena._god_leave == 0.0 and _arena.second_taya(), "...and she does not leave")
+		"...B loses tag_steal, and nobody gains it (%d / %d)" % [_rules.mortal(1).favor, _rules.mortal(3).favor])
+	_check(_arena.streak_of(1) == 0, "...and B's streak ends")
+	_check(is_equal_approx(_arena._tagback, _arena.tagback_immunity), "...B cannot tag for tagback_immunity")
+	_check(not _arena._chanting and _arena._chant_step == 0, "...the old Taya's chant in progress is cancelled")
+	_check(_arena.is_mortal_invulnerable(3) and is_equal_approx(float(_arena._invuln[3]), _arena.tagged_mercy),
+		"...the old Taya A is a runner with tagged_mercy")
+	_check(_arena.hud.banner_label.text == "YOU ARE TAYA", "...B's screen says YOU ARE TAYA (%s)" % _arena.hud.banner_label.text)
+	_check(_arena._god_leave == 0.0 and _arena.god_hunts() and _arena.second_taya(), "...and Ikapati stays: no _gods_leave, still hunting")
+	_put(3, _arena._god_at + Vector2(5, 0))
 	_arena._check_god_tag()
-	_check(_rules.mortal(1).favor == 1000 - _arena.tag_steal, "tagged_mercy stops her chain-tagging the same runner")
+	_check(_arena.taya_id() == 1, "tagged_mercy stops her tagging A straight back (and the Taya is never tagged by her)")
+	var a_time := _arena.taya_seconds(3)
+	var b_time := _arena.taya_seconds(1)
+	_tick(0.5)
+	_check(is_equal_approx(_arena.taya_seconds(3), a_time) and _arena.taya_seconds(1) > b_time, "...A's Taya clock stops and B's runs")
+	_check(_arena.arena_tick_fields().get("taya") == 1 and _arena.arena_tick_fields().get("blitz") == true, "the new Taya rides the tick to every screen")
 	# her chant dooms the occupied Langit too, and pays nobody
 	_reset(3)
 	_arena._blitz = true

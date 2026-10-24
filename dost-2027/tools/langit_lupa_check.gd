@@ -52,27 +52,31 @@ func _run() -> void:
 	_check(is_equal_approx(_arena.trial_time, 60.0), "a standalone round lasts 60s")
 	_check(_arena._bots.size() == 2 and not _rules.simulate_rivals, "solo: two bots take the rivals' places (and the quiet FAVOR trickle is off)")
 
-	# --- the field is sized for the mortals playing -------------------------------------
+	# --- the field is the scene's Border, whatever the number of mortals -----------------
+	var authored: Node = load("res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn").instantiate()
+	var authored_points: PackedVector2Array = (authored.get_node("ArenaField/Border") as Line2D).points
+	authored.free()
 	var drawn: Rect2 = _arena.field_root.authored_rect()
-	_check(is_equal_approx(_arena._field.size.x, _arena.field_size_3p.x) and _arena._field.get_center().is_equal_approx(drawn.get_center()),
-		"three mortals play on the 3-mortal field, centred where the Border is drawn (%s)" % str(_arena._field))
-	_check(drawn.is_equal_approx(_arena._field), "the Border is redrawn around it (%s)" % str(drawn))
+	_check(_arena._field.is_equal_approx(drawn) and is_equal_approx(_arena._field.size.x, 868.0),
+		"the field is the authored Border, 868 px wide (%s)" % str(_arena._field))
+	_check(_arena.field_root.border.points == authored_points, "the Border's points are untouched by _ready (%s)" % str(_arena.field_root.border.points))
 	_check(_arena.player.bounds == _arena._field, "the mortal walks inside it")
-	for count in [2, 3, 4]:
-		var wanted: Vector2 = _arena.field_size_for(count)
-		_check(wanted.x == [0, 0, 560.0, 640.0, 720.0][count], "%d mortals -> %d wide" % [count, int(wanted.x)])
-	_arena.field_size_3p = Vector2(600, 200)
-	_arena._size_field()
-	_check(_arena._field.size == Vector2(600, 200), "a height in field_size_Np replaces the drawn one (%s)" % str(_arena._field.size))
-	_arena.field_size_3p = Vector2(640, 0)
-	_arena._size_field()
-	_check(is_equal_approx(_arena._field.size.y, drawn.size.y), "...and 0 keeps the drawn Border's height")
-	# a client takes the host's field and redraws its Border
+	for count in [2, 4, 3]:
+		for id in [2, 3, 4]:
+			if id > count and _rules.mortal(id) != null:
+				_rules.remove_mortal(id)
+		for id in range(2, count + 1):
+			_rules.ensure_mortal(id, "MORTAL %d" % id)
+		_arena._read_field()
+		_check(_arena._field.is_equal_approx(drawn) and _arena.field_root.border.points == authored_points and _arena.langit_count(count) == count + 1,
+			"%d mortals play on the same field and the Border stays as drawn (%d Langit)" % [count, _arena.langit_count(count)])
+	# a client takes the host's field
 	var client_field := Rect2(400, 360, 500, 200)
 	_arena._apply_layout({"field": client_field})
-	_check(_arena.field_root.authored_rect().is_equal_approx(client_field) and _arena.player.bounds == client_field,
-		"a client draws and walks the host's field (%s)" % str(_arena.field_root.authored_rect()))
-	_arena._size_field()
+	_check(_arena._field == client_field and _arena.player.bounds == client_field and _arena.field_root.border.points == authored_points,
+		"a client walks the host's field and does not redraw the Border (%s)" % str(_arena._field))
+	_arena._read_field()
+	_check(_arena._field.is_equal_approx(drawn), "(back to the authored field)")
 
 	# --- the countdown is the rhyme, and the rules card shows on a first visit ----------
 	_arena._start_countdown()
@@ -503,8 +507,8 @@ func _run() -> void:
 	var spaced := 0
 	var layouts := 0
 	_rules.ensure_mortal(4, "MORTAL 4")
-	_arena._size_field()  # (the host sizes the field for four, as at a real countdown)
-	_check(is_equal_approx(_arena._field.size.x, _arena.field_size_4p.x), "four mortals play on the 4-mortal field (%s)" % str(_arena._field.size))
+	_arena._read_field()
+	_check(is_equal_approx(_arena._field.size.x, 868.0), "four mortals play on the full-width field (%s)" % str(_arena._field.size))
 	for attempt in range(60):
 		var taya_at := Vector2(randf_range(_arena._field.position.x, _arena._field.end.x), randf_range(_arena._field.position.y, _arena._field.end.y))
 		_put(_arena.taya_id(), taya_at)
@@ -525,7 +529,6 @@ func _run() -> void:
 		spaced += int(all_spaced)
 	_check(_arena._langits.size() == 5, "with four mortals the field holds five Langit")
 	_rules.remove_mortal(4)
-	_arena._size_field()
 	_check(placement_ok, "a Langit never lands near the Taya, off the field, in the UI strip or on another Langit")
 	_check(spaced * 10 >= layouts * 9, "...and they are spread langit_spacing apart (%d of %d layouts)" % [spaced, layouts])
 

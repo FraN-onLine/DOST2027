@@ -79,6 +79,7 @@ func _run() -> void:
 	_check(saw_shot[0], "the client's countdown opened on the gods' faces")
 	_check(arena.intro_camera() == null and root.get_camera_2d() == null and root.canvas_transform == Transform2D.IDENTITY,
 		"...and at GO the client's view is the whole arena again")
+	_check(is_equal_approx(arena._field.size.x, 868.0) and is_equal_approx(arena._field.position.x, 262.0), "the client plays on the same full-width field (%s)" % str(arena._field))
 
 	# --- GO: the gods are the Taya on this screen too -----------------------------------------------
 	_check(await _until(func() -> bool: return arena._taya == LangitLupaArena.GOD_TAYA), "the client learns the gods are the Taya")
@@ -129,6 +130,16 @@ func _run() -> void:
 	await _frames(2)
 	var node := arena.langits_root.get_child(0) as Node2D
 	_check(node.visible and node.position.distance_to(arena._langits[0]) < 4.0, "...drawn where the host put it")
+
+	# --- Ikapati's tag passes the Taya: the TAYA marker moves to the host's mortal ----------------
+	var host_id := 1
+	_check(await _until(func() -> bool: return arena._taya == host_id, 20.0), "the client sees Ikapati's tag make the host's mortal the Taya")
+	await _frames(4)
+	var ghost: Node2D = arena._ghosts.get(host_id)
+	_check(ghost != null and arena.taya_marker.visible and arena.taya_marker.global_position.distance_to(ghost.global_position) < 2.0,
+		"...the TAYA marker moves onto it on this screen")
+	_check(arena._god_marker.visible and arena.second_taya() and body.visible, "...while Ikapati stays on the field as the second Taya")
+	_check(arena._taya != network.multiplayer.get_unique_id(), "...and the client is a runner again")
 	_finish()
 
 

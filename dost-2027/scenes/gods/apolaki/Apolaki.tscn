@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c054b8tm7375x" path="res://scripts/gods/apolaki/apolaki_duelist.gd" id="1_duel"]
 [ext_resource type="Texture2D" uid="uid://dffxrp3xwm84" path="res://Assets/Gods/Apolaki/ApolakiMini-Sheet.png" id="2_xoqr7"]
+[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_0clss"]
 atlas = ExtResource("2_xoqr7")
@@ -202,6 +203,11 @@ radius = 61.0
 
 [node name="Apolaki" type="Node2D" unique_id=1714060332]
 script = ExtResource("1_duel")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+position = Vector2(0, 49.0)
+scale = Vector2(1.37, 0.42)
+texture = ExtResource("shadow_tex")
 
 [node name="Icon" type="AnimatedSprite2D" parent="." unique_id=281248019]
 position = Vector2(-0.15250099, 4.659999)

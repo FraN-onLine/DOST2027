@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
 [ext_resource type="Texture2D" uid="uid://dffxrp3xwm84" path="res://Assets/Gods/Apolaki/ApolakiMini-Sheet.png" id="2_vduec"]
+[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_qo7at"]
 atlas = ExtResource("2_vduec")
@@ -34,6 +35,11 @@ animations = [{
 
 [node name="Apolaki" type="Node2D" unique_id=1701970277]
 script = ExtResource("1_god")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+position = Vector2(0, 17.0)
+scale = Vector2(1.37, 0.42)
+texture = ExtResource("shadow_tex")
 
 [node name="Ring" type="Line2D" parent="." unique_id=594871795]
 position = Vector2(0, 18)

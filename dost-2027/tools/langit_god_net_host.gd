@@ -80,6 +80,7 @@ func _run() -> void:
 	arena.god_leave_time = 2.0  # a long fade, so the client has time to be seen watching it
 	_check(await _until(func() -> bool: return arena._phase == Arena.Phase.PLAYING), "the trial is under way on the host")
 	arena._tagback = 999.0  # nobody is tagged until this check says so
+	_check(is_equal_approx(arena._field.size.x, 868.0) and is_equal_approx(arena._field.position.x, 262.0), "the host plays on the authored, full-width field (%s)" % str(arena._field))
 	_check(arena._taya == LangitLupaArena.GOD_TAYA, "at GO the gods are the Taya")
 	_check(await _until(func() -> bool: return arena.hud.banner_label.text == "MAPULON & IKAPATI ARE TAYA!", 5.0),
 		"the banner says MAPULON & IKAPATI ARE TAYA! (%s)" % arena.hud.banner_label.text)
@@ -110,6 +111,7 @@ func _run() -> void:
 	arena._trial_time = arena.langit_blitz_time + 0.2
 	_check(await _until(func() -> bool: return arena._blitz, 3.0), "the blitz starts on the host at %ds left" % int(arena.langit_blitz_time))
 	_check(arena.second_taya() and arena._taya == client_id, "Ikapati is back as a second Taya beside the client")
+	arena.set_mortal_invuln(1, 999.0)  # she cannot tag the host's mortal until the check below says so
 	await _until(func() -> bool: return false, 2.0)  # the client checks the banner and the two markers
 	for attempt in range(6):
 		if arena._cloud_state[0] == LangitLupaArena.Cloud.SOLID and arena._cloud_timer[0] <= 0.0:
@@ -117,6 +119,17 @@ func _run() -> void:
 		await _until(func() -> bool: return false, 1.0)
 	_check(arena._blitz and arena.second_taya(), "...and she is still hunting at the end")
 	await _until(func() -> bool: return false, 2.0)
+
+	# --- Ikapati's tag passes the Taya: the host's mortal is tagged, the client is a runner again --
+	var before := arena._taya
+	arena._reset_god_chant()
+	arena._invuln.clear()
+	arena.player.set_lock(false)
+	arena.player.global_position = arena._god_at + Vector2(0, 14)
+	await _until(func() -> bool: return arena._taya != before, 3.0)  # she tags it on her next tick
+	_check(before == client_id and arena._taya == 1 and arena.second_taya(), "Ikapati tags the host's mortal: it is the Taya, and she stays as the second one")
+	_check(arena.is_mortal_invulnerable(client_id), "...the client, the old Taya, is a runner with tagged_mercy (taya before: %d, mercy %s)" % [before, str(arena._invuln)])
+	await _until(func() -> bool: return false, 4.0)  # the client moves its TAYA marker to the host's mortal
 	_finish()
 
 

@@ -45,9 +45,10 @@ extends Arena
 #   chant rides the same chant fields as a mortal Taya's. Clients only draw them.
 #
 # THE FIELD
-#   Sized for the mortals playing (field_size_2p / _3p / _4p), centred where the
-#   Border is drawn: the host picks it when the arena loads and again at the
-#   countdown, and sends it with the layout; every screen redraws the Border.
+#   The scene's Border (ArenaField/Border) is the field, as in every other arena:
+#   the base reads it (authored_rect), the host sends it with the layout so clients
+#   agree, and nothing here resizes or redraws it. It is the same for 2, 3 and 4
+#   mortals; only the number of Langit grows with the roster (langit_count).
 #
 # LANGIT
 #   langit_count() spots: one more than there are mortals, so every runner can be
@@ -112,10 +113,14 @@ extends Arena
 #     on the Lupa clear of taya_clearance from the mortal Taya). She never goes
 #     back to her post: her tag never sends the gods off (_gods_leave is skipped).
 #     While she is THE Taya her first tag makes that runner the mortal Taya, as
-#     before, and she stays. With a mortal Taya her tag passes nothing: the runner
-#     loses tag_steal FAVOR (to nobody - she earns none), their streak ends and
-#     tagged_mercy stops a chain-tag; the mortal Taya keeps the role and passes it
-#     between mortals as usual (they cannot tag her). Her safety-valve hunt is off:
+#     before, and she stays. With a mortal Taya her tag PASSES THE TAYA too: the
+#     tagged runner loses tag_steal FAVOR (to nobody - she earns none), their streak
+#     ends, and they become the mortal Taya through set_taya (tagback_immunity, the
+#     "YOU ARE TAYA" announcement, TIME AS TAYA, bots, a chant in progress cancelled).
+#     The old mortal Taya is a runner again with tagged_mercy, so neither she nor
+#     anyone can tag them straight back, and their Taya clock stops. Ikapati stays
+#     the second Taya (the gods never leave in the blitz), so there is always exactly
+#     one mortal Taya plus her. Her safety-valve hunt is off:
 #     she chases the nearest runner on the Lupa with the god chase AI and chants by
 #     the god rules (god_chant_beat, god_chant_success) - her own chant, beside the
 #     mortal Taya's, shown on her own marker - and her ALIS dooms Langit like any.
@@ -185,15 +190,8 @@ enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 @export var tie_window := 0.25           # Taya times this close are a tie
 @export var langit_size := Vector2(96.0, 60.0)
 @export var langit_safe_margin := 6.0    # standing on the edge still counts
-@export var langit_spacing := 120.0      # least distance between two Langit centres
+@export var langit_spacing := 140.0      # least distance between two Langit centres
 @export var langit_fade_in := 0.3        # seconds a new Langit takes to appear
-
-@export_category("Field")
-# The field's size for 2, 3 and 4 mortals, centred where the Border is drawn. A 0
-# keeps the drawn Border's width or height (the art decides the strip's height).
-@export var field_size_2p := Vector2(560.0, 0.0)
-@export var field_size_3p := Vector2(640.0, 0.0)
-@export var field_size_4p := Vector2(720.0, 0.0)
 
 @export_category("Seasons")
 @export var season_interval := 12.0      # seconds between two crumbles
@@ -268,7 +266,6 @@ enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 @onready var rules_card: Control = get_node_or_null("LangitHud/RulesCard")
 @onready var taya_tip: Control = get_node_or_null("LangitHud/TayaTip")
 
-var _drawn := Rect2()                 # the Border as the scene draws it
 var _taya := -1
 var _tagback := 0.0
 var _taya_time: Dictionary = {}      # mortal id -> seconds spent as Taya
@@ -345,46 +342,6 @@ func _ready() -> void:
 		lupa_rule.text = RULES_LUPA_GODS
 
 
-# --- THE FIELD ----------------------------------------------------------------
-
-# The base reads the drawn Border; the host then sizes the field for the mortals
-# playing and sends it on with the layout, so every screen walks the same field.
-func _read_field() -> void:
-	super._read_field()
-	if _authority:
-		_size_field()
-
-
-func field_size_for(mortals: int) -> Vector2:
-	if mortals <= 2:
-		return field_size_2p
-	return field_size_3p if mortals == 3 else field_size_4p
-
-
-func _size_field() -> void:
-	if not _drawn.has_area():
-		_drawn = field_root.authored_rect()  # once: the Border is redrawn below
-	var wanted := field_size_for(rules.mortals.size())
-	var size := Vector2(wanted.x if wanted.x > 0.0 else _drawn.size.x, wanted.y if wanted.y > 0.0 else _drawn.size.y)
-	_field = Rect2(_drawn.get_center() - size * 0.5, size)
-	_draw_border()
-	player.bounds = _field
-	_fit_camera()
-	_publish_layout()
-
-
-# The Border line is redrawn around the field (it may be scaled in the scene, so
-# the corners go through its own transform).
-func _draw_border() -> void:
-	var line := field_root.border
-	if line == null:
-		return
-	var points := PackedVector2Array()
-	for corner in [_field.position, Vector2(_field.end.x, _field.position.y), _field.end, Vector2(_field.position.x, _field.end.y), _field.position]:
-		points.append(line.to_local(corner))
-	line.points = points
-
-
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
 
 func collect_units() -> void:
@@ -421,8 +378,6 @@ func edge_targets() -> Array:
 
 
 func arena_round_reset() -> void:
-	if _authority:
-		_size_field()  # the roster may have changed during the intro
 	_taya = -1
 	_tagback = 0.0
 	_taya_time.clear()
@@ -501,10 +456,6 @@ func arena_tick_fields() -> Dictionary:
 		"god_hunt": _god_hunt,
 		"god_step": _god_step,
 	}
-
-
-func arena_read_layout(_layout: Dictionary) -> void:
-	_draw_border()  # the host's field (the base already took _field and the bounds)
 
 
 func arena_read_tick(state: Dictionary) -> void:
@@ -1575,8 +1526,8 @@ func _god_spot() -> Vector2:
 	return best
 
 
-# Host: Ikapati's touch as the second Taya. It passes nothing: the runner loses
-# tag_steal (to nobody), their streak ends and tagged_mercy stops a chain-tag.
+# Host: Ikapati's touch as the second Taya. It passes the mortal Taya to the runner
+# (see _god_tag); the mortal Taya themselves can never be tagged by her.
 func _check_god_tag() -> void:
 	if _god_rooted():
 		return
@@ -1589,11 +1540,14 @@ func _check_god_tag() -> void:
 			return
 
 
+# The runner pays tag_steal (to nobody: she earns none) and is the mortal Taya from
+# now on. set_taya hands the old one tagged_mercy, stops their clock and cancels
+# their chant; the gods do not leave in the blitz, so Ikapati stays as second Taya.
 func _god_tag(mortal_id: int) -> void:
 	lose_favor(tag_steal, "Tagged", mortal_id)
 	_streak[mortal_id] = 0
-	set_mortal_invuln(mortal_id, tagged_mercy)
 	_log("Ikapati tags %s" % mortal_label(mortal_id), UITokens.god_accent(god))
+	set_taya(mortal_id)
 
 
 func _reset_god_chant() -> void:

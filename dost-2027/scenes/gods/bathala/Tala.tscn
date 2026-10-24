@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
 [ext_resource type="Texture2D" uid="uid://dwoegfk45t20c" path="res://Assets/Gods/Tala/tala_mini.png" id="2_ir5cw"]
+[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ou2qn"]
 atlas = ExtResource("2_ir5cw")
@@ -90,6 +91,11 @@ animations = [{
 
 [node name="Tala" type="Node2D" unique_id=1701970278]
 script = ExtResource("1_god")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+position = Vector2(0, 17.0)
+scale = Vector2(1.44, 0.45)
+texture = ExtResource("shadow_tex")
 
 [node name="Ring" type="Line2D" parent="." unique_id=594871796]
 position = Vector2(0, 18)
