@@ -185,6 +185,7 @@ var _god_hold := 0.0                  # 0..1, the gods' hold on the mortals' bas
 var _stars: Array[Dictionary] = []    # Tala's stars: {pos, vel, left}
 var _star_cd := 0.0
 var _pulse_timers: Array[float] = []   # per god index: seconds to its next ally pulse (host; mirrored)
+var _seen_god_shocks: Array[int] = [] # client: per god index, the waves it has already drawn
 var _thaw_immune := {}                # mortal id -> seconds it cannot be frozen after thawing (host; mirrored)
 var _safe_flash := {}                 # target key -> seconds its SAFE popup stays claimed (host; mirrored)
 var _safe_shown := {}                 # the SAFE popups this screen has already popped
@@ -244,6 +245,7 @@ func _build_gods(roster: Array) -> void:
 	_gods.clear()
 	_frozen_gods.clear()
 	_pulse_timers.clear()
+	_seen_god_shocks.clear()
 	if gods_root == null or _bathala_base == Vector2.ZERO:
 		return
 	for id in roster + ["bathala"]:
@@ -777,16 +779,22 @@ func _freeze_god(index: int, seconds: float, caster_id: int = -1) -> void:
 	bank_favor(tag_god_favor, "Tagged a god", caster_id)
 	_show_banner("GOD FROZEN!", UITokens.GOLD, 1.2)
 
-# The host spawns a shockwave at `origin` and tracks its growth for hit checks.
-func _spawn_shockwave(origin: Vector2) -> MayariShockwave:
+# Spawn the players' expanding wave at `origin`. A `radius` overrides the full
+# size (the gods' own waves use it); a wave not handed to _start_shock only draws.
+func _spawn_shockwave(origin: Vector2, radius := 0.0) -> MayariShockwave:
 	if shocks_root == null:
 		return null
 	var wave: MayariShockwave = SHOCK_SCENE.instantiate()
 	shocks_root.add_child(wave)
 	wave.global_position = origin
 	wave.expand_time = shock_expand_time
-	wave.max_scale = shock_radius / maxf(0.01, wave.base_radius)
+	wave.max_scale = (shock_radius if radius <= 0.0 else radius) / maxf(0.01, wave.base_radius)
 	return wave
+
+# A god's wave: the same expanding ring a mortal's swing throws, drawn at the
+# reach _resolve_god_shock uses (the god's radius plus a body margin).
+func _spawn_god_shockwave(god_node: AgawanGod) -> void:
+	_spawn_shockwave(god_node.global_position, god_node.shock_radius + 18.0)
 
 # The host's copy of a wave: it grows the real area and resolves hits.
 func _start_shock(origin: Vector2, caster_id: int, wave: MayariShockwave) -> void:
@@ -866,8 +874,9 @@ func _tick_god_shocks(delta: float) -> void:
 				if god_node.role != other.role and not _in_bathala_base(other.global_position):
 					has_target = true
 					break
-		if has_target:
+		if has_target and god_node.shock_ready():
 			god_node.release_shock()
+			_spawn_god_shockwave(god_node)
 			_resolve_god_shock(god_node, index)
 
 # Resolve a fired god shockwave: freeze enemy gods, thaw ally gods.
@@ -962,9 +971,10 @@ func arena_read_layout(layout: Dictionary) -> void:
 	_apply_tint()  # the base re-tints the field with the god's grey on every layout
 
 
-# The fast per-tick state: each god's pose, freeze and trait, the frozen mortals,
-# both holds, Tala's stars, every god's pulse timer, the thaw immunities, the SAFE popups, and the finale's state. The host runs
-# the rules; the clients only draw this.
+# The fast per-tick state: each god's pose, freeze, trait and released waves,
+# the frozen mortals, both holds, Tala's stars, every god's pulse timer, the
+# thaw immunities, the SAFE popups, and the finale's state. The host runs the
+# rules; the clients only draw this.
 func arena_tick_fields() -> Dictionary:
 	var gods: Array = []
 	for god_node in _gods:
@@ -976,6 +986,7 @@ func arena_tick_fields() -> Dictionary:
 			"lunge": [god_node.lunge_dir.x, god_node.lunge_dir.y],
 			"pulse": god_node.pulse_flash,
 			"immune": god_node.immune_left,
+			"shock": god_node.shocks_released,
 		})
 	var frozen: Dictionary = {}
 	for mortal_id in _frozen_mortals.keys():
@@ -1015,6 +1026,16 @@ func arena_read_tick(state: Dictionary) -> void:
 			god_node.lunge_dir = Vector2(float(lunge[0]), float(lunge[1]))
 		god_node.pulse_flash = float(entry.get("pulse", 0.0))
 		god_node.immune_left = float(entry.get("immune", 0.0))
+		# A new count means the host released a wave: draw the same ring here.
+		var shocks := int(entry.get("shock", 0))
+		if _seen_god_shocks.size() != _gods.size():
+			_seen_god_shocks.resize(_gods.size())
+			_seen_god_shocks.fill(-1)  # first tick after a rebuild - adopt, do not replay
+		if _seen_god_shocks[index] < 0:
+			_seen_god_shocks[index] = shocks
+		elif shocks > _seen_god_shocks[index]:
+			_seen_god_shocks[index] = shocks
+			_spawn_god_shockwave(god_node)
 		god_node._refresh_visual()
 	_frozen_mortals.clear()
 	var frozen: Dictionary = state.get("frozen", {})

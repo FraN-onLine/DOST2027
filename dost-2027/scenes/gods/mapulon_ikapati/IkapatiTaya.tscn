@@ -1,60 +1,213 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://tsia13fknekp"]
 
 [ext_resource type="PackedScene" uid="uid://caeyjvhbdf8ae" path="res://scenes/gods/common/Mortal.tscn" id="1_mortal"]
-[ext_resource type="Script" path="res://scripts/gods/mapulon_ikapati/ikapati_taya.gd" id="2_script"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/godot_placeholder.svg" id="3_placeholder"]
+[ext_resource type="Script" uid="uid://b23q5ve6iuk0s" path="res://scripts/gods/mapulon_ikapati/ikapati_taya.gd" id="2_script"]
+[ext_resource type="Texture2D" uid="uid://dxphlrugle2gr" path="res://Assets/Gods/lam-ang.png" id="3_vq6ap"]
+[ext_resource type="Texture2D" uid="uid://cphb53fo1gfxn" path="res://Assets/Player/Lamang-Sheet.png" id="4_l7i5p"]
+[ext_resource type="Texture2D" uid="uid://cxkcpecrakrk6" path="res://Assets/Gods/lam-ang-walking.png" id="5_1m1fo"]
+[ext_resource type="Texture2D" uid="uid://cxpnvvtys043p" path="res://Assets/Gods/MapulonIkapati/IkapatiMini-Sheet.png" id="6_du37m"]
 
-[sub_resource type="SpriteFrames" id="SpriteFrames_taya"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_nxx0t"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d10"]
+atlas = ExtResource("4_l7i5p")
+region = Rect2(640, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d11"]
+atlas = ExtResource("4_l7i5p")
+region = Rect2(704, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d12"]
+atlas = ExtResource("4_l7i5p")
+region = Rect2(768, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d13"]
+atlas = ExtResource("4_l7i5p")
+region = Rect2(832, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d14"]
+atlas = ExtResource("4_l7i5p")
+region = Rect2(896, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wwxri"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_acmbj"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gcmq5"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ubkc8"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xwvwc"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e6wkd"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jw5cy"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tiscc"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(512, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qqolb"]
+atlas = ExtResource("3_vq6ap")
+region = Rect2(576, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nwfqa"]
+atlas = ExtResource("5_1m1fo")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6kgxb"]
+atlas = ExtResource("5_1m1fo")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v1n5q"]
+atlas = ExtResource("5_1m1fo")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_6nmie"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("3_placeholder")
+"texture": SubResource("AtlasTexture_nxx0t")
 }],
-"loop": true,
-"name": &"chant",
-"speed": 5.0
+"loop": 1,
+"name": &"default",
+"speed": 6.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("3_placeholder")
+"texture": SubResource("AtlasTexture_d10")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d11")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d12")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d13")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d14")
 }],
-"loop": true,
-"name": &"idle",
-"speed": 5.0
+"loop": 0,
+"name": &"defend-arnis",
+"speed": 8.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("3_placeholder")
+"texture": SubResource("AtlasTexture_wwxri")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_acmbj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gcmq5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ubkc8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xwvwc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e6wkd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jw5cy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tiscc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qqolb")
 }],
-"loop": true,
-"name": &"tag",
-"speed": 5.0
+"loop": 0,
+"name": &"hit-arnis",
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("3_placeholder")
+"texture": SubResource("AtlasTexture_nwfqa")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6kgxb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v1n5q")
 }],
-"loop": true,
+"loop": 1,
 "name": &"walk",
 "speed": 5.0
 }]
 
-[node name="IkapatiTaya" instance=ExtResource("1_mortal")]
+[sub_resource type="AtlasTexture" id="AtlasTexture_0hi1p"]
+atlas = ExtResource("6_du37m")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_86gur"]
+atlas = ExtResource("6_du37m")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0k31f"]
+atlas = ExtResource("6_du37m")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_d7r0a"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0hi1p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_86gur")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0k31f")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="IkapatiTaya" unique_id=926122783 instance=ExtResource("1_mortal")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("2_script")
+god_id = &"mapulon_ikapati"
+god_height = 87.0
+figure_height = 0.0
 
-[node name="Sprite" parent="." index="4"]
-visible = false
+[node name="Sprite" parent="." index="4" unique_id=348660814]
+sprite_frames = SubResource("SpriteFrames_6nmie")
+animation = &"default"
+frame = 0
+frame_progress = 0.0
 
-[node name="GodLook" type="Node2D" parent="." index="5"]
+[node name="GodLook" type="Node2D" parent="." index="5" unique_id=2142234090]
 position = Vector2(0, 17)
 
-[node name="GodRing" type="Line2D" parent="GodLook"]
-points = PackedVector2Array(26, 0, 25.114, 2.329, 22.517, 4.5, 18.385, 6.364, 13, 7.794, 6.729, 8.693, 0, 9, -6.729, 8.693, -13, 7.794, -18.385, 6.364, -22.517, 4.5, -25.114, 2.329, -26, 0, -25.114, -2.329, -22.517, -4.5, -18.385, -6.364, -13, -7.794, -6.729, -8.693, -0, -9, 6.729, -8.693, 13, -7.794, 18.385, -6.364, 22.517, -4.5, 25.114, -2.329)
+[node name="GodRing" type="Line2D" parent="GodLook" index="0" unique_id=328383477]
+points = PackedVector2Array(26, 0, 25.114, 2.329, 22.517, 4.5, 18.385, 6.364, 13, 7.794, 6.729, 8.693, 0, 9, -6.729, 8.693, -13, 7.794, -18.385, 6.364, -22.517, 4.5, -25.114, 2.329, -26, 0, -25.114, -2.329, -22.517, -4.5, -18.385, -6.364, -13, -7.794, -6.729, -8.693, 0, -9, 6.729, -8.693, 13, -7.794, 18.385, -6.364, 22.517, -4.5, 25.114, -2.329)
 closed = true
 width = 2.0
 
-[node name="Art" type="AnimatedSprite2D" parent="GodLook"]
-sprite_frames = SubResource("SpriteFrames_taya")
-animation = &"idle"
+[node name="Art" type="AnimatedSprite2D" parent="GodLook" index="1" unique_id=1225223201]
+position = Vector2(0, -62.5)
+scale = Vector2(2.4375, 2.078125)
+sprite_frames = SubResource("SpriteFrames_d7r0a")

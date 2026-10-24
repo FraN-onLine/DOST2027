@@ -29,6 +29,8 @@ extends Node2D
 #     into a mortal's row instead of chasing it.
 #   * Tala's star throw and every god's ally pulse (Hanan's is the big one) are
 #     rules, so the arena runs them (BathalaArena); this node only draws the ring.
+#     Every god also releases its own wave on a cooldown (the same expanding
+#     shockwave a mortal's swing throws); the arena runs it and draws it.
 #
 # Touching a mortal freezes it - the BathalaArena owns that rule and every other
 # rule; this node only walks, decides a goal moment to moment and draws itself.
@@ -105,8 +107,7 @@ var _chasing := false                 # the goal this frame is a mortal
 
 # Shockwave (mirrored to the clients).
 var _shock_timer := 0.0               # cooldown until next shockwave
-var shocking := false                 # visual: shockwave active this frame
-var shock_left := 0.0                 # visual: seconds left showing shock ring
+var shocks_released := 0              # how many waves it has thrown - clients replay each
 
 @onready var icon: AnimatedSprite2D = get_node_or_null("Icon")
 @onready var ring: Line2D = get_node_or_null("Ring")
@@ -171,13 +172,12 @@ func thaw() -> void:
 func shock_ready() -> bool:
 	return not frozen and _shock_timer <= 0.0 and shock_cd > 0.0
 
-# Fire the shockwave: sets the visual and starts the cooldown.
+# Fire the shockwave: starts the cooldown and counts it for the clients.
 func release_shock() -> void:
 	if not shock_ready():
 		return
 	_shock_timer = shock_cd
-	shocking = true
-	shock_left = 0.25
+	shocks_released += 1
 	_refresh_visual()
 
 
@@ -188,8 +188,6 @@ func reset_round() -> void:
 	windup = 0.0
 	lunge_left = 0.0
 	pulse_flash = 0.0
-	shocking = false
-	shock_left = 0.0
 	_shock_timer = 0.0
 	watch_target = Vector2.INF
 	_lunge_cd = lunge_interval
@@ -256,13 +254,8 @@ func step(delta: float, mortals: Array) -> void:
 	_pulse += delta
 	immune_left = maxf(0.0, immune_left - delta)
 	pulse_flash = maxf(0.0, pulse_flash - delta)
-	# Shockwave cooldown and visual.
+	# Shockwave cooldown.
 	_shock_timer = maxf(0.0, _shock_timer - delta)
-	if shocking:
-		shock_left = maxf(0.0, shock_left - delta)
-		if shock_left <= 0.0:
-			shocking = false
-			_refresh_visual()
 	if frozen:
 		freeze_left = maxf(0.0, freeze_left - delta)
 		if freeze_left <= 0.0:

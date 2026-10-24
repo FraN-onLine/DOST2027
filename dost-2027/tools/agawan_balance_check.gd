@@ -161,6 +161,31 @@ func _run() -> void:
 	_arena._resolve_god_shock(apolaki, 0)
 	_check(not tala.is_frozen(), "...but not one 45 px away")
 
+	# --- a god's wave is drawn like a mortal's ---------------------------------------
+	_fresh_round()
+	apolaki.global_position = FIELD
+	tala.global_position = FIELD + Vector2(15, 0)
+	var waves_before := _arena.shocks_root.get_child_count()
+	var released_before := apolaki.shocks_released
+	_arena._tick_god_shocks(DT)
+	var waves_after := _arena.shocks_root.get_child_count()
+	_check(tala.is_frozen() and waves_after > waves_before,
+		"a released god wave throws the same expanding ring a mortal's swing does")
+	var god_wave: MayariShockwave = _arena.shocks_root.get_child(waves_after - 1)
+	_check(is_equal_approx(god_wave.max_scale * god_wave.base_radius, apolaki.shock_radius + 18.0),
+		"the god's ring grows to its freeze reach, not the mortal's 65 px")
+	_check(apolaki.shocks_released == released_before + 1, "the release is counted for the clients")
+
+	# The client mirrors the host's count into the same ring.
+	var tick_state: Dictionary = _arena.arena_tick_fields()
+	_arena.arena_read_tick(tick_state)
+	var client_before := _arena.shocks_root.get_child_count()
+	var god_state: Dictionary = tick_state["gods"][0]
+	god_state["shock"] = apolaki.shocks_released + 1
+	_arena.arena_read_tick(tick_state)
+	_check(_arena.shocks_root.get_child_count() == client_before + 1,
+		"a client draws the god's wave from the tick")
+
 	# --- nobody is frozen on their own base ---------------------------------------------------
 	_fresh_round()
 	var safe_base: Vector2 = _arena._bathala_base + Vector2(10, 0)
