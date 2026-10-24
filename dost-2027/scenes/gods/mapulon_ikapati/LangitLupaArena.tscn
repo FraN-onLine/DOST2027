@@ -5,6 +5,8 @@
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="3_bg"]
 [ext_resource type="Texture2D" uid="uid://ds4dxa5j0omwb" path="res://Assets/Gods/MapulonIkapati/IkapatiOverseer-Sheet.png" id="4_3punl"]
 [ext_resource type="Texture2D" uid="uid://dyjktf2v021td" path="res://Assets/Gods/MapulonIkapati/MapulonOverSeer-Sheet.png" id="5_t7fk7"]
+[ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="6_lp5kw"]
+[ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="7_4he5h"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_t7fk7"]
 atlas = ExtResource("4_3punl")
@@ -85,6 +87,11 @@ field_size_3p = Vector2(640, 0)
 field_size_4p = Vector2(720, 0)
 season_interval = 12.0
 shift_warning = 1.0
+crumble_time = 0.4
+reform_delay = 0.5
+langit_blitz_time = 30.0
+blitz_season_interval = 3.0
+blitz_shift_warning = 0.6
 chant_cooldown = 5.0
 chant_length = 5
 chant_beat = 0.8
@@ -126,6 +133,7 @@ trial_time = 60.0
 dash_enabled = true
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
+visible = false
 modulate = Color(0.75, 0.95, 0.7, 1)
 position = Vector2(654.75, 274)
 scale = Vector2(6.5475, 4.87)
@@ -242,13 +250,15 @@ width = 2.0
 default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=632666614]
-position = Vector2(615, 192)
+z_index = -1
+position = Vector2(571.00006, 192)
 scale = Vector2(3.6833231, 3.2276123)
 sprite_frames = SubResource("SpriteFrames_4he5h")
 autoplay = "default"
 frame_progress = 0.050460998
 
 [node name="GodOverSeer2" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1831042744]
+z_index = -1
 position = Vector2(952, 189)
 scale = Vector2(3.6833231, 3.2276123)
 sprite_frames = SubResource("SpriteFrames_r1xhw")
@@ -257,6 +267,11 @@ frame_progress = 0.030867117
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(420, 440)
+
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=100621347]
+layout_mode = 2
+theme_type_variation = &"HudLabel"
+text = "ON THE LUPA     DASH READY"
 
 [node name="Bots" type="Node2D" parent="." index="10" unique_id=2040126219]
 z_index = 3
@@ -399,12 +414,7 @@ default_color = Color(0.9490196, 0.9098039, 0.8117647, 0.35)
 [node name="LangitHud" type="CanvasLayer" parent="." index="14" unique_id=1870373423]
 layer = 12
 
-[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" unique_id=100621347]
-layout_mode = 2
-theme_type_variation = &"HudLabel"
-text = "ON THE LUPA     DASH READY"
-
-[node name="Callout" type="Label" parent="LangitHud" index="2" unique_id=235282260]
+[node name="Callout" type="Label" parent="LangitHud" index="0" unique_id=235282260]
 visible = false
 anchors_preset = 5
 anchor_left = 0.5
@@ -415,7 +425,7 @@ grow_horizontal = 2
 theme_type_variation = &"HudCallout"
 horizontal_alignment = 1
 
-[node name="RulesCard" type="PanelContainer" parent="LangitHud" index="4" unique_id=552142326]
+[node name="RulesCard" type="PanelContainer" parent="LangitHud" index="1" unique_id=552142326]
 visible = false
 offset_left = 386.0
 offset_top = 168.0
@@ -446,7 +456,7 @@ text = "Every crossing earns FAVOR. Get tagged and you're the Taya. Last 30s: BL
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="TayaTip" type="Label" parent="LangitHud" index="5" unique_id=1324479048]
+[node name="TayaTip" type="Label" parent="LangitHud" index="2" unique_id=1324479048]
 visible = false
 offset_left = 386.0
 offset_top = 168.0
@@ -457,6 +467,19 @@ text = "RIGHT CLICK - CHANT. Hit the keys to force them off the Langit."
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="FaceFocus" type="Marker2D" parent="."]
+[node name="FaceFocus" type="Marker2D" parent="." index="17" unique_id=1861186224]
 position = Vector2(952, 104)
 
+[node name="ArenaBG" type="Node2D" parent="." index="18" unique_id=340503268]
+position = Vector2(944, 92)
+
+[node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=260950648]
+z_index = -2
+position = Vector2(-368.25, 226.5)
+scale = Vector2(0.6040356, 0.63663363)
+texture = ExtResource("6_lp5kw")
+
+[node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=1114030800]
+position = Vector2(-288, 178.00003)
+scale = Vector2(2.0124998, 2.2680554)
+texture = ExtResource("7_4he5h")

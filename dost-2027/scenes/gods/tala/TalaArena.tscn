@@ -7,6 +7,8 @@
 [ext_resource type="Texture2D" uid="uid://b6vjr6hvao45f" path="res://Assets/Gods/Tala/can1.png" id="5_8urks"]
 [ext_resource type="Texture2D" uid="uid://dwoegfk45t20c" path="res://Assets/Gods/Tala/tala_mini.png" id="6_28pec"]
 [ext_resource type="Texture2D" uid="uid://c5faeg35jn743" path="res://Assets/Gods/Tala/TalaOverseer-Sheet.png" id="7_28pec"]
+[ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="8_yq6ct"]
+[ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="9_cgjks"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cgjks"]
 atlas = ExtResource("4_28pec")
@@ -176,6 +178,7 @@ embedded = true
 dialogue_prefix = "tala"
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
+visible = false
 position = Vector2(654.75, 274)
 scale = Vector2(6.5475, 4.87)
 texture = ExtResource("3_bg")
@@ -246,7 +249,8 @@ autoplay = "default"
 frame_progress = 0.9625631
 
 [node name="OverSeerGod" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="7" unique_id=287992503]
-position = Vector2(949.00006, 164)
+z_index = -1
+position = Vector2(949, 181.00002)
 scale = Vector2(3.3423078, 3.5984848)
 sprite_frames = SubResource("SpriteFrames_wpc2v")
 autoplay = "default"
@@ -325,3 +329,17 @@ text = "THROW FROM THE LINE"
 
 [node name="FaceFocus" type="Marker2D" parent="." index="13" unique_id=661980921]
 position = Vector2(947, 119)
+
+[node name="ArenaBG" type="Node2D" parent="." index="14" unique_id=42227457]
+position = Vector2(944, 92)
+
+[node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=1167066962]
+z_index = -2
+position = Vector2(-368.25, 226.5)
+scale = Vector2(0.6040356, 0.63663363)
+texture = ExtResource("8_yq6ct")
+
+[node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=383242715]
+position = Vector2(-288, 178.00003)
+scale = Vector2(2.0124998, 2.2680554)
+texture = ExtResource("9_cgjks")

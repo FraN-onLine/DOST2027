@@ -7,6 +7,8 @@
 [ext_resource type="Texture2D" uid="uid://d3vr2n1evain" path="res://Assets/Gods/Mayari/MayariOverseer-Sheet.png" id="4_qvw0k"]
 [ext_resource type="PackedScene" uid="uid://svxrl6j6aa6k" path="res://scenes/gods/mayari/MayariClone.tscn" id="5_clone"]
 [ext_resource type="Texture2D" uid="uid://bykenkwb22d04" path="res://Assets/Placeholders/attack.png" id="7_icon"]
+[ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="8_35pk3"]
+[ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="9_vrftn"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_wlxev"]
 atlas = ExtResource("4_qvw0k")
@@ -56,6 +58,7 @@ shock_force = 280.0
 embedded = true
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
+visible = false
 position = Vector2(654.75, 274.00003)
 scale = Vector2(6.5474997, 4.87)
 texture = ExtResource("3_bg")
@@ -81,6 +84,7 @@ width = 2.0
 default_color = Color(1, 1, 1, 0.08)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1907198770]
+z_index = -1
 position = Vector2(935, 131)
 scale = Vector2(4.145794, 4.291193)
 sprite_frames = SubResource("SpriteFrames_overseer")
@@ -95,7 +99,7 @@ position = Vector2(542, 457)
 zone_label = "NW GOAL"
 
 [node name="Fill" parent="Zones/NorthWestGoal" index="0" unique_id=1499717694]
-offset_left = -149.0
+offset_left = -180.0
 offset_top = -57.0
 offset_right = 139.0
 offset_bottom = 62.0
@@ -113,7 +117,7 @@ position = Vector2(546, 568)
 zone_label = "SW GOAL"
 
 [node name="Fill" parent="Zones/SouthWestGoal" index="0" unique_id=1499717694]
-offset_left = -153.0
+offset_left = -184.0
 offset_right = 135.0
 offset_bottom = 70.0
 
@@ -153,27 +157,41 @@ position = Vector2(292, 533)
 [node name="Shocks" type="Node2D" parent="." index="10" unique_id=1265799116]
 z_index = 2
 
-[node name="Icon" type="TextureRect" parent="BandLayer/Band/Rows/State" unique_id=654105676]
+[node name="Icon" type="TextureRect" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=654105676]
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 texture = ExtResource("7_icon")
 expand_mode = 1
 
-[node name="Label" type="Label" parent="BandLayer/Band/Rows/State" unique_id=1966288468]
+[node name="Label" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="1" unique_id=1966288468]
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "ATTACK  READY"
 horizontal_alignment = 1
 
-[node name="Bar" type="ProgressBar" parent="BandLayer/Band/Rows/State" unique_id=1942084484]
+[node name="Bar" type="ProgressBar" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="2" unique_id=1942084484]
 custom_minimum_size = Vector2(240, 16)
-size_flags_vertical = 4
 layout_mode = 2
+size_flags_vertical = 4
 value = 100.0
 
-[node name="FaceFocus" type="Marker2D" parent="."]
+[node name="FaceFocus" type="Marker2D" parent="." index="15" unique_id=1091994821]
 position = Vector2(884, 127)
+
+[node name="ArenaBG" type="Node2D" parent="." index="16" unique_id=357177037]
+position = Vector2(944, 92)
+
+[node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=964283137]
+z_index = -2
+position = Vector2(-368.25, 226.5)
+scale = Vector2(0.6040356, 0.63663363)
+texture = ExtResource("8_35pk3")
+
+[node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=470849593]
+position = Vector2(-288, 178.00003)
+scale = Vector2(2.0124998, 2.2680554)
+texture = ExtResource("9_vrftn")
 
 [editable path="Zones/NorthWestGoal"]
 [editable path="Zones/NorthEastGoal"]

@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" uid="uid://d3dnsdaacfeqq" path="res://scenes/gods/apolaki/Apolaki.tscn" id="3_duelist"]
 [ext_resource type="Texture2D" uid="uid://d3l1eviho87ug" path="res://Assets/Gods/Mayari/AreanaTemp.png" id="4_bg"]
 [ext_resource type="Texture2D" uid="uid://c6i33c3omdl0l" path="res://Assets/Gods/Apolaki/apolaki-overseer-Sheet.png" id="5_x3nwb"]
+[ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="6_hwxck"]
+[ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="7_pdigu"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hwxck"]
 atlas = ExtResource("5_x3nwb")
@@ -67,6 +69,7 @@ embedded = true
 dialogue_prefix = "apolaki"
 
 [node name="Background" parent="." index="0" unique_id=1786581936]
+visible = false
 position = Vector2(654.75, 274)
 scale = Vector2(6.5474997, 4.87)
 texture = ExtResource("4_bg")
@@ -77,6 +80,7 @@ position = Vector2(831, 474)
 scale = Vector2(2.0653045, 1.9356914)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1955814452]
+z_index = -1
 position = Vector2(952.00006, 173)
 scale = Vector2(3.9358778, 3.6552243)
 sprite_frames = SubResource("SpriteFrames_overseer")
@@ -93,8 +97,8 @@ default_color = Color(0.54901963, 0.8509804, 1, 0)
 [node name="Sunbursts" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=479780834]
 
 [node name="Border" type="Line2D" parent="." index="3" unique_id=2116842975]
-position = Vector2(193.45038, 178.20657)
-scale = Vector2(0.8759542, 0.79619557)
+position = Vector2(198.44273, 216.0326)
+scale = Vector2(0.8568703, 0.73097825)
 points = PackedVector2Array(56, 216, 1096, 216, 1096, 576, 56, 576, 56, 216)
 width = 4.0
 default_color = Color(0.54901963, 0.8509804, 1, 0)
@@ -103,12 +107,12 @@ default_color = Color(0.54901963, 0.8509804, 1, 0)
 position = Vector2(435, 490)
 scale = Vector2(2.0233405, 1.8783596)
 
-[node name="State" type="Label" parent="BandLayer/Band/Rows/State" unique_id=470594257]
+[node name="State" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=470594257]
 layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "APOLAKI WATCHES"
 
-[node name="Bars" type="HBoxContainer" parent="BandLayer/Band/Rows/State" unique_id=1232068069]
+[node name="Bars" type="HBoxContainer" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="1" unique_id=1232068069]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
@@ -167,6 +171,19 @@ text = "RIGHT CLICK  DEFEND  READY"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="FaceFocus" type="Marker2D" parent="."]
+[node name="FaceFocus" type="Marker2D" parent="." index="13" unique_id=1391353166]
 position = Vector2(901, 89)
 
+[node name="ArenaBG" type="Node2D" parent="." index="14" unique_id=283611396]
+position = Vector2(944, 92)
+
+[node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=1719729505]
+z_index = -2
+position = Vector2(-368.25, 226.5)
+scale = Vector2(0.6040356, 0.63663363)
+texture = ExtResource("6_hwxck")
+
+[node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=514557070]
+position = Vector2(-288, 178.00003)
+scale = Vector2(2.0124998, 2.2680554)
+texture = ExtResource("7_pdigu")
