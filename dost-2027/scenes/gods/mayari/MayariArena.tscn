@@ -7,7 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://d3vr2n1evain" path="res://Assets/Gods/Mayari/MayariOverseer-Sheet.png" id="4_qvw0k"]
 [ext_resource type="PackedScene" uid="uid://svxrl6j6aa6k" path="res://scenes/gods/mayari/MayariClone.tscn" id="5_clone"]
 [ext_resource type="Texture2D" uid="uid://bykenkwb22d04" path="res://Assets/Placeholders/attack.png" id="7_icon"]
-[ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="8_35pk3"]
+[ext_resource type="Texture2D" uid="uid://xrc5okbm51jb" path="res://Assets/animatedbg.png" id="8_35pk3"]
 [ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="9_vrftn"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_wlxev"]
@@ -37,6 +37,60 @@ animations = [{
 "loop": 2,
 "name": &"default",
 "speed": 7.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l75by"]
+atlas = ExtResource("8_35pk3")
+region = Rect2(0, 0, 1908, 1010)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qmwyn"]
+atlas = ExtResource("8_35pk3")
+region = Rect2(1908, 0, 1908, 1010)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uxxwf"]
+atlas = ExtResource("8_35pk3")
+region = Rect2(3816, 0, 1908, 1010)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5fjrf"]
+atlas = ExtResource("8_35pk3")
+region = Rect2(5724, 0, 1908, 1010)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yerrk"]
+atlas = ExtResource("8_35pk3")
+region = Rect2(7632, 0, 1908, 1010)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 2.0,
+"texture": SubResource("AtlasTexture_l75by")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qmwyn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uxxwf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5fjrf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yerrk")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l75by")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l75by")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 8.0
+}, {
+"frames": [],
+"loop": 1,
+"name": &"new_animation",
+"speed": 5.0
 }]
 
 [node name="MayariArena" unique_id=2127707221 instance=ExtResource("1_base")]
@@ -182,11 +236,13 @@ position = Vector2(884, 127)
 [node name="ArenaBG" type="Node2D" parent="." index="16" unique_id=357177037]
 position = Vector2(944, 92)
 
-[node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=964283137]
+[node name="TempBackground" type="AnimatedSprite2D" parent="ArenaBG" index="0" unique_id=963338144]
 z_index = -2
 position = Vector2(-368.25, 226.5)
 scale = Vector2(0.6040356, 0.63663363)
-texture = ExtResource("8_35pk3")
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+autoplay = "default"
+frame_progress = 0.8973033
 
 [node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=470849593]
 position = Vector2(-288, 178.00003)
