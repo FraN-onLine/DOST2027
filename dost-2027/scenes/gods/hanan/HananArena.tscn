@@ -52,6 +52,9 @@ fill_to = Vector2(1, 0.5)
 [node name="Arena2" unique_id=628936061 instance=ExtResource("1_43mqu")]
 script = ExtResource("2_pmmhp")
 vault_window = 3.0
+baka_blitz_time = 30.0
+baka_blitz_favor = 1.2
+baka_blitz_extra_time = 2.0
 grace_time = 0.35
 vaults_per_level = 3
 favor_per_second = 40.0
@@ -70,9 +73,6 @@ stumble_time = 1.0
 stumble_force = 320.0
 vault_trigger_distance = 60.0
 jump_height = 90.0
-baka_blitz_time = 30.0
-baka_blitz_favor = 1.2
-baka_blitz_extra_time = 2.0
 lift_accel = 2.6
 gravity = 2.2
 max_speed = 1.1
@@ -193,7 +193,7 @@ theme_type_variation = &"HudLabel"
 theme_override_colors/font_color = Color(0.9098039, 0.72156864, 0.2901961, 1)
 text = "HOLD LEFT CLICK"
 
-[node name="SinkArrow" type="Polygon2D" parent="BarLayer/Bar" index="5"]
+[node name="SinkArrow" type="Polygon2D" parent="BarLayer/Bar" index="5" unique_id=38692854]
 visible = false
 position = Vector2(-22, 0)
 color = Color(1, 0.62, 0.55, 1)
@@ -221,6 +221,6 @@ position = Vector2(-288, 178.00003)
 scale = Vector2(2.0124998, 2.2680554)
 texture = ExtResource("6_nrrp5")
 
-[node name="BlitzGlow" type="Sprite2D" parent="ArenaBG" index="2"]
+[node name="BlitzGlow" type="Sprite2D" parent="ArenaBG" index="2" unique_id=1150841978]
 visible = false
 texture = SubResource("GradientTexture2D_blitz")

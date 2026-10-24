@@ -1,43 +1,64 @@
 [gd_scene format=3 uid="uid://bathala001"]
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god_ext"]
-[ext_resource type="Texture2D" uid="uid://vns3qafqf82" path="res://Assets/Gods/Bathala/bathala-Sheet.png" id="2_fgbxp"]
-[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_p2an7"]
-atlas = ExtResource("2_fgbxp")
-region = Rect2(0, 0, 130, 100)
+[ext_resource type="Texture2D" uid="uid://cpur4pphdkvc" path="res://Assets/Gods/Bathala/bathala_defend.png" id="3_p2an7"]
+[ext_resource type="Texture2D" uid="uid://br3spaju6v8a1" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8jqwt"]
-atlas = ExtResource("2_fgbxp")
-region = Rect2(130, 0, 130, 100)
+atlas = ExtResource("3_p2an7")
+region = Rect2(192, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_uirlv"]
-atlas = ExtResource("2_fgbxp")
-region = Rect2(260, 0, 130, 100)
+atlas = ExtResource("3_p2an7")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o0xnw"]
+atlas = ExtResource("3_p2an7")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ccq1u"]
+atlas = ExtResource("3_p2an7")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5ugqs"]
+atlas = ExtResource("3_p2an7")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wa1c6"]
+atlas = ExtResource("3_p2an7")
+region = Rect2(512, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_p2an7")
-}, {
-"duration": 1.0,
 "texture": SubResource("AtlasTexture_8jqwt")
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_uirlv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o0xnw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ccq1u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5ugqs")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wa1c6")
 }],
 "loop": 1,
 "name": &"default",
-"speed": 5.0
+"speed": 8.0
 }]
 
 [node name="Bathala" type="Node2D" unique_id=1701970281]
 script = ExtResource("1_god_ext")
 
-[node name="Shadow" type="Sprite2D" parent="."]
-position = Vector2(0, 17.0)
+[node name="Shadow" type="Sprite2D" parent="." unique_id=1892344020]
+position = Vector2(0, 17)
 scale = Vector2(2.15, 0.67)
 texture = ExtResource("shadow_tex")
 
@@ -62,10 +83,11 @@ width = 3.0
 default_color = Color(0.3, 0.31, 0.36, 0.6)
 
 [node name="Icon" type="AnimatedSprite2D" parent="." unique_id=304815004]
-position = Vector2(0, -25.6)
-scale = Vector2(0.871, 0.871)
+position = Vector2(1.9073486e-06, -35.999996)
+scale = Vector2(1.732375, 1.7573749)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-frame_progress = 0.7695864
+autoplay = "default"
+frame_progress = 0.70133215
 
 [node name="Name" type="Label" parent="." unique_id=1279801230]
 offset_left = -55.0

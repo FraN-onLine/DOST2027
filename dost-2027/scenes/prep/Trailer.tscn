@@ -1,0 +1,254 @@
+[gd_scene format=3 uid="uid://biusqwvegbgir"]
+
+[ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_8nwca"]
+[ext_resource type="Script" uid="uid://dpj3uh8pu6651" path="res://scripts/prep/prep_area.gd" id="2_8bpkn"]
+[ext_resource type="Texture2D" uid="uid://2vufr8ct7wh3" path="res://Assets/Campfire-Sheet.png" id="3_1838f"]
+[ext_resource type="Texture2D" uid="uid://b3hkvrfg3hjsl" path="res://Assets/Placeholders/god.png" id="4_udsfs"]
+[ext_resource type="Texture2D" uid="uid://dbmukqcfnx0ge" path="res://Assets/Altar.png" id="5_k88l3"]
+[ext_resource type="Texture2D" uid="uid://ciq01reskd3lr" path="res://Assets/Gods/Bulawan.png" id="6_p3s5n"]
+[ext_resource type="PackedScene" path="res://UI/GodsArena/tindahan_menu.tscn" id="7_aedmq"]
+[ext_resource type="Texture2D" uid="uid://47ujncj6jm7f" path="res://Assets/Map/lobbymap.png" id="8_hulp0"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_glow"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_glow"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(1, 0.62, 0.25, 0.85, 1, 0.45, 0.12, 0.35, 1, 0.4, 0.1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
+gradient = SubResource("Gradient_glow")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h5hph"]
+atlas = ExtResource("3_1838f")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wg0tl"]
+atlas = ExtResource("3_1838f")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ssttb"]
+atlas = ExtResource("3_1838f")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_53n7r"]
+atlas = ExtResource("3_1838f")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p45a0"]
+atlas = ExtResource("3_1838f")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l1bjg"]
+atlas = ExtResource("3_1838f")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dl68p"]
+atlas = ExtResource("3_1838f")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_40i7l"]
+atlas = ExtResource("3_1838f")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h5hph")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wg0tl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ssttb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_53n7r")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_p45a0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l1bjg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dl68p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_40i7l")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yu7e0"]
+atlas = ExtResource("6_p3s5n")
+region = Rect2(0, 0, 146, 146)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_10wso"]
+atlas = ExtResource("6_p3s5n")
+region = Rect2(146, 0, 146, 146)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_yf5fn"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yu7e0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_10wso")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 2.0
+}]
+
+[node name="PrepArea" unique_id=580867236 instance=ExtResource("1_8nwca")]
+script = ExtResource("2_8bpkn")
+prep_time = 20.0
+max_purchases = 1
+boon_cost = 750
+max_boon_purchases = 1
+offer_count = 3
+stall_reach = 90.0
+embedded = true
+dialogue_prefix = "prep"
+simulate_rivals = false
+
+[node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1755927782]
+points = PackedVector2Array(290, 104, 1110, 104, 1110, 560, 290, 560, 290, 104)
+width = 4.0
+default_color = Color(0.78, 0.78, 0.82, 0.6)
+
+[node name="Ground" type="ColorRect" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1460488952]
+z_index = -1
+offset_left = 291.0
+offset_top = 100.0
+offset_right = 1107.0
+offset_bottom = 552.0
+mouse_filter = 2
+color = Color(0.105882354, 0.14509805, 0.27058825, 0.6)
+metadata/_edit_lock_ = true
+
+[node name="Player" parent="." index="5" unique_id=1489401219]
+position = Vector2(700, 460)
+
+[node name="Ready" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=507479925]
+layout_mode = 2
+theme_type_variation = &"HudLabel"
+text = "READY 0/1"
+horizontal_alignment = 2
+
+[node name="Camp" type="Node2D" parent="." index="11" unique_id=1281223518]
+z_index = 1
+
+[node name="Campfire" type="Node2D" parent="Camp" index="0" unique_id=1947551979]
+position = Vector2(700, 340)
+
+[node name="Glow" type="Sprite2D" parent="Camp/Campfire" index="0" unique_id=331625039]
+material = SubResource("CanvasItemMaterial_glow")
+scale = Vector2(1.09375, 1.09375)
+texture = SubResource("GradientTexture2D_glow")
+
+[node name="Flame" type="AnimatedSprite2D" parent="Camp/Campfire" index="1" unique_id=1221586135]
+modulate = Color(0.96, 0.6, 0.25, 0.95)
+position = Vector2(1.4799805, -2.5200043)
+scale = Vector2(1.5162497, 1.485)
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+autoplay = "default"
+frame_progress = 0.5407333
+
+[node name="Light" type="PointLight2D" parent="Camp/Campfire" index="2" unique_id=791809299]
+color = Color(1, 0.62, 0.3, 1)
+energy = 0.35
+texture = SubResource("GradientTexture2D_glow")
+texture_scale = 2.4
+
+[node name="Altar" type="Node2D" parent="Camp" index="1" unique_id=518928254]
+position = Vector2(440, 300)
+
+[node name="GodIcon" type="Sprite2D" parent="Camp/Altar" index="0" unique_id=1442026637]
+position = Vector2(0, -69)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("4_udsfs")
+
+[node name="Name" type="Label" parent="Camp/Altar" index="1" unique_id=662627978]
+offset_left = -90.0
+offset_top = 44.0
+offset_right = 90.0
+offset_bottom = 64.0
+theme_type_variation = &"WorldLabel"
+text = "ALTAR"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="Camp/Altar" index="2" unique_id=416557277]
+offset_left = -90.0
+offset_top = 64.0
+offset_right = 90.0
+offset_bottom = 84.0
+theme_type_variation = &"WorldLabel"
+text = "F - GOD'S DUE"
+horizontal_alignment = 1
+
+[node name="Sprite2D" type="Sprite2D" parent="Camp/Altar" index="3" unique_id=729452783]
+position = Vector2(1.1444092e-05, 9.00001)
+scale = Vector2(1.6093752, 1.7187498)
+texture = ExtResource("5_k88l3")
+metadata/_edit_lock_ = true
+
+[node name="Stall" type="Node2D" parent="Camp" index="2" unique_id=317150400]
+position = Vector2(960, 300)
+
+[node name="Name" type="Label" parent="Camp/Stall" index="0" unique_id=686986482]
+offset_left = -90.0
+offset_top = 40.0
+offset_right = 90.0
+offset_bottom = 60.0
+theme_type_variation = &"WorldLabel"
+text = "BURIGADANG PALA SINAKLANG BULAWAN"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="Camp/Stall" index="1" unique_id=270025467]
+visible = false
+offset_left = -110.0
+offset_top = 60.0
+offset_right = 110.0
+offset_bottom = 80.0
+theme_type_variation = &"WorldLabel"
+text = "LEFT CLICK - TINDAHAN"
+horizontal_alignment = 1
+
+[node name="Sprite2D" type="AnimatedSprite2D" parent="Camp/Stall" index="2" unique_id=365941367]
+position = Vector2(0, -25)
+sprite_frames = SubResource("SpriteFrames_yf5fn")
+frame_progress = 0.6213704
+
+[node name="PrepHud" type="CanvasLayer" parent="." index="12" unique_id=801358590]
+layer = 12
+
+[node name="Next" type="Label" parent="PrepHud" index="0" unique_id=845763899]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -300.0
+offset_top = 56.0
+offset_right = 300.0
+offset_bottom = 88.0
+grow_horizontal = 2
+theme_type_variation = &"HudCallout"
+text = "NEXT: TALA - TUMBANG PRESO"
+horizontal_alignment = 1
+
+[node name="Tindahan" parent="PrepHud" index="1" unique_id=1600641913 instance=ExtResource("7_aedmq")]
+
+[node name="Lobbymap" type="Sprite2D" parent="." index="13" unique_id=86944327]
+position = Vector2(656.00006, 211.99998)
+scale = Vector2(1.190199, 1.3442805)
+texture = ExtResource("8_hulp0")

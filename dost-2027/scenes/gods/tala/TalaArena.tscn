@@ -184,6 +184,7 @@ scale = Vector2(6.5475, 4.87)
 texture = ExtResource("3_bg")
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1341635847]
+visible = false
 position = Vector2(0, 205.5)
 scale = Vector2(1, 0.6658537)
 points = PackedVector2Array(260, 210, 1120, 210, 1120, 610, 260, 610, 260, 210)
@@ -204,6 +205,7 @@ width = 3.0
 default_color = Color(0.2, 0.52, 0.95, 0.85)
 
 [node name="Barrier" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1556991775]
+visible = false
 position = Vector2(-3.0517578e-05, 201.8198)
 scale = Vector2(1, 0.6675127)
 points = PackedVector2Array(470, 220, 470, 600)
@@ -211,6 +213,7 @@ width = 7.0
 default_color = Color(0.35, 0.55, 0.9, 0.45)
 
 [node name="TalaPath" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="4" unique_id=5406449]
+visible = false
 position = Vector2(-207.22446, 107.93193)
 scale = Vector2(1.2499695, 0.8707485)
 points = PackedVector2Array(835, 280, 835, 570)

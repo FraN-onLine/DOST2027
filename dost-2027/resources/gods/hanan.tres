@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="God" format=3 uid="uid://c8jkx2h7cxb45"]
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="2_icon"]
 [ext_resource type="Texture2D" uid="uid://c5nc3s3yg47q0" path="res://Assets/Gods/Hanan/Hanan-General-Favor.png" id="2_xmiqn"]
 [ext_resource type="Texture2D" uid="uid://xmn5bukabvk7" path="res://Assets/Gods/Hanan/hanan_portrait.png" id="3_ftwwg"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
+[ext_resource type="Texture2D" uid="uid://u5wkcdskcmsh" path="res://Assets/Gods/Icons/HananIcon.png" id="3_xmiqn"]
 
 [sub_resource type="Resource" id="Favor_the_dawn"]
 script = ExtResource("1_favor")
@@ -104,7 +104,7 @@ id = &"hanan"
 display_name = "HANAN"
 epithet = "Goddess of the Morning"
 color = Color(1, 0.62, 0.55, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("3_xmiqn")
 game_name = "LUKSONG BAKA"
 game_blurb = "Run into Hanan's Baka and hold left click to leap over it - release and you fall. Keep your jump inside the glowing box while it drifts: a clean vault lands you on the other side and feeds your combo, then turn and vault back. Slip out of the box and you trip. Stand about for 5 seconds without leaping and you lose 200 FAVOR."
 arena_scene = "res://scenes/gods/hanan/HananArena.tscn"

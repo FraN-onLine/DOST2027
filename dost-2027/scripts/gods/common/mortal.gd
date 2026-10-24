@@ -261,6 +261,13 @@ func show_stun(seconds: float) -> void:
 	_stun_fx = maxf(_stun_fx, maxf(seconds, STUN_FX_MIN))
 
 
+# The stop itself, without a new shove or flash: an authoritative timer (the
+# arena's tick) holding the mortal for `seconds`.
+func stun(seconds: float) -> void:
+	_stun = maxf(_stun, seconds)
+	show_stun(seconds)
+
+
 func force_movement(direction: Vector2, duration: float) -> void:
 	_forced_move_direction = direction.normalized()
 	_forced_move_time = maxf(_forced_move_time, duration)

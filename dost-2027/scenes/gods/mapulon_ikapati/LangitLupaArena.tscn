@@ -85,9 +85,9 @@ langit_fade_in = 0.3
 season_interval = 12.0
 shift_warning = 1.0
 crumble_time = 0.4
-reform_delay = 0.5
 cloud_life = 5.0
 bot_unsafe_life = 1.5
+reform_delay = 0.5
 langit_blitz_time = 30.0
 blitz_season_interval = 3.0
 blitz_shift_warning = 0.6
@@ -141,6 +141,7 @@ texture = ExtResource("3_bg")
 metadata/_edit_lock_ = true
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1864643911]
+visible = false
 position = Vector2(0, 304.66937)
 scale = Vector2(1, 0.48185483)
 points = PackedVector2Array(262, 96, 1130, 96, 1130, 584, 262, 584, 262, 96)
@@ -259,7 +260,7 @@ frame_progress = 0.050460998
 
 [node name="GodOverSeer2" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1831042744]
 z_index = -1
-position = Vector2(952, 189)
+position = Vector2(935, 201.99998)
 scale = Vector2(3.6833231, 3.2276123)
 sprite_frames = SubResource("SpriteFrames_r1xhw")
 autoplay = "default"

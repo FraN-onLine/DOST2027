@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_dp3kp"]
 [ext_resource type="Texture2D" uid="uid://i83pdi0ayq0d" path="res://Assets/Gods/Apolaki/Apolaki-General-Favor.png" id="2_nxm4o"]
+[ext_resource type="Texture2D" uid="uid://d0v4od6uwxdk5" path="res://Assets/Gods/Icons/ApolakiIcon.png" id="3_c8kc2"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_nxm4o"]
-[ext_resource type="Texture2D" uid="uid://dlf51behe325t" path="res://Assets/Gods/Apolaki/Apolaki-Icon.png" id="4_icon"]
 [ext_resource type="Texture2D" uid="uid://cgt4dp3y83y4y" path="res://Assets/title/poster.jpg" id="4_nxm4o"]
 
 [sub_resource type="Resource" id="Resource_c8kc2"]
@@ -108,7 +108,7 @@ id = &"apolaki"
 display_name = "APOLAKI"
 epithet = "God of the Sun and War"
 color = Color(1, 0.85, 0.25, 1)
-icon = ExtResource("4_icon")
+icon = ExtResource("3_c8kc2")
 game_name = "ARNIS"
 game_blurb = "Duel Apolaki one on one. Strike him while he is open, guard while he is not, and watch for his blind spots."
 arena_scene = "res://scenes/gods/apolaki/ApolakiArena.tscn"

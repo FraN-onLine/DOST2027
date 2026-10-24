@@ -76,6 +76,7 @@ texture = ExtResource("4_bg")
 metadata/_edit_lock_ = true
 
 [node name="Apolaki" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1246256867 instance=ExtResource("3_duelist")]
+z_index = 1
 position = Vector2(831, 474)
 scale = Vector2(2.0653045, 1.9356914)
 

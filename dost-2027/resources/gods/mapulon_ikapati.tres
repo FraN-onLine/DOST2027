@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="God" format=3 uid="uid://bojlfxtlxqao3"]
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="2_icon"]
 [ext_resource type="Texture2D" uid="uid://ctrr0t3pi4w5v" path="res://Assets/Gods/MapulonIkapati/MI-General-Favor.png" id="2_pc3d1"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
+[ext_resource type="Texture2D" uid="uid://dmafyachangt" path="res://Assets/Gods/Icons/IkapatiIcon.png" id="3_pc3d1"]
 [ext_resource type="Texture2D" uid="uid://bf3gykvvyldud" path="res://Assets/Gods/MapulonIkapati/ikapati_portrait.png" id="3_rcj6l"]
 [ext_resource type="Texture2D" uid="uid://bmmvbh8u53eu4" path="res://Assets/Gods/MapulonIkapati/mapulon_portrait.png" id="4_mapulon"]
 
@@ -119,7 +119,7 @@ id = &"mapulon_ikapati"
 display_name = "MAPULON & IKAPATI"
 epithet = "The Harvest Pair"
 color = Color(0.56, 0.78, 0.33, 1)
-icon = ExtResource("2_icon")
+icon = ExtResource("3_pc3d1")
 game_name = "LANGIT LUPA"
 game_blurb = "The Taya can only tag you on the Lupa, the ground - stand on a Langit and you are safe, but it crumbles behind you when you step off. When the Taya pulls off its RIGHT CLICK chant and yells ALIS!, everyone on a Langit must jump down and race to ANOTHER one before theirs crumbles. Every crossing earns FAVOR, more for a close call; get tagged and you are the Taya. Each season the Langit crumble and land somewhere new - and in the last 30 seconds Ikapati joins the hunt as a second Taya while the seasons race."
 arena_scene = "res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn"

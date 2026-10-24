@@ -3,8 +3,8 @@
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
 [ext_resource type="Texture2D" uid="uid://blql24cfcgde8" path="res://Assets/Gods/Tala/Tala-General-Favor.png" id="2_pnj1g"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="3_god"]
+[ext_resource type="Texture2D" uid="uid://uxkv4sc2f8im" path="res://Assets/Gods/Icons/TalaIcon.png" id="3_pnj1g"]
 [ext_resource type="Texture2D" uid="uid://cof0s5w2fy7v0" path="res://Assets/Gods/Tala/tala_portrait.png" id="4_pnj1g"]
-[ext_resource type="Texture2D" uid="uid://qhwimvi6gul2" path="res://Assets/Gods/Tala/Tala-Icon.png" id="4_portrait"]
 
 [sub_resource type="Resource" id="Favor_bountiful_e"]
 script = ExtResource("1_favor")
@@ -88,7 +88,7 @@ id = &"tala"
 display_name = "TALA"
 epithet = "Goddess of the Stars"
 color = Color(0.12, 0.22, 0.48, 1)
-icon = ExtResource("4_portrait")
+icon = ExtResource("3_pnj1g")
 game_name = "TUMBANG PRESO"
 game_blurb = "Throw slippers past Tala to knock down one of her guarded cans, then retrieve your slipper and return to the line."
 arena_scene = "res://scenes/gods/tala/TalaArena.tscn"

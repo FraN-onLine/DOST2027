@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
 [ext_resource type="Texture2D" uid="uid://dwoegfk45t20c" path="res://Assets/Gods/Tala/tala_mini.png" id="2_ir5cw"]
-[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
+[ext_resource type="Texture2D" uid="uid://br3spaju6v8a1" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ou2qn"]
 atlas = ExtResource("2_ir5cw")
@@ -92,8 +92,8 @@ animations = [{
 [node name="Tala" type="Node2D" unique_id=1701970278]
 script = ExtResource("1_god")
 
-[node name="Shadow" type="Sprite2D" parent="."]
-position = Vector2(0, 17.0)
+[node name="Shadow" type="Sprite2D" parent="." unique_id=1555623031]
+position = Vector2(0, 17)
 scale = Vector2(1.44, 0.45)
 texture = ExtResource("shadow_tex")
 
@@ -121,7 +121,8 @@ default_color = Color(0.55, 0.85, 1, 0.6)
 position = Vector2(0, -38.4)
 scale = Vector2(1.7636, 1.7636)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-frame_progress = 0.7861355
+autoplay = "default"
+frame_progress = 0.85370564
 
 [node name="Name" type="Label" parent="." unique_id=1279801227]
 offset_left = -55.0
