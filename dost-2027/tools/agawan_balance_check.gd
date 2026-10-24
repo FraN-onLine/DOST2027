@@ -30,6 +30,11 @@ func _art_height(sprite: AnimatedSprite2D) -> float:
 	return frame.get_image().get_used_rect().size.y * absf(sprite.global_scale.y)
 
 
+func _art_width(sprite: AnimatedSprite2D) -> float:
+	var frame := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	return frame.get_image().get_used_rect().size.x * absf(sprite.global_scale.x)
+
+
 func _frames(count: int) -> void:
 	for index in range(count):
 		await process_frame
@@ -67,6 +72,17 @@ func _run() -> void:
 		var tall := _art_height(_god(StringName(god_id)).icon)
 		_check(absf(tall - mortal_height) <= mortal_height * 0.1,
 			"%s's art stands %.0f px, a mortal's %.0f px (within 10%%)" % [god_id, tall, mortal_height])
+
+	# --- ...and has a ground shadow like the mortals' ------------------------------
+	for god_node in _arena._gods:
+		var shadow := god_node.get_node_or_null("Shadow") as Sprite2D
+		var art_width := _art_width(god_node.icon)
+		_check(shadow != null and shadow.get_index() < god_node.icon.get_index() and absf(shadow.position.y - 17.0) <= 2.0
+			and shadow.texture != null and shadow.texture.resource_path.ends_with("ShadowTexture.tres"),
+			"%s has a Shadow behind its Icon, at a mortal's feet line" % god_node.god_id)
+		if shadow != null:
+			var width := shadow.texture.get_width() * shadow.scale.x
+			_check(width >= art_width * 0.7 and width <= art_width * 1.1, "...%.0f px wide under %.0f px of art" % [width, art_width])
 
 	# --- the pulse: the nearest live ally thaws a frozen god ----------------------
 	_fresh_round()

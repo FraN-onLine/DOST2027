@@ -44,6 +44,20 @@ func _run() -> void:
 	_arena._ghosts[2] = rival_visual
 	_arena._sync_ghosts()
 	_check(_arena._ghosts.is_empty(), "Apolaki does not render other players")
+	# --- his ground shadow, like the mortals' ------------------------------------------
+	var duel_shadow := _arena.duelist.get_node_or_null("Shadow") as Sprite2D
+	var duel_icon := _arena.duelist.icon
+	var duel_frame := duel_icon.sprite_frames.get_frame_texture(duel_icon.animation, duel_icon.frame)
+	var duel_art := duel_frame.get_image().get_used_rect()
+	var duel_feet := duel_icon.position.y + (duel_art.end.y - duel_frame.get_height() * 0.5) * duel_icon.scale.y
+	_check(duel_shadow != null and duel_shadow.get_index() < duel_icon.get_index() and duel_shadow.texture != null, "Apolaki has a Shadow drawn behind his Icon")
+	if duel_shadow != null:
+		_check(absf(duel_shadow.position.y - duel_feet) <= 3.0, "...centred under his feet (%.0f vs %.0f)" % [duel_shadow.position.y, duel_feet])
+		var duel_width := duel_shadow.texture.get_width() * duel_shadow.scale.x
+		_check(duel_width >= duel_art.size.x * duel_icon.scale.x * 0.7 and duel_width <= duel_art.size.x * duel_icon.scale.x * 1.1, "...sized to his body (%.0f px under %.0f px)" % [duel_width, duel_art.size.x * duel_icon.scale.x])
+		var duel_offset := duel_shadow.global_position - _arena.duelist.global_position
+		_arena.duelist.global_position += Vector2(123, -45)
+		_check((duel_shadow.global_position - _arena.duelist.global_position).is_equal_approx(duel_offset), "...and it follows him wherever he goes")
 	_arena.duelist.global_position = _arena.player.global_position
 
 	# --- THE MORAL'S STRIKE: frames 3..5 of hit-arnis --------------------------

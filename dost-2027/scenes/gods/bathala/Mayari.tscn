@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dojwgebxdsowh" path="res://scripts/gods/bathala/agawan_god.gd" id="1_god"]
 [ext_resource type="Texture2D" uid="uid://bodaxyc16j8dj" path="res://Assets/Gods/Mayari/mayari_idle.png" id="2_cuobb"]
+[ext_resource type="Texture2D" path="res://scenes/gods/common/ShadowTexture.tres" id="shadow_tex"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_xhclv"]
 atlas = ExtResource("2_cuobb")
@@ -48,6 +49,11 @@ animations = [{
 
 [node name="Mayari" type="Node2D" unique_id=1701970279]
 script = ExtResource("1_god")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+position = Vector2(0, 17.0)
+scale = Vector2(1.49, 0.46)
+texture = ExtResource("shadow_tex")
 
 [node name="Ring" type="Line2D" parent="." unique_id=594871797]
 position = Vector2(0, 18)
