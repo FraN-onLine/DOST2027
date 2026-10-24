@@ -436,13 +436,13 @@ autowrap_mode = 3
 
 [node name="Langit" type="Label" parent="LangitHud/RulesCard/Lines" index="1" unique_id=1170817024]
 layout_mode = 2
-text = "LANGIT: safe, until the Taya's chant yells ALIS! Then jump to ANOTHER one."
+text = "LANGIT: safe, but it crumbles when you step off. ALIS! - jump to ANOTHER one."
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="Favor" type="Label" parent="LangitHud/RulesCard/Lines" index="2" unique_id=1718348012]
 layout_mode = 2
-text = "Every crossing earns FAVOR. Get tagged and you're the Taya."
+text = "Every crossing earns FAVOR. Get tagged and you're the Taya. Last 30s: BLITZ!"
 horizontal_alignment = 1
 autowrap_mode = 3
 

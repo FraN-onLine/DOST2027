@@ -677,9 +677,9 @@ func _run() -> void:
 # the season will not turn by itself.
 func _reset(taya: int, langits: Array) -> void:
 	_arena._phase = Arena.Phase.PLAYING
-	_arena._langits.clear()
+	_arena._clear_clouds()
 	for spot in langits:
-		_arena._langits.append(spot)
+		_arena._add_cloud(spot)
 	for runners in [_arena._swap, _arena._closed, _arena._shoving, _arena._on, _arena._last_left, _arena._close_call, _arena._streak]:
 		runners.clear()
 	_arena._season_timer = 1000.0

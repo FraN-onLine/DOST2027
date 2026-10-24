@@ -4,7 +4,9 @@ extends SceneTree
 # partner, and how to run the two, is in tools/langit_god_net_host.gd). It follows
 # the host into the trial and checks what its own screen draws: the banner, the
 # god body (mortal sprite hidden, Ikapati looping, where the host says), the
-# marker above it, the one Ikapati, the chant words, the fade and the hand-over.
+# marker above it, the one Ikapati, the chant words, the fade and the hand-over,
+# then the blitz: its banner, Ikapati back with her own marker, and one Langit
+# crumbling and forming alone.
 
 const PORT_FILE := "user://langit_god_net_host.txt"
 const WAIT := 30.0
@@ -110,6 +112,23 @@ func _run() -> void:
 	_check(await _until(func() -> bool: return arena.hud.banner_label.text == "YOU ARE TAYA", 3.0), "...and its banner says so (%s)" % arena.hud.banner_label.text)
 	_check(await _until(func() -> bool: return arena._god_at == Vector2.INF and not body.visible, 6.0), "the gods leave the client's field")
 	_check(arena.god_overseer.visible, "...and the overseer Ikapati is back")
+
+	# --- the blitz: the same banner, two Tayas, one Langit crumbling alone ---------------------------
+	_check(await _until(func() -> bool: return arena._blitz, 20.0), "the client enters the blitz")
+	_check(arena.hud.banner_label.text == "BLITZ!", "...with the same BLITZ! banner (%s)" % arena.hud.banner_label.text)
+	_check(await _until(func() -> bool: return body.visible and arena.second_taya(), 5.0), "Ikapati is back on the client's field as a second Taya")
+	await _frames(3)
+	_check(arena.taya_marker.visible and arena._god_marker.visible, "...two TAYA markers are drawn on the client")
+	var falling := [-1]
+	_check(await _until(func() -> bool:
+		if arena._cloud_state.size() > 1 and arena._cloud_state[0] == LangitLupaArena.Cloud.CRUMBLING and arena._cloud_state[1] != LangitLupaArena.Cloud.CRUMBLING:
+			falling[0] = arena._cloud_id[0]
+		return falling[0] >= 0, 10.0), "the client sees one Langit crumble alone")
+	_check(await _until(func() -> bool: return arena._cloud_id[0] != falling[0] and arena._cloud_state[0] != LangitLupaArena.Cloud.GONE, 3.0),
+		"...and a new one form in its slot")
+	await _frames(2)
+	var node := arena.langits_root.get_child(0) as Node2D
+	_check(node.visible and node.position.distance_to(arena._langits[0]) < 4.0, "...drawn where the host put it")
 	_finish()
 
 
