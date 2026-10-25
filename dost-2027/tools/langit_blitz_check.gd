@@ -140,7 +140,7 @@ func _run() -> void:
 	_check(formed_at > 0.0 and formed_at <= 1.05, "a new Langit forms in its slot within about 1 s (%.1fs)" % formed_at)
 	_check(_arena._cloud_burn[0] < 0.0, "...with a fresh clock (nobody has stepped on it)")
 	var area: Rect2 = _arena._langit_area()
-	var legal := area.has_point(_arena._langits[0])
+	var legal := area.grow(0.01).has_point(_arena._langits[0])  # (a row may sit flush on Rect2's open edge)
 	for other in [1, 2]:
 		legal = legal and not _arena.langit_rect(0).grow(4.0).intersects(_arena.langit_rect(other))
 	_check(legal, "...at a legal spot: on the field, clear of the UI strip, on no other Langit (%s)" % str(_arena._langits[0]))

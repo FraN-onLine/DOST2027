@@ -78,15 +78,22 @@ func _run() -> void:
 	var title := node.get_node("Name") as Label
 	_check(title.text.begins_with("LANGIT ") and int(title.text.get_slice(" ", 1)) >= 1, "...drawn with its seconds on the client (%s)" % title.text)
 	_check(arena._cloud_burn.size() > 1 and arena._cloud_burn[1] < 0.0, "...and no timer on the others")
+	await _until(func() -> bool: return arena._cloud_anim.size() > 0, 3.0)
+	await _frames(1)
+	node = arena.langits_root.get_child(0) as Node2D
+	_check(arena._cloud_anim.size() > 0 and node.scene_file_path.ends_with("Langit%d.tscn" % (int(arena._cloud_anim[0]) + 1)),
+		"...the same pillar variant the host picked (%s)" % node.scene_file_path)
 	await _until(func() -> bool: return false, 1.0)
 	_check(arena._cloud_burn[0] < first - 0.5, "the client's countdown runs down (%.2f -> %.2f)" % [first, arena._cloud_burn[0]])
 	# --- the last second shakes, then it crumbles with the host's ----------------------------------------
 	_check(await _until(func() -> bool: return arena._cloud_burn[0] > 0.0 and arena._cloud_burn[0] <= arena.shift_warning, 4.0), "the client reaches the last second")
 	await _frames(2)
+	node = arena.langits_root.get_child(0) as Node2D
 	_check(node.modulate.a < 0.9, "...the Langit shakes and fades on the client (alpha %.2f)" % node.modulate.a)
 	_check(await _until(func() -> bool: return arena._cloud_state[0] == LangitLupaArena.Cloud.CRUMBLING, 4.0), "the client sees it crumble")
 	_check(await _until(func() -> bool: return arena._cloud_id[0] != ids[0], 3.0), "...and a new one form in its slot")
 	await _frames(2)
+	node = arena.langits_root.get_child(0) as Node2D
 	_check(arena._cloud_burn[0] < 0.0 and node.position.distance_to(arena._langits[0]) < 4.0, "...fresh (no timer), drawn where the host put it")
 	_finish()
 

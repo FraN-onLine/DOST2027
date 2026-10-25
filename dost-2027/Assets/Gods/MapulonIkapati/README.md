@@ -10,8 +10,6 @@ is needed.
 |---|---|---|---|
 | `MapulonIkapati-Icon.png` | the pair's portrait, 64 x 64 px like `Assets/Gods/Tala/Tala-Icon.png` | lobby god icon, sidebars, God's Due menu, Almanac | `res://Assets/Placeholders/favor.png` (see the note below) |
 | `Arena-Background.png` | the field (the Lupa), ideally 1152 x 648 (it is stretched to fill the screen) | `Background` | Mayari's `AreanaTemp.png`, tinted green |
-| `Langit.png` | one sky platform (a cloud or a terraced rice-paddy block), centred, about 96 x 60 px. The shadow under it stays | `ArenaField/Langits/LangitN/Sprite` | the white `Body` rectangle (greyed, with the `Lock` shape, on the screen of a runner it is closed to) |
-| `Langit-Crumble.png` | the crack / crumble animation, a horizontal strip of square-ish frames (the frame count is read from width / height). It plays over the platform during the warning before a crumble | `ArenaField/Langits/LangitN/Crumble` | the platform shakes and fades instead |
 | `Taya-Marker.png` | the marker floating over the Taya's head | `TayaMarker/Sprite` | the green ring (the "TAYA" tag shows either way) |
 | `MapulonIkapati-Overseer.png` | the pair watching the field, like `Assets/Gods/Tala/Tala-Overseer.png` (one image) | `ArenaField/Overseer` | hidden |
 
@@ -20,9 +18,13 @@ their own scene, `scenes/gods/mapulon_ikapati/IkapatiTaya.tscn`. Put the frames 
 its `GodLook/Art` SpriteFrames, clips `idle` and `chasing` (see
 `UI/theme/ART_SLOTS.md`, "God scenes"). The Godot placeholder stays until then.
 
-The platform size the rules use is `langit_size` on the arena (96 x 60). If the
-art is a different size, change `langit_size` too so the safe area matches what
-the players see.
+The Langit are not a drop-in image any more: they are the two pillar scenes
+`scenes/gods/mapulon_ikapati/Langit1.tscn` and `Langit2.tscn`, instanced by the
+arena (the host picks one per slot). Each `AnimatedSprite2D` holds its own pillar
+clip (`pillar1` / `pillar2`); the arena plays it backwards while that Langit
+spawns and forwards when it crumbles. The `SafeArea/CollisionShape2D` rectangle
+(both scenes carry the same one) is the safe zone the rules read - resize that
+shape and the gameplay follows it, no arena numbers to change.
 
 ## Swap the icon by hand
 

@@ -52,18 +52,22 @@ extends Arena
 #
 # LANGIT
 #   langit_count() spots: one more than there are mortals, so every runner can be
-#   safe at once. A runner is safe while inside a Langit's rect grown by
-#   langit_safe_margin. Every season_interval seconds the season turns: the Langit
-#   shake for shift_warning seconds ("THE LANGIT CRUMBLE!"), crumble - whoever
-#   stood on them drops onto the Lupa - and reappear somewhere new: clear of the UI
-#   strip, never on top of each other, at least taya_clearance from the Taya (both
-#   Tayas in the blitz) and langit_spacing from each other (the spacing gives way
-#   first on a crowded field).
+#   safe at once. A Langit is one of the two prefabs (scenes/gods/mapulon_ikapati,
+#   Langit1.tscn / Langit2.tscn): a stone pillar whose art spawns out of rubble
+#   (pillar1 or pillar2 played backwards) and falls back into rubble when it
+#   crumbles (played forwards). Its SafeArea hitbox is the safe zone, exactly as
+#   authored - the player standing inside it is safe, and stepping up to one plays
+#   the mortal's jump clip hop_lead px before the hitbox. Every season_interval
+#   seconds the season turns: the Langit shake for shift_warning seconds ("THE
+#   LANGIT CRUMBLE!"), crumble - whoever stood on them drops onto the Lupa - and
+#   reappear somewhere new: clear of the UI strip, never on top of each other, at
+#   least taya_clearance from the Taya (both Tayas in the blitz) and
+#   langit_spacing from each other (the spacing gives way first on a crowded field).
 #   ONE LANGIT AT A TIME: each slot holds one Langit with an id (a new one every
 #   time it forms), a state and a timer (_cloud_id / _cloud_state / _cloud_timer,
 #   host-run, sent in the tick; clients only draw them): SOLID -> CRUMBLING
-#   (crumble_time of shaking, still safe) -> GONE (reform_delay, nobody is safe on
-#   it) -> FORMING (langit_fade_in, safe, fading in at a fresh legal spot) -> SOLID.
+#   (crumble_time of falling, still safe) -> GONE (reform_delay, nobody is safe on
+#   it) -> FORMING (langit_fade_in, safe, rising at a fresh legal spot) -> SOLID.
 #   THE LANGIT'S LIFE: the first time a runner (never a Taya) is on a SOLID Langit it
 #   starts a cloud_life countdown (_cloud_burn). It never resets or pauses - not when
 #   the runner steps off, not when others step on. It shakes and reddens as it runs
@@ -173,6 +177,13 @@ const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down"
 const GOD_TAYA := -2
 # The gods' body as Taya (see THE GODS' LOOK).
 const GOD_TAYA_SCENE := preload("res://scenes/gods/mapulon_ikapati/IkapatiTaya.tscn")
+# The two sky platforms (scenes/gods/mapulon_ikapati): one pillar clip each. Their
+# SafeArea hitboxes are the safe zone (both authored alike), the clip spawns
+# backwards and crumbles forwards, and the host picks one per slot.
+const LANGIT_SCENES: Array[PackedScene] = [
+	preload("res://scenes/gods/mapulon_ikapati/Langit1.tscn"),
+	preload("res://scenes/gods/mapulon_ikapati/Langit2.tscn"),
+]
 const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are Taya first!"
 # One slot's Langit (see ONE LANGIT AT A TIME).
 enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
@@ -188,10 +199,9 @@ enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 @export var payout_best := 600           # least time as Taya
 @export var payout_worst := 100          # most time as Taya
 @export var tie_window := 0.25           # Taya times this close are a tie
-@export var langit_size := Vector2(96.0, 60.0)
-@export var langit_safe_margin := 6.0    # standing on the edge still counts
 @export var langit_spacing := 140.0      # least distance between two Langit centres
-@export var langit_fade_in := 0.3        # seconds a new Langit takes to appear
+@export var langit_fade_in := 0.3        # seconds a new Langit takes to rise
+@export var hop_lead := 20.0             # px before a Langit's safe zone that starts the jump clip
 
 @export_category("Seasons")
 @export var season_interval := 12.0      # seconds between two crumbles
@@ -276,6 +286,11 @@ var _cloud_id: Array[int] = []       # each slot's Langit (a new id every time o
 var _cloud_state: Array[int] = []    # each slot's Cloud
 var _cloud_timer: Array[float] = []  # seconds left in that state (SOLID: to its ALIS crumble, 0 = none)
 var _cloud_burn: Array[float] = []   # seconds of cloud_life left once a runner stepped on it (-1 = nobody has)
+var _cloud_anim: Array[int] = []     # each slot's pillar scene (0 = Langit1, 1 = Langit2), host-picked
+var _cloud_look: Array[int] = []     # the cloud id whose animation is on the slot's node
+var _cloud_phase: Array[int] = []    # 0 hidden, 1 rising (backwards), 2 standing, 3 falling (forwards)
+var _langit_box := Rect2(-48.0, -30.0, 96.0, 60.0)  # the prefab's safe hitbox, local to its root
+var _jump_on := -1                   # the Langit the player is stepping onto (for the jump clip)
 var _next_cloud := 0                 # host: the next Langit id
 var _season := 0                     # how many layouts the field has had
 var _season_timer := 0.0             # seconds to the next crumble
@@ -334,6 +349,8 @@ var _god_marker: Node2D              # her TAYA marker in the blitz (a copy of T
 func _ready() -> void:
 	if fixed_trial_time > 0.0:
 		trial_time = fixed_trial_time
+	_read_langit_box()
+	_decorate_langits()
 	super._ready()
 	_spawn_bots()
 	_spawn_god()
@@ -441,6 +458,7 @@ func arena_tick_fields() -> Dictionary:
 		"cloud_state": _cloud_state.duplicate(),
 		"cloud_timer": _cloud_timer.duplicate(),
 		"cloud_burn": _cloud_burn.duplicate(),
+		"cloud_anim": _cloud_anim.duplicate(),
 		"blitz": _blitz,
 		"season": _season,
 		"season_left": _season_timer,
@@ -472,6 +490,7 @@ func arena_read_tick(state: Dictionary) -> void:
 	_cloud_state.assign(state.get("cloud_state", _cloud_state))
 	_cloud_timer.assign(state.get("cloud_timer", _cloud_timer))
 	_cloud_burn.assign(state.get("cloud_burn", _cloud_burn))
+	_cloud_anim.assign(state.get("cloud_anim", _cloud_anim))
 	_season = int(state.get("season", _season))
 	_chanting = bool(state.get("chanting", _chanting))
 	_chant_step = int(state.get("chant_step", _chant_step))
@@ -1030,18 +1049,42 @@ func is_crumbling() -> bool:
 # apart, so a crossing is a real distance. In play they fade in (FORMING); a
 # countdown's layout is simply there.
 func _place_langits() -> void:
+	var before := _langits.duplicate()
 	_clear_clouds()
 	var area := _langit_area()
 	var forming := _phase == Phase.PLAYING
 	for index in range(langit_count(rules.mortals.size())):
 		_add_cloud(_find_spot(area), Cloud.FORMING if forming else Cloud.SOLID, langit_fade_in if forming else 0.0)
+	if not before.is_empty() and _langits == before:
+		_move_one_cloud()  # a new season must not land on exactly the old field
 	_season += 1
 	if _authority and _networked:
 		_publish_arena_tick()
 
 
+# The grid is finite, so a random draw can give the same layout twice: move one
+# Langit to a free spot when that happens.
+func _move_one_cloud() -> void:
+	var spots := _langit_spots(_langit_area())
+	var hunters := _hunter_spots()
+	for relax in range(3):
+		for spot in spots:
+			if _langits.has(spot) or not _langit_spot_ok(spot, hunters, relax, 0):
+				continue
+			_langits[0] = spot
+			_cloud_look[0] = -1
+			_cloud_phase[0] = 0
+			return
+	for spot in spots:
+		if not _langits.has(spot):
+			_langits[0] = spot
+			_cloud_look[0] = -1
+			_cloud_phase[0] = 0
+			return
+
+
 func _clear_clouds() -> void:
-	for slots in [_langits, _cloud_id, _cloud_state, _cloud_timer, _cloud_burn]:
+	for slots in [_langits, _cloud_id, _cloud_state, _cloud_timer, _cloud_burn, _cloud_anim, _cloud_look, _cloud_phase]:
 		slots.clear()
 
 
@@ -1052,40 +1095,151 @@ func _add_cloud(spot: Vector2, state := Cloud.SOLID, timer := 0.0) -> void:
 	_cloud_state.append(state)
 	_cloud_timer.append(timer)
 	_cloud_burn.append(-1.0)
+	_cloud_anim.append(randi() % 2)
+	_cloud_look.append(-1)
+	_cloud_phase.append(0)
 
 
-# Where a Langit centre may land: inside the field, clear of the UI strip.
+# The prefab's SafeArea is the safe zone: read its rectangle once, so the rules
+# use exactly the hitbox the pillar was authored with.
+func _read_langit_box() -> void:
+	var probe: Node = _langit_scene(0).instantiate()
+	var shape_node := probe.get_node_or_null("SafeArea/CollisionShape2D") as CollisionShape2D
+	if shape_node != null and shape_node.shape is RectangleShape2D:
+		var size := (shape_node.shape as RectangleShape2D).size
+		_langit_box = Rect2(shape_node.position - size * 0.5, size)
+	probe.free()
+
+
+# The scene for a slot's pillar, and a decorated instance of it.
+func _langit_scene(variant: int) -> PackedScene:
+	return LANGIT_SCENES[clampi(variant, 0, LANGIT_SCENES.size() - 1)]
+
+
+func _langit_node(variant: int) -> Node2D:
+	var node: Node2D = _langit_scene(variant).instantiate()
+	_decorate_langit(node)
+	return node
+
+
+# The old placeholders' name tag and closed lock are not part of the pillar art,
+# so they are added to each prefab instance (once) at start-up.
+func _decorate_langits() -> void:
+	if langits_root == null:
+		return
+	for node in langits_root.get_children():
+		_decorate_langit(node)
+
+
+func _decorate_langit(node: Node) -> void:
+	if node.get_node_or_null("Name") == null:
+		var title := Label.new()
+		title.name = "Name"
+		title.offset_left = -40.0
+		title.offset_top = -11.0
+		title.offset_right = 40.0
+		title.offset_bottom = 11.0
+		title.theme_type_variation = &"WorldLabel"
+		title.text = "LANGIT"
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		node.add_child(title)
+	if node.get_node_or_null("Lock") == null:
+		var lock := Node2D.new()
+		lock.name = "Lock"
+		lock.position = Vector2(0.0, -20.0)
+		lock.visible = false
+		var body := ColorRect.new()
+		body.name = "Body"
+		body.offset_left = -7.0
+		body.offset_top = -3.0
+		body.offset_right = 7.0
+		body.offset_bottom = 8.0
+		body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		body.color = Color(0.42, 0.45, 0.55, 1)
+		lock.add_child(body)
+		var shackle := Line2D.new()
+		shackle.name = "Shackle"
+		shackle.points = PackedVector2Array([Vector2(-4, -3), Vector2(-4, -8), Vector2(-2, -10), Vector2(2, -10), Vector2(4, -8), Vector2(4, -3)])
+		shackle.width = 2.0
+		shackle.default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
+		lock.add_child(shackle)
+		node.add_child(lock)
+
+
+# Where a Langit root may land so its whole hitbox stays inside the field and
+# clear of the UI strip.
 func _langit_area() -> Rect2:
-	var half := langit_size * 0.5
-	var area := Rect2(_field.position + half, _field.size - langit_size)
-	var left := maxf(area.position.x, UI_STRIP_WIDTH + half.x)
-	return Rect2(left, area.position.y, area.end.x - left, area.size.y)
+	var area := Rect2(_field.position - _langit_box.position, _field.size - _langit_box.size)
+	var left := maxf(area.position.x, UI_STRIP_WIDTH - _langit_box.position.x)
+	return Rect2(left, area.position.y, maxf(0.0, area.end.x - left), area.size.y)
 
 
-# 80 tries with every rule; on a crowded field langit_spacing gives way first,
+# The spots a Langit root may take: as many across as fit, and one more row when
+# the hitboxes stack. The lower row is offset half a step so a platform is never
+# directly under another (a real crossing, not a stack).
+func _langit_spots(area: Rect2) -> Array[Vector2]:
+	var spots: Array[Vector2] = []
+	if area.size.x < 0.0 or area.size.y < 0.0:
+		return spots
+	var box := _langit_box.size
+	var cols := maxi(1, int(floor(area.size.x / maxf(box.x, 1.0))) + 1)
+	var rows := 1
+	if area.size.y >= box.y:
+		rows = 2
+	for row in range(rows):
+		var y := area.position.y if row == 0 else area.end.y
+		var offset := 0.0
+		if row % 2 == 1 and cols > 1:
+			offset = area.size.x / float(cols - 1) * 0.5
+		for col in range(cols):
+			var x := area.position.x
+			if cols > 1:
+				x += area.size.x * float(col) / float(cols - 1)
+			x += offset
+			if x > area.end.x + 0.01:
+				continue
+			spots.append(Vector2(minf(x, area.end.x), y))
+	return spots
+
+
+# A legal spot with every rule; on a crowded field langit_spacing gives way first,
 # then the Tayas' clearance. The UI strip (the area itself) and the overlap rule
 # never do. `skip` is the slot being re-placed (it is not in its own way).
 func _find_spot(area: Rect2, skip := -1) -> Vector2:
 	var hunters := _hunter_spots()
-	var spot := area.get_center()
+	var candidates := _langit_spots(area)
 	for relax in range(3):
-		for attempt in range(80):
-			spot = Vector2(randf_range(area.position.x, area.end.x), randf_range(area.position.y, area.end.y))
+		var valid: Array[Vector2] = []
+		for spot in candidates:
 			if _langit_spot_ok(spot, hunters, relax, skip):
-				return spot
-	return spot
+				valid.append(spot)
+		if not valid.is_empty():
+			return valid.pick_random()
+	# Nothing legal: the spot farthest from a Taya beats any overlap.
+	var best := area.get_center()
+	var best_gap := -INF
+	for spot in candidates:
+		var gap := INF
+		for hunter in hunters:
+			gap = minf(gap, spot.distance_to(hunter))
+		if gap > best_gap:
+			best_gap = gap
+			best = spot
+	return best
 
 
 func _langit_spot_ok(spot: Vector2, hunters: Array[Vector2], relax := 0, skip := -1) -> bool:
 	if relax < 2 and hunters.any(func(hunter: Vector2) -> bool: return spot.distance_to(hunter) < taya_clearance):
 		return false
+	var here := Rect2(spot + _langit_box.position, _langit_box.size)
 	for index in range(_langits.size()):
 		if index == skip or _cloud_state[index] == Cloud.GONE:
 			continue
-		var other := _langits[index]
-		if absf(spot.x - other.x) < langit_size.x + 8.0 and absf(spot.y - other.y) < langit_size.y + 8.0:
+		var other := Rect2(_langits[index] + _langit_box.position, _langit_box.size)
+		if here.intersects(other):
 			return false
-		if relax < 1 and spot.distance_to(other) < langit_spacing:
+		if relax < 1 and spot.distance_to(_langits[index]) < langit_spacing:
 			return false
 	return true
 
@@ -1157,12 +1311,21 @@ func _cloud_gone(index: int) -> void:
 
 # A new Langit (a new id) forms in the slot at a fresh legal spot.
 func _reform(index: int) -> void:
+	var old := _langits[index]
 	_langits[index] = _find_spot(_langit_area(), index)
+	if _langits[index] == old:
+		for spot in _langit_spots(_langit_area()):
+			if not _langits.has(spot):
+				_langits[index] = spot
+				break
 	_cloud_id[index] = _next_cloud
 	_next_cloud += 1
 	_cloud_state[index] = Cloud.FORMING
 	_cloud_timer[index] = langit_fade_in
 	_cloud_burn[index] = -1.0
+	_cloud_anim[index] = randi() % 2
+	_cloud_look[index] = -1
+	_cloud_phase[index] = 0
 
 
 # A Langit worth running for: not falling, not doomed, not gone, and (for the bots)
@@ -1191,12 +1354,12 @@ func _slot_of(cloud: int) -> int:
 
 
 func langit_rect(index: int) -> Rect2:
-	return Rect2(_langits[index] - langit_size * 0.5, langit_size)
+	return Rect2(_langits[index] + _langit_box.position, _langit_box.size)
 
 
 func _inside(index: int, at: Vector2) -> bool:
 	return index >= 0 and index < _langits.size() and _cloud_state[index] != Cloud.GONE \
-		and langit_rect(index).grow(langit_safe_margin).has_point(at)
+		and langit_rect(index).has_point(at)
 
 
 # The open Langit `mortal_id` stands on at `at` (-1 = the Lupa). The one closed
@@ -1349,7 +1512,7 @@ func _bot_taya_heading(id: int, here: Vector2, only := -1) -> Vector2:
 	if near < 0:
 		return Vector2.ZERO
 	var gap := _langits[near] - here
-	if gap.length() > langit_size.length() * 0.5 + 40.0:
+	if gap.length() > _langit_box.size.length() * 0.5 + 40.0:
 		return gap
 	if id == GOD_TAYA and _taya != GOD_TAYA:
 		_start_god_chant()  # the second Taya's own chant, beside the mortal Taya's
@@ -1674,6 +1837,7 @@ func _process(delta: float) -> void:
 	_tick_my_chant(delta)
 	if _taya == _my_id and _phase == Phase.PLAYING:
 		player.global_position = _push_out(player.global_position)
+	_tick_jump()
 	_draw_langits(delta)
 	_draw_god(delta)
 	_place_marker()
@@ -1683,26 +1847,87 @@ func _process(delta: float) -> void:
 	_refresh_hud(delta)
 
 
-# Langit, one node per slot: lifted with a shadow, shaking while it crumbles (all
-# of them at a season's warning, one alone after its runner left), hidden while
-# gone, fading in while it forms, greyed and locked on this screen when closed to
-# us. Each slot is drawn from its own state, so one Langit changing never redraws
-# the others. A client runs the timers on between two ticks.
+# The Langit the player is stepping onto, counted from hop_lead px out so the hop
+# clip starts just before the hitbox. The one they are on wins; otherwise the
+# nearest open Langit within the lead. -1 = none.
+func _jump_slot_at(at: Vector2) -> int:
+	var on := langit_index_at(_my_id, at)
+	if on >= 0:
+		return on
+	var best := -1
+	var best_distance := INF
+	for index in range(_langits.size()):
+		if is_closed_for(_my_id, index) or _cloud_state[index] == Cloud.GONE:
+			continue
+		var near := langit_rect(index).grow(hop_lead)
+		if not near.has_point(at):
+			continue
+		var distance := at.distance_squared_to(near.get_center())
+		if distance < best_distance:
+			best = index
+			best_distance = distance
+	if best >= 0:
+		return best
+	var closed := int(_closed.get(_my_id, -1))
+	if closed >= 0 and swap_left(_my_id) > 0.0 and _inside(_slot_of(closed), at):
+		return _slot_of(closed)
+	return -1
+
+
+# Stepping onto a Langit plays the mortal's jump clip: it starts hop_lead pixels
+# before the safe zone, so the figure is already hopping when it enters. The Taya
+# can never do it (a Langit pushes them off), and staying on the same one never
+# restarts it.
+func _tick_jump() -> void:
+	var on := -1
+	if _phase == Phase.PLAYING and _taya != _my_id:
+		on = _jump_slot_at(player.global_position)
+	if on >= 0 and on != _jump_on:
+		player.play_animation(&"jump")
+	_jump_on = on
+
+
+# Langit, one prefab per slot: spawning out of rubble while it forms, standing
+# while solid, shaking while it crumbles (all of them at a season's warning, one
+# alone after its runner left), hidden while gone, greyed and locked on this
+# screen when closed to us. Each slot is drawn from its own state, so one Langit
+# changing never redraws the others. A client runs the timers on between two
+# ticks; the pillar scene is the host's pick, mirrored in the tick.
 func _draw_langits(delta: float) -> void:
 	if langits_root == null:
 		return
 	var nodes := langits_root.get_children()
-	while nodes.size() < _langits.size() and not nodes.is_empty():
-		var extra: Node = nodes[0].duplicate()
-		langits_root.add_child(extra)
-		nodes.append(extra)
+	while _cloud_look.size() < _langits.size():
+		_cloud_look.append(-1)
+		_cloud_phase.append(0)
+	for index in range(_langits.size()):
+		var variant := int(_cloud_anim[index]) if index < _cloud_anim.size() else 0
+		if index >= nodes.size():
+			var extra := _langit_node(variant)
+			langits_root.add_child(extra)
+			nodes.append(extra)
+			continue
+		if nodes[index].scene_file_path != _langit_scene(variant).resource_path:
+			var fresh := _langit_node(variant)
+			var stale: Node = nodes[index]
+			langits_root.remove_child(stale)
+			stale.queue_free()
+			langits_root.add_child(fresh)
+			langits_root.move_child(fresh, index)
+			nodes[index] = fresh
+			_cloud_look[index] = -1
+			_cloud_phase[index] = 0
 	var season_shake := is_crumbling()
-	var warning := blitz_shift_warning if _blitz else shift_warning
 	for index in range(nodes.size()):
 		var node: Node2D = nodes[index]
 		var state := _cloud_state[index] if index < _cloud_state.size() else Cloud.GONE
 		node.visible = index < _langits.size() and state != Cloud.GONE
 		if not node.visible:
+			if index < _cloud_phase.size() and _cloud_phase[index] != 0:
+				_cloud_phase[index] = 0
+				var hidden := node.get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+				if hidden != null:
+					hidden.stop()
 			continue
 		if not _authority:
 			_cloud_timer[index] = maxf(0.0, _cloud_timer[index] - delta)
@@ -1718,22 +1943,63 @@ func _draw_langits(delta: float) -> void:
 		node.position = _langits[index] + jitter
 		var closed := is_closed_for(_my_id, index)
 		var shade := 0.5 if closed else 1.0
-		var alpha := 1.0
-		if state == Cloud.FORMING:
-			alpha = clampf(1.0 - _cloud_timer[index] / maxf(0.01, langit_fade_in), 0.0, 1.0)
 		var heat := 1.0 - burn / maxf(0.01, cloud_life) if burning else 0.0  # 0 fresh -> 1 about to go
-		node.modulate = Color(shade, shade * (1.0 - 0.45 * heat), (shade + 0.05) * (1.0 - 0.6 * heat), alpha * (0.55 if shaking else 1.0))
+		node.modulate = Color(shade, shade * (1.0 - 0.45 * heat), (shade + 0.05) * (1.0 - 0.6 * heat), 0.55 if shaking else 1.0)
 		var title := node.get_node_or_null("Name") as Label
 		if title != null:
 			title.text = "LANGIT %d" % int(ceil(burn)) if burning else "LANGIT"
 		var lock := node.get_node_or_null("Lock") as CanvasItem
 		if lock != null:
 			lock.visible = closed
-		var crumble := node.get_node_or_null("Crumble") as Sprite2D
-		if crumble != null and crumble.texture != null:
-			crumble.visible = shaking or burning
-			var done := heat if burning and not falling else 1.0 - (_cloud_timer[index] / maxf(0.01, crumble_time) if falling else _season_timer / maxf(0.01, warning))
-			crumble.frame = clampi(int(done * crumble.hframes), 0, crumble.hframes - 1)
+		_draw_langit_look(index, node, state, season_shake)
+
+
+# The pillar's own life, from its scene's clip: backwards while it forms
+# (rubble to standing), held standing while solid, forwards when it crumbles.
+# Switching off the state rather than restarting every frame keeps it smooth.
+func _draw_langit_look(index: int, node: Node2D, state: int, season_shake: bool) -> void:
+	var sprite := node.get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	var variant := int(_cloud_anim[index]) if index < _cloud_anim.size() else 0
+	var clip := StringName("pillar%d" % (variant + 1))
+	if not sprite.sprite_frames.has_animation(clip):
+		return
+	var id := _cloud_id[index]
+	if _cloud_look[index] != id:
+		_cloud_look[index] = id
+		_cloud_phase[index] = 0
+		sprite.speed_scale = 1.0
+		if state == Cloud.FORMING:
+			sprite.animation = clip
+			sprite.play_backwards(clip)
+			sprite.frame = sprite.sprite_frames.get_frame_count(clip) - 1
+			_cloud_phase[index] = 1
+		elif state == Cloud.CRUMBLING:
+			sprite.animation = clip
+			sprite.play(clip)
+			sprite.frame = 1
+			_cloud_phase[index] = 3
+		else:
+			sprite.stop()
+			sprite.animation = clip
+			sprite.frame = 0
+			_cloud_phase[index] = 2
+		return
+	match _cloud_phase[index]:
+		1:
+			if state == Cloud.CRUMBLING or (state == Cloud.SOLID and season_shake):
+				sprite.play(clip)
+				sprite.frame = 1
+				_cloud_phase[index] = 3
+			elif not sprite.is_playing():
+				sprite.frame = 0
+				_cloud_phase[index] = 2
+		2:
+			if state == Cloud.CRUMBLING or (state == Cloud.SOLID and season_shake):
+				sprite.play(clip)
+				sprite.frame = 1
+				_cloud_phase[index] = 3
 
 
 func _place_marker() -> void:
@@ -1847,23 +2113,6 @@ static func art(file: String) -> Texture2D:
 
 
 func _apply_art() -> void:
-	var platform := art("Langit.png")
-	var crumble := art("Langit-Crumble.png")
-	if langits_root != null:
-		for node in langits_root.get_children():
-			var sprite := node.get_node_or_null("Sprite") as Sprite2D
-			if sprite != null:
-				sprite.texture = platform
-				sprite.visible = platform != null
-			var body := node.get_node_or_null("Body") as ColorRect
-			if body != null:
-				body.visible = platform == null
-			var cracks := node.get_node_or_null("Crumble") as Sprite2D
-			if cracks != null:
-				cracks.texture = crumble
-				cracks.visible = false
-				if crumble != null:
-					cracks.hframes = maxi(1, int(round(float(crumble.get_width()) / float(maxi(1, crumble.get_height())))))
 	var marker := art("Taya-Marker.png")
 	if taya_sprite != null:
 		taya_sprite.texture = marker

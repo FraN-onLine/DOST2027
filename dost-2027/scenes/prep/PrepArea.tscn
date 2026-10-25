@@ -122,12 +122,15 @@ embedded = true
 dialogue_prefix = "prep"
 simulate_rivals = false
 
-[node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=1755927782]
+[node name="ArenaField" parent="." index="2" unique_id=518833116]
+visible = false
+
+[node name="Border" type="Line2D" parent="ArenaField" index="0" unique_id=1755927782]
 points = PackedVector2Array(290, 104, 1110, 104, 1110, 560, 290, 560, 290, 104)
 width = 4.0
 default_color = Color(0.78, 0.78, 0.82, 0.6)
 
-[node name="Ground" type="ColorRect" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1460488952]
+[node name="Ground" type="ColorRect" parent="ArenaField" index="1" unique_id=1460488952]
 z_index = -1
 offset_left = 291.0
 offset_top = 100.0

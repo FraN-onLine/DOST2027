@@ -7,6 +7,8 @@
 [ext_resource type="Texture2D" uid="uid://dyjktf2v021td" path="res://Assets/Gods/MapulonIkapati/MapulonOverSeer-Sheet.png" id="5_t7fk7"]
 [ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="6_lp5kw"]
 [ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="7_4he5h"]
+[ext_resource type="PackedScene" uid="uid://bs08v62yf0y5s" path="res://scenes/gods/mapulon_ikapati/Langit1.tscn" id="8_langit"]
+[ext_resource type="PackedScene" uid="uid://bkigu6dgaksnp" path="res://scenes/gods/mapulon_ikapati/Langit2.tscn" id="9_langit"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_t7fk7"]
 atlas = ExtResource("4_3punl")
@@ -78,8 +80,6 @@ taya_drain = 10
 payout_best = 600
 payout_worst = 100
 tie_window = 0.25
-langit_size = Vector2(96, 60)
-langit_safe_margin = 6.0
 langit_spacing = 140.0
 langit_fade_in = 0.3
 season_interval = 12.0
@@ -150,105 +150,11 @@ default_color = Color(0.56, 0.78, 0.33, 0.8)
 
 [node name="Langits" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1546766142]
 
-[node name="Langit1" type="Node2D" parent="ArenaField/Langits" index="0" unique_id=642933886]
-visible = false
-position = Vector2(546, 440)
-
-[node name="Shadow" type="ColorRect" parent="ArenaField/Langits/Langit1" index="0" unique_id=126215759]
-offset_left = -42.0
-offset_top = -20.0
-offset_right = 54.0
-offset_bottom = 40.0
-mouse_filter = 2
-color = Color(0, 0, 0, 0.35)
-
-[node name="Body" type="ColorRect" parent="ArenaField/Langits/Langit1" index="1" unique_id=1286407787]
-offset_left = -48.0
-offset_top = -30.0
-offset_right = 48.0
-offset_bottom = 30.0
-mouse_filter = 2
-color = Color(0.9, 0.95, 1, 1)
-
-[node name="Sprite" type="Sprite2D" parent="ArenaField/Langits/Langit1" index="2" unique_id=1378315095]
-
-[node name="Crumble" type="Sprite2D" parent="ArenaField/Langits/Langit1" index="3" unique_id=425504593]
-
-[node name="Name" type="Label" parent="ArenaField/Langits/Langit1" index="4" unique_id=527614409]
-offset_left = -40.0
-offset_top = -11.0
-offset_right = 40.0
-offset_bottom = 11.0
-theme_type_variation = &"WorldLabel"
-text = "LANGIT"
-horizontal_alignment = 1
-
-[node name="Lock" type="Node2D" parent="ArenaField/Langits/Langit1" index="5" unique_id=385309398]
-position = Vector2(0, -20)
-
-[node name="Body" type="ColorRect" parent="ArenaField/Langits/Langit1/Lock" index="0" unique_id=1017930550]
-offset_left = -7.0
-offset_top = -3.0
-offset_right = 7.0
-offset_bottom = 8.0
-mouse_filter = 2
-color = Color(0.42, 0.45, 0.55, 1)
-
-[node name="Shackle" type="Line2D" parent="ArenaField/Langits/Langit1/Lock" index="1" unique_id=1889611813]
-points = PackedVector2Array(-4, -3, -4, -8, -2, -10, 2, -10, 4, -8, 4, -3)
-width = 2.0
-default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
-
-[node name="Langit2" type="Node2D" parent="ArenaField/Langits" index="1" unique_id=1471394696]
-position = Vector2(922, 480)
-
-[node name="Shadow" type="ColorRect" parent="ArenaField/Langits/Langit2" index="0" unique_id=1412803449]
-offset_left = -42.0
-offset_top = -20.0
-offset_right = 54.0
-offset_bottom = 40.0
-mouse_filter = 2
-color = Color(0, 0, 0, 0.35)
-
-[node name="Body" type="ColorRect" parent="ArenaField/Langits/Langit2" index="1" unique_id=1310700851]
-offset_left = -48.0
-offset_top = -30.0
-offset_right = 48.0
-offset_bottom = 30.0
-mouse_filter = 2
-color = Color(0.9, 0.95, 1, 1)
-
-[node name="Sprite" type="Sprite2D" parent="ArenaField/Langits/Langit2" index="2" unique_id=1426528175]
+[node name="Langit1" parent="ArenaField/Langits" index="0" instance=ExtResource("8_langit")]
 visible = false
 
-[node name="Crumble" type="Sprite2D" parent="ArenaField/Langits/Langit2" index="3" unique_id=1094358661]
+[node name="Langit2" parent="ArenaField/Langits" index="1" instance=ExtResource("9_langit")]
 visible = false
-
-[node name="Name" type="Label" parent="ArenaField/Langits/Langit2" index="4" unique_id=2047958881]
-offset_left = -40.0
-offset_top = -11.0
-offset_right = 40.0
-offset_bottom = 11.0
-theme_type_variation = &"WorldLabel"
-text = "LANGIT"
-horizontal_alignment = 1
-
-[node name="Lock" type="Node2D" parent="ArenaField/Langits/Langit2" index="5" unique_id=1202321765]
-visible = false
-position = Vector2(0, -20)
-
-[node name="Body" type="ColorRect" parent="ArenaField/Langits/Langit2/Lock" index="0" unique_id=1116963697]
-offset_left = -7.0
-offset_top = -3.0
-offset_right = 7.0
-offset_bottom = 8.0
-mouse_filter = 2
-color = Color(0.42, 0.45, 0.55, 1)
-
-[node name="Shackle" type="Line2D" parent="ArenaField/Langits/Langit2/Lock" index="1" unique_id=2137358294]
-points = PackedVector2Array(-4, -3, -4, -8, -2, -10, 2, -10, 4, -8, 4, -3)
-width = 2.0
-default_color = Color(0.9490196, 0.9098039, 0.8117647, 1)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=632666614]
 z_index = -1

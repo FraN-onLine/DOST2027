@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://dpwh7shqufoeg" path="res://Assets/Gods/lam-ang_idle.png" id="4_c8rod"]
 [ext_resource type="Texture2D" uid="uid://n6m5mlk13yrf" path="res://Assets/Gods/lam-ang_block.png" id="5_fxuyk"]
 [ext_resource type="Texture2D" uid="uid://cxkcpecrakrk6" path="res://Assets/Gods/lam-ang-walking.png" id="6_fxuyk"]
+[ext_resource type="Texture2D" uid="uid://dox5ui7dkb383" path="res://Assets/Gods/lam-ang_jump.png" id="7_nxx0t"]
 [ext_resource type="Texture2D" uid="uid://tuodoq57kabn" path="res://Assets/Placeholders/fx/stun_star.png" id="7_stun"]
 
 [sub_resource type="Gradient" id="Gradient_shadow"]
@@ -105,6 +106,42 @@ region = Rect2(512, 0, 64, 64)
 atlas = ExtResource("4_6r6jq")
 region = Rect2(576, 0, 64, 64)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_b7g0g"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nxsl1"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jfd6y"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wre3v"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_smcl4"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8fbrs"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g5kdt"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(512, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fx0ag"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(576, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uodrh"]
+atlas = ExtResource("7_nxx0t")
+region = Rect2(640, 0, 64, 64)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_nwfqa"]
 atlas = ExtResource("6_fxuyk")
 region = Rect2(0, 0, 64, 64)
@@ -190,6 +227,38 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_b7g0g")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nxsl1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jfd6y")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wre3v")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_smcl4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8fbrs")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g5kdt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fx0ag")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uodrh")
+}],
+"loop": 0,
+"name": &"jump",
+"speed": 18.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_nwfqa")
 }, {
 "duration": 1.0,
@@ -265,8 +334,10 @@ material = SubResource("ShaderMaterial_bandana")
 position = Vector2(0, -31.5)
 scale = Vector2(1.7078125, 1.6453125)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"jump"
 autoplay = "default"
-frame_progress = 0.7220145
+frame = 8
+frame_progress = 1.0
 
 [node name="StunStars" type="Node2D" parent="." unique_id=1837210819]
 visible = false

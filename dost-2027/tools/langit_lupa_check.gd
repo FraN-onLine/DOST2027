@@ -177,8 +177,9 @@ func _run() -> void:
 	_put(1, spot + Vector2(-12, 0))
 	_put(2, spot + Vector2(12, 5))
 	_check(_arena.is_safe(1) and _arena.is_safe(2), "two runners can be safe on the same Langit")
-	_put(2, spot + Vector2(_arena.langit_size.x * 0.5 + 4.0, 0))
-	_check(_arena.is_safe(2), "standing on the edge (inside langit_safe_margin) still counts")
+	var edge: Rect2 = _arena.langit_rect(0)
+	_put(2, Vector2(edge.end.x - 2.0, edge.get_center().y))
+	_check(_arena.is_safe(2), "standing on the edge of the prefab's hitbox still counts")
 	_put(2, spot + Vector2(12, 5))
 	_put(3, spot + Vector2(0, 50))  # the Taya, right next to them
 	for step in range(20):
@@ -194,6 +195,84 @@ func _run() -> void:
 	_put(1, spot)
 	_arena._process(0.0)
 	_check(not rect.has_point(_arena.player.global_position), "...on the Taya's own screen, every frame")
+
+	# --- the Langit prefabs: hitbox safe zone, one pillar clip each --------------------------
+	var lit: Array = _arena.langits_root.get_children()
+	var scenes := ["res://scenes/gods/mapulon_ikapati/Langit1.tscn", "res://scenes/gods/mapulon_ikapati/Langit2.tscn"]
+	_check(lit.size() >= 2 and (lit[0] as Node).scene_file_path in scenes,
+		"the Langit are the Langit1/Langit2 scenes (%s)" % [(lit[0] as Node).scene_file_path if not lit.is_empty() else "none"])
+	var boxes: Array[Rect2] = []
+	for path in scenes:
+		var probe: Node = (load(path) as PackedScene).instantiate()
+		var probe_shape := probe.get_node_or_null("SafeArea/CollisionShape2D") as CollisionShape2D
+		boxes.append(Rect2(probe_shape.position - (probe_shape.shape as RectangleShape2D).size * 0.5, (probe_shape.shape as RectangleShape2D).size))
+		probe.free()
+	_check(boxes[0].is_equal_approx(boxes[1]) and boxes[0].is_equal_approx(_arena._langit_box),
+		"both pillars carry the same authored hitbox (%s / %s)" % [str(boxes[0]), str(boxes[1])])
+	_check(_arena.langit_rect(0).is_equal_approx(Rect2(_arena._langits[0] + boxes[0].position, boxes[0].size)),
+		"the safe zone is the prefab's hitbox, not a code rectangle (%s)" % str(_arena.langit_rect(0)))
+	var pillar := (lit[0] as Node).get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	var own_clip := StringName("pillar1" if (lit[0] as Node).scene_file_path.ends_with("Langit1.tscn") else "pillar2")
+	_check(pillar != null and pillar.sprite_frames.get_animation_names().size() == 1 and pillar.sprite_frames.has_animation(own_clip),
+		"...each scene carrying only its own pillar clip (%s)" % own_clip)
+	_reset(3, [spot, other_spot])
+	_arena._draw_langits(0.0)
+	lit = _arena.langits_root.get_children()
+	pillar = (lit[0] as Node).get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	_arena._cloud_state[0] = LangitLupaArena.Cloud.FORMING
+	_arena._cloud_timer[0] = _arena.langit_fade_in
+	_arena._cloud_look[0] = -1
+	_arena._draw_langits(0.0)
+	_check(pillar.is_playing() and pillar.animation in [&"pillar1", &"pillar2"] and pillar.frame == pillar.sprite_frames.get_frame_count(pillar.animation) - 1,
+		"a forming Langit spawns out of rubble, playing its clip backwards (%s, frame %d)" % [pillar.animation, pillar.frame])
+	_arena._cloud_state[0] = LangitLupaArena.Cloud.CRUMBLING
+	_arena._cloud_timer[0] = _arena.crumble_time
+	_arena._draw_langits(0.0)
+	_check(pillar.is_playing() and pillar.frame >= 1 and pillar.frame < pillar.sprite_frames.get_frame_count(pillar.animation),
+		"a crumble interrupts the rise, falling forwards (%s, frame %d)" % [pillar.animation, pillar.frame])
+	_arena._cloud_state[0] = LangitLupaArena.Cloud.SOLID
+	_arena._cloud_look[0] = -1
+	_arena._draw_langits(0.0)
+	_check(not pillar.is_playing() and pillar.frame == 0, "...and a solid Langit settles standing")
+	_arena._cloud_state[0] = LangitLupaArena.Cloud.CRUMBLING
+	_arena._cloud_timer[0] = _arena.crumble_time
+	_arena._draw_langits(0.0)
+	_check(pillar.is_playing() and pillar.frame >= 1 and pillar.frame < pillar.sprite_frames.get_frame_count(pillar.animation),
+		"a crumbling Langit falls forwards from the standing frame (%s, frame %d)" % [pillar.animation, pillar.frame])
+	_arena._cloud_anim[0] = 1
+	_arena._cloud_look[0] = -1
+	_arena._cloud_state[0] = LangitLupaArena.Cloud.FORMING
+	_arena._draw_langits(0.0)
+	lit = _arena.langits_root.get_children()
+	pillar = (lit[0] as Node).get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	_check((lit[0] as Node).scene_file_path.ends_with("Langit2.tscn") and pillar.animation == &"pillar2",
+		"the host's picked variant is the scene played (%s, %s)" % [(lit[0] as Node).scene_file_path, pillar.animation])
+	_arena._cloud_anim[0] = 0
+	_arena._cloud_look[0] = -1
+	_arena._cloud_state[0] = LangitLupaArena.Cloud.SOLID
+	_arena._draw_langits(0.0)
+	var tick_anim: Dictionary = _arena.arena_tick_fields()
+	_check(tick_anim.has("cloud_anim") and (tick_anim["cloud_anim"] as Array)[0] == 0, "the host's variant pick travels in the tick")
+
+	# --- the hop starts just before the safe zone --------------------------------------------
+	_reset(3, [spot, other_spot])
+	_put(1, Vector2(650, 450))
+	_arena._process(0.0)
+	var before_jump: StringName = _arena.player.sprite.animation
+	var safe: Rect2 = _arena.langit_rect(0)
+	var too_far := Vector2(safe.position.x - _arena.hop_lead - 5.0, safe.get_center().y)
+	_put(1, too_far)
+	_arena._process(0.0)
+	_check(not safe.has_point(too_far) and _arena.player.sprite.animation != &"jump",
+		"a step outside the hop's lead does not start the jump clip (%s)" % _arena.player.sprite.animation)
+	_put(1, Vector2(safe.position.x - _arena.hop_lead * 0.5, safe.get_center().y))
+	_arena._process(0.0)
+	_check(_arena.player.sprite.animation == &"jump" and before_jump != &"jump" and _arena._jump_on == 0,
+		"the hop starts slightly before the hitbox (%s -> %s)" % [before_jump, _arena.player.sprite.animation])
+	_put(1, safe.get_center())
+	_arena._process(0.0)
+	_check(_arena.player.sprite.animation == &"jump" and _arena._jump_on == 0,
+		"then entering the hitbox does not restart the hop (%s)" % _arena.player.sprite.animation)
 
 	# --- the chant: rooted, no tags, no dash ----------------------------------------------
 	_reset(1, [spot, other_spot])

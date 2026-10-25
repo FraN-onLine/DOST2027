@@ -1,0 +1,70 @@
+[gd_scene format=3 uid="uid://bkigu6dgaksnp"]
+
+[ext_resource type="Texture2D" uid="uid://7rngilk2tubb" path="res://Assets/Gods/pillar2.png" id="2_ijkwe"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ksn3r"]
+atlas = ExtResource("2_ijkwe")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_futeb"]
+atlas = ExtResource("2_ijkwe")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lrtc5"]
+atlas = ExtResource("2_ijkwe")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t5coq"]
+atlas = ExtResource("2_ijkwe")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mc0e6"]
+atlas = ExtResource("2_ijkwe")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v2ulx"]
+atlas = ExtResource("2_ijkwe")
+region = Rect2(640, 0, 128, 128)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 6.0,
+"texture": SubResource("AtlasTexture_ksn3r")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_futeb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lrtc5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t5coq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mc0e6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v2ulx")
+}],
+"loop": 0,
+"name": &"pillar2",
+"speed": 16.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_g4v7s"]
+size = Vector2(75.875, 61)
+
+[node name="Langit" type="Node2D" unique_id=331326072]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1843992776]
+position = Vector2(-52.999992, 75.99999)
+scale = Vector2(1.6484375, 1.7109375)
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"pillar2"
+
+[node name="SafeArea" type="Area2D" parent="." unique_id=137805284]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SafeArea" unique_id=484174944]
+position = Vector2(4.0625, -8.5)
+shape = SubResource("RectangleShape2D_g4v7s")

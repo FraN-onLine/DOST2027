@@ -4,8 +4,8 @@ extends SceneTree
 # one-shot effects built on it (Arena.spawn_effect / hit_effects / announce_hit).
 #   * nothing in the project - scenes, resources, scripts, project.godot - points at
 #     the Godot logo any more, and the logo file is gone; the one copy kept on
-#     purpose (GODOT_PLACEHOLDER) stands in only for the two god scenes waiting for
-#     art (ALLOWED_GODOT) and fails for any other user
+#     purpose (GODOT_PLACEHOLDER) is credited but used by no scene
+#     (ALLOWED_GODOT), and fails for any user
 #   * every picture under Assets/Placeholders has a line in CREDITS.md with a source
 #     URL and the CC0 licence
 #   * every effect in Arena.EFFECTS spawns a sprite that grows, fades and frees
@@ -20,12 +20,9 @@ extends SceneTree
 const ROOT := "res://"
 const SKIP_DIRS: Array[String] = ["addons", ".godot", "tools"]
 const EXTENSIONS: Array[String] = ["tscn", "tres", "gd", "godot", "cfg"]
-# The Godot logo, kept as the stand-in art of exactly these scenes (CREDITS.md).
+# The Godot logo, kept as the stand-in art of no scene any more (CREDITS.md).
 const GODOT_PLACEHOLDER := "godot_placeholder" + ".svg"  # (split, so this file never finds itself)
-const ALLOWED_GODOT: Array[String] = [
-	"res://scenes/gods/mapulon_ikapati/IkapatiTaya.tscn",
-	"res://scenes/gods/hanan/HananBaka.tscn",
-]
+const ALLOWED_GODOT: Array[String] = []
 
 var _problems := 0
 
