@@ -9,10 +9,12 @@ extends SceneTree
 # Langit, which crumble after swap_time (not before, even when their runner steps
 # off) and form again; the bots re-target when their Langit crumbles; at 30 s left
 # the blitz is on and the season turns every 3 s; Ikapati comes back as a second
-# Taya if the gods had left, and stays if they are still Taya; her first tag as
-# the only Taya makes that runner Taya and she stays; with a mortal Taya her tag
-# also passes the Taya to the runner (tag_steal, mercy for the old one, her chant
-# cancelled); she never leaves in the blitz.
+# Taya if the gods had left, and stays if they are still Taya; her first tag (as
+# the Taya or the second one) makes that runner the one Taya (tag_steal, mercy for
+# a mortal Taya, their chant cancelled) and Ikapati a runner, never leaving; as a
+# runner she earns nothing, lights a Langit's cloud_life, obeys ALIS and drops with
+# a crumble; the Taya tagging her on the Lupa (not on a Langit) makes her the Taya
+# again with no FAVOR moved; her next tag makes her a runner again.
 # Run: godot --headless --path <project> -s res://tools/langit_blitz_check.gd
 
 const DT := 0.125  # exact in binary, so the timers land on the beat
@@ -246,10 +248,13 @@ func _run() -> void:
 	_check(_arena.is_mortal_invulnerable(3) and is_equal_approx(float(_arena._invuln[3]), _arena.tagged_mercy),
 		"...the old Taya A is a runner with tagged_mercy")
 	_check(_arena.hud.banner_label.text == "YOU ARE TAYA", "...B's screen says YOU ARE TAYA (%s)" % _arena.hud.banner_label.text)
-	_check(_arena._god_leave == 0.0 and _arena.god_hunts() and _arena.second_taya(), "...and Ikapati stays: no _gods_leave, still hunting")
-	_put(3, _arena._god_at + Vector2(5, 0))
-	_arena._check_god_tag()
-	_check(_arena.taya_id() == 1, "tagged_mercy stops her tagging A straight back (and the Taya is never tagged by her)")
+	_check(_arena._god_leave == 0.0 and _arena._god_at != Vector2.INF and _arena._god_runs and not _arena.god_hunts() and not _arena.second_taya(),
+		"...and Ikapati is a runner: no _gods_leave, no hunting, one Taya")
+	_arena._process(0.0)
+	_check(not _arena._god_marker.visible and _arena._god_body.visible and _arena.taya_marker.visible,
+		"...her TAYA marker hides (only B's is drawn) and she stays on the field")
+	_check(_arena.strip_note() == "BLITZ: IKAPATI IS RUNNING", "...the strip says so (%s)" % _arena.strip_note())
+	_check(_arena.arena_tick_fields().get("god_runs") == true, "...and her role rides the tick")
 	var a_time := _arena.taya_seconds(3)
 	var b_time := _arena.taya_seconds(1)
 	_tick(0.5)
@@ -286,15 +291,79 @@ func _run() -> void:
 		"with the gods still Taya at 30 s, Ikapati stays where she is, as the Taya")
 	_arena._tagback = 0.0
 	_put(2, _arena._god_at + Vector2(10, 0))
+	_set_favor(1000, 1000, 1000)
 	_arena._check_tag()
-	_check(_arena.taya_id() == 2, "her first tag makes that runner the Taya")
-	_check(_arena._god_leave == 0.0 and _arena._god_at != Vector2.INF and _arena.second_taya(), "...and she stays on as the second Taya (no Ikaw na! exit)")
+	_check(_arena.taya_id() == 2 and _rules.mortal(2).favor == 1000 - _arena.tag_steal, "her first tag makes that runner the Taya (paying tag_steal)")
+	_check(_arena._god_leave == 0.0 and _arena._god_at != Vector2.INF and _arena._god_runs and not _arena.god_hunts(),
+		"...and she is a runner (no Ikaw na! exit)")
 	_arena._move_god(_arena.god_leave_time + 1.0)
 	_check(_arena._god_at != Vector2.INF, "...for good")
 	# Taya drain is the mortal Taya's only
 	_arena._drain_pending.clear()
 	_tick(DT)
 	_check(_arena._drain_pending.keys() == [2], "the drain runs for the mortal Taya only (%s)" % str(_arena._drain_pending.keys()))
+	_check(not _arena._taya_time.has(LangitLupaArena.GOD_TAYA) and not _arena.payouts().has(LangitLupaArena.GOD_TAYA),
+		"...she keeps no TIME AS TAYA and is not in the payout")
+
+	# --- Ikapati the runner ----------------------------------------------------------------------
+	var ika := LangitLupaArena.GOD_TAYA
+	_reset(1)
+	_arena._blitz = true
+	_arena._god_runs = true
+	_set_favor(1000, 1000, 1000)
+	_put(1, FAR)
+	_put(2, FAR + Vector2(0, -60))
+	_put(3, FAR + Vector2(-60, 0))
+	_arena._god_at = SPOTS[0]
+	_arena._tick_crossings()
+	_check(_arena.is_safe(ika) and is_equal_approx(_arena._cloud_burn[0], _arena.cloud_life), "on a pillar she is safe and starts its cloud_life")
+	_arena._god_at = SPOTS[1]
+	_arena._tick_crossings()
+	_check(_rules.mortal(1).favor == 1000 and _rules.mortal(2).favor == 1000 and _rules.mortal(3).favor == 1000 and _arena.streak_of(ika) == 0,
+		"...a crossing pays nobody: no FAVOR, no streak")
+	_check(_arena._hunter_spots().size() == 1 and not _arena._hunter_spots().has(_arena._god_at), "bot runners do not flee her while she runs")
+	_put(1, SPOTS[1] + Vector2(10, 0))
+	_arena._check_tag()
+	_check(_arena.taya_id() == 1, "the Taya cannot tag her inside a pillar's SafeArea")
+	_full_chant(1)
+	_check(is_equal_approx(_arena.swap_left(ika), _arena.swap_time) and _arena.is_closed_for(ika, 1) and _arena._doomed(1),
+		"ALIS sends her off her pillar too (closed to her, doomed)")
+	_put(1, FAR)
+	for step in range(int(_arena.swap_time / DT) + 1):
+		_arena._move_god(DT)
+		_arena._tick_swaps(DT)
+	_check(not _arena._inside(1, _arena._god_at), "...and she is off it within swap_time (%s)" % str(_arena._god_at))
+	_arena._god_at = SPOTS[2]
+	_arena._crumble(2)
+	_check(_arena.is_safe(ika), "a crumbling pillar still holds her")
+	_arena._tick_clouds(_arena.crumble_time + 0.01)
+	_check(not _arena.is_safe(ika), "...and drops her onto the Lupa when it falls")
+	_arena._god_at = LUPA
+	_put(1, FAR)
+	_put(2, SPOTS[0])
+	_put(3, SPOTS[0] + Vector2(10, 0))
+	_arena._invuln.clear()
+	_check(_arena._bot_taya_heading(1, FAR).normalized().dot((LUPA - FAR).normalized()) > 0.99, "a bot Taya chases her on the Lupa")
+	_put(1, LUPA + Vector2(10, 0))
+	_arena._tagback = 0.0
+	_set_favor(1000, 1000, 1000)
+	_arena._check_tag()
+	_check(_arena.taya_id() == ika and not _arena._god_runs and _arena.god_hunts(), "the Taya tags her on the Lupa: she is the Taya again")
+	_check(_rules.mortal(1).favor == 1000 and _rules.mortal(2).favor == 1000 and _rules.mortal(3).favor == 1000, "...no FAVOR moves (she has none to steal)")
+	_check(_arena.is_mortal_invulnerable(1) and is_equal_approx(_arena._tagback, _arena.tagback_immunity), "...the tagger is a runner with tagged_mercy, she has tagback_immunity")
+	_check(_arena.hud.banner_label.text == "IKAPATI IS TAYA", "...and every screen says IKAPATI IS TAYA (%s)" % _arena.hud.banner_label.text)
+	_check(_arena._hunter_spots().has(_arena._god_at), "...bot runners flee her again")
+	_arena._drain_pending.clear()
+	_tick(DT)
+	_check(_arena._drain_pending.is_empty() and not _arena._taya_time.has(ika), "...with no drain and no TIME AS TAYA")
+	_arena._tagback = 0.0
+	_arena._invuln.clear()
+	_put(2, _arena._god_at + Vector2(8, 0))
+	_set_favor(1000, 1000, 1000)
+	_arena._check_tag()
+	_check(_arena.taya_id() == 2 and _arena._god_runs and _rules.mortal(2).favor == 1000 - _arena.tag_steal and _arena._god_leave == 0.0,
+		"her next tag as the Taya passes it on, and she runs again")
+
 	# a client mirrors the blitz from the tick: one banner
 	tick = _arena.arena_tick_fields()
 	_arena._blitz = false
@@ -345,6 +414,8 @@ func _reset(taya: int) -> void:
 	_arena._god_leave = 0.0
 	_arena._god_hunt = -1
 	_arena._god_time = 0.0
+	_arena._god_runs = false
+	_arena._god_dash_left = 0.0
 	_arena._reset_god_chant()
 	_arena._bot_chant.clear()
 	_arena._tagback = 0.0

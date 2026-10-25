@@ -11,12 +11,13 @@ extends SceneTree
 #     refused; a bought card reads BINILI and the others lock
 #   * READY ends the rest early, and the clock ends it too
 #   * the God's Due menu there offers the previous god's favors
-#   * the altar: a voucher is spent first (as in a trial); without one a favor
-#     of that god is a BOON for 750 FAVOR - priced cards, too poor is refused
-#     (the price in EMBER), one boon per rest (then the cards lock) on top of the
-#     one Pamana, only that god's favors, a skill boon replaces the old skill and
-#     its card says so, and everyone hears "<name> bought <favor>"
-#   * in a trial the God's Due menu stays voucher-only
+#   * the altar only sells: every favor of that god is a blessing for 750 FAVOR,
+#     vouchers held or not (never spent there; a line says they are kept and they
+#     ride into the next trial) - priced cards, too poor is refused (the price in
+#     EMBER), one blessing per rest (then the cards lock and the altar says it was
+#     bought) on top of the one Pamana, only that god's favors, a skill boon
+#     replaces the old skill and its card says so, and everyone hears "<name> bought <favor>"
+#   * in a trial the God's Due menu stays voucher-only, and F still spends a voucher
 #   * what was bought rides into the next trial and wakes at its "GO!"
 # Run: godot --headless --path <project> -s res://tools/prep_area_check.gd
 
@@ -165,9 +166,10 @@ func _run() -> void:
 	await _frames(4)
 	_check(game.arena != null and not (game.arena is PrepArea) and game.arena.god_id == &"tala", "READY ends the rest and the next trial starts")
 	var carried: GodMatch.Mortal = game.rules.local()
+	_check(carried.due == 2, "the vouchers kept at the altar ride into the next trial (%d)" % carried.due)
+	await _trial_menu_unchanged(game.arena)
 	if item.id != Pamanas.SURIGAO_GOLD:
 		_check(carried.pamana_next == item.id, "the purchase rides into the next trial")
-		await _trial_menu_unchanged(game.arena)
 		game.arena._start_trial()
 		_check(carried.pamana_active == item.id, "...and wakes at its GO!")
 	else:
@@ -275,36 +277,27 @@ func _networked_rest(view: SubViewport, network: Node) -> void:
 func _altar_boons(prep: PrepArea, me: GodMatch.Mortal) -> void:
 	var menu = prep.due_menu
 	var paid_pamana := me.pamana_next != &"" or me.surigao_early > 0
-	_check(prep.altar_hint.text.ends_with("GOD'S DUE / BOON"), "the altar says what F does there (%s)" % prep.altar_hint.text)
+	_check(prep.altar_hint.text.ends_with("BUY A BLESSING (750 FAVOR)"), "the altar says what F does there (%s)" % prep.altar_hint.text)
 
-	# A voucher is spent first, exactly as in a trial.
-	me.due = 1
-	var favor_before := me.favor
+	# Vouchers held, too little FAVOR: still a shop - the price in EMBER on a greyed
+	# card, refused, and the vouchers kept.
+	me.due = 2
+	me.favor = 500
 	prep._toggle_due_menu()
 	await _frames(2)
-	_check(menu.due_label.text == "GOD'S DUE VOUCHERS: 1" and (_price(menu, 0).begins_with("COST: 1 GOD'S DUE") or _price(menu, 0).begins_with("REPLACES")),
-		"with a voucher the cards cost a God's Due, as today (%s / %s)" % [menu.due_label.text, _price(menu, 0)])
-	var index := _plain_index(menu)
-	var granted: GodFavor = menu._shown[index]
-	menu._choose(index)
-	_check(me.has_favor(granted.id) and me.due == 0 and me.favor == favor_before and prep.boons_bought_by(me.id).is_empty(),
-		"the voucher pays for %s: no FAVOR spent, no boon used" % granted.display_name)
-
-	# No voucher, too little FAVOR: the price in EMBER on a greyed card, refused.
-	me.favor = prep.boon_cost - 1
-	prep._toggle_due_menu()
-	await _frames(2)
-	_check(menu.due_label.text == "BUY A BOON - 750 FAVOR", "with no voucher the altar sells boons (%s)" % menu.due_label.text)
+	_check(menu.due_label.text == "BUY A BLESSING - 750 FAVOR", "with vouchers held the altar still only sells (%s)" % menu.due_label.text)
+	var kept := menu.get_node_or_null("SidePanel/Margin/VBox/KeptNote") as Label
+	_check(kept != null and kept.visible and kept.text == "Your God's Due vouchers are kept for the next trial.", "...and says the vouchers are kept")
 	var price := _price_label(menu, 0)
 	_check(price.text == "750 FAVOR" and price.get_theme_color("font_color") == UITokens.readable_on_dark(UITokens.EMBER, UITokens.NIGHT_800)
 		and is_equal_approx(menu.rows.get_child(0).modulate.a, 0.5), "too poor: the card is greyed and its price is EMBER (%s)" % price.text)
 	var wanted: GodFavor = menu._shown[_plain_index(menu)]
 	menu._choose(_plain_index(menu))
-	_check(menu.is_open() and not me.has_favor(wanted.id) and me.favor == prep.boon_cost - 1, "...and choosing it does nothing")
-	_check(not prep.try_buy_boon(me.id, wanted.id), "the host refuses a boon it cannot be paid for")
+	_check(menu.is_open() and not me.has_favor(wanted.id) and me.favor == 500 and me.due == 2, "...choosing it does nothing, and no voucher is spent")
+	_check(not prep.try_buy_boon(me.id, wanted.id) and me.due == 2, "the host refuses it too, and the mortal keeps both vouchers")
 	menu.close()
 
-	# Enough FAVOR: bought, paid with spend_favor, heard by everyone.
+	# 2 vouchers and 1000 FAVOR: bought for FAVOR, the vouchers untouched.
 	me.favor = 1000
 	prep._toggle_due_menu()
 	await _frames(2)
@@ -312,18 +305,20 @@ func _altar_boons(prep: PrepArea, me: GodMatch.Mortal) -> void:
 	_check(price.text == "750 FAVOR" and price.get_theme_color("font_color") == UITokens.readable_on_dark(UITokens.JADE, UITokens.NIGHT_800),
 		"affordable: the price reads 750 FAVOR in JADE")
 	var popups := prep.popups_root.get_child_count()
-	index = _plain_index(menu)
+	var index := _plain_index(menu)
 	var boon: GodFavor = menu._shown[index]
 	menu._choose(index)
-	_check(me.has_favor(boon.id) and me.favor == 1000 - prep.boon_cost and prep.boons_bought_by(me.id) == [boon.id],
-		"a boon is bought: %s for %d FAVOR" % [boon.display_name, prep.boon_cost])
+	_check(me.has_favor(boon.id) and me.favor == 1000 - prep.boon_cost and me.due == 2 and prep.boons_bought_by(me.id) == [boon.id],
+		"a blessing is bought: %s for %d FAVOR, still 2 vouchers (%d)" % [boon.display_name, prep.boon_cost, me.due])
+	prep._refresh_prep_hud()
+	_check(prep.altar_hint.text == "BLESSING BOUGHT", "...the altar says the blessing was bought (%s)" % prep.altar_hint.text)
 	_check(paid_pamana and (me.pamana_next != &"" or me.surigao_early > 0), "...on top of the Pamana bought at the Tindahan")
 	_check(prep.hud.event_label.text == "%s bought %s" % [me.display_name, boon.display_name], "everyone hears it (%s)" % prep.hud.event_label.text)
 	_check(prep.popups_root.get_child_count() == popups, "spending is not a loss: no red popup")
 
 	# One boon per rest: refused, and the cards lock.
 	var second := _plain_favor(Gods.apolaki().favors, me)
-	_check(second != null and not prep.try_buy_boon(me.id, second.id) and me.favor == 1000 - prep.boon_cost, "a second boon is refused")
+	_check(second != null and not prep.try_buy_boon(me.id, second.id) and me.favor == 1000 - prep.boon_cost and me.due == 2, "a second blessing in the same rest is refused")
 	prep._toggle_due_menu()
 	await _frames(2)
 	_check(_price(menu, 0) == "750 FAVOR - LOCKED", "...and the altar's cards lock (%s)" % _price(menu, 0))
@@ -378,6 +373,12 @@ func _trial_menu_unchanged(arena: Arena) -> void:
 	menu._choose(0)
 	_check(me.favors.size() == held and me.favor == 5000, "...and no FAVOR buys a favor there")
 	menu.close()
+	me.due = 1
+	arena._toggle_due_menu()
+	await _frames(2)
+	var spent: GodFavor = menu._shown[_plain_index(menu)]
+	menu._choose(_plain_index(menu))
+	_check(me.has_favor(spent.id) and me.due == 0 and me.favor == 5000, "in a trial F still spends a voucher (%s)" % spent.display_name)
 
 
 # The card at `index`: its price (or cost) line.

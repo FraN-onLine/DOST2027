@@ -6,13 +6,14 @@ extends Control
 # drawn exactly like the Almanac's (UICards), each under its key.
 # If a god intervenes between trials you get a free grant instead of a voucher.
 #
-# THE ALTAR (the preparation area only, open(..., boon_cost, boons_left)): with
-# no voucher left the same cards are a boon shop - each one priced at boon_cost
-# FAVOR (greyed, the price in EMBER, when it cannot be paid; locked once the
-# player's boons here are bought), a skill that would take an occupied slot warns
+# THE ALTAR (the preparation area only, open(..., boon_cost, boons_left)): the
+# same cards are only a shop - each one a blessing priced at boon_cost FAVOR
+# (greyed, the price in EMBER, when it cannot be paid; locked once the player's
+# blessing here is bought), a skill that would take an occupied slot warns
 # REPLACES <old skill>, and the choice is only ASKED for (boon_chosen): the arena
-# - the host - decides. A voucher is always spent first, exactly as in a trial.
-# In a trial boon_cost is 0 and nothing of this shows.
+# - the host - decides. A voucher or a free grant is never spent there: it waits
+# for the next trial (a small line says so). In a trial boon_cost is 0 and nothing
+# of this shows.
 
 signal favor_chosen(favor: GodFavor, free_grants_left: int)
 signal boon_chosen(favor: GodFavor)
@@ -33,6 +34,7 @@ var _remote := false  # multiplayer client: only ask, never change local rules
 var _boon_cost := 0   # > 0 at the altar: no voucher means the cards are for sale
 var _boons_left := 0  # boons this player may still buy here
 var _shown: Array[GodFavor] = []
+var _kept_note: Label  # at the altar: the vouchers held are kept for the next trial
 
 
 func _ready() -> void:
@@ -75,12 +77,18 @@ func _rebuild() -> void:
 	var due := 0
 	if mortal != null:
 		due = mortal.due
-	if _free_grants > 0:
+	if selling():
+		due_label.text = "BUY A BLESSING - %d FAVOR" % _boon_cost
+	elif _free_grants > 0:
 		due_label.text = "A GOD INTERVENES - ONE FAVOR IS FREE"
-	elif selling(due):
-		due_label.text = "BUY A BOON - %d FAVOR" % _boon_cost
 	else:
 		due_label.text = "GOD'S DUE VOUCHERS: %d" % due
+
+	if _kept_note == null:
+		_kept_note = _caption("Your God's Due vouchers are kept for the next trial.", UITokens.FAINT)
+		_kept_note.name = "KeptNote"
+		due_label.add_sibling(_kept_note)
+	_kept_note.visible = selling() and due > 0
 
 	# Every opening rolls a fresh set. E/Q candidates stay eligible because
 	# selecting one replaces the currently owned skill in that slot.
@@ -103,9 +111,9 @@ func _rebuild() -> void:
 		rows.add_child(_make_note("You already hold every favor %s can give." % _god.display_name))
 
 
-# The cards are for sale: at the altar, with no voucher and no free grant.
-func selling(due: int) -> bool:
-	return _boon_cost > 0 and due <= 0 and _free_grants <= 0
+# The cards are for sale: always at the altar (whatever vouchers are held), never in a trial.
+func selling() -> bool:
+	return _boon_cost > 0
 
 
 func _make_note(text: String) -> Label:
@@ -125,7 +133,7 @@ func _make_note(text: String) -> Label:
 # bought - plus a REPLACES warning for a skill that would take an occupied slot.
 func _make_row(number: int, favor: GodFavor, due: int) -> VBoxContainer:
 	var mortal := _match.local()
-	var for_sale := selling(due)
+	var for_sale := selling()
 	var affordable := _free_grants > 0 or due > 0
 	if for_sale:
 		affordable = mortal != null and mortal.favor >= _boon_cost
@@ -223,7 +231,7 @@ func _choose(index: int) -> void:
 		return
 	var favor: GodFavor = _shown[index]
 	var mortal := _match.local()
-	if selling(mortal.due if mortal != null else 0):
+	if selling():
 		# A boon: asked for, never decided here - the arena (the host) checks it
 		# and the next snapshot brings it back.
 		if _boons_left <= 0 or mortal == null or mortal.favor < _boon_cost:

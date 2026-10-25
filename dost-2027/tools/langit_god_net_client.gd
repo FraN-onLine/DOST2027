@@ -5,8 +5,9 @@ extends SceneTree
 # the host into the trial and checks what its own screen draws: the banner, the
 # god body (mortal sprite hidden, Ikapati looping, where the host says), the
 # marker above it, the one Ikapati, the chant words, the fade and the hand-over,
-# then the blitz: its banner, Ikapati back with her own marker, and one Langit
-# crumbling and forming alone.
+# then the blitz: its banner, Ikapati back with her own marker, one Langit
+# crumbling and forming alone, Ikapati running (her marker hidden) once her tag
+# passes the Taya, and the Taya again (the one marker over her) once she is tagged.
 
 const PORT_FILE := "user://langit_god_net_host.txt"
 const WAIT := 30.0
@@ -138,8 +139,17 @@ func _run() -> void:
 	var ghost: Node2D = arena._ghosts.get(host_id)
 	_check(ghost != null and arena.taya_marker.visible and arena.taya_marker.global_position.distance_to(ghost.global_position) < 2.0,
 		"...the TAYA marker moves onto it on this screen")
-	_check(arena._god_marker.visible and arena.second_taya() and body.visible, "...while Ikapati stays on the field as the second Taya")
+	_check(not arena._god_marker.visible and arena._god_runs and not arena.second_taya() and body.visible,
+		"...while Ikapati stays on the field as a runner, her TAYA marker hidden")
+	_check(arena.hud.banner_label.text == "IKAPATI IS RUNNING", "...and the banner says so (%s)" % arena.hud.banner_label.text)
 	_check(arena._taya != network.multiplayer.get_unique_id(), "...and the client is a runner again")
+
+	# --- the host's mortal tags her: she is the Taya again, with the one marker over her ------------
+	_check(await _until(func() -> bool: return arena._taya == LangitLupaArena.GOD_TAYA, 20.0), "the client sees Ikapati tagged: she is the Taya")
+	await _frames(4)
+	_check(not arena._god_runs and arena.hud.banner_label.text == "IKAPATI IS TAYA", "...IKAPATI IS TAYA (%s)" % arena.hud.banner_label.text)
+	_check(arena.taya_marker.visible and not arena._god_marker.visible and arena.taya_marker.global_position.distance_to(body.global_position) < arena._god_lift + 2.0,
+		"...the one TAYA marker is over her")
 	_finish()
 
 

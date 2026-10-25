@@ -463,6 +463,37 @@ func _run() -> void:
 	for step in range(15):
 		_arena._step_indicator(DT)
 	_check(_arena._ind_pos > 0.5, "...and letting go raises it (%.2f)" % _arena._ind_pos)
+	# the blitz bar is gentler: its own rise, capped at blitz_max_speed; normal vaults keep theirs
+	_arena._ind_pos = 0.0
+	_arena._ind_vel = 0.0
+	_arena._step_indicator(DT)
+	_check(is_equal_approx(_arena._ind_vel, _arena.blitz_rise_accel * DT) and _arena.blitz_rise_accel < _arena.lift_accel,
+		"a blitz vault rises at blitz_rise_accel (%.2f), slower than lift_accel" % _arena.blitz_rise_accel)
+	var fastest := 0.0
+	for step in range(120):
+		_arena._step_indicator(DT)
+		fastest = maxf(fastest, absf(_arena._ind_vel))
+	_check(fastest <= _arena.blitz_max_speed + 0.0001 and _arena.blitz_max_speed < _arena.max_speed,
+		"...and is capped at blitz_max_speed (%.2f)" % fastest)
+	_arena._ind_pos = 0.5
+	_arena._ind_vel = 0.0
+	for step in range(30):  # 0.5 s let go, from rest
+		_arena._step_indicator(DT)
+	_check(_arena._ind_pos - 0.5 < (_arena.box_sizes[0] + _arena.indicator_size) * 0.5,
+		"...so half a second let go stays inside a level-1 box (%.3f)" % (_arena._ind_pos - 0.5))
+	_arena._blitz_vault = false
+	_arena._ind_pos = 0.0
+	_arena._ind_vel = 0.0
+	_arena._holding = true
+	_arena._step_indicator(DT)
+	_check(is_equal_approx(_arena._ind_vel, _arena.lift_accel * DT), "a normal vault still lifts at lift_accel")
+	fastest = 0.0
+	for step in range(50):
+		_arena._step_indicator(DT)
+		fastest = maxf(fastest, absf(_arena._ind_vel))
+	_check(is_equal_approx(fastest, _arena.max_speed), "...up to max_speed (%.2f)" % fastest)
+	_arena._holding = false
+	_arena._blitz_vault = true
 	_arena._refresh_hud(0.0)
 	_check(not _arena.sink_arrow.visible, "the arrow hides when the button is let go")
 	_check(is_equal_approx(_arena.earn_rate(), 48.0), "FAVOR in the box pays x1.2 in the blitz (%.1f/s)" % _arena.earn_rate())

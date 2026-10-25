@@ -13,7 +13,7 @@ extends ArenaMortal
 # name tag and the floating line ride above its head (`lift`).
 #
 # The arena only says what the gods are doing - play_state(), set_facing(),
-# appear() and leave() - and keeps every rule (langit_lupa_arena.gd).
+# appear(), leave() and hop() - and keeps every rule (langit_lupa_arena.gd).
 
 const MORTAL_HEIGHT := 78.0  # a mortal's height, px (lam-ang.png at Mortal.tscn's scale)
 
@@ -26,6 +26,7 @@ const MORTAL_HEIGHT := 78.0  # a mortal's height, px (lam-ang.png at Mortal.tscn
 @onready var art: AnimatedSprite2D = $GodLook/Art
 
 var lift := 0.0  # px the name tag (and the arena's Taya marker) sit above a mortal's
+var _hop: Tween
 
 
 func _ready() -> void:
@@ -64,6 +65,18 @@ func appear(seconds: float) -> void:
 	look.scale = Vector2.ONE * 0.2
 	create_tween().tween_property(look, "scale", Vector2.ONE, seconds) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+# Running in Langit Lupa's blitz she hops up onto a Langit. There is no jump clip,
+# so the figure (not the ground ring) bobs up `height` px and back.
+func hop(height := 10.0, seconds := 0.26) -> void:
+	if _hop != null:
+		_hop.kill()
+	var up := -height / maxf(0.01, art.scale.y)  # offset is in frame pixels
+	art.offset.y = 0.0
+	_hop = create_tween()
+	_hop.tween_property(art, "offset:y", up, seconds * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_hop.tween_property(art, "offset:y", 0.0, seconds * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
 
 # Their tag: the tag clip and their line over the body (the arena fades the body).

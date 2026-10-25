@@ -3,9 +3,9 @@ extends SceneTree
 # The CLIENT half of the networked rest check (its partner, and how to run the
 # two, is in tools/prep_net_host.gd). This screen follows the host through the
 # end of the first trial into the rest, receives ONLY its own offers, buys one
-# at the Tindahan (the host decides), sees it come back as BINILI, spends the
-# voucher the host gave it at the altar, buys a boon there for FAVOR, presses
-# READY and opens the next trial carrying it.
+# at the Tindahan (the host decides), sees it come back as BINILI, buys a blessing
+# for FAVOR at the altar (only a shop) while the voucher the host gave it is kept,
+# presses READY, opens the next trial carrying both, and spends the voucher there.
 
 const PORT_FILE := "user://prep_net_host.txt"
 const WAIT := 30.0
@@ -92,21 +92,16 @@ func _run() -> void:
 	_check(price == "BINILI", "the card reads BINILI on the client (%s)" % price)
 	_check(_game().pamana_row.visible, "the client's own panel carries the Pamana badge")
 
-	# --- the altar: the voucher first, then a boon for FAVOR ---------------------------
+	# --- the altar sells only: a blessing for FAVOR, the voucher kept ---------------------
 	var me := prep.rules.local()
-	_check(await _until(func() -> bool: return me.due == 1), "the host left this client a voucher")
-	prep._toggle_due_menu()
-	await _frames(2)
-	_check(prep.due_menu.due_label.text == "GOD'S DUE VOUCHERS: 1", "with it the altar's cards cost a God's Due (%s)" % prep.due_menu.due_label.text)
-	var granted: GodFavor = prep.due_menu._shown[0]
-	prep.due_menu._choose(0)
-	_check(await _until(func() -> bool: return me.has_favor(granted.id) and me.due == 0),
-		"the host grants %s for the voucher, and it comes back" % granted.display_name)
+	_check(await _until(func() -> bool: return me.due == 1 and me.favor == 1000), "the host left this client a voucher (and 1000 FAVOR)")
 	var favor_before := me.favor
 	var popups := prep.popups_root.get_child_count()
 	prep._toggle_due_menu()
 	await _frames(2)
-	_check(prep.due_menu.due_label.text == "BUY A BOON - 750 FAVOR", "with no voucher the altar sells boons (%s)" % prep.due_menu.due_label.text)
+	_check(prep.due_menu.due_label.text == "BUY A BLESSING - 750 FAVOR", "with a voucher held the altar still only sells (%s)" % prep.due_menu.due_label.text)
+	var kept := prep.due_menu.get_node_or_null("SidePanel/Margin/VBox/KeptNote") as Label
+	_check(kept != null and kept.visible, "...and says the vouchers are kept for the next trial")
 	var index := 0
 	for at in range(prep.due_menu._shown.size()):
 		if (prep.due_menu._shown[at] as GodFavor).kind != GodFavor.Kind.INSTANT:
@@ -116,7 +111,7 @@ func _run() -> void:
 	prep.due_menu._choose(index)
 	_check(await _until(func() -> bool: return me.has_favor(boon.id) and prep.boons_bought_by(my_id) == [boon.id]),
 		"the host's answer comes back: %s bought" % boon.display_name)
-	_check(me.favor == favor_before - prep.boon_cost, "...for %d FAVOR (%d -> %d)" % [prep.boon_cost, favor_before, me.favor])
+	_check(me.favor == favor_before - prep.boon_cost and me.due == 1, "...for %d FAVOR (%d -> %d), the voucher kept (%d)" % [prep.boon_cost, favor_before, me.favor, me.due])
 	_check(prep.popups_root.get_child_count() == popups, "...and the client shows no loss popup for it")
 	_check(await _until(func() -> bool: return prep.hud.event_label.text.ends_with("bought %s" % boon.display_name)),
 		"the event line reads \"<name> bought %s\" (%s)" % [boon.display_name, prep.hud.event_label.text])
@@ -127,6 +122,14 @@ func _run() -> void:
 	var carried: GodMatch.Mortal = _game().rules.local()
 	_check(carried.pamana_next == item.id or (item.id == Pamanas.SURIGAO_GOLD and carried.surigao_early > 0),
 		"the purchase rides into the client's next trial")
+	_check(carried.due == 1, "...and so does the kept voucher (%d)" % carried.due)
+	var trial: Arena = _game().arena
+	var held := carried.favors.size()
+	trial._toggle_due_menu()
+	await _frames(2)
+	_check(trial.due_menu.due_label.text == "GOD'S DUE VOUCHERS: 1", "in the trial F offers the kept voucher (%s)" % trial.due_menu.due_label.text)
+	trial.due_menu._choose(0)
+	_check(await _until(func() -> bool: return carried.due == 0 and carried.favors.size() == held + 1), "...and spending it gets the favor from the host")
 	_finish()
 
 

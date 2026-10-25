@@ -9,11 +9,12 @@ extends Arena
 # lobby's PREP TIME, RunSettings.prep_time, handed over by the shell), around a
 # campfire, between two things to do -
 #   * the ALTAR of the god who just hosted (god_id): F opens the God's Due menu
-#     for that god anywhere on the field. A voucher left over is spent first,
-#     exactly as in a trial (the base's menu, vouchers and RPCs). With none, the
-#     same cards are a BOON SHOP: any favor of that god for boon_cost FAVOR,
-#     max_boon_purchases per mortal per rest (apart from the Pamana - one of each
-#     is allowed). The host checks every purchase (try_buy_boon ->
+#     for that god anywhere on the field. It only SELLS: every card is a blessing
+#     (a boon) of that god for boon_cost FAVOR, whatever God's Due vouchers or free
+#     grants the mortal holds - those are never spent here and wait for the next
+#     trial, where F spends them as usual. max_boon_purchases per mortal per rest
+#     (apart from the Pamana - one of each is allowed); then the cards lock and the
+#     altar's hint says the blessing was bought. The host checks every purchase (try_buy_boon ->
 #     GodMatch.buy_boon: this god's, eligible, not held, affordable) and pays it
 #     with spend_favor - never a loss; a skill takes its slot in place of the old
 #     one (bestow_favor), which its card warns about. Everyone hears
@@ -51,7 +52,7 @@ const ALTAR_ICON_SIZE := 48.0  # the god on the altar, whatever size its icon is
 @export_category("Preparation Area")
 @export var prep_time := 20.0       # seconds of rest (the shell sets the lobby's; this is the standalone fallback)
 @export var max_purchases := 1      # Pamana each mortal may buy here (the anti-snowball rule)
-@export var boon_cost := GodMatch.BOON_COST  # FAVOR for a boon at the altar (no voucher left)
+@export var boon_cost := GodMatch.BOON_COST  # FAVOR for a blessing at the altar (vouchers are kept)
 @export var max_boon_purchases := 1  # boons each mortal may buy here, apart from the Pamana
 @export var offer_count := 3        # Pamana on each mortal's shelf
 @export var stall_reach := 90.0     # how close to the stall LEFT CLICK opens the Tindahan
@@ -131,13 +132,13 @@ func _paint_camp() -> void:
 	if god != null:
 		altar_name.text = "ALTAR OF %s" % god.display_name
 		altar_name.add_theme_color_override("font_color", UITokens.god_text(god))
-	altar_hint.text = "%s - GOD'S DUE / BOON" % UITokens.key_text(&"due_menu")
+	_paint_altar_hint()
 	var next := Gods.by_id(next_god_id) if next_god_id != &"" else null
 	next_label.visible = next != null
 	if next != null:
 		next_label.text = "NEXT: %s - %s" % [next.display_name.to_upper(), next.game_name.to_upper()]
 		next_label.add_theme_color_override("font_color", UITokens.god_text(next))
-	hint_label.text = "[WASD] WALK   %s GOD'S DUE / BOON   %s READY   %s TINDAHAN" % [
+	hint_label.text = "[WASD] WALK   %s BLESSING   %s READY   %s TINDAHAN" % [
 		key_cap(&"due_menu"), key_cap(&"ready_up"), key_cap(&"attack")]
 
 
@@ -254,10 +255,10 @@ func boons_left(mortal_id: int) -> int:
 	return maxi(0, max_boon_purchases - boons_bought_by(mortal_id).size())
 
 
-# Host: `mortal_id` buys the boon `favor_id`. A voucher they still hold is spent
-# instead (a voucher always comes first); otherwise refused unless they have a
-# boon left here and GodMatch.buy_boon agrees (this god's favor, eligible, not
-# held, affordable). Returns true when they got it.
+# Host: `mortal_id` buys the boon `favor_id` for FAVOR - never with a voucher, which
+# stays for the next trial. Refused unless they have a boon left here and
+# GodMatch.buy_boon agrees (this god's favor, eligible, not held, affordable).
+# Returns true when they got it.
 func try_buy_boon(mortal_id: int, favor_id: StringName) -> bool:
 	if not _authority or _closed or god == null:
 		return false
@@ -265,11 +266,6 @@ func try_buy_boon(mortal_id: int, favor_id: StringName) -> bool:
 	var mortal := rules.mortal(mortal_id)
 	if favor == null or mortal == null:
 		return false
-	if mortal.due > 0:
-		if not rules.grant_favor(favor, mortal_id):
-			return false
-		_publish_god_state()
-		return true
 	if boons_left(mortal_id) <= 0 or not rules.buy_boon(favor, mortal_id, boon_cost):
 		return false
 	var bought := boons_bought_by(mortal_id).duplicate()
@@ -293,7 +289,7 @@ func _on_boon_chosen(favor: GodFavor) -> void:
 		_net.rpc_id(1, "request_boon_purchase", str(favor.id))
 
 
-# The base's God's Due menu, with the altar's prices: a voucher first, then boons.
+# The base's God's Due menu as the altar's shop: every card for boon_cost FAVOR.
 func _toggle_due_menu() -> void:
 	if due_menu.is_open():
 		due_menu.close()
@@ -421,7 +417,16 @@ func _tick_fire(delta: float) -> void:
 	fire_light.energy = 0.35 * _flicker
 
 
+# The altar says what F does there - until this mortal's blessing is bought.
+func _paint_altar_hint() -> void:
+	if boons_left(_my_id) > 0:
+		altar_hint.text = "%s - BUY A BLESSING (%d FAVOR)" % [UITokens.key_text(&"due_menu"), boon_cost]
+	else:
+		altar_hint.text = "BLESSING BOUGHT"
+
+
 func _refresh_prep_hud() -> void:
+	_paint_altar_hint()
 	var near := _near_stall()
 	stall_hint.visible = near and not shop.is_open() and not _closed
 	if shop.is_open():

@@ -10,7 +10,9 @@ extends SceneTree
 # Ikapati), the host's chant shows on the client over the gods' heads, and when
 # the gods tag the client the fade-out and the hand-over reach it too. Then the
 # blitz: the banner, Ikapati back as a second Taya (two markers) and a Langit
-# crumbling and forming alone reach the client.
+# crumbling and forming alone reach the client; her tag makes the host's mortal the
+# one Taya and her a runner (her marker hides), and the host's mortal tagging her
+# makes her the Taya again - both screens agree on her role and marker.
 
 const PORT := 24690
 const PORT_FILE := "user://langit_god_net_host.txt"
@@ -127,9 +129,21 @@ func _run() -> void:
 	arena.player.set_lock(false)
 	arena.player.global_position = arena._god_at + Vector2(0, 14)
 	await _until(func() -> bool: return arena._taya != before, 3.0)  # she tags it on her next tick
-	_check(before == client_id and arena._taya == 1 and arena.second_taya(), "Ikapati tags the host's mortal: it is the Taya, and she stays as the second one")
+	_check(before == client_id and arena._taya == 1, "Ikapati tags the host's mortal: it is the one Taya")
 	_check(arena.is_mortal_invulnerable(client_id), "...the client, the old Taya, is a runner with tagged_mercy (taya before: %d, mercy %s)" % [before, str(arena._invuln)])
+	_check(arena._god_runs and not arena.second_taya() and arena._god_leave == 0.0 and arena._god_at != Vector2.INF, "...and Ikapati is a runner")
 	await _until(func() -> bool: return false, 4.0)  # the client moves its TAYA marker to the host's mortal
+
+	# --- the host's mortal tags the running Ikapati on the Lupa: she is the Taya again -------------
+	arena._tagback = 0.0
+	arena._invuln.clear()
+	arena._god_at = arena._god_spot()
+	arena.player.global_position = arena._god_at + Vector2(10, 0)
+	arena._check_tag()
+	_check(arena._taya == LangitLupaArena.GOD_TAYA and not arena._god_runs, "the host's mortal tags her on the Lupa: Ikapati is the Taya again")
+	arena.set_mortal_invuln(1, 999.0)  # nobody is tagged while the client looks
+	arena.set_mortal_invuln(client_id, 999.0)
+	await _until(func() -> bool: return false, 4.0)  # the client sees her back as the Taya
 	_finish()
 
 

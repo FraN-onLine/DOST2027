@@ -50,8 +50,10 @@ extends Arena
 # screen enters it together). The vault stays this mortal's own, so the state is local.
 #   - FAVOR earned in the box pays baka_blitz_favor times (trip penalties do not change).
 #   - From the NEXT vault on (never one already running) the bar is INVERTED: HOLD
-#     LEFT CLICK to sink the indicator, let go and it rises. Lift and gravity swap
-#     roles. That vault's window also runs baka_blitz_extra_time seconds longer.
+#     LEFT CLICK to sink the indicator, let go and it rises. The bar is gentler too:
+#     it rises at most at blitz_rise_accel, sinks at blitz_sink_accel and is capped
+#     at blitz_max_speed (normal vaults keep lift_accel, gravity and max_speed).
+#     That vault's window also runs baka_blitz_extra_time seconds longer.
 #   - The field pulses in Hanan's colour (a field-only overlay, never the mortal,
 #     the Baka or the HUD), and the HUD says the controls are inverted: a banner, a
 #     line in the bottom band, the hint strip, an arrow on the bar while held, and an
@@ -75,6 +77,9 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @export var baka_blitz_time := 30.0        # the last seconds: inverted bar, more FAVOR, longer vaults
 @export var baka_blitz_favor := 1.2        # times the FAVOR earned in the box during the blitz
 @export var baka_blitz_extra_time := 2.0   # seconds added to vault_window for a vault that opens in the blitz
+@export var blitz_rise_accel := 1.1        # bar heights/s^2 a blitz vault's indicator rises while let go (1.3 flung it out of a level-1 box)
+@export var blitz_sink_accel := 1.6        # bar heights/s^2 it sinks while held
+@export var blitz_max_speed := 0.7         # fastest a blitz vault's indicator may move
 @export var grace_time := 0.35             # seconds outside the box before a trip
 @export var vaults_per_level := 3          # clean vaults that advance the level
 @export var favor_per_second := 40.0       # FAVOR/s inside the box, times the combo
@@ -394,13 +399,15 @@ func earn_rate() -> float:
 	return favor_per_second * _combo * (baka_blitz_favor if _blitz else 1.0)
 
 
-# Floaty on purpose: the button is an acceleration, not a position. In a blitz
-# vault lift and gravity swap roles: held sinks, let go rises.
+# Floaty on purpose: the button is an acceleration, not a position. A blitz vault
+# is inverted and gentler: held sinks, let go rises, on its own blitz_* numbers.
 func _step_indicator(delta: float) -> void:
 	var accel := lift_accel if _holding else -gravity
+	var cap := max_speed
 	if _blitz_vault:
-		accel = -gravity if _holding else lift_accel
-	_ind_vel = clampf(_ind_vel + accel * delta, -max_speed, max_speed)
+		accel = -blitz_sink_accel if _holding else blitz_rise_accel
+		cap = blitz_max_speed
+	_ind_vel = clampf(_ind_vel + accel * delta, -cap, cap)
 	_ind_pos += _ind_vel * delta
 	if _ind_pos < 0.0:
 		_ind_pos = 0.0
