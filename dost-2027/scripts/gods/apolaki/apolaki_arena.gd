@@ -100,8 +100,8 @@ extends Arena
 @export var block_shake_time := 0.12   # a clash on a guard, either way
 # How hard your own blows shove HIM (a clean hit, and the softer brace when you
 # strike his guard) - the mortal's own shove is the shared knock_stun/knock_force.
-@export var strike_knock_force := 380.0
-@export var block_knock_force := 150.0
+@export var strike_knock_force := 560.0
+@export var block_knock_force := 220.0
 
 @onready var duelist: ApolakiDuelist = get_node_or_null("ArenaField/Apolaki")
 @onready var state_label: Label = get_node_or_null(BAND_STATE + "State")

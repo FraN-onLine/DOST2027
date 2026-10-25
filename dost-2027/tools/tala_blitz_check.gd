@@ -70,8 +70,7 @@ func _run() -> void:
 		"...the double on the mirrored spot of the route, a lane toward the throwing line")
 	_check(double.global_position.distance_to(_arena.tala.global_position + Vector2(_arena.blitz_double_lane * lane_side, 0.0)) > 20.0,
 		"...and not at Tala + the lane (it walks its own beat)")
-	_check(double.flip_h == (absf(double_went.x) >= absf(double_went.y) and double_went.x < 0.0 or absf(double_went.x) < absf(double_went.y) and double_went.y < 0.0),
-		"...facing the way IT travels")
+	_check(double.flip_h == (_arena.tala as AnimatedSprite2D).flip_h, "...and keeps the original's facing, never flipping as it walks")
 	_check(_arena._trial_time > 0.0 and _arena._blitz, "...and blitz is still on")
 
 	# Tala cutting a slipper off does not move the double with her: it walks on at its own pace.

@@ -38,6 +38,12 @@ extends Arena
 #            trip_penalty_per_level for each level above the first (40 at Low
 #            Baka, 120 at Over the Moon) and resets the combo. They stay where
 #            they landed and run in again.
+#   IDLE     a mortal who has not started a vault for `idle_time` seconds loses
+#            `idle_penalty` FAVOR (never below 0), again every idle_time while they
+#            keep standing about. The clock runs only while they are running free
+#            (not in a vault or stumble, not locked, no dialogue or God's Due menu
+#            open) and starts afresh after each vault, trip or penalty. The last 2
+#            seconds warn "LEAP! 2... 1..." and the effect timers count it down.
 #   HANAN'S MERCY  `mercy_trips` trips in a row at the same level drop the level
 #            by one (never below 1): "THE BAKA CROUCHES". A clean vault resets
 #            the count.
@@ -48,7 +54,7 @@ extends Arena
 #
 # THE BLITZ (the last baka_blitz_time seconds, derived from the shared clock so every
 # screen enters it together). The vault stays this mortal's own, so the state is local.
-#   - FAVOR earned in the box pays baka_blitz_favor times (trip penalties do not change).
+#   - FAVOR earned in the box pays baka_blitz_favor times (trip and idle penalties do not change).
 #   - From the NEXT vault on (never one already running) the bar is INVERTED: HOLD
 #     LEFT CLICK to sink the indicator, let go and it rises. The bar is gentler too:
 #     it rises at most at blitz_rise_accel, sinks at blitz_sink_accel and is capped
@@ -87,6 +93,8 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @export var combo_cap := 3.0
 @export var trip_penalty_base := 40       # FAVOR lost on a trip at Low Baka...
 @export var trip_penalty_per_level := 20  # ...plus this for every level above it
+@export var idle_time := 5.0               # seconds running free before standing about costs FAVOR
+@export var idle_penalty := 200            # FAVOR lost each time idle_time runs out
 @export var mercy_trips := 2              # trips in a row at one level that lower it
 @export var ready_time := 0.6             # the READY beat before each vault
 @export var vault_span := 140.0           # how far the leap carries the mortal, centred on the Baka
@@ -159,6 +167,7 @@ var _pending_gain := 0.0
 var _bank_timer := 0.0
 var _ground_y := 0.0
 var _callout_time := 0.0
+var _idle_left := 5.0   # seconds of running free before the idle penalty
 var _frozen := false  # the God's Due menu or a dialogue is open over a vault
 var _ready_left := 0.0  # the READY beat still to run before the vault itself
 var _from_x := 0.0      # the leap: from the approach side...
@@ -264,12 +273,45 @@ func _tick_hanan(delta: float) -> void:
 		Vault.RUN:
 			if baka != null and not player.locked and player.global_position.distance_to(baka.global_position) <= vault_trigger_distance:
 				begin_vault()
+			else:
+				_tick_idle(delta)
 		Vault.VAULT:
 			_tick_vault(delta)
 		Vault.STUMBLE:
 			_state_timer -= delta
 			if _state_timer <= 0.0:
 				_enter_run()
+
+
+# --- IDLE --------------------------------------------------------------------
+
+# Running free (the clock only counts then): not locked for the countdown or the
+# GO drop, and no dialogue or God's Due menu open over the arena.
+func _idle_ticking() -> bool:
+	return _phase == Phase.PLAYING and _vault_state == Vault.RUN and not player.locked 		and not dialogue.is_active() and not due_menu.is_open()
+
+
+func _tick_idle(delta: float) -> void:
+	if not _idle_ticking():
+		return
+	_idle_left -= delta
+	if _idle_left > 0.0:
+		if _idle_left <= 2.0:
+			_set_callout("LEAP! %d..." % ceili(_idle_left), TRIP_COLOR, 0.25)
+		return
+	_idle_left = idle_time
+	var lost := mini(idle_penalty, local_favor())  # never below 0
+	if lost > 0:
+		score_favor(-lost, "Idle at the Baka")
+		_set_callout("-%d IDLE" % lost, TRIP_COLOR, 1.0)
+
+
+# The countdown in the effect timers once the penalty is under 3 s away.
+func arena_local_effects() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if _idle_ticking() and _idle_left < 3.0:
+		out.append(effect(&"idle", "IDLE", null, TRIP_COLOR, _idle_left, 3.0, true))
+	return out
 
 
 # --- THE BLITZ ---------------------------------------------------------------
@@ -315,6 +357,7 @@ func _input(event: InputEvent) -> void:
 # the approach side after a trip. (The base puts it on its spawn each round.)
 func _enter_run(unlock := true) -> void:
 	_vault_state = Vault.RUN
+	_idle_left = idle_time
 	if unlock:
 		player.set_lock(false)
 	_show_baka_height()
@@ -324,6 +367,7 @@ func _enter_run(unlock := true) -> void:
 # and opens with the READY beat - the bar up, the indicator held in the box.
 func begin_vault() -> void:
 	_vault_state = Vault.VAULT
+	_idle_left = idle_time
 	_blitz_vault = _blitz
 	_vault_total = vault_window + (baka_blitz_extra_time if _blitz_vault else 0.0)
 	_vault_left = _vault_total

@@ -82,7 +82,7 @@ func _run() -> void:
 		_arena._move_slippers(0.02)
 		if _arena._modes.get(_arena._my_id) == "ready":
 			break
-	_check(_arena.rules.local().favor == 300, "hitting a can grants 300 FAVOR")
+	_check(_arena.rules.local().favor == _arena.can_favor, "hitting a can grants can_favor (%d) FAVOR" % _arena.can_favor)
 	_check(_arena._modes.get(_arena._my_id) == "ready", "a can hit returns the player to ready state")
 
 	_arena.rules.local().favor = 500

@@ -21,6 +21,8 @@ extends Node2D
 #
 # Art lives in MayariClone.tscn (Path, Icon, Name); this script never draws.
 
+const FACE_MIN_STEP := 0.5  # px per frame she must move sideways before she turns
+
 @export var speed := 165.0   # how fast the clone walks its path (units/second)
 @export var radius := 18.0   # how near the mortal may come before it counts as a touch
 
@@ -48,6 +50,8 @@ var _hunting := false
 var _hunt_left := 0.0
 var _hunt_timer := 0.0
 var _blocks := 0  # how many mortals she has braced against - clients replay each
+var _last_pos := Vector2.INF   # where she stood last frame - her facing follows the change
+var _last_vertical := 0        # which way she last moved on a purely vertical stretch
 
 @onready var path: Line2D = get_node_or_null("Path")
 @onready var icon: AnimatedSprite2D = get_node_or_null("Icon")
@@ -155,6 +159,8 @@ func restart() -> void:
 	_distance = _start_distance
 	_direction = 1.0
 	global_position = point_at(_distance)
+	_last_pos = Vector2.INF  # the jump back is not a walk
+	_last_vertical = 0
 
 
 func set_moving(enabled: bool) -> void:
@@ -281,7 +287,28 @@ func _pin_path() -> void:
 		path.global_position = _path_origin
 
 
+# Her art faces right. She turns to face the way she WALKS, read from the position
+# change so it works on a client too (the host drives it there). A vertical line has
+# no left or right, so she turns round each time she reverses on it. Tiny moves
+# (and standing still, or blocking) keep the last facing.
+func _face_movement() -> void:
+	if icon == null:
+		return
+	if _last_pos != Vector2.INF:
+		var step := global_position - _last_pos
+		if absf(step.x) > FACE_MIN_STEP:
+			icon.flip_h = step.x < 0.0
+			_last_vertical = 0
+		elif absf(step.y) > FACE_MIN_STEP:
+			var vertical := 1 if step.y > 0.0 else -1
+			if _last_vertical != 0 and vertical != _last_vertical:
+				icon.flip_h = not icon.flip_h
+			_last_vertical = vertical
+	_last_pos = global_position
+
+
 func _refresh_visual() -> void:
+	_face_movement()
 	# THE SPRITE IS NEVER MODULATED: no colour wash and no breathing alpha - the
 	# glow is gone and Mayari's art is drawn exactly as it is authored. What is
 	# left of the tell is the path line, which burns brighter and pulses faster
