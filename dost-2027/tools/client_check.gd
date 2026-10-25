@@ -10,6 +10,15 @@ var _client
 var _view: SubViewport
 
 
+# Records the world tick instead of sending it, so the host's own words can be read.
+class NetStub extends Node:
+	var last: Dictionary = {}
+	var mortal_positions: Dictionary = {}
+
+	func publish_arena_state(state: Dictionary) -> void:
+		last = state
+
+
 func _initialize() -> void:
 	_run()
 
@@ -65,6 +74,24 @@ func _run() -> void:
 	var god_snapshot: Dictionary = _host.rules.snapshot()
 	print("layout keys=%s zones=%d | snapshot mortals=%s" % [
 		str(layout.keys()), layout["zones"].size(), str(god_snapshot.keys())])
+
+	print("=== THE HOST'S GOD'S DUE STAYS ON THE HOST'S SCREEN ===")
+	var old_net: Node = _host._net
+	var stub := NetStub.new()
+	_host.add_child(stub)
+	_host._net = stub
+	_host._on_due_earned(_host._my_id, 0, 1000)
+	_host._publish_arena_tick()
+	print("host due banner='%s' -> tick banner='%s' event='%s'" % [
+		_host.hud.banner_label.text, str(stub.last.get("banner", "")), str(stub.last.get("event", ""))])
+	if str(stub.last.get("banner", "")) != "" or str(stub.last.get("event", "")) != "":
+		printerr("client_check: the host's God's Due notice must not ride the tick to a client")
+	_host._show_banner("GO!", Arena.FAVOR_COLOR, 2.0)
+	_host._publish_arena_tick()
+	if str(stub.last.get("banner", "")) != "GO!":
+		printerr("client_check: every other banner must still travel (%s)" % str(stub.last.get("banner", "")))
+	_host._net = old_net
+	stub.queue_free()
 
 	print("=== CLIENT SIDE (mirror) ===")
 	_client = load("res://scenes/gods/mayari/MayariArena.tscn").instantiate()

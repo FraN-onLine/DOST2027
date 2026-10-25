@@ -3,9 +3,9 @@ extends SceneTree
 # Regression check for Hanan's seven favors, edge cases included:
 #   The Dawn (0 dues), An Even Playing Field (holder on top, ties, loss modifiers),
 #   First Light (last place, everyone tied), Bagong Umaga (only what was really
-#   lost, Full Moon cannot inflate it), Break of Day (leader / second place / ties,
-#   and a client accepting the cooldown going UP), Morning Chases the Night
-#   (eligibility and the 0.5s cap) and The Three Sisters (eligibility and bonus).
+#   lost, Full Moon cannot inflate it), Rest and Refreshed (every other mortal
+#   drowsy for 3s, then 0.8s stunned), Morning Chases the Night (eligibility and
+#   the 0.5s cap) and The Three Sisters (eligibility and bonus).
 # Run: godot --headless --path <project> -s res://tools/hanan_favor_check.gd
 
 var _arena: HananArena
@@ -51,11 +51,11 @@ func _run() -> void:
 	var even := _favor("even_playing_field")
 	var light := _favor("first_light")
 	var umaga := _favor("bagong_umaga")
-	var day := _favor("break_of_day")
+	var rest := _favor("rest_and_refreshed")
 	var chase := _favor("morning_chases_the_night")
 	var sisters := _favor("the_three_sisters")
 	_check(umaga.slot == GodFavor.Slot.Q and is_equal_approx(umaga.cooldown, 35.0), "Bagong Umaga is a 35s Q")
-	_check(day.slot == GodFavor.Slot.E and is_equal_approx(day.cooldown, 30.0), "Break of Day is a 30s E")
+	_check(rest.slot == GodFavor.Slot.E and is_equal_approx(rest.cooldown, 30.0), "Rest and Refreshed is a 30s E")
 
 	# --- The Dawn --------------------------------------------------------------------
 	_setup(0, 0, 0)
@@ -139,62 +139,44 @@ func _run() -> void:
 	_arena._apply_skill_effect(umaga, 1)
 	_check(_rules.mortal(1).favor == 1000, "the Q skill, run through the arena, gives the FAVOR back")
 
-	# --- Break of Day ------------------------------------------------------------------
+	# --- Rest and Refreshed ------------------------------------------------------------
 	_setup(500, 2000, 100)
 	_give_skills(2)
 	_rules.mortal(2).durations[&"siblings_compromise"] = 3.0
 	_rules.mortal(2).cooldowns[&"half_vision"] = 0.0
-	_rules.mortal(2).cooldowns[&"siblings_compromise"] = 0.0
-	_check(_rules.break_of_day(1) == 2, "Break of Day hits the leading mortal")
-	_check(_rules.mortal(2).durations.is_empty(), "every active favor duration on them ends")
-	_check(is_equal_approx(_rules.mortal(2).cooldown_left(&"half_vision"), 25.0)
-		and is_equal_approx(_rules.mortal(2).cooldown_left(&"siblings_compromise"), 30.0), "their E and Q restart at a full cooldown")
-	_setup(3000, 2000, 100)
-	_check(_rules.break_of_day(1) == 2, "when the caster leads, second place is hit")
-	_setup(1000, 1000, 100)
-	_check(_rules.break_of_day(1) == 2, "tied at the top with the caster, the other leader is hit")
-	_setup(500, 1000, 1000)
-	var seen := {}
-	for attempt in range(40):
-		seen[_rules.break_of_day(1)] = true
-	_check(seen.size() == 2 and seen.has(2) and seen.has(3) and not seen.has(1), "tied leaders are picked at random, never the caster")
+	_check(_rules.cast_rest_and_refreshed(1, rest) == 2, "Rest and Refreshed reaches every other mortal")
+	_check(is_equal_approx(_rules.mortal(2).drowsy_time, 3.0) and is_equal_approx(_rules.mortal(3).drowsy_time, 3.0),
+		"the other mortals grow drowsy for 3s")
+	_check(_rules.mortal(1).drowsy_time == 0.0 and _rules.mortal(1).drowsy_stun == 0.0, "the caster is untouched")
+	_check(_rules.mortal(2).durations.size() == 1 and is_equal_approx(_rules.mortal(2).cooldown_left(&"half_vision"), 0.0),
+		"their own running skills and cooldowns are left alone")
+	_rules._tick_afflictions(_rules.mortal(2), 2.9)
+	_check(_rules.mortal(2).stun_time == 0.0, "no stun while the drowsiness still runs")
+	_rules._tick_afflictions(_rules.mortal(2), 0.2)
+	_check(_rules.mortal(2).drowsy_time == 0.0 and is_equal_approx(_rules.mortal(2).stun_time, 0.8), "...then 0.8s of stun")
+	_rules._tick_afflictions(_rules.mortal(2), 0.9)
+	_check(_rules.mortal(2).stun_time == 0.0, "...and the stun runs out")
+	_setup(500, 2000, 100)
 	_rules.mortals.erase(2)
 	_rules.mortals.erase(3)
-	_check(_rules.break_of_day(1) == -1, "alone, Break of Day has nobody to reach")
-	# Break of Day also ends the effects of the target's casts that live in the
-	# arena: Apolaki's Sibling's Compromise (doubled loss + a sun patch on every
-	# other mortal) and Tala's Let Us Light Your Way (everyone pulled to them).
-	_setup(500, 2000, 100)
-	_arena._double_loss.clear()
-	_arena._double_loss_source.clear()
-	_arena._sun_patches.clear()
-	_arena._sun_patch_sources.clear()
-	_arena._apply_skill_effect(Gods.favor_by_id(&"siblings_compromise_sun"), 2)
-	_arena._apply_skill_effect(Gods.favor_by_id(&"let_us_light_your_way"), 2)
-	_arena._add_sun_patches(3, 1, 5.0)  # a patch somebody else put there
-	_check(_arena._double_loss.has(1) and _arena._double_loss.has(3), "(Compromise doubles the losses of mortals 1 and 3)")
-	_check(_patch_count(1) == 1 and _patch_count(3) == 2, "(...and puts a patch on each of them)")
-	_check(_arena._movement_override_caster == 2 and _arena._movement_override_time > 0.0, "(Light Your Way pulls everyone to mortal 2)")
-	_arena._apply_skill_effect(day, 1)
-	_check(not _arena._double_loss.has(1) and not _arena._double_loss.has(3), "Break of Day ends the doubled loss on their victims")
-	_check(_patch_count(1) == 0 and _patch_count(3) == 1, "it removes the patches they added, and only those")
-	_check(_arena.active_sun_patches() == 0, "the patch on our own screen comes down")
-	_check(_arena._movement_override_time == 0.0, "it ends their Light Your Way pull")
-	_arena._start_movement_override(5, 1.0)
-	_arena._on_movement_override_received(5, 0.0)
-	_check(_arena._movement_override_time == 0.0, "a 0-second override from the host means stop now")
-
-	# a client has to accept the cooldown going UP
-	_setup(500, 2000, 100)
-	_give_skills(2)
+	_check(_rules.cast_rest_and_refreshed(1, rest) == 0, "alone, Rest and Refreshed has nobody to reach")
+	# The E, cast through the arena (the real flow: use_skill, then the effect).
+	_setup(0, 0, 0)
+	_rules.bestow_favor(rest, 1)
+	_rules.use_skill(GodFavor.Slot.E)
+	_arena._apply_skill_effect(rest, 1)
+	_check(is_equal_approx(_rules.mortal(2).drowsy_time, 3.0) and is_equal_approx(_rules.mortal(3).drowsy_time, 3.0),
+		"the E, run through the arena, drowses the rivals")
+	# a client sees the afflictions in the host's snapshot
+	_setup(0, 0, 0)
+	_rules.cast_rest_and_refreshed(1, rest)
 	var client := GodMatch.new()
 	client.setup_peers(Gods.hanan(), {1: "ME", 2: "RIVAL", 3: "RIVAL TWO"}, 1)
 	root.add_child(client)
 	client.apply_snapshot(_rules.snapshot())
-	_check(is_equal_approx(client.mortal(2).cooldown_left(&"half_vision"), 0.0), "(a client starts with no cooldown on them)")
-	_rules.break_of_day(1)
-	client.apply_snapshot(_rules.snapshot())
-	_check(is_equal_approx(client.mortal(2).cooldown_left(&"half_vision"), 25.0), "a client accepts a cooldown that jumped UP")
+	_check(is_equal_approx(client.mortal(2).drowsy_time, 3.0) and is_equal_approx(client.mortal(2).drowsy_stun, 0.8),
+		"a client sees the drowsiness, and the stun it ends in")
+	_check(is_equal_approx(client.mortal(2).stun_time, 0.0), "...with no stun until it does")
 	client.queue_free()
 
 	# --- Morning Chases the Night ------------------------------------------------------------
@@ -237,10 +219,6 @@ func _run() -> void:
 	print("Hanan favor checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
 	quit(1 if _problems > 0 else 0)
-
-
-func _patch_count(player_id: int) -> int:
-	return (_arena._sun_patches.get(player_id, []) as Array).size()
 
 
 func _favor(id: String) -> GodFavor:

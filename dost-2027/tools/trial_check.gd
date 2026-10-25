@@ -354,7 +354,7 @@ func _run() -> void:
 	print("gain popups: immediate '%s' | gathered '%s' | light yellow=%s" % [
 		big_text, gathered_text, str(Arena.POPUP_GAIN_COLOR)])
 	if not big_text.begins_with("+"):
-		printerr("trial_check: a big gain must pop at once as '+N' (with the FAVOR coin)")
+		printerr("trial_check: a big gain must pop at once as '+N FAVOR'")
 	if gathered_text == big_text:
 		printerr("trial_check: a small gain must be gathered and popped on the flush")
 	print("--- DONE ---")

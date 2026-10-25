@@ -4,10 +4,11 @@ extends SceneTree
 #   Binhi (grows over three trials, carried between trials), Panahon ng Anihan
 #   (inside / outside the window, never on payouts), Kabiyak (closest pairing, the
 #   10% share, two mortals paired with each other, Full Moon, re-pairing after a
-#   leave), Tagtuyot (targeting, 5 bites, the 400 cap, Waning Moon), Ligaw na Damo
-#   (the siphon, Full Moon on the target, the latest caster wins, it runs out),
-#   Unang Ulan (only losses in the rain regrow, 125% after 5s) and Kamalig (not a
-#   loss for anyone, hides you from "most FAVOR", interest, no second God's Due).
+#   leave), Down to Homeland (every other mortal rooted for 3s, the caster
+#   untouched, released at 3s), Ligaw na Damo (the siphon, Full Moon on the
+#   target, the latest caster wins, it runs out), Unang Ulan (only losses in the
+#   rain regrow, 125% after 5s) and Kamalig (not a loss for anyone, hides you from
+#   "most FAVOR", interest, no second God's Due).
 # The favors travel to every trial, so this runs them in Mayari's arena.
 # Run: godot --headless --path <project> -s res://tools/mapulon_ikapati_favor_check.gd
 
@@ -53,18 +54,18 @@ func _run() -> void:
 	var binhi := _favor("binhi")
 	var panahon := _favor("panahon_ng_anihan")
 	var kabiyak := _favor("kabiyak")
-	var tagtuyot := _favor("tagtuyot")
+	var down := _favor("down_to_homeland")
 	var damo := _favor("ligaw_na_damo")
 	var ulan := _favor("unang_ulan")
 	var kamalig := _favor("kamalig")
-	_check(tagtuyot.slot == GodFavor.Slot.E and damo.slot == GodFavor.Slot.E, "two E skills: Tagtuyot and Ligaw na Damo")
+	_check(down.slot == GodFavor.Slot.E and damo.slot == GodFavor.Slot.E, "two E skills: Down to Homeland and Ligaw na Damo")
 	_check(ulan.slot == GodFavor.Slot.Q and kamalig.slot == GodFavor.Slot.Q, "two Q skills: Unang Ulan and Kamalig")
 	_check(binhi.kind == GodFavor.Kind.PASSIVE and panahon.kind == GodFavor.Kind.PASSIVE and kabiyak.kind == GodFavor.Kind.INSTANT,
 		"Binhi and Panahon are passive, Kabiyak fires on grant")
 	_setup(0, 0, 0)
-	_rules.bestow_favor(tagtuyot)
+	_rules.bestow_favor(down)
 	_rules.bestow_favor(damo)
-	_check(not _rules.mortal(1).has_favor(&"tagtuyot") and _rules.mortal(1).favor_in_slot(GodFavor.Slot.E) == damo, "a mortal holds one E: the new one replaces the old")
+	_check(not _rules.mortal(1).has_favor(&"down_to_homeland") and _rules.mortal(1).favor_in_slot(GodFavor.Slot.E) == damo, "a mortal holds one E: the new one replaces the old")
 
 	# --- Binhi ----------------------------------------------------------------------------
 	_setup(0, 0, 0)
@@ -148,34 +149,33 @@ func _run() -> void:
 	_check(client.mortal(1).kabiyak == 3, "the pairing travels in the snapshot")
 	client.queue_free()
 
-	# --- Tagtuyot ------------------------------------------------------------------------------
+	# --- Down to Homeland ----------------------------------------------------------------------
 	_setup(500, 1000, 100)
-	_check(_rules.cast_tagtuyot(1, tagtuyot) == 2, "Tagtuyot withers the leader")
-	_advance(0.75)
-	_check(_rules.mortal(2).favor == 1000, "no bite before the first second")
-	_advance(0.25)
-	_check(_rules.mortal(2).favor == 970, "3% a second (1000 -> 970)")
-	_advance(5.0)
-	_check(_rules.mortal(2).favor == 1000 - 30 - 29 - 28 - 27 - 26, "five bites in 5s, then it stops (%d)" % _rules.mortal(2).favor)
-	_setup(3000, 1000, 100)
-	_check(_rules.cast_tagtuyot(1, tagtuyot) == 2, "when the caster leads, second place withers")
-	_setup(500, 20000, 100)
-	_rules.cast_tagtuyot(1, tagtuyot)
-	_advance(6.0)
-	_check(_rules.mortal(2).favor == 19600 and _rules.mortal(2).drought_total == 400, "never more than 400 in all (%d)" % _rules.mortal(2).favor)
-	_setup(500, 10000, 100)
-	_rules.mortal(2).favors.append(Gods.favor_by_id(&"waning_moon"))
-	_rules.cast_tagtuyot(1, tagtuyot)
-	_advance(1.0)
-	_check(_rules.mortal(2).favor == 9850, "Waning Moon halves each bite (300 -> 150)")
-	_advance(5.0)
-	var taken: int = 10000 - _rules.mortal(2).favor
-	_check(taken == _rules.mortal(2).drought_total and taken < 400, "...and the cap counts what was really lost (%d of 400)" % taken)
+	_check(_rules.cast_down_to_homeland(1, down) == 2, "Down to Homeland roots every other mortal")
+	_check(is_equal_approx(_rules.mortal(2).rooted_time, 3.0) and is_equal_approx(_rules.mortal(3).rooted_time, 3.0),
+		"the others are rooted for 3s")
+	_check(_rules.mortal(1).rooted_time == 0.0, "the caster is not rooted")
+	_advance(2.75)
+	_check(_rules.mortal(2).rooted_time > 0.0, "the root still holds just before 3s")
+	_advance(0.5)
+	_check(_rules.mortal(2).rooted_time == 0.0 and _rules.mortal(3).rooted_time == 0.0, "...and lets go at 3s")
 	_setup(500, 1000, 100)
-	_rules.bestow_favor(tagtuyot)
+	_rules.mortals.erase(2)
+	_rules.mortals.erase(3)
+	_check(_rules.cast_down_to_homeland(1, down) == 0, "alone, Down to Homeland has nobody to reach")
+	_setup(500, 1000, 100)
+	_rules.bestow_favor(down)
 	_rules.use_skill(GodFavor.Slot.E)
-	_arena._apply_skill_effect(tagtuyot, 1)
-	_check(_rules.mortal(2).drought_time > 0.0, "the E skill, run through the arena, starts the drought")
+	_arena._apply_skill_effect(down, 1)
+	_check(_rules.mortal(2).rooted_time > 0.0, "the E skill, run through the arena, roots the rivals")
+	var root_client := GodMatch.new()
+	root_client.setup_peers(pair, {1: "ME", 2: "RIVAL", 3: "RIVAL TWO"}, 1)
+	root.add_child(root_client)
+	root_client.apply_snapshot(_rules.snapshot())
+	_check(is_equal_approx(root_client.mortal(2).rooted_time, 3.0), "the root travels in the snapshot")
+	root_client.queue_free()
+	_rules.end_trial()
+	_check(_rules.mortal(2).rooted_time == 0.0, "the trial ending lifts the root")
 
 	# --- Ligaw na Damo ---------------------------------------------------------------------------
 	_setup(0, 0, 0)
@@ -256,20 +256,6 @@ func _run() -> void:
 	_check(_rules.mortal(1).due == 0, "coming back past an old milestone hands out no second God's Due")
 	_setup(4000, 0, 0)
 	_check(_rules.store_in_granary(1, kamalig) == 400 and _rules.mortal(1).favor == 3600, "at most 400 is stored")
-
-	# --- Break of Day ends their casts -------------------------------------------------------------------
-	_setup(500, 2000, 100)
-	_rules.cast_tagtuyot(2, tagtuyot)
-	_rules.cast_ligaw_na_damo(2, damo)
-	_rules.mortal(2).favors.append(ulan)
-	_rules.mortal(2).durations[&"unang_ulan"] = 4.0
-	_rules.mortal(2).rain_lost = 60
-	_check(_rules.mortal(1).drought_time > 0.0 and _rules.mortal(3).weeds_time > 0.0, "(mortal 2 sends a drought and weeds)")
-	_check(_rules.break_of_day(1) == 2, "(Break of Day hits mortal 2)")
-	_check(_rules.mortal(1).drought_time == 0.0 and _rules.mortal(1).weeds_time == 0.0 and _rules.mortal(3).weeds_time == 0.0,
-		"Break of Day ends the drought and the weeds its target cast")
-	_advance(10.0)
-	_check(_rules.mortal(2).favor == 2000, "and the rain they stood in: nothing regrows")
 
 	print("Mapulon & Ikapati favor checks: %d problem(s)" % _problems)
 	print("--- DONE ---")

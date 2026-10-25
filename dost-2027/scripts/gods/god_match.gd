@@ -66,11 +66,14 @@ class Mortal:
 	var weeds_time: float = 0.0        # Ligaw na Damo on this mortal: seconds left
 	var weeds_caster: int = -1
 	var weeds_pending: float = 0.0
-	var drought_time: float = 0.0      # Tagtuyot on this mortal: seconds left
-	var drought_caster: int = -1
-	var drought_total: int = 0         # FAVOR it has taken so far (capped)
-	var drought_tick: float = 0.0      # seconds to the next once-a-second bite
 	var rain_lost: int = 0             # Unang Ulan: FAVOR lost while the rain falls
+	# The E skills that reach every other mortal (see THE AFFLICTIONS below):
+	var drowsy_time: float = 0.0       # Rest and Refreshed: seconds of drowsiness left
+	var drowsy_caster: int = -1
+	var drowsy_stun: float = 0.0       # seconds of stun once the drowsiness ends
+	var rooted_time: float = 0.0       # Down to Homeland: seconds of root left
+	var rooted_caster: int = -1
+	var stun_time: float = 0.0         # an affliction's stun still to sit through
 	var regrowths: Array = []          # [seconds left, amount] waiting to grow back
 	var granary: int = 0               # Kamalig: FAVOR stored, out of the total
 	# Bathala's sacrifices (see the BATHALA'S FAVORS section below):
@@ -119,7 +122,8 @@ var trial_active: bool = false
 # a standalone arena keeps the default.
 var milestone_step: int = MILESTONE_STEP
 # False on a client: it mirrors the host and must never run a rule that changes
-# FAVOR on its own (Tagtuyot's bites, Unang Ulan's regrowth).
+# FAVOR on its own (Unang Ulan's regrowth) or a clock the host keeps (the
+# afflictions' timers).
 var authority := true
 # A client learns of a new skill only through the host's snapshots, which also carry the
 # favors a mortal already had when the trial began. The shell switches this on once the
@@ -224,8 +228,8 @@ func add_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 
 
 # A DRAIN is a loss that ticks a little at a time (the Taya's once-a-second drain
-# in Langit Lupa, Tagtuyot's bites): The Agimat lets those through, or three
-# seconds of one would burn all of its charges. The Manunggul Jar still counts them.
+# in Langit Lupa): The Agimat lets those through, or three seconds of one would
+# burn all of its charges. The Manunggul Jar still counts them.
 func lose_favor(amount: int, reason: String = "", player_id: int = -1, drain := false) -> int:
 	var m := _resolve(player_id)
 	if m == null or amount <= 0:
@@ -680,28 +684,18 @@ func restore_recent_losses(player_id: int, lookback: float) -> int:
 	return total
 
 
-# Break of Day: the best other mortal (the leader, or second place when the caster
-# leads; ties random) loses every running favor effect and has E and Q start over
-# at a full cooldown. Returns that mortal's id, or -1 when nobody else is playing.
-func break_of_day(caster_id: int) -> int:
-	var target := _highest_other(caster_id)
-	if target == null:
-		return -1
-	target.durations.clear()
-	target.loss_immunity = 0.0
-	# Their Mapulon & Ikapati casts end too: the drought and the weeds they sent,
-	# and the rain they were standing in (what it watered does not grow back).
-	target.rain_lost = 0
+# Rest and Refreshed: every other mortal grows drowsy for the favor's window and
+# then sits stunned. Returns how many mortals it reached.
+func cast_rest_and_refreshed(caster_id: int, favor: GodFavor) -> int:
+	var reached := 0
 	for m in mortals.values():
-		if m.drought_caster == target.id:
-			m.drought_time = 0.0
-		if m.weeds_caster == target.id:
-			m.weeds_time = 0.0
-	for slot in [GodFavor.Slot.E, GodFavor.Slot.Q]:
-		var skill := target.favor_in_slot(slot)
-		if skill != null and skill.cooldown > 0.0:
-			target.cooldowns[skill.id] = skill_cooldown(slot, target.id)
-	return target.id
+		if m.id == caster_id:
+			continue
+		m.drowsy_time = maxf(m.drowsy_time, favor.param("drowsy_time", 3.0))
+		m.drowsy_caster = caster_id
+		m.drowsy_stun = maxf(m.drowsy_stun, favor.param("stun_time", 0.8))
+		reached += 1
+	return reached
 
 
 # --- MAPULON & IKAPATI'S FAVORS (the Harvest Pair) ------------------------------
@@ -741,16 +735,18 @@ func _share_with_kabiyak(m: Mortal, gained: int) -> void:
 			_apply(holder, paid, "Kabiyak")
 
 
-# Tagtuyot: the leader (second place when the caster leads; same targeting as
-# Break of Day) withers for the favor's duration. Returns the target's id or -1.
-func cast_tagtuyot(caster_id: int, favor: GodFavor) -> int:
-	var target := _highest_other(caster_id)
-	if target == null:
-		return -1
-	target.drought_time = maxf(0.0, favor.duration)
-	target.drought_caster = caster_id
-	target.drought_total = 0
-	return target.id
+# Down to Homeland: root every other mortal for the favor's window. The arena
+# draws the dark shadow each one is tethered to and drags them back when the
+# root ends. Returns how many mortals it reached.
+func cast_down_to_homeland(caster_id: int, favor: GodFavor) -> int:
+	var reached := 0
+	for m in mortals.values():
+		if m.id == caster_id:
+			continue
+		m.rooted_time = maxf(m.rooted_time, favor.param("root_time", 3.0))
+		m.rooted_caster = caster_id
+		reached += 1
+	return reached
 
 
 # Ligaw na Damo: weeds in every other mortal's field (the latest caster wins).
@@ -779,16 +775,6 @@ func store_in_granary(player_id: int, favor: GodFavor) -> int:
 
 func _tick_harvest(m: Mortal, delta: float) -> void:
 	m.weeds_time = maxf(0.0, m.weeds_time - delta)
-	if m.drought_time > 0.0:
-		# One bite each time the clock crosses a whole second: 5s = 5 bites.
-		var before := ceilf(m.drought_time)
-		m.drought_time = maxf(0.0, m.drought_time - delta)
-		var drought: GodFavor = Gods.favor_by_id(&"tagtuyot")
-		if authority and ceilf(m.drought_time) < before and drought != null:
-			var room := int(drought.param("max_total", 400.0)) - m.drought_total
-			var bite := mini(int(float(m.favor) * drought.param("percent_per_second", 0.03)), room)
-			if bite > 0:
-				m.drought_total += lose_favor(bite, "Tagtuyot", m.id, true)  # a drain
 	if not authority:
 		return
 	for index in range(m.regrowths.size() - 1, -1, -1):
@@ -829,7 +815,6 @@ func _settle_harvest(m: Mortal) -> int:
 		_apply(m, grown, "Binhi")
 		favor_fired.emit(m.id, binhi, "Binhi - %s's seed grows: +%d FAVOR" % [m.display_name, grown])
 		bonus += grown
-	m.drought_time = 0.0
 	m.weeds_time = 0.0
 	return bonus
 
@@ -921,11 +906,16 @@ func snapshot() -> Dictionary:
 			"jar_lost": m.jar_lost,
 			"kampilan": m.kampilan_ready,
 			"surigao": m.surigao_early,
-			# The Harvest Pair's timers on this mortal, so its own screen can show them.
+			# What is running on this mortal, so its own screen can show it: the
+			# Harvest Pair's weeds and the E skills' afflictions.
 			"weeds": m.weeds_time,
 			"weeds_caster": m.weeds_caster,
-			"drought": m.drought_time,
-			"drought_caster": m.drought_caster,
+			"drowsy": m.drowsy_time,
+			"drowsy_caster": m.drowsy_caster,
+			"drowsy_stun": m.drowsy_stun,
+			"rooted": m.rooted_time,
+			"rooted_caster": m.rooted_caster,
+			"stun": m.stun_time,
 			}
 	return out
 
@@ -963,8 +953,12 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.surigao_early = int(entry.get("surigao", m.surigao_early))
 		m.weeds_time = float(entry.get("weeds", 0.0))
 		m.weeds_caster = int(entry.get("weeds_caster", m.weeds_caster))
-		m.drought_time = float(entry.get("drought", 0.0))
-		m.drought_caster = int(entry.get("drought_caster", m.drought_caster))
+		m.drowsy_time = float(entry.get("drowsy", 0.0))
+		m.drowsy_caster = int(entry.get("drowsy_caster", m.drowsy_caster))
+		m.drowsy_stun = float(entry.get("drowsy_stun", m.drowsy_stun))
+		m.rooted_time = float(entry.get("rooted", 0.0))
+		m.rooted_caster = int(entry.get("rooted_caster", m.rooted_caster))
+		m.stun_time = float(entry.get("stun", 0.0))
 		# A drop that came with a new Pamana was a purchase, not a loss.
 		var bought := (m.pamana_next != previous_next and m.pamana_next != &"") \
 			or (m.surigao_early > 0 and previous_surigao <= 0)
@@ -1110,13 +1104,28 @@ func _tick_mortal(m: Mortal, delta: float) -> void:
 				skill_recharged.emit(m.id, favor)
 	for favor_id in m.durations.keys():
 		m.durations[favor_id] = maxf(0.0, float(m.durations[favor_id]) - delta)
-	# Only a running trial ticks the per-second rules (the Harvest Pair's drought,
-	# weeds and regrowth) and a Pamana's window: the preparation area between two
+	if authority:
+		_tick_afflictions(m, delta)
+	# Only a running trial ticks the per-second rules (the Harvest Pair's weeds
+	# and regrowth) and a Pamana's window: the preparation area between two
 	# trials keeps trial_active false, so nothing there pays or takes FAVOR.
 	if trial_active:
 		m.pamana_window = maxf(0.0, m.pamana_window - delta)
 		_tick_harvest(m, delta)
 	_tick_bathala_regrowth(m, delta)
+
+
+# The E skills' clocks. The host runs them and a client mirrors the numbers in
+# the snapshot; a drowsiness that runs out ends in a stun.
+func _tick_afflictions(m: Mortal, delta: float) -> void:
+	m.stun_time = maxf(0.0, m.stun_time - delta)
+	m.rooted_time = maxf(0.0, m.rooted_time - delta)
+	if m.drowsy_time <= 0.0:
+		return
+	m.drowsy_time = maxf(0.0, m.drowsy_time - delta)
+	if m.drowsy_time <= 0.0 and m.drowsy_stun > 0.0:
+		m.stun_time = maxf(m.stun_time, m.drowsy_stun)
+		m.drowsy_stun = 0.0
 
 
 func _simulate_rivals(delta: float) -> void:
@@ -1142,6 +1151,11 @@ func end_trial() -> Dictionary:
 		# The Manunggul Jar gives back its share of what was lost, before Favorable
 		# Outcome judges the top: straight to the total, so Full Moon cannot inflate it.
 		harvest[m.id] = int(harvest[m.id]) + _settle_jar(m)
+		# What a cast left running does not follow them out of the trial.
+		m.drowsy_time = 0.0
+		m.drowsy_stun = 0.0
+		m.rooted_time = 0.0
+		m.stun_time = 0.0
 	var summary := {}
 	var top_id := top_player_id()
 	for m in mortals.values():

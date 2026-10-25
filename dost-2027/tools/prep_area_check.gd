@@ -68,8 +68,6 @@ func _run() -> void:
 	var me := rules.local()
 	for id in ["the_great", "panahon_ng_anihan", "binhi", "first_light", "full_moon"]:
 		me.favors.append(Gods.favor_by_id(StringName(id)))
-	me.drought_time = 5.0
-	me.drought_caster = 2
 	me.regrowths = [[1.0, 300]]
 	me.pamana_window = 10.0
 	var before := {}
@@ -81,9 +79,8 @@ func _run() -> void:
 	var still := true
 	for m in rules.mortals.values():
 		still = still and m.favor == int(before[m.id])
-	_check(still, "four seconds of rest move no FAVOR (no drought, regrowth, rival or ticker)")
+	_check(still, "four seconds of rest move no FAVOR (no regrowth, rival or ticker)")
 	_check(is_equal_approx(me.pamana_window, 10.0), "a Pamana window does not run in the rest")
-	me.drought_time = 0.0
 	me.regrowths = []
 	me.pamana_window = 0.0
 

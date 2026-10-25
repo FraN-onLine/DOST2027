@@ -335,6 +335,11 @@ var _bots: Dictionary = {}           # mortal id -> ArenaMortal
 var _bot_goal: Dictionary = {}       # id -> the Langit it runs for
 var _bot_react: Dictionary = {}      # id -> seconds before it leaves its Langit
 var _bot_dash: Dictionary = {}       # id -> dash cooldown left
+# Down to Homeland on the bots: where each one's shadow lies, its tether, and the
+# drag back once the root lets go (id -> {"to": Vector2, "left": seconds}).
+var _bot_root_shadow: Dictionary = {}
+var _bot_root_tether: Dictionary = {}
+var _bot_root_drag: Dictionary = {}
 var _bot_chant: Dictionary = {}      # the bot Taya's chant: {left, fail_at}
 var _callout_time := 0.0
 var _taya_tip_left := 0.0
@@ -438,6 +443,11 @@ func arena_round_reset() -> void:
 	_reset_god_chant()
 	for runners in [_swap, _closed, _shoving, _on, _last_left, _close_call, _streak, _bot_goal, _bot_react, _bot_chant]:
 		runners.clear()
+	for tether in _bot_root_tether.values():
+		_fade_root_tether(tether)
+	_bot_root_shadow.clear()
+	_bot_root_tether.clear()
+	_bot_root_drag.clear()
 	if _authority:
 		_place_langits()
 	for id in _bots.keys():
@@ -1522,18 +1532,68 @@ func _move_bots(delta: float) -> void:
 	var low := Vector2(maxf(_field.position.x, UI_STRIP_WIDTH), _field.position.y)
 	for id in _bots.keys():
 		var bot: ArenaMortal = _bots[id]
+		var mortal: GodMatch.Mortal = rules.mortal(int(id)) if rules != null else null
 		_bot_dash[id] = maxf(0.0, float(_bot_dash.get(id, 0.0)) - delta)
+		_watch_bot_root(int(id), bot, mortal)
 		var here := bot.global_position
-		var rooted := int(id) == _taya and (_chanting or _root_left > 0.0)
-		var step := Vector2.ZERO if rooted else _bot_heading(int(id), here, delta)
-		if step.length() > 0.01:
-			here += step.normalized() * bot_speed * (taya_speed_bonus if int(id) == _taya else 1.0) * delta
+		# A stunned bot sits through it, stars overhead; a rooted one is held where
+		# the tether's shadow keeps it.
+		var stunned := mortal != null and mortal.stun_time > 0.0
+		if stunned:
+			bot.show_stun(mortal.stun_time)
+		var held := stunned or (mortal != null and mortal.rooted_time > 0.0)
+		var dragging: Dictionary = _bot_root_drag.get(int(id), {})
+		if not dragging.is_empty():
+			var target: Vector2 = dragging["to"]
+			var step := bot_speed * delta
+			var to_target := target - here
+			if to_target.length() <= step or float(dragging["left"]) <= delta:
+				here = target
+				_bot_root_drag.erase(int(id))
+			else:
+				here += to_target.normalized() * step
+				dragging["left"] = float(dragging["left"]) - delta
+		elif not held:
+			var taya_held := int(id) == _taya and (_chanting or _root_left > 0.0)
+			var step := Vector2.ZERO if taya_held else _bot_heading(int(id), here, delta)
+			if step.length() > 0.01:
+				var speed := bot_speed * (taya_speed_bonus if int(id) == _taya else 1.0)
+				if mortal != null and mortal.drowsy_time > 0.0:
+					speed *= DROWSY_SPEED
+				here += step.normalized() * speed * delta
 		if int(id) == _taya:
 			here = _push_out(here)
 		here = here.clamp(low + Vector2.ONE * bot.radius, _field.end - Vector2.ONE * bot.radius)
 		bot.global_position = here
 		_mortal_positions[int(id)] = here
+		_update_bot_root(int(id), bot)
 	_tick_bot_chant(delta)
+
+
+# Down to Homeland on a bot: drop its shadow and tether the moment the root lands,
+# fade them when it lifts and start the drag back towards where the shadow lies.
+func _watch_bot_root(id: int, bot: ArenaMortal, mortal: GodMatch.Mortal) -> void:
+	var rooted := mortal != null and mortal.rooted_time > 0.0
+	var tether: Node2D = _bot_root_tether.get(id)
+	if rooted and tether == null:
+		var shadow := bot.global_position + Vector2(-bot.facing * ROOT_SHADOW_BACK, 0.0)
+		_bot_root_shadow[id] = shadow
+		_bot_root_drag.erase(id)
+		_bot_root_tether[id] = _make_root_tether(bot.global_position + Vector2(0.0, -6.0), shadow)
+	elif not rooted and tether != null:
+		_bot_root_tether.erase(id)
+		_fade_root_tether(tether)
+		if _phase == Phase.PLAYING and _bot_root_shadow.has(id):
+			_bot_root_drag[id] = {"to": _bot_root_shadow[id], "left": ROOT_DRAG_TIME}
+		_bot_root_shadow.erase(id)
+
+
+# The tether follows the bot if anything moves it while it is rooted.
+func _update_bot_root(id: int, bot: ArenaMortal) -> void:
+	var tether: Node2D = _bot_root_tether.get(id)
+	if tether == null or not is_instance_valid(tether) or not _bot_root_shadow.has(id):
+		return
+	_set_tether_points(tether, bot.global_position + Vector2(0.0, -6.0), _bot_root_shadow[id])
 
 
 func _bot_heading(id: int, here: Vector2, delta: float) -> Vector2:

@@ -59,17 +59,21 @@ params = {
 "lookback": 5.0
 }
 
-[sub_resource type="Resource" id="Favor_break_of_day"]
+[sub_resource type="Resource" id="Favor_rest_and_refreshed"]
 script = ExtResource("1_favor")
-id = &"break_of_day"
+id = &"rest_and_refreshed"
 god_id = &"hanan"
-display_name = "Break of Day"
-description = "E - the leading mortal (second place if you lead) loses every active favor effect and their E and Q start over on a full cooldown. Cooldown: 30s."
+display_name = "Rest and Refreshed"
+description = "E - every other mortal grows drowsy for 3s, then is stunned for 0.8s. Cooldown: 30s."
 slot = 1
 kind = 1
 cooldown = 30.0
 color = Color(1, 0.62, 0.55, 1)
 icon = ExtResource("2_xmiqn")
+params = {
+"drowsy_time": 3.0,
+"stun_time": 0.8
+}
 
 [sub_resource type="Resource" id="Favor_morning_chases_the_night"]
 script = ExtResource("1_favor")
@@ -109,7 +113,7 @@ game_name = "LUKSONG BAKA"
 game_blurb = "Run into Hanan's Baka and hold left click to leap over it - release and you fall. Keep your jump inside the glowing box while it drifts: a clean vault lands you on the other side and feeds your combo, then turn and vault back. Slip out of the box and you trip. Stand about for 5 seconds without leaping and you lose 200 FAVOR."
 arena_scene = "res://scenes/gods/hanan/HananArena.tscn"
 implemented = true
-favors = Array[ExtResource("1_favor")]([SubResource("Favor_the_dawn"), SubResource("Favor_even_playing_field"), SubResource("Favor_first_light"), SubResource("Favor_bagong_umaga"), SubResource("Favor_break_of_day"), SubResource("Favor_morning_chases_the_night"), SubResource("Favor_the_three_sisters")])
+favors = Array[ExtResource("1_favor")]([SubResource("Favor_the_dawn"), SubResource("Favor_even_playing_field"), SubResource("Favor_first_light"), SubResource("Favor_bagong_umaga"), SubResource("Favor_rest_and_refreshed"), SubResource("Favor_morning_chases_the_night"), SubResource("Favor_the_three_sisters")])
 portrait = ExtResource("3_ftwwg")
 intro_lines = Array[String](["Luksong Baka! A game of timing, courage, and knowing when to take the leap.", "The higher the jump, the harder the landing. So don't be afraid to stumble, little mortals. Every morning begins anew.", "Now, take a deep breath... and jump!"])
 trial_end_lines = Array[String](["Well done! Even when you stumbled, you found your footing again.", "Love can be much the same. Sometimes you leap without knowing where you'll land.", "And sometimes, the bravest thing you can do is begin again."])

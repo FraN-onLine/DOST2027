@@ -1,11 +1,11 @@
 class_name FavorPopup
 extends PanelContainer
 
-# One piece of floating game text in the house style: a small night-indigo pill
-# (85% opaque) with a 1 px border in the text's colour - JADE for a gain, EMBER for
-# a loss - holding the number at 16 px (24 px for a big moment) after the FAVOR
-# coin, and the reason, if any, on a second line at 8 px in muted ivory. The same
-# pill carries a trial's callouts ("TAYA!", "TRIP!") at 24 px without the coin.
+# One piece of floating game text in the house style: plain outlined text, no
+# frame - "+500 FAVOR" in JADE when FAVOR arrives, "-120 FAVOR" in EMBER when it
+# is taken, the reason (if any) on a second line at 8 px in muted ivory. The same
+# popup, at 24 px, carries a trial's callouts ("TAYA!", "TRIP!") and a god's E
+# icon (show_icon) - an icon row instead of a number.
 #
 # It lives in SCREEN space, on the arena's popup layer (above every field effect -
 # Mayari's blackout, Apolaki's sun patches, Hanan's bar - and below the bottom band).
@@ -18,8 +18,8 @@ extends PanelContainer
 # A loss gives a tiny sideways shake as it appears (not with reduce flashing).
 # Positions are whole pixels, so the pixel font stays crisp at the game's 2x.
 #
-# Arena.spawn_popup() / Arena.favor_popup() / Arena.callout() make them; nothing
-# else draws game text over a mortal.
+# Arena.spawn_popup() / Arena.favor_popup() / Arena.callout() / Arena.cast_popup()
+# make them; nothing else draws game text over a mortal.
 
 const POP_TIME := 0.12
 const HOLD_TIME := 0.7
@@ -30,9 +30,12 @@ const SHAKE_TIME := 0.18
 const SHAKE_PIXELS := 2.0
 const BIG := 24
 const NORMAL := 16
+const ICON := 36.0
+const OUTLINE := 6
+const REASON_OUTLINE := 4
 
 @onready var rows: VBoxContainer = $Rows
-@onready var coin: TextureRect = $Rows/Row/Coin
+@onready var icon: TextureRect = $Rows/Row/Icon
 @onready var number_label: Label = $Rows/Row/Number
 @onready var reason_label: Label = $Rows/Reason
 
@@ -40,7 +43,6 @@ var persistent := false   # a callout: holds until the arena lets it go (expire(
 var keep := false         # the arena's one callout pill: hidden when done, never freed
 var base_scale := 1.0     # a rival's popup: 0.75
 var base_alpha := 1.0     # ...and 75% opaque
-var _style := StyleBoxFlat.new()
 var _age := 0.0
 var _hold := HOLD_TIME
 var _going_at := -1.0     # the age the rise-and-fade began (-1: not yet)
@@ -52,30 +54,49 @@ var _anchor := Vector2.ZERO
 
 
 func _ready() -> void:
-	_style.bg_color = Color(UITokens.NIGHT_900, 0.85)
-	_style.set_border_width_all(1)
-	_style.content_margin_left = 6
-	_style.content_margin_right = 6
-	_style.content_margin_top = 2
-	_style.content_margin_bottom = 2
-	add_theme_stylebox_override("panel", _style)
+	# No frame: the text carries its own dark outline, so it reads over the field
+	# without a panel behind it.
+	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	number_label.add_theme_constant_override("outline_size", OUTLINE)
+	number_label.add_theme_color_override("font_outline_color", UITokens.NIGHT_900)
+	reason_label.add_theme_constant_override("outline_size", REASON_OUTLINE)
+	reason_label.add_theme_color_override("font_outline_color", UITokens.NIGHT_900)
 	modulate.a = 0.0  # placed (and shown) on its first frame
 
 
-# A FAVOR change: `number` ("+250", "-120"), `tint` (gain / loss), an optional
-# reason under it, the coin in front (`with_coin`), at 24 px when `big`. `calm`
-# is reduce flashing (no overshoot, no shake); a loss shakes as it appears.
-func show_text(number: String, tint: Color, reason := "", big := false, with_coin := true, calm := false, loss := false) -> void:
+# A FAVOR change: `number` ("+500 FAVOR"), `tint` (gain / loss), an optional
+# reason under it, at 24 px when `big`. `calm` is reduce flashing (no overshoot,
+# no shake); a loss shakes as it appears.
+func show_text(number: String, tint: Color, reason := "", big := false, calm := false, loss := false) -> void:
 	if not is_node_ready():
 		await ready
 	_calm = calm
 	_shake = loss and not calm
-	_paint(number, tint, reason, big, with_coin)
+	_paint(number, tint, reason, big)
 	_age = 0.0
 	_going_at = -1.0
 	_bump = 0.0
 	visible = true
-	number_label.visible = true
+	set_process(true)
+
+
+# A god's E icon over the mortal who cast it: the icon alone, no text.
+func show_icon(icon_texture: Texture2D, tint: Color, calm := false) -> void:
+	if not is_node_ready():
+		await ready
+	_calm = calm
+	_shake = false
+	number_label.visible = false
+	reason_label.visible = false
+	icon.texture = icon_texture
+	icon.modulate = tint
+	icon.custom_minimum_size = Vector2.ONE * ICON
+	icon.visible = true
+	_age = 0.0
+	_going_at = -1.0
+	_bump = 0.0
+	visible = true
+	reset_size()
 	set_process(true)
 
 
@@ -85,23 +106,16 @@ func hide_now() -> void:
 		await ready
 	visible = false
 	number_label.visible = false
+	icon.visible = false
 	persistent = false
 	_going_at = -1.0
 	set_process(false)
 
 
-# The old entry point (Arena.spawn_popup): a plain word or number, no coin.
-func show_favor(text: String, tint: Color, icon_texture: Texture2D = null) -> void:
-	show_text(text, tint, "", false, false)
-	if icon_texture != null:
-		coin.texture = icon_texture
-		coin.visible = true
-
-
 # A second change merged into this popup (Arena.favor_popup): the new total and a
 # small bump, so the eye catches that the number moved. The clock starts over.
 func relabel(number: String, tint: Color) -> void:
-	_paint(number, tint, reason_label.text, number_label.get_theme_font_size("font_size") >= BIG, coin.visible)
+	_paint(number, tint, reason_label.text, number_label.get_theme_font_size("font_size") >= BIG)
 	_bump = 0.0 if _calm else 1.0
 	_age = minf(_age, POP_TIME)
 	_going_at = -1.0
@@ -109,7 +123,7 @@ func relabel(number: String, tint: Color) -> void:
 
 # A callout's text changes while it is up: repainted in place (no new pop).
 func repaint(number: String, tint: Color) -> void:
-	_paint(number, tint, "", true, false)
+	_paint(number, tint, "", true)
 
 
 # Pushed out of a full stack: it fades now, quickly, where it stands.
@@ -132,7 +146,7 @@ func is_going() -> bool:
 
 
 func number_text() -> String:
-	return number_label.text if number_label != null else ""
+	return number_label.text if number_label != null and number_label.visible else ""
 
 
 # The height it takes in its mortal's stack (scaled, whole pixels).
@@ -145,14 +159,12 @@ func place(bottom_center: Vector2) -> void:
 	_anchor = bottom_center
 
 
-func _paint(number: String, tint: Color, reason: String, big: bool, with_coin: bool) -> void:
-	var ink := UITokens.readable_on_dark(tint, UITokens.NIGHT_900)
-	_style.border_color = tint
+func _paint(number: String, tint: Color, reason: String, big: bool) -> void:
+	icon.visible = false
+	number_label.visible = true
 	number_label.text = number
-	number_label.add_theme_color_override("font_color", ink)
+	number_label.add_theme_color_override("font_color", tint)
 	number_label.add_theme_font_size_override("font_size", BIG if big else NORMAL)
-	coin.visible = with_coin
-	coin.custom_minimum_size = Vector2.ONE * (BIG if big else NORMAL)
 	reason_label.text = reason
 	reason_label.visible = reason != ""
 	reset_size()

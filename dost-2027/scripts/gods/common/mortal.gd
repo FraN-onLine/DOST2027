@@ -72,6 +72,9 @@ extends CharacterBody2D
 @export var land_sound: AudioStream  # the thud of coming down from the sky at GO (skipped when empty)
 
 var locked := false
+# Held in place by Down to Homeland's root: no walk, no dash, no shove gets through
+# until the arena lifts it and drags the mortal back to its shadow.
+var rooted := false
 # THE DROP AT GO (the arena's, see Arena THE GO DROP): look only, like everything
 # below FEEL. The body never moves - it waits on its spawn point - while the sprite
 # and what rides above it (name tag, glow, stars) are lifted by drop_offset, so a
@@ -301,6 +304,7 @@ func clear_trial_state() -> void:
 	drop_hidden = false
 	drop_shadow = 1.0
 	blink_left = 0.0
+	rooted = false
 	scale = Vector2.ONE
 	velocity = Vector2.ZERO
 	set_lock(false)
@@ -372,7 +376,7 @@ func play_locomotion() -> void:
 # Stunned, or the player held still by the arena: shown idle whatever it slides at.
 # (Ghosts and bots stay locked for life - their motion decides, not the lock.)
 func _rooted() -> bool:
-	return is_stunned() or (locked and _player_driven)
+	return is_stunned() or rooted or (locked and _player_driven)
 
 
 func current_animation() -> StringName:
@@ -446,6 +450,8 @@ func _physics_process(delta: float) -> void:
 		_stun = maxf(0.0, _stun - delta)
 		velocity = _knockback
 		_knockback = _knockback.move_toward(Vector2.ZERO, 1400.0 * delta)
+	elif rooted:
+		velocity = Vector2.ZERO
 	elif _dash_time > 0.0:
 		velocity = _dash_velocity
 		_dash_time -= delta

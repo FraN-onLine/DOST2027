@@ -662,45 +662,27 @@ func _refresh_hud(_delta: float) -> void:
 	field_root.position = shake
 
 
-# The bar hangs beside the mortal (on the ground they jumped from, so it does not
-# ride up and down with the jump), on the side away from Hanan, and never over her
-# body, the overseer's face, the UI strip or the bottom band. Under Half Vision
-# only the lit circle round the mortal shows - and part of the bar with it, the
-# same way a blinded player still sees the field near them.
+# The bar follows the mortal, always at their right: it rides the leap up and
+# down with them and never crosses the UI strip, the bottom band or the screen
+# edge. Under Half Vision only the lit circle round the mortal shows - and part
+# of the bar with it, the same way a blinded player still sees the field near them.
 func _place_bar() -> void:
 	var anchor := player.get_global_transform_with_canvas().origin
-	anchor.y += _ground_y - player.global_position.y
 	var view := get_viewport_rect().size
 	var low := view.y
 	if band != null and band.is_visible_in_tree():
 		low = minf(low, band.get_global_rect().position.y)
-	var hanan := baka.screen_rect().grow(4.0) if baka != null else Rect2()
-	var away_right := not hanan.has_area() or anchor.x >= hanan.get_center().x
 	var size := bar.size
-	var x := anchor.x + bar_offset.x if away_right else anchor.x - bar_offset.x - size.x
-	var rect := Rect2(Vector2(x, anchor.y + bar_offset.y - size.y * 0.5), size)
-	for block in [hanan, _face_rect()]:
-		if block.has_area() and rect.intersects(block):
-			rect.position.x = block.end.x if away_right else block.position.x - size.x
+	var rect := Rect2(Vector2(anchor.x + bar_offset.x, anchor.y + bar_offset.y - size.y * 0.5), size)
 	var lowest := Vector2(UI_STRIP_WIDTH + 2.0, 2.0)
 	rect.position = rect.position.clamp(lowest, (Vector2(view.x, low) - size - Vector2(2.0, 2.0)).max(lowest))
-	if hanan.has_area() and rect.intersects(hanan):  # pushed back into her by a screen edge: above her instead
-		rect.position.y = maxf(2.0, hanan.position.y - size.y)
 	bar.position = rect.position.round()
-	bar.outer_left = not away_right
+	bar.outer_left = false
 
 
 # The callout pill (READY..., TRIP!) sits above the bar, never over its level name.
 func callout_keep_out() -> Rect2:
 	return Rect2(bar.position, bar.size) if bar != null and bar.visible else Rect2()
-
-
-# The overseer's face (the scene's FaceFocus marker), on screen: the bar never covers it.
-func _face_rect() -> Rect2:
-	var face := get_node_or_null("FaceFocus") as Node2D
-	if face == null:
-		return Rect2()
-	return Rect2(face.get_global_transform_with_canvas().origin - Vector2(100.0, 90.0), Vector2(200.0, 180.0))
 
 
 # The rate pill (it grows a little with the combo) and the practice prompt on the

@@ -2,13 +2,14 @@ extends SceneTree
 
 # Validation: the shared floating text (UI/Popups/favor_popup.gd, Arena.favor_popup).
 #   * a gain and a loss on one mortal in the same frame are two rows whose rects do
-#     not overlap, the gain at 24 px (250+) with the reason on its own line
+#     not overlap; plain outlined text, no icon and no box - +250 FAVOR at 24 px
+#     (250+) with the reason on its own line, -120 FAVOR at 16 px
 #   * they sit on the popup layer above Mayari's blackout and Apolaki's sun patches,
 #     stay visible with the blackout on, and keep inside the screen, clear of the
 #     left strip and the bottom band
 #   * a stack holds at most POPUP_MAX: a 4th fades the oldest out early
 #   * a rival's popups are 75% size and opacity
-#   * the callout is one pill that keeps up with the same text and repaints a new one
+#   * the callout is one popup that keeps up with the same text and repaints a new one
 # Run: godot --headless --path <project> -s res://tools/popup_check.gd
 
 var _problems := 0
@@ -49,10 +50,11 @@ func _run() -> void:
 	var a := gain.get_global_rect()
 	var b := loss.get_global_rect()
 	_check(gain != loss and a.has_area() and b.has_area() and not a.intersects(b), "a gain and a loss in the same frame are two rows that do not overlap (%s / %s)" % [str(a), str(b)])
-	_check(gain.number_text() == "+250" and gain.number_label.get_theme_font_size("font_size") == 24 and gain.coin.visible,
-		"a 250+ gain is the big pill: +250 at 24 px after the FAVOR coin")
-	_check(loss.number_text() == "-120" and loss.reason_label.visible and loss.reason_label.text == "Tagged" and loss.number_label.get_theme_font_size("font_size") == 16,
-		"the loss is -120 at 16 px with its reason on a second line")
+	_check(gain.number_text() == "+250 FAVOR" and gain.number_label.get_theme_font_size("font_size") == 24
+		and not gain.icon.visible and gain.get_node_or_null("Rows/Row/Coin") == null and gain.get_theme_stylebox("panel") is StyleBoxEmpty,
+		"a 250+ gain is plain text: +250 FAVOR at 24 px, no icon and no box")
+	_check(loss.number_text() == "-120 FAVOR" and loss.reason_label.visible and loss.reason_label.text == "Tagged" and loss.number_label.get_theme_font_size("font_size") == 16,
+		"the loss is -120 FAVOR at 16 px with its reason on a second line")
 	var band_top: float = arena.band.get_global_rect().position.y
 	_check(a.position.x >= Arena.UI_STRIP_WIDTH and b.position.x >= Arena.UI_STRIP_WIDTH and a.end.y <= band_top and b.end.y <= band_top and a.position.y >= 0.0,
 		"both keep inside the screen, clear of the left strip and the bottom band")
@@ -77,7 +79,7 @@ func _run() -> void:
 	# --- the callout ------------------------------------------------------------------------------
 	arena.callout("TAYA!", UITokens.EMBER, 1.0)
 	await _frames(2)
-	_check(arena.callout_label.visible and arena.callout_label.text == "TAYA!", "the callout shows its text in the pill")
+	_check(arena.callout_label.visible and arena.callout_label.text == "TAYA!", "the callout shows its text over the field")
 	arena.callout("ALIS NA!", UITokens.EMBER, 1.0)
 	_check(arena.callout_label.text == "ALIS NA!" and arena._callout_pill.visible, "a new callout repaints the one pill")
 	arena.callout("", Color.WHITE, 0.0)

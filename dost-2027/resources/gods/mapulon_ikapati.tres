@@ -46,21 +46,19 @@ params = {
 "share": 0.1
 }
 
-[sub_resource type="Resource" id="Favor_tagtuyot"]
+[sub_resource type="Resource" id="Favor_down_to_homeland"]
 script = ExtResource("1_favor")
-id = &"tagtuyot"
+id = &"down_to_homeland"
 god_id = &"mapulon_ikapati"
-display_name = "Tagtuyot (Mapulon)"
-description = "E - drought. The leading mortal (second place if you lead) loses 3% of their FAVOR every second for 5s, at most 400 in all. Cooldown: 30s."
+display_name = "Down to Homeland"
+description = "E - every other mortal is rooted for 3s, tethered to a dark shadow; when it ends they are dragged back toward it. Cooldown: 30s."
 slot = 1
 kind = 1
 cooldown = 30.0
-duration = 5.0
 color = Color(0.56, 0.78, 0.33, 1)
 icon = ExtResource("2_pc3d1")
 params = {
-"max_total": 400,
-"percent_per_second": 0.03
+"root_time": 3.0
 }
 
 [sub_resource type="Resource" id="Favor_ligaw_na_damo"]
@@ -124,7 +122,7 @@ game_name = "LANGIT LUPA"
 game_blurb = "The Taya can only tag you on the Lupa, the ground - stand on a Langit and you are safe, but it crumbles behind you when you step off. When the Taya pulls off its RIGHT CLICK chant and yells ALIS!, everyone on a Langit must jump down and race to ANOTHER one before theirs crumbles. Every crossing earns FAVOR, more for a close call; get tagged and you are the Taya. Each season the Langit crumble and land somewhere new - and in the last 30 seconds Ikapati joins the hunt as a second Taya while the seasons race."
 arena_scene = "res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn"
 implemented = true
-favors = Array[ExtResource("1_favor")]([SubResource("Favor_binhi"), SubResource("Favor_panahon_ng_anihan"), SubResource("Favor_kabiyak"), SubResource("Favor_tagtuyot"), SubResource("Favor_ligaw_na_damo"), SubResource("Favor_unang_ulan"), SubResource("Favor_kamalig")])
+favors = Array[ExtResource("1_favor")]([SubResource("Favor_binhi"), SubResource("Favor_panahon_ng_anihan"), SubResource("Favor_kabiyak"), SubResource("Favor_down_to_homeland"), SubResource("Favor_ligaw_na_damo"), SubResource("Favor_unang_ulan"), SubResource("Favor_kamalig")])
 portrait = ExtResource("3_rcj6l")
 intro_lines = Array[String](["Mapulon: Langit Lupa! A game of chasing, dodging, and finding your footing.", "Ikapati: Look after yourselves... and perhaps look after one another, too.", "Mapulon: Enough talk. Let's see how well you run!"])
 trial_end_lines = Array[String](["Ikapati: Well done, dearies! You've certainly kept us entertained. We all seek somewhere safe to stand.", "Mapulon: Just remember that no ground stays firm forever.", "Ikapati: And no one should have to face every storm alone."])

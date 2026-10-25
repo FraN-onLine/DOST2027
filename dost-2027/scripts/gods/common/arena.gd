@@ -54,7 +54,7 @@ extends Node2D
 #
 #   * THE EFFECT TIMERS: local_effects() lists everything running on THIS screen's
 #     mortal - its own lasting skills and a Pamana's opening window (buffs), and what
-#     rivals, traps and knocks have put on it: Ligaw na Damo, Tagtuyot, Half Vision's
+#     rivals, traps and knocks have put on it: Ligaw na Damo, Drowsy, Rooted, Half Vision's
 #     blindness, Sun Patches, doubled losses, Tala's pull, a stun (debuffs). The HUD draws
 #     them as a stack in its top-right corner. An arena adds its own through
 #     arena_local_effects(); every number comes from where it already lives, so the stack
@@ -94,16 +94,16 @@ extends Node2D
 #     God's Due menu and the handshake that keeps every peer on the same line.
 #
 #   * FLOATING TEXT: every FAVOR popup, a word over a mortal and a trial's callout
-#     is one pill (UI/Popups/favor_popup.tscn): night indigo, a 1 px JADE / EMBER
-#     border, the number at 16 px (24 for 250+) after the FAVOR coin, the reason
-#     on a second line at 8 px. They live in screen space on the popup layer
-#     (POPUP_LAYER: above the blackout, the sun patches and Hanan's bar, below the
-#     bottom band) and follow their mortal through the follow camera. Each mortal
-#     has a stack - a new popup pushes the older ones up by their real height, at
-#     most POPUP_MAX, the oldest fading early - kept inside the screen, clear of the
-#     left strip and the band. A rival's are 75% size and opacity. favor_popup()
-#     for FAVOR, mortal_popup() for a word, spawn_popup() at a world spot,
-#     callout() for a trial's "TAYA!" / "TRIP!" (one at a time).
+#     is plain outlined text (UI/Popups/favor_popup.tscn) - no frame, no icon: the
+#     number at 16 px (24 for 250+) in JADE / EMBER, the reason on a second line at
+#     8 px. They live in screen space on the popup layer (POPUP_LAYER: above the
+#     blackout, the sun patches and Hanan's bar, below the bottom band) and follow
+#     their mortal through the follow camera. Each mortal has a stack - a new popup
+#     pushes the older ones up by their real height, at most POPUP_MAX, the oldest
+#     fading early - kept inside the screen, clear of the left strip and the band. A
+#     rival's are 75% size and opacity. favor_popup() for FAVOR, mortal_popup() for a
+#     word, spawn_popup() at a world spot, cast_popup() for a god's E icon, callout()
+#     for a trial's "TAYA!" / "TRIP!" (one at a time).
 #
 #   * THE NETWORK PLUMBING that is identical for every arena: who is
 #     authoritative, reporting where our mortal is, mirroring the host's FAVOR
@@ -202,6 +202,15 @@ const FAVOR_PATCH_TIME := 1.5
 # - a dark favor like Tala's blue would otherwise sink into the grass).
 const CAST_TEXT_TIME := 1.6
 const CAST_TEXT_CONTRAST := 7.0
+# The E skills that reach other mortals: Rest and Refreshed's drowsiness and Down
+# to Homeland's root. The host keeps their clocks in GodMatch; each screen plays
+# them for its OWN mortal, so only the numbers travel.
+const DROWSY_SPEED := 0.5          # a drowsy mortal walks at this share of their speed
+const ROOT_SHADOW_BACK := 90.0     # px behind the mortal the dark shadow waits
+const ROOT_DRAG_TIME := 0.4        # seconds the shadow drags them back when the root ends
+const ROOT_SHADOW_SIZE := Vector2(28.0, 10.0)
+const ROOT_SHADOW_COLOR := Color(0.05, 0.04, 0.09, 0.72)
+const ROOT_TETHER_COLOR := Color(0.1, 0.08, 0.16, 0.85)
 
 enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 
@@ -371,8 +380,7 @@ var _callout_left := 0.0
 var _vision_fade := 1.0               # blindness mask fade-in (see Settings.reduce_flashing)
 var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
 var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
-# Who started each of those, so Hanan's Break of Day can end ONE caster's effects:
-var _double_loss_source: Dictionary = {}  # victim id -> caster id of its doubled loss
+# The caster behind each sun patch, kept beside the timers (aligned arrays):
 var _sun_patch_sources: Dictionary = {}   # mortal id -> Array[int], caster id per _sun_patches timer (-1 = none)
 var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
 var _victor_claimed: Dictionary = {}  # owner id -> true (once per trial)
@@ -389,6 +397,10 @@ var _guidance_time := 0.0
 var _movement_override_caster := -1
 var _movement_override_time := 0.0
 var _double_loss_seen: Dictionary = {}  # what the host last said about doubled losses (a client's copy, for the HUD)
+# Rest and Refreshed / Down to Homeland on THIS screen's mortal (see _watch_afflictions).
+var _rooted_seen := false
+var _root_shadow := Vector2.ZERO
+var _root_tether: Node2D = null
 var _dash_cd := 0.0
 var _dash_buffered := 0.0  # seconds a too-early SPACE still waits (see dash_buffer)
 # The impact currently running on THIS screen: seconds left of the field's
@@ -431,6 +443,9 @@ var _last_published_position := Vector2.INF
 var _layout_age := 0.0
 var _last_banner := ""
 var _last_event := ""
+# The host's own God's Due words, which stay on the host's screen (see _publish_arena_tick).
+var _due_banner := ""
+var _due_event := ""
 var _dialogue_waiting := false
 var _dialogue_wait_id := ""
 var _dialogue_wait_time := 0.0
@@ -718,7 +733,6 @@ func _start_trial(show_go := true) -> void:
 	_sun_patch_sources.clear()
 	clear_sun_patches()
 	_double_loss.clear()
-	_double_loss_source.clear()
 	_great_pending.clear()
 	_victor_claimed.clear()
 	_rivalry_claimed.clear()
@@ -781,6 +795,7 @@ func _process(delta: float) -> void:
 	_apply_blindness(delta)
 	_move_ghosts(delta)
 	_update_movement_favors(delta)
+	_watch_afflictions()
 	_watch_local_pamana()
 	_tick_shake(delta)
 	_tick_flash(delta)
@@ -1163,14 +1178,11 @@ func _new_popup() -> FavorPopup:
 
 
 # A word or number hanging over a world spot (no stack of its own).
-func spawn_popup(text: String, tint: Color, origin: Vector2, icon_texture: Texture2D = null) -> FavorPopup:
+func spawn_popup(text: String, tint: Color, origin: Vector2) -> FavorPopup:
 	if favor_popups_root == null or origin == Vector2.INF:
 		return null
 	var popup := _new_popup()
-	popup.show_text(text, tint, "", false, false, reduce_flashing())
-	if icon_texture != null:
-		popup.coin.texture = icon_texture
-		popup.coin.visible = true
+	popup.show_text(text, tint, "", false, reduce_flashing())
 	_world_popups[popup] = origin
 	return popup
 
@@ -1180,13 +1192,23 @@ func mortal_popup(mortal_id: int, text: String, tint: Color) -> FavorPopup:
 	if favor_popups_root == null:
 		return null
 	var popup := _new_popup()
-	popup.show_text(text, tint, "", false, false, reduce_flashing())
+	popup.show_text(text, tint, "", false, reduce_flashing())
 	_push_popup(mortal_id, popup)
 	return popup
 
 
-# "+250" (with the FAVOR coin) over a mortal - JADE - or "-120" in EMBER when N is
-# negative; `reason`, when given, on the line under it. 250 or more is drawn big.
+# A god's E icon over the mortal who cast it, in the same stack as their FAVOR popups.
+func cast_popup(mortal_id: int, icon_texture: Texture2D, tint: Color) -> FavorPopup:
+	if favor_popups_root == null or icon_texture == null:
+		return null
+	var popup := _new_popup()
+	popup.show_icon(icon_texture, tint, reduce_flashing())
+	_push_popup(mortal_id, popup)
+	return popup
+
+
+# "+250 FAVOR" over a mortal - JADE - or "-120 FAVOR" in EMBER when N is negative;
+# `reason`, when given, on the line under it. 250 or more is drawn big.
 #
 # Two popups landing on the same mortal within popup_merge_time are one popup: a
 # second gain (or loss) adds its number to the one already up (a small bump shows
@@ -1204,14 +1226,14 @@ func favor_popup(mortal_id: int, delta: int, reason := "") -> FavorPopup:
 		merged.relabel(_favor_number(int(recent["delta"])), tint)
 		return merged
 	var popup := _new_popup()
-	popup.show_text(_favor_number(delta), tint, reason, absi(delta) >= POPUP_BIG_MOMENT, true, reduce_flashing(), delta < 0)
+	popup.show_text(_favor_number(delta), tint, reason, absi(delta) >= POPUP_BIG_MOMENT, reduce_flashing(), delta < 0)
 	_push_popup(mortal_id, popup)
 	_popup_recent[mortal_id] = {"node": popup, "delta": delta, "at": now}
 	return popup
 
 
 func _favor_number(delta: int) -> String:
-	return "%s%d" % ["+" if delta > 0 else "", delta]
+	return "%s%d FAVOR" % ["+" if delta > 0 else "", delta]
 
 
 # Into `mortal_id`'s stack (newest last): a rival's at RIVAL_POPUP_LOOK, and a
@@ -1246,7 +1268,7 @@ func callout(text: String, tint: Color, seconds: float, at: Node2D = null, cente
 		if _callout_pill.number_text() != text:
 			_callout_pill.repaint(text, tint)
 		return
-	_callout_pill.show_text(text, tint, "", true, false, reduce_flashing())
+	_callout_pill.show_text(text, tint, "", true, reduce_flashing())
 	_callout_pill.persistent = true
 
 
@@ -1588,7 +1610,7 @@ func _use_skill(slot: int) -> void:
 # Our own mortal is ours to move on every peer, so no host round trip is needed:
 # the new position travels like any other step. Returns true when it dashed.
 func try_dash() -> bool:
-	if not dash_enabled or _phase != Phase.PLAYING or _dash_cd > 0.0 or player.locked or player.is_stunned():
+	if not dash_enabled or _phase != Phase.PLAYING or _dash_cd > 0.0 or player.locked or player.rooted or player.is_stunned():
 		return false
 	if dialogue.is_active() or due_menu.is_open():
 		return false
@@ -1636,7 +1658,6 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			if mortal.id == caster_id:
 				continue
 			_double_loss[mortal.id] = maxf(float(_double_loss.get(mortal.id, 0.0)), duration)
-			_double_loss_source[mortal.id] = caster_id
 			_add_sun_patches(mortal.id, 1, duration, caster_id)
 		_publish_god_state()
 	elif favor.id == &"let_us_light_your_way":
@@ -1648,20 +1669,19 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 		var restored := rules.restore_recent_losses(caster_id, favor.param("lookback", 5.0))
 		_log("Bagong Umaga - %s gets back %d FAVOR" % [mortal_label(caster_id), restored], favor.color)
 		_publish_god_state()
-	elif favor.id == &"break_of_day" and _authority:
-		var target_id := rules.break_of_day(caster_id)
-		if target_id >= 0:
-			_end_arena_effects_of(target_id)
-			_log("Break of Day - %s's favors fade and their skills start over" % mortal_label(target_id), favor.color)
+	elif favor.id == &"rest_and_refreshed" and _authority:
+		var reached := rules.cast_rest_and_refreshed(caster_id, favor)
+		if reached > 0:
+			_log("Rest and Refreshed - every other mortal grows drowsy", favor.color)
 		else:
-			_log("Break of Day - no other mortal to reach", favor.color)
+			_log("Rest and Refreshed - no other mortal to reach", favor.color)
 		_publish_god_state()
-	elif favor.id == &"tagtuyot" and _authority:
-		var target_id := rules.cast_tagtuyot(caster_id, favor)
-		if target_id >= 0:
-			_log("Tagtuyot - drought withers %s's field" % mortal_label(target_id), favor.color)
+	elif favor.id == &"down_to_homeland" and _authority:
+		var reached := rules.cast_down_to_homeland(caster_id, favor)
+		if reached > 0:
+			_log("Down to Homeland - roots drag every other mortal back", favor.color)
 		else:
-			_log("Tagtuyot - no other mortal to reach", favor.color)
+			_log("Down to Homeland - no other mortal to reach", favor.color)
 		_publish_god_state()
 	elif favor.id == &"ligaw_na_damo" and _authority:
 		rules.cast_ligaw_na_damo(caster_id, favor)
@@ -1689,7 +1709,7 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_publish_god_state()
 
 
-# A duration of 0 means "stop now" (Break of Day ending the caster's pull).
+# A duration of 0 means "stop now" (the host's word that the pull is over).
 func _start_movement_override(caster_id: int, duration: float) -> void:
 	if duration <= 0.0:
 		if caster_id == _movement_override_caster:
@@ -1703,38 +1723,6 @@ func _on_movement_override_received(caster_id: int, duration: float) -> void:
 	if caster_id == _my_id:
 		return
 	_start_movement_override(caster_id, duration)
-
-
-# Host: Break of Day just hit `caster_id`. GodMatch already ended their favor
-# durations; these are the effects of their casts that live in the arena instead
-# - the doubled loss and the sun patches of Apolaki's Sibling's Compromise, and
-# Tala's Let Us Light Your Way pulling everyone towards them - so end those too,
-# and only those (other casters' patches stay).
-func _end_arena_effects_of(caster_id: int) -> void:
-	for victim_id in _double_loss_source.keys().duplicate():
-		if int(_double_loss_source[victim_id]) == caster_id:
-			_double_loss.erase(victim_id)
-			_double_loss_source.erase(victim_id)
-	for mortal_id in _sun_patches.keys().duplicate():
-		var sources: Array = _sun_patch_sources.get(mortal_id, [])
-		var timers: Array = _sun_patches[mortal_id]
-		var kept_timers: Array = []
-		var kept_sources: Array = []
-		for index in range(timers.size()):
-			var source: int = int(sources[index]) if index < sources.size() else -1
-			if source != caster_id:
-				kept_timers.append(timers[index])
-				kept_sources.append(source)
-		if kept_timers.is_empty():
-			_erase_sun_patches(mortal_id)
-		else:
-			_sun_patches[mortal_id] = kept_timers
-			_sun_patch_sources[mortal_id] = kept_sources
-	_refresh_sun_patches()
-	if caster_id == _movement_override_caster and _movement_override_time > 0.0:
-		_start_movement_override(caster_id, 0.0)
-		if _networked and _net != null:
-			_net.send_arena_movement_override(caster_id, 0.0)
 
 
 func _erase_sun_patches(mortal_id: int) -> void:
@@ -1770,6 +1758,9 @@ func _update_movement_favors(delta: float) -> void:
 	# Banton Burial Cloth: faster for the first seconds of the trial.
 	if rules.pamana_in_window(mortal, Pamanas.BANTON_CLOTH):
 		speed *= Pamanas.by_id(Pamanas.BANTON_CLOTH).param("speed_multiplier", 1.15)
+	# Rest and Refreshed: a drowsy mortal drags their feet.
+	if mortal.drowsy_time > 0.0:
+		speed *= DROWSY_SPEED
 	player.move_speed = speed * arena_speed_scale()
 
 	if _movement_override_time > 0.0:
@@ -1778,6 +1769,79 @@ func _update_movement_favors(delta: float) -> void:
 			var target := mortal_position(_movement_override_caster)
 			if target != Vector2.INF:
 				player.force_movement(target - player.global_position, 0.08)
+
+
+# --- THE E SKILLS' AFFLICTIONS ON OUR OWN MORTAL -------------------------------
+# What Rest and Refreshed and Down to Homeland leave on a mortal. The host keeps
+# the clocks (GodMatch._tick_afflictions) and this screen only reads its own
+# mortal's share, so every screen stops and drags its own body the same way. A
+# drowsy mortal walks slower; the drowsiness ends in a stun. A rooted one is held
+# where they stand, tethered to a dark shadow behind them, and dragged back
+# toward it when the root ends.
+func _watch_afflictions() -> void:
+	if player == null or rules == null:
+		return
+	var mortal := rules.local()
+	if mortal == null:
+		return
+	if mortal.stun_time > 0.0:
+		player.stun(mortal.stun_time)
+	var rooted_now := mortal.rooted_time > 0.0
+	if rooted_now and not _rooted_seen:
+		_rooted_seen = true
+		_root_shadow = player.global_position + Vector2(-player.facing * ROOT_SHADOW_BACK, 0.0)
+		player.rooted = true
+		_root_tether = _make_root_tether(player.global_position + Vector2(0.0, -6.0), _root_shadow)
+	elif not rooted_now and _rooted_seen:
+		_rooted_seen = false
+		player.rooted = false
+		if _phase == Phase.PLAYING:
+			player.force_movement(_root_shadow - player.global_position, ROOT_DRAG_TIME)
+		_fade_root_tether(_root_tether)
+		_root_tether = null
+	if _rooted_seen and _root_tether != null and is_instance_valid(_root_tether):
+		_set_tether_points(_root_tether, player.global_position + Vector2(0.0, -6.0), _root_shadow)
+
+
+# The shadow's body: a tether line and a flattened dark ellipse, in the world
+# under the mortals. Built once per root, then only the line moves.
+func _make_root_tether(at: Vector2, shadow: Vector2) -> Node2D:
+	var tether := Node2D.new()
+	tether.name = "RootTether"
+	tether.top_level = true
+	tether.z_index = 2
+	add_child(tether)
+	var line := Line2D.new()
+	line.name = "Line"
+	line.width = 3.0
+	line.default_color = ROOT_TETHER_COLOR
+	tether.add_child(line)
+	var shade := Polygon2D.new()
+	shade.name = "Shadow"
+	shade.color = ROOT_SHADOW_COLOR
+	var ellipse := PackedVector2Array()
+	for index in range(20):
+		var angle := TAU * float(index) / 20.0
+		ellipse.append(Vector2(cos(angle) * ROOT_SHADOW_SIZE.x, sin(angle) * ROOT_SHADOW_SIZE.y))
+	shade.polygon = ellipse
+	shade.position = shadow
+	tether.add_child(shade)
+	_set_tether_points(tether, at, shadow)
+	return tether
+
+
+func _set_tether_points(tether: Node2D, at: Vector2, shadow: Vector2) -> void:
+	var line := tether.get_node_or_null("Line") as Line2D
+	if line != null:
+		line.points = PackedVector2Array([at, shadow])
+
+
+func _fade_root_tether(tether: Node2D) -> void:
+	if tether == null or not is_instance_valid(tether):
+		return
+	var tween := create_tween()
+	tween.tween_property(tether, "modulate:a", 0.0, ROOT_DRAG_TIME)
+	tween.tween_callback(tether.queue_free)
 
 
 func _collect_sun_patch_rects() -> void:
@@ -2015,7 +2079,6 @@ func _tick_sun_favors(delta: float) -> void:
 		var remaining := maxf(0.0, float(_double_loss[mortal_id]) - delta)
 		if remaining <= 0.0:
 			_double_loss.erase(mortal_id)
-			_double_loss_source.erase(mortal_id)
 		else:
 			_double_loss[mortal_id] = remaining
 	_refresh_sun_patches()
@@ -2333,15 +2396,23 @@ func _publish_arena_tick() -> void:
 		for id in reported.keys():
 			_mortal_positions[int(id)] = reported[id]
 	# Everything every arena broadcasts, plus whatever the god's own arena adds.
+	# God's Due is the host's own news: its banner and event line stay on this
+	# screen and never ride the tick to a client.
+	var banner_text: String = hud.banner_label.text if hud.banner_label.visible else ""
+	if banner_text == _due_banner:
+		banner_text = ""
+	var event_text: String = hud.event_label.text
+	if event_text == _due_event:
+		event_text = ""
 	var state := {
 		"scene": scene_token(),
 		"phase": int(_phase),
 		"trial_time": _trial_time,
 		"drop_left": _drop_left,
 		"mortals": _mortal_positions.duplicate() if shares_mortal_positions() else {},
-		"banner": hud.banner_label.text if hud.banner_label.visible else "",
+		"banner": banner_text,
 		"banner_color": hud.banner_label.get_theme_color("font_color"),
-		"event": hud.event_label.text,
+		"event": event_text,
 		"event_color": hud.event_label.get_theme_color("font_color"),
 		"sun_patches": _sun_patches.duplicate(true),
 		"double_loss": _double_loss.duplicate(),
@@ -2513,8 +2584,10 @@ func _on_favor_changed(player_id: int, _total: int, delta: int, reason: String) 
 func _on_due_earned(player_id: int, _due: int, milestone: int) -> void:
 	if player_id != rules.local_id:
 		return
-	_show_banner("%d FAVOR - GOD'S DUE EARNED" % milestone, Color(1, 0.9, 0.45), 2.2)
-	_log("You reached %d FAVOR - one God's Due is yours (press F to spend it)" % milestone, Color(1, 0.9, 0.45))
+	_due_banner = "%d FAVOR - GOD'S DUE EARNED" % milestone
+	_due_event = "You reached %d FAVOR - one God's Due is yours (press F to spend it)" % milestone
+	_show_banner(_due_banner, Color(1, 0.9, 0.45), 2.2)
+	_log(_due_event, Color(1, 0.9, 0.45))
 
 
 # A favor of Hanan's fired on the host: say so, in the favor's colour. Banners are
@@ -2610,11 +2683,13 @@ func local_effects() -> Array[Dictionary]:
 	if pamana != null and pamana.timing == Pamana.Timing.FIRST_WINDOW and mortal.pamana_window > 0.0:
 		out.append(effect(StringName("pamana_%s" % pamana.id), pamana.display_name.to_upper(), pamana.icon, UICards.pamana_edge(pamana), mortal.pamana_window, pamana.window))
 	# Debuffs: what has been put on us.
+	if mortal.drowsy_time > 0.0:
+		out.append(effect(&"drowsy", "DROWSY", e_icon(Gods.HANAN), UITokens.EMBER, mortal.drowsy_time, 0.0, true))
+	if mortal.rooted_time > 0.0:
+		out.append(effect(&"rooted", "ROOTED", e_icon(Gods.MAPULON_IKAPATI), UITokens.EMBER, mortal.rooted_time, 0.0, true))
 	if rules.trial_active:  # the Harvest Pair's clocks only run in a trial
 		if mortal.weeds_time > 0.0:
 			out.append(favor_effect(&"weeds", &"ligaw_na_damo", mortal.weeds_time, 0.0, true))
-		if mortal.drought_time > 0.0:
-			out.append(favor_effect(&"drought", &"tagtuyot", mortal.drought_time, 0.0, true))
 	if _blind_time > 0.0:
 		out.append(favor_effect(&"blind", &"half_vision", _blind_time, 0.0, true))
 	var patches: Array = _sun_patches.get(_my_id, [])
@@ -2640,9 +2715,26 @@ func arena_local_effects() -> Array[Dictionary]:
 
 
 # --- A CAST, SEEN BY EVERYONE ---------------------------------------------------
-# The host sees every skill any mortal uses (GodMatch.skill_used) and puts its name over
-# that mortal's head - in the favor's colour, rising and fading like the mortal's other
-# floating text - on every screen, so a rival learns what was just used on them.
+# The host sees every skill any mortal uses (GodMatch.skill_used) and shows what was
+# used over that mortal's head on every screen, so a rival learns what just happened
+# to them. An E skill flies its god's E icon; anything else its name, in the
+# favor's colour, rising and fading like the mortal's other floating text.
+
+# Each god's E art, in its own Assets folder (32 x 32).
+const E_ICONS := {
+	Gods.MAYARI: "res://Assets/Gods/Mayari/Mayari-E-PopUP.png",
+	Gods.APOLAKI: "res://Assets/Gods/Apolaki/Apolaki-E-PopUp.png",
+	Gods.TALA: "res://Assets/Gods/Tala/Tala-E-PopUp.png",
+	Gods.HANAN: "res://Assets/Gods/Hanan/Hanan-E-PopUp.png",
+	Gods.MAPULON_IKAPATI: "res://Assets/Gods/MapulonIkapati/Mapulon-Popup-E.png",
+	Gods.BATHALA: "res://Assets/Gods/Bathala/Bathala-Popup-E.png",
+}
+
+
+static func e_icon(god_id: StringName) -> Texture2D:
+	var path := String(E_ICONS.get(god_id, ""))
+	return load(path) as Texture2D if path != "" and ResourceLoader.exists(path) else null
+
 
 func _on_skill_used(player_id: int, favor: GodFavor) -> void:
 	_show_cast(player_id, favor)
@@ -2659,6 +2751,11 @@ func _on_arena_cast_received(caster_id: int, favor_id: StringName) -> void:
 
 
 func _show_cast(mortal_id: int, favor: GodFavor) -> void:
+	if favor.slot == GodFavor.Slot.E:
+		var icon := e_icon(favor.god_id)
+		if icon != null:
+			cast_popup(mortal_id, icon, Color.WHITE)
+			return
 	var body := mortal_node(mortal_id)
 	if body != null:
 		body.show_floating_text(favor.display_name.to_upper(), UITokens.readable_on_dark(favor.color, UITokens.NIGHT_900, CAST_TEXT_CONTRAST), CAST_TEXT_TIME)

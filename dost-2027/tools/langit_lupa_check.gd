@@ -182,6 +182,28 @@ func _run() -> void:
 	var walked := hunter.global_position.distance_to(_arena._field.get_center())
 	_check(is_equal_approx(walked, _arena.bot_speed * 1.1 * 0.1), "a bot Taya gets the same bonus (%.2f px in 0.1 s)" % walked)
 
+	# --- the E afflictions reach the bots too ------------------------------------------
+	_reset(2, [])
+	_rules.mortal(2).drowsy_time = 2.0
+	hunter.global_position = _arena._field.get_center()
+	_put(1, _arena._field.get_center() + Vector2(200, 0))
+	_arena._bots[3].global_position = _arena._field.get_center() + Vector2(0, 200)
+	_arena._move_bots(0.1)
+	var drowsy_walked := hunter.global_position.distance_to(_arena._field.get_center())
+	_check(is_equal_approx(drowsy_walked, _arena.bot_speed * 1.1 * Arena.DROWSY_SPEED * 0.1),
+		"a drowsy bot Taya walks at half speed (%.2f px in 0.1 s)" % drowsy_walked)
+	_rules.mortal(2).drowsy_time = 0.0
+	_rules.mortal(2).rooted_time = 3.0
+	hunter.global_position = _arena._field.get_center()
+	_arena._move_bots(0.1)
+	_check(hunter.global_position.distance_to(_arena._field.get_center()) < 0.01 and _arena._bot_root_tether.has(2),
+		"a rooted bot stays put, tethered to its shadow")
+	_rules.mortal(2).rooted_time = 0.0
+	var before_drag := hunter.global_position
+	_arena._move_bots(0.1)
+	_check(not _arena._bot_root_tether.has(2) and hunter.global_position.distance_to(before_drag) > 0.01,
+		"when the root lifts, the bot is dragged towards its shadow")
+
 	# From here the bots stand where the check puts them.
 	for bot in _arena._bots.values():
 		bot.queue_free()
@@ -764,10 +786,10 @@ func _run() -> void:
 	_check(_arena._movement_override_caster == 2, "Tala's Let Us Light Your Way pulls towards the caster")
 	_set_favor(1000, 0, 0)
 	_rules.mortal(1).due = 1
-	_check(_rules.grant_favor(Gods.favor_by_id(&"tagtuyot")), "a favor is granted with a God's Due here")
+	_check(_rules.grant_favor(Gods.favor_by_id(&"down_to_homeland")), "a favor is granted with a God's Due here")
 	_rules.mortal(2).favor = 2000
 	_arena._use_skill(GodFavor.Slot.E)
-	_check(_rules.mortal(2).drought_time > 0.0, "E fires it (Tagtuyot withers the leader)")
+	_check(_rules.mortal(2).rooted_time > 0.0, "E fires it (Down to Homeland roots the others)")
 
 	print("Langit Lupa checks: %d problem(s)" % _problems)
 	print("--- DONE ---")

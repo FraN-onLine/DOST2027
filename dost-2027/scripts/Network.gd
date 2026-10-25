@@ -1442,7 +1442,7 @@ func rpc_arena_fx(fx: Dictionary) -> void:
 	emit_signal("arena_fx_received", fx)
 
 
-# A duration of 0 cancels a running override (Hanan's Break of Day ends it).
+# A duration of 0 cancels a running override (the host saying the pull is over).
 func send_arena_movement_override(caster_id: int, duration: float) -> void:
 	if not has_multiplayer_peer() or duration < 0.0:
 		return

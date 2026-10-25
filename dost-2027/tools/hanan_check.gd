@@ -63,17 +63,23 @@ func _run() -> void:
 	_arena._refresh_hud(0.0)
 	var feet: Vector2 = _arena.player.get_global_transform_with_canvas().origin
 	var bar_box: Rect2 = Rect2(_arena.bar.position, _arena.bar.size)
-	_check(bar_box.grow(_arena.bar_offset.length() + 1.0).has_point(feet), "the bar hangs right beside the mortal (%s, mortal at %s)" % [str(bar_box), str(feet)])
+	_check(bar_box.position.x >= feet.x and not _arena.bar.outer_left, "the bar always sits at the mortal's right (%s, mortal at %s)" % [str(bar_box), str(feet)])
+	_check(absf(bar_box.get_center().y - feet.y) <= 1.0, "the bar is centred on the mortal")
 	_check(bar_box.position.x >= Arena.UI_STRIP_WIDTH and bar_box.end.x <= 1152.0 and bar_box.position.y >= 0.0 and bar_box.end.y <= 648.0,
 		"the bar stays on screen and clear of the UI strip")
+	var low_spot := _arena.bar.position
+	_arena.player.global_position.y -= 60.0
+	_arena._refresh_hud(0.0)
+	_check(_arena.bar.position.y < low_spot.y, "the bar follows the mortal up the leap")
+	_arena.player.global_position.y += 60.0
 	_arena.player.global_position.x = 1140.0
 	_arena._refresh_hud(0.0)
 	_check(_arena.bar.position.x + _arena.bar.size.x <= 1152.0, "near the right edge the bar is clamped onto the screen")
 	_arena._leave_vault()
 	_arena._enter_run()
-	# The bar keeps clear of Hanan's body and the bottom band, low or tall, from either side.
+	# It keeps following the mortal - always on the right - at any level, from either side, and never over the bottom band.
 	var band_top: float = _arena.band.get_global_rect().position.y
-	var clear := true
+	var followed := true
 	for level in [1, 5]:
 		_arena._level = level
 		_arena._show_baka_height()
@@ -82,14 +88,13 @@ func _run() -> void:
 			_arena.begin_vault()
 			_arena._refresh_hud(0.0)
 			var gauge := Rect2(_arena.bar.position, _arena.bar.size)
-			var body: Rect2 = _arena.baka.screen_rect()
-			if gauge.intersects(body) or gauge.end.y > band_top:
-				clear = false
-				printerr("  level %d side %d: bar %s, Hanan %s, band top %.0f" % [level, int(side), str(gauge), str(body), band_top])
+			var live: Vector2 = _arena.player.get_global_transform_with_canvas().origin
+			if gauge.position.x < live.x or not is_equal_approx(gauge.get_center().y, live.y) or gauge.end.y > band_top:
+				followed = false
+				printerr("  level %d side %d: bar %s, mortal at %s, band top %.0f" % [level, int(side), str(gauge), str(live), band_top])
 			_arena._leave_vault()
 			_arena._enter_run()
-	_check(clear and _arena.baka.screen_rect().has_area(),
-		"at levels 1 and 5, from either side, the bar never covers Hanan (%s at level 5) or the bottom band" % str(_arena.baka.screen_rect()))
+	_check(followed, "at levels 1 and 5, from either side, the bar stays at the mortal's right and clear of the bottom band")
 	_arena._level = 1
 	_arena._show_baka_height()
 	_arena.player.global_position = Vector2(400, 470)

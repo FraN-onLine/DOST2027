@@ -11,8 +11,8 @@ extends SceneTree
 #   * the same card shows as info while the mouse is over a skill bar and, for both
 #     skills, while skill_info (Tab) is held
 #   * skill_info is a rebindable action
-#   * a cast puts the skill's name over the mortal that used it, on its own screen and
-#     on a rival's
+#   * a cast puts the god's E icon over the mortal that used it (an E skill), or the
+#     skill's name (a Q skill), on its own screen and on a rival's
 # Run: godot --headless --path <project> -s res://tools/skill_card_check.gd
 
 var _problems := 0
@@ -183,8 +183,16 @@ func _run() -> void:
 
 	# --- a cast is seen over the mortal -------------------------------------------------------------
 	var cast := arena.rules.use_skill(GodFavor.Slot.E)
-	_check(cast != null and arena.player.floating_text.visible and arena.player.floating_text.text == cast.display_name.to_upper(),
-		"a cast puts the skill's name over our mortal (%s)" % arena.player.floating_text.text)
+	var icon_popup: FavorPopup = null
+	for child in arena.favor_popups_root.get_children():
+		if child is FavorPopup and (child as FavorPopup).icon.visible:
+			icon_popup = child
+	_check(cast != null and icon_popup != null and icon_popup.icon.texture == Arena.e_icon(cast.god_id)
+		and not icon_popup.number_label.visible and not arena.player.floating_text.visible,
+		"an E cast pops the god's E icon over our mortal, not a name")
+	await _frames(2)
+	var head_y: float = arena.player.get_global_transform_with_canvas().origin.y
+	_check(icon_popup != null and icon_popup.get_global_rect().end.y < head_y - 40.0, "...above their head")
 	# A rival's ghost, on a client screen: the host's message names the caster.
 	var ghost: ArenaMortal = Arena.MORTAL_SCENE.instantiate()
 	arena.ghosts_root.add_child(ghost)

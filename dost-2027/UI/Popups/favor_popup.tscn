@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://UI/Popups/favor_popup.gd" id="1_popup"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="2_coin"]
 
 [node name="FavorPopup" type="PanelContainer"]
 mouse_filter = 2
@@ -19,19 +18,19 @@ mouse_filter = 2
 theme_override_constants/separation = 4
 alignment = 1
 
-[node name="Coin" type="TextureRect" parent="Rows/Row"]
-custom_minimum_size = Vector2(16, 16)
+[node name="Icon" type="TextureRect" parent="Rows/Row"]
+visible = false
+custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
-texture = ExtResource("2_coin")
 expand_mode = 1
 stretch_mode = 5
 
 [node name="Number" type="Label" parent="Rows/Row"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "+1"
+text = "+1 FAVOR"
 horizontal_alignment = 1
 
 [node name="Reason" type="Label" parent="Rows"]

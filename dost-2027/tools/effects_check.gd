@@ -5,9 +5,9 @@ extends SceneTree
 #   * one of our own lasting skills (GodMatch.Mortal.durations) shows as a row - icon, name,
 #     seconds left, a bar that shrinks - and is gone the moment it ends
 #   * a Pamana's opening window shows too; its charges stay on the badge (no timer)
-#   * what has been put on us shows in EMBER, after the buffs: Ligaw na Damo and Tagtuyot (and
-#     they travel in the host's snapshot, so a client sees them), Half Vision's blindness, Sun
-#     Patches, doubled losses (and they travel in the world tick), Tala's pull, a stun
+#   * what has been put on us shows in EMBER, after the buffs: Ligaw na Damo, Drowsy, Rooted
+#     (and they travel in the host's snapshot, so a client sees them), Half Vision's blindness,
+#     Sun Patches, doubled losses (and they travel in the world tick), Tala's pull, a stun
 #   * Langit Lupa adds ALIS, a closed Langit and the tag-back buffer
 #   * the note (Kabiyak's other half, Kamalig's granary) is never covered: the effects stack
 #     under it, and so does Langit Lupa's TAYA list
@@ -97,7 +97,9 @@ func _run() -> void:
 	rules.trial_active = true
 	me.weeds_time = 6.0
 	me.weeds_caster = 2
-	me.drought_time = 4.0
+	me.drowsy_time = 4.0
+	me.drowsy_stun = 0.8
+	me.rooted_time = 3.0
 	arena._blind_time = 1.0
 	arena._sun_patches[arena._my_id] = [3.0, 1.0]
 	arena._double_loss[arena._my_id] = 4.0
@@ -106,7 +108,7 @@ func _run() -> void:
 	arena.player.hit(Vector2.LEFT, 1.4, 400.0)
 	me.durations[half_vision.id] = 1.2  # a buff of our own beside them, to see the order
 	hud._sync_effects()
-	var wanted := [&"weeds", &"drought", &"blind", &"sun_patches", &"double_loss", &"pulled", &"stun"]
+	var wanted := [&"weeds", &"drowsy", &"rooted", &"blind", &"sun_patches", &"double_loss", &"pulled", &"stun"]
 	var all_there := true
 	var all_ember := true
 	for key in wanted:
@@ -114,11 +116,13 @@ func _run() -> void:
 		all_there = all_there and debuff != null
 		all_ember = all_ember and debuff != null and debuff.harmful and debuff.name_label.get_theme_color("font_color") == UITokens.EMBER \
 			and debuff.bar.get_theme_stylebox("fill").bg_color == UITokens.EMBER
-	_check(all_there, "weeds, drought, blindness, sun patches, doubled losses, the pull and a stun all show (%s)" % str(_keys(hud)))
+	_check(all_there, "weeds, drowsy, rooted, blindness, sun patches, doubled losses, the pull and a stun all show (%s)" % str(_keys(hud)))
 	_check(all_ember, "...every one of them in EMBER, name and bar")
 	var keys := _keys(hud)
 	_check(keys[0] == &"skill_half_vision" and keys.slice(1).all(func(key: StringName) -> bool: return wanted.has(key)),
 		"the buff comes first, the debuffs after it (%s)" % str(keys))
+	_check(_row(hud, &"drowsy").name_label.text == "DROWSY" and _row(hud, &"rooted").name_label.text == "ROOTED",
+		"Rest and Refreshed and Down to Homeland are named for what they do")
 	_check(_row(hud, &"sun_patches").name_label.text == "SUN PATCHES" and _row(hud, &"sun_patches").seconds_label.text == "3.0s", "two sun patches are one row, on the longer clock (%s)" % _row(hud, &"sun_patches").seconds_label.text)
 	_check(_row(hud, &"pulled").name_label.text == arena.effect_name(Gods.favor_by_id(&"let_us_light_your_way")), "Tala's pull is named for her favor")
 	arena._movement_override_caster = arena._my_id
@@ -126,8 +130,26 @@ func _run() -> void:
 	_check(not hud._effect_rows.has(&"pulled"), "...and it is not an effect on the mortal who cast it")
 	rules.trial_active = false
 	hud._sync_effects()
-	_check(not hud._effect_rows.has(&"weeds") and not hud._effect_rows.has(&"drought"), "the Harvest Pair's clocks only run in a trial: no rows between trials")
+	_check(not hud._effect_rows.has(&"weeds"), "the Harvest Pair's clocks only run in a trial: no weeds between trials")
+	_check(hud._effect_rows.has(&"drowsy") and hud._effect_rows.has(&"rooted"), "...but the E skills' afflictions outlive the trial flag (they are Langit Lupa's too)")
 	rules.trial_active = true
+
+	# --- the afflictions reach this screen's own body -----------------------------------------------------------
+	me.drowsy_time = 0.0
+	arena._update_movement_favors(0.0)
+	var full_speed := arena.player.move_speed
+	me.drowsy_time = 4.0
+	arena._update_movement_favors(0.0)
+	_check(is_equal_approx(arena.player.move_speed, full_speed * Arena.DROWSY_SPEED),
+		"a drowsy mortal walks at half speed (%.1f of %.1f)" % [arena.player.move_speed, full_speed])
+	me.drowsy_time = 0.0
+	arena._watch_afflictions()
+	_check(arena.player.rooted and arena._root_tether != null, "a rooted mortal is held, tethered to a shadow")
+	_check(arena._root_shadow.distance_to(arena.player.global_position + Vector2(-arena.player.facing * Arena.ROOT_SHADOW_BACK, 0.0)) < 0.01,
+		"...and the shadow sits behind them")
+	me.rooted_time = 0.0
+	arena._watch_afflictions()
+	_check(not arena.player.rooted and arena._root_tether == null, "the root lets go when its clock runs out")
 
 	# --- the note is never covered ------------------------------------------------------------------------------
 	me.favors.append(Gods.favor_by_id(&"kabiyak"))
@@ -150,11 +172,13 @@ func _run() -> void:
 	var client := GodMatch.new()
 	view.add_child(client)
 	client.setup_peers(Gods.mayari(), {1: "HOST", 2: "CLIENT"}, 2)
-	host.cast_tagtuyot(1, Gods.favor_by_id(&"tagtuyot"))  # the target is the other mortal
+	host.cast_down_to_homeland(1, Gods.favor_by_id(&"down_to_homeland"))  # the target is the other mortal
+	host.cast_rest_and_refreshed(1, Gods.favor_by_id(&"rest_and_refreshed"))
 	host.mortal(2).weeds_time = 6.0
 	host.mortal(2).weeds_caster = 1
 	client.apply_snapshot(host.snapshot())
-	_check(client.mortal(2).drought_time > 0.0 or client.mortal(1).drought_time > 0.0, "the host's snapshot carries the drought")
+	_check(client.mortal(2).rooted_time > 0.0, "the host's snapshot carries the root")
+	_check(client.mortal(2).drowsy_time > 0.0 and client.mortal(2).drowsy_stun > 0.0, "...and the drowsiness with the stun that follows it")
 	_check(is_equal_approx(client.mortal(2).weeds_time, 6.0) and client.mortal(2).weeds_caster == 1, "...and the weeds, with who sent them")
 	host.queue_free()
 	client.queue_free()
