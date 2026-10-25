@@ -91,6 +91,10 @@ func _run() -> void:
 	_check(await _until(func() -> bool: return _game().arena is PrepArea), "the trial's end hands both screens to the rest")
 	var prep: PrepArea = _game().arena
 	_check(prep.next_god_id == &"mayari" and prep._networked, "the host's rest is networked and names Mayari")
+	# A LAN reorders: one of the trial's last RESULTS ticks lands after the release,
+	# on the client's rest. Sent once the client says it is in the rest.
+	_check(await _until(func() -> bool: return prep._present.has(client_id) or prep._all_here), "the client reports it is in the rest")
+	network.rpc("rpc_arena_state", {"scene": "trial_1:tala", "phase": int(Arena.Phase.RESULTS), "trial_time": 0.0, "mortals": {}})
 	var shelf: Array[StringName] = prep.offers_for(client_id)
 	_check(shelf.size() == 3, "the host rolled the client a shelf of three (%s)" % str(shelf))
 	# A voucher left over, for the client's altar below - once the shell has put
@@ -145,9 +149,11 @@ func _run() -> void:
 	var next_rules: GodMatch = _game().rules
 	_check(next_rules != null and (next_rules.mortal(client_id).pamana_next != &"" or next_rules.mortal(client_id).surigao_early > 0),
 		"the client's purchase rides into the host's next trial")
-	_check(next_rules != null and next_rules.mortal(client_id).due == 1 and next_rules.local().due == 1, "...and both kept vouchers do too")
-	var client_favors := next_rules.mortal(client_id).favors.size() if next_rules != null else 0
-	_check(await _until(func() -> bool: return next_rules.mortal(client_id).due == 0 and next_rules.mortal(client_id).favors.size() == client_favors + 1),
+	_check(next_rules != null and next_rules.local().due == 1, "...and so does the host's kept voucher")
+	# (The client checks its own kept voucher arrived; it may spend it before this line.)
+	_check(await _until(func() -> bool:
+		var buyer_now: GodMatch.Mortal = next_rules.mortal(client_id) if next_rules != null else null
+		return buyer_now != null and buyer_now.due == 0),
 		"the client spends its kept voucher in Mayari's trial (the host grants it)")
 	# Stay up while the client finishes its own checks.
 	await _until(func() -> bool: return false, 6.0)

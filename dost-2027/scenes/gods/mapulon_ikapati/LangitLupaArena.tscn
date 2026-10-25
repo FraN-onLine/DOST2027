@@ -322,18 +322,7 @@ default_color = Color(0.9490196, 0.9098039, 0.8117647, 0.35)
 [node name="LangitHud" type="CanvasLayer" parent="." index="14" unique_id=1870373423]
 layer = 12
 
-[node name="Callout" type="Label" parent="LangitHud" index="0" unique_id=235282260]
-visible = false
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_top = 120.0
-offset_bottom = 150.0
-grow_horizontal = 2
-theme_type_variation = &"HudCallout"
-horizontal_alignment = 1
-
-[node name="RulesCard" type="PanelContainer" parent="LangitHud" index="1" unique_id=552142326]
+[node name="RulesCard" type="PanelContainer" parent="LangitHud" index="0" unique_id=552142326]
 visible = false
 offset_left = 386.0
 offset_top = 168.0
@@ -364,7 +353,7 @@ text = "Every crossing earns FAVOR. Get tagged and you're the Taya. Last 30s: BL
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="TayaTip" type="Label" parent="LangitHud" index="2" unique_id=1324479048]
+[node name="TayaTip" type="Label" parent="LangitHud" index="1" unique_id=1324479048]
 visible = false
 offset_left = 386.0
 offset_top = 168.0

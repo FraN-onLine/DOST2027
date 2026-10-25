@@ -255,12 +255,12 @@ func _run() -> void:
 	arena.rules.mortal(2).favors.append(Gods.favor_by_id(&"the_sun_god"))
 	arena.rules.mortal(1).favors.append(Gods.favor_by_id(&"the_ruler"))
 	arena.rules.mortal(1).favor = 500
-	var popups := arena.popups_root.get_child_count()
+	var popups := arena.favor_popups_root.get_child_count()
 	arena.rules.spend_favor(250, GodMatch.PURCHASE_REASON, 1)
 	await _frames(1)
 	_check(arena.rules.mortal(1).favor == 250, "the arena's mortal paid")
 	_check(arena._sun_patches.is_empty(), "no Sun God or Ruler patch follows a purchase")
-	_check(arena.popups_root.get_child_count() == popups, "no red loss popup follows a purchase")
+	_check(arena.favor_popups_root.get_child_count() == popups, "no red loss popup follows a purchase")
 	arena.lose_favor(100, "Test", 1)
 	_check(not arena._sun_patches.is_empty(), "(a real loss still feeds The Sun God and The Ruler)")
 

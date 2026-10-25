@@ -63,6 +63,7 @@ signal prep_purchase_requested(peer_id, pamana_id)   # client -> host: I buy thi
 signal boon_purchase_requested(peer_id, favor_id)    # client -> host: I buy this boon at the altar
 signal player_name_changed(peer_id, name)  # anybody -> everybody: a mortal was renamed
 signal dialogue_released(dialogue_id)
+signal stale_scene_message(kind, scene)  # a client dropped a message tagged with another scene (see scene_token)
 
 var host_name := "Host"
 var my_name := "" # The name the user chose before hosting/joining
@@ -91,6 +92,16 @@ var _host_listen_port := DISCOVERY_PORT
 var _discovered_hosts := {}  # "ip:discovery_port" -> {name, ip, port, lobby_id, discovery_port, last_seen}
 var god_state := {}         # peer_id -> {favor, due, favors, cooldowns, ...} (host: authoritative)
 var mortal_positions := {}  # peer_id -> Vector2 (host: latest reported position)
+# THE SCENE TOKEN. Every scene-scoped message carries the scene it was sent from
+# ("<dialogue prefix>:<god id>", Arena.scene_token(): "trial_2:tala", "prep_1:apolaki").
+# The shell names each arena the same way on every screen, so the host and the
+# clients agree on it without sending anything. The arena on screen sets it here;
+# a message tagged with another scene (a late tick from the trial that just
+# ended, an early one from the next) is dropped on arrival - by a client for the
+# host's broadcasts, by the host for a client's requests. "" on either side
+# (outside a run, an untagged sender) lets the message through.
+var scene_token := ""
+var _stale_logged := {}  # "kind|scene" -> true: each kind of stale message is logged once
 var _discovery_active := false
 var _is_host_broadcasting := false
 var _game_in_progress := false
@@ -1167,15 +1178,15 @@ func start_god_games(scene_path := "res://scenes/Game.tscn") -> void:
 
 # --- FAVOR snapshots (host -> everyone) -------------------------------------
 
-func publish_god_state(state: Dictionary) -> void:
+func publish_god_state(state: Dictionary, scene := scene_token) -> void:
 	god_state = state.duplicate(true)
 	if has_multiplayer_peer():
-		rpc("rpc_god_state", god_state)
+		rpc("rpc_god_state", god_state, scene)
 
 
 @rpc("any_peer", "reliable")
-func rpc_god_state(remote_state: Dictionary) -> void:
-	if multiplayer.is_server():
+func rpc_god_state(remote_state: Dictionary, scene: String) -> void:
+	if multiplayer.is_server() or not is_current_scene(scene, "god state"):
 		return
 	god_state = remote_state.duplicate(true)
 	emit_signal("god_state_received", god_state)
@@ -1189,7 +1200,7 @@ func request_god_state() -> void:
 	if sender == 0:
 		emit_signal("god_state_received", god_state)
 	elif has_multiplayer_peer():
-		rpc_id(sender, "rpc_god_state", god_state)
+		rpc_id(sender, "rpc_god_state", god_state, scene_token)
 
 
 # --- client intents (client -> host) ----------------------------------------
@@ -1205,8 +1216,8 @@ func request_god_favor_add(amount: int, reason: String) -> void:
 
 
 @rpc("any_peer", "reliable")
-func request_god_skill(slot: int) -> void:
-	if not multiplayer.is_server():
+func request_god_skill(slot: int, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "skill request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -1215,8 +1226,8 @@ func request_god_skill(slot: int) -> void:
 
 
 @rpc("any_peer", "reliable")
-func request_god_grant(favor_id: StringName) -> void:
-	if not multiplayer.is_server():
+func request_god_grant(favor_id: StringName, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "grant request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -1235,8 +1246,8 @@ func request_apolaki_score(score_id: StringName) -> void:
 
 
 @rpc("any_peer", "reliable")
-func request_tala_throw(direction: Vector2, origin: Vector2) -> void:
-	if not multiplayer.is_server():
+func request_tala_throw(direction: Vector2, origin: Vector2, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "throw request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -1295,15 +1306,18 @@ func rpc_dialogue_release(dialogue_id: String) -> void:
 	_dialogue_done.erase(dialogue_id)
 	emit_signal("dialogue_released", dialogue_id)
 
+# The layout and the world tick carry their scene inside ("scene"); the arena
+# that publishes them puts its own token there, so even a tick sent in the frame
+# the next arena takes over is labelled with the scene it describes.
 func publish_arena_layout(layout: Dictionary) -> void:
 	if not has_multiplayer_peer():
 		return
-	rpc("rpc_arena_layout", layout)
+	rpc("rpc_arena_layout", _tagged(layout))
 
 
 @rpc("any_peer", "reliable")
 func rpc_arena_layout(layout: Dictionary) -> void:
-	if multiplayer.is_server():
+	if multiplayer.is_server() or not is_current_scene(str(layout.get("scene", "")), "layout"):
 		return
 	emit_signal("arena_layout_received", layout)
 
@@ -1311,14 +1325,36 @@ func rpc_arena_layout(layout: Dictionary) -> void:
 func publish_arena_state(state: Dictionary) -> void:
 	if not has_multiplayer_peer():
 		return
-	rpc("rpc_arena_state", state)
+	rpc("rpc_arena_state", _tagged(state))
 
 
 @rpc("any_peer", "unreliable_ordered")
 func rpc_arena_state(state: Dictionary) -> void:
-	if multiplayer.is_server():
+	if multiplayer.is_server() or not is_current_scene(str(state.get("scene", "")), "arena"):
 		return
 	emit_signal("arena_state_received", state)
+
+
+# Is a message tagged `scene` for the scene on this screen? Drops (and logs once
+# per kind) one that belongs to another, and says so (stale_scene_message): a
+# rest whose host has already opened the next trial follows it from that.
+func is_current_scene(scene: String, kind: String) -> bool:
+	if scene == "" or scene_token == "" or scene == scene_token:
+		return true
+	var key := "%s|%s" % [kind, scene]
+	if not _stale_logged.has(key):
+		_stale_logged[key] = true
+		print("[NET] dropped stale %s tick (%s, this screen is in %s)" % [kind, scene, scene_token])
+	emit_signal("stale_scene_message", kind, scene)
+	return false
+
+
+func _tagged(payload: Dictionary) -> Dictionary:
+	if payload.has("scene"):
+		return payload
+	var out := payload.duplicate()
+	out["scene"] = scene_token
+	return out
 
 
 @rpc("any_peer", "unreliable_ordered")
@@ -1359,12 +1395,12 @@ func send_arena_hit(peer_id: int, hit: Dictionary) -> void:
 		return
 	if peer_id == multiplayer.get_unique_id():
 		return
-	rpc_id(peer_id, "rpc_arena_hit", hit)
+	rpc_id(peer_id, "rpc_arena_hit", _tagged(hit))
 
 
 @rpc("any_peer", "reliable")
 func rpc_arena_hit(hit: Dictionary) -> void:
-	if multiplayer.is_server():
+	if multiplayer.is_server() or not is_current_scene(str(hit.get("scene", "")), "hit"):
 		return
 	emit_signal("arena_hit_received", hit)
 
@@ -1380,12 +1416,12 @@ func send_arena_blind(caster_id: int, radius: float, duration: float) -> void:
 		return
 	if duration <= 0.0:
 		return
-	rpc("rpc_arena_blind", caster_id, radius, duration)
+	rpc("rpc_arena_blind", caster_id, radius, duration, scene_token)
 
 
 @rpc("any_peer", "reliable")
-func rpc_arena_blind(caster_id: int, radius: float, duration: float) -> void:
-	if multiplayer.is_server():
+func rpc_arena_blind(caster_id: int, radius: float, duration: float, scene: String) -> void:
+	if multiplayer.is_server() or not is_current_scene(scene, "blind"):
 		return
 	emit_signal("arena_blind_received", caster_id, radius, duration)
 
@@ -1396,12 +1432,12 @@ func rpc_arena_blind(caster_id: int, radius: float, duration: float) -> void:
 func send_arena_fx(fx: Dictionary) -> void:
 	if not has_multiplayer_peer():
 		return
-	rpc("rpc_arena_fx", fx)
+	rpc("rpc_arena_fx", _tagged(fx))
 
 
 @rpc("any_peer", "reliable")
 func rpc_arena_fx(fx: Dictionary) -> void:
-	if multiplayer.is_server():
+	if multiplayer.is_server() or not is_current_scene(str(fx.get("scene", "")), "fx"):
 		return
 	emit_signal("arena_fx_received", fx)
 
@@ -1410,12 +1446,12 @@ func rpc_arena_fx(fx: Dictionary) -> void:
 func send_arena_movement_override(caster_id: int, duration: float) -> void:
 	if not has_multiplayer_peer() or duration < 0.0:
 		return
-	rpc("rpc_arena_movement_override", caster_id, duration)
+	rpc("rpc_arena_movement_override", caster_id, duration, scene_token)
 
 
 @rpc("any_peer", "reliable")
-func rpc_arena_movement_override(caster_id: int, duration: float) -> void:
-	if multiplayer.is_server():
+func rpc_arena_movement_override(caster_id: int, duration: float, scene: String) -> void:
+	if multiplayer.is_server() or not is_current_scene(scene, "movement override"):
 		return
 	emit_signal("arena_movement_override_received", caster_id, duration)
 
@@ -1426,8 +1462,8 @@ func rpc_arena_movement_override(caster_id: int, duration: float) -> void:
 # real area and tells every screen to draw it.
 
 @rpc("any_peer", "reliable")
-func request_arena_shock(origin: Vector2) -> void:
-	if not multiplayer.is_server():
+func request_arena_shock(origin: Vector2, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "shock request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -1438,12 +1474,12 @@ func request_arena_shock(origin: Vector2) -> void:
 func send_arena_shock(caster_id: int, origin: Vector2) -> void:
 	if not has_multiplayer_peer():
 		return
-	rpc("rpc_arena_shock", caster_id, origin)
+	rpc("rpc_arena_shock", caster_id, origin, scene_token)
 
 
 @rpc("any_peer", "reliable")
-func rpc_arena_shock(caster_id: int, origin: Vector2) -> void:
-	if multiplayer.is_server():
+func rpc_arena_shock(caster_id: int, origin: Vector2, scene: String) -> void:
+	if multiplayer.is_server() or not is_current_scene(scene, "shock"):
 		return
 	emit_signal("arena_shock_received", caster_id, origin)
 
@@ -1455,12 +1491,12 @@ func rpc_arena_shock(caster_id: int, origin: Vector2) -> void:
 func send_arena_cast(caster_id: int, favor_id: StringName) -> void:
 	if not has_multiplayer_peer():
 		return
-	rpc("rpc_arena_cast", caster_id, str(favor_id))
+	rpc("rpc_arena_cast", caster_id, str(favor_id), scene_token)
 
 
 @rpc("any_peer", "reliable")
-func rpc_arena_cast(caster_id: int, favor_id: String) -> void:
-	if multiplayer.is_server():
+func rpc_arena_cast(caster_id: int, favor_id: String, scene: String) -> void:
+	if multiplayer.is_server() or not is_current_scene(scene, "cast"):
 		return
 	emit_signal("arena_cast_received", caster_id, StringName(favor_id))
 
@@ -1488,19 +1524,19 @@ func request_agawan_attack(origin: Vector2) -> void:
 func send_prep_offers(peer_id: int, offers: Array) -> void:
 	if not has_multiplayer_peer() or peer_id == multiplayer.get_unique_id():
 		return
-	rpc_id(peer_id, "rpc_prep_offers", offers)
+	rpc_id(peer_id, "rpc_prep_offers", offers, scene_token)
 
 
 @rpc("authority", "reliable")
-func rpc_prep_offers(offers: Array) -> void:
-	if multiplayer.is_server():
+func rpc_prep_offers(offers: Array, scene: String) -> void:
+	if multiplayer.is_server() or not is_current_scene(scene, "offers"):
 		return
 	emit_signal("prep_offers_received", offers)
 
 
 @rpc("any_peer", "reliable")
-func request_prep_offers() -> void:
-	if not multiplayer.is_server():
+func request_prep_offers(scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "offers request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -1509,8 +1545,8 @@ func request_prep_offers() -> void:
 
 
 @rpc("any_peer", "reliable")
-func request_prep_purchase(pamana_id: String) -> void:
-	if not multiplayer.is_server():
+func request_prep_purchase(pamana_id: String, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "pamana request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -1522,8 +1558,8 @@ func request_prep_purchase(pamana_id: String) -> void:
 # voucher): the client asks, the host checks it (PrepArea.try_buy_boon ->
 # GodMatch.buy_boon) and the next FAVOR snapshot brings the result back.
 @rpc("any_peer", "reliable")
-func request_boon_purchase(favor_id: String) -> void:
-	if not multiplayer.is_server():
+func request_boon_purchase(favor_id: String, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "boon request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -1537,8 +1573,8 @@ func request_boon_purchase(favor_id: String) -> void:
 # stays the host's to decide. The peer asks, the host applies it, and the next
 # FAVOR snapshot brings the number back like every other change.
 @rpc("any_peer", "reliable")
-func request_arena_score(amount: int, reason: String) -> void:
-	if not multiplayer.is_server():
+func request_arena_score(amount: int, reason: String, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "score request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:
@@ -1552,8 +1588,8 @@ func request_arena_score(amount: int, reason: String) -> void:
 # ALIS!, 0 for a broken chant). The host checks the sender is the Taya and the
 # steps come in order before it acts, and shares the chant through the world tick.
 @rpc("any_peer", "reliable")
-func request_langit_chant(kind: String, value: int) -> void:
-	if not multiplayer.is_server():
+func request_langit_chant(kind: String, value: int, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "chant request"):
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender == 0:

@@ -288,6 +288,24 @@ func is_dashing() -> bool:
 	return _dash_time > 0.0
 
 
+# Everything a trial can leave on a mortal - a stun and its stars, a shove, a
+# forced walk, a dash, a drop from the sky, a squash - gone, and it may walk.
+func clear_trial_state() -> void:
+	_stun = 0.0
+	_stun_fx = 0.0
+	_knockback = Vector2.ZERO
+	_forced_move_time = 0.0
+	_dash_time = 0.0
+	_dash_velocity = Vector2.ZERO
+	drop_offset = Vector2.ZERO
+	drop_hidden = false
+	drop_shadow = 1.0
+	blink_left = 0.0
+	scale = Vector2.ONE
+	velocity = Vector2.ZERO
+	set_lock(false)
+
+
 func set_lock(value: bool) -> void:
 	locked = value
 	if locked:

@@ -126,11 +126,24 @@ func set_time_left(seconds: float) -> void:
 	time_label.add_theme_color_override("font_color", COLOR_TIME_LOW if clamped <= 10.0 else COLOR_TIME_OK)
 
 
+# The banner is one family with the floating text (UI/Popups/favor_popup.gd): the
+# theme's night plate gets a 1 px border in the banner's colour, and it pops in
+# with a slight overshoot (no pop with reduce flashing).
 func show_banner(text: String, color: Color, duration := 2.0) -> void:
 	banner_label.text = text
 	banner_label.add_theme_color_override("font_color", UITokens.readable_on_dark(color, UITokens.NIGHT_900))
+	var plate := banner_label.get_theme_stylebox("normal").duplicate() as PixelStyleBox
+	if plate != null:
+		plate.border_color = color
+		plate.border_width = 1
+		banner_label.add_theme_stylebox_override("normal", plate)
+	var fresh := not banner_label.visible
 	banner_label.visible = true
 	_banner_time = duration
+	if fresh and not UITokens.calm():
+		banner_label.pivot_offset = banner_label.size * 0.5
+		banner_label.scale = Vector2.ONE * 0.6
+		create_tween().tween_property(banner_label, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func log_event(text: String, color: Color) -> void:

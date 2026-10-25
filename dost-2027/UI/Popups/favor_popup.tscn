@@ -1,23 +1,42 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://UI/Popups/favor_popup.gd" id="1_popup"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="2_coin"]
 
-[node name="FavorPopup" type="Node2D"]
+[node name="FavorPopup" type="PanelContainer"]
+mouse_filter = 2
 script = ExtResource("1_popup")
 
-[node name="Box" type="HBoxContainer" parent="."]
-theme_override_constants/separation = 8
+[node name="Rows" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
 alignment = 1
 
-[node name="Icon" type="TextureRect" parent="Box"]
-visible = false
+[node name="Row" type="HBoxContainer" parent="Rows"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="Coin" type="TextureRect" parent="Rows/Row"]
 custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
 size_flags_vertical = 4
-stretch_mode = 5
+mouse_filter = 2
+texture = ExtResource("2_coin")
 expand_mode = 1
+stretch_mode = 5
 
-[node name="Label" type="Label" parent="Box"]
+[node name="Number" type="Label" parent="Rows/Row"]
 layout_mode = 2
-theme_type_variation = &"WorldValue"
-text = "+1 FAVOR"
+theme_override_font_sizes/font_size = 16
+text = "+1"
+horizontal_alignment = 1
+
+[node name="Reason" type="Label" parent="Rows"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6627451, 0.7019608, 0.8, 1)
+theme_override_font_sizes/font_size = 8
+horizontal_alignment = 1

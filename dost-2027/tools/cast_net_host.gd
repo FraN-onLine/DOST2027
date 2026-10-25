@@ -58,7 +58,7 @@ func _run() -> void:
 	network.set_my_name("HOSTPEER")
 	network.lobby_settings_path = SETTINGS_FILE
 	network.start_host(PORT)
-	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["mayari", "tala", "hanan"], "trial_time": 90.0})
+	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["mayari", "tala", "hanan"], "trial_time": 90.0, "opening_cutscene": "skip"})
 	var file := FileAccess.open(PORT_FILE, FileAccess.WRITE)
 	file.store_string(str(int(network._current_port)))
 	file.close()

@@ -277,11 +277,10 @@ func _run() -> void:
 
 # The text of the newest FAVOR popup over a mortal ('' when there is none).
 func _popup_text(arena) -> String:
-	var popups: Array = arena.popups_root.get_children()
+	var popups: Array = arena.favor_popups_root.get_children().filter(func(each) -> bool: return each is FavorPopup and not each.keep)
 	if popups.is_empty():
 		return ""
-	var label: Label = popups[popups.size() - 1].get_node_or_null("Box/Label")
-	return label.text if label != null else ""
+	return (popups[popups.size() - 1] as FavorPopup).number_text()
 
 
 # One pass/fail line, the way the rest of this probe reports.

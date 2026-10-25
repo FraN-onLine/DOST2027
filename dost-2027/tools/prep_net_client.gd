@@ -74,6 +74,11 @@ func _run() -> void:
 		return _finish()
 	var prep: PrepArea = _game().arena
 	_check(not prep._authority and prep.next_god_id == &"mayari", "the client's rest mirrors the host and names Mayari")
+	# The host replays a late RESULTS tick from its trial (a LAN reordering): it must
+	# not end the rest, lock the mortal, open the closing lines or zero the clock.
+	await _until(func() -> bool: return false, 1.5)
+	_check(not prep.player.locked and prep._phase == Arena.Phase.INTRO and not prep.dialogue.is_active() and prep._trial_time > 1.0,
+		"a late RESULTS tick from the trial leaves the client's rest playable (locked %s, phase %d, clock %.1f)" % [str(prep.player.locked), prep._phase, prep._trial_time])
 	_check(await _until(func() -> bool: return prep.my_offers().size() == 3), "the host sent this client its own three offers (%s)" % str(prep.my_offers()))
 	_check(await _until(func() -> bool: return prep.rules.local().favor == 1000), "the client mirrors the FAVOR the host gave it")
 
@@ -96,7 +101,7 @@ func _run() -> void:
 	var me := prep.rules.local()
 	_check(await _until(func() -> bool: return me.due == 1 and me.favor == 1000), "the host left this client a voucher (and 1000 FAVOR)")
 	var favor_before := me.favor
-	var popups := prep.popups_root.get_child_count()
+	var popups := prep.favor_popups_root.get_child_count()
 	prep._toggle_due_menu()
 	await _frames(2)
 	_check(prep.due_menu.due_label.text == "BUY A BLESSING - 750 FAVOR", "with a voucher held the altar still only sells (%s)" % prep.due_menu.due_label.text)
@@ -112,7 +117,7 @@ func _run() -> void:
 	_check(await _until(func() -> bool: return me.has_favor(boon.id) and prep.boons_bought_by(my_id) == [boon.id]),
 		"the host's answer comes back: %s bought" % boon.display_name)
 	_check(me.favor == favor_before - prep.boon_cost and me.due == 1, "...for %d FAVOR (%d -> %d), the voucher kept (%d)" % [prep.boon_cost, favor_before, me.favor, me.due])
-	_check(prep.popups_root.get_child_count() == popups, "...and the client shows no loss popup for it")
+	_check(prep.favor_popups_root.get_child_count() == popups, "...and the client shows no loss popup for it")
 	_check(await _until(func() -> bool: return prep.hud.event_label.text.ends_with("bought %s" % boon.display_name)),
 		"the event line reads \"<name> bought %s\" (%s)" % [boon.display_name, prep.hud.event_label.text])
 

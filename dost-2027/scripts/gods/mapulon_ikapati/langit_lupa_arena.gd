@@ -285,7 +285,6 @@ enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 @onready var background: Sprite2D = get_node_or_null("Background")
 @onready var bots_root: Node2D = get_node_or_null("Bots")
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
-@onready var callout_label: Label = get_node_or_null("LangitHud/Callout")
 @onready var rules_card: Control = get_node_or_null("LangitHud/RulesCard")
 @onready var taya_tip: Control = get_node_or_null("LangitHud/TayaTip")
 
@@ -883,7 +882,7 @@ func _send_chant(kind: String, value: int) -> void:
 	if _authority:
 		_on_chant_message(_my_id, kind, value)
 	elif _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_langit_chant", kind, value)
+		_net.rpc_id(1, "request_langit_chant", kind, value, scene_token())
 
 
 # Every frame on every machine: the Taya's own chant - its beat clock and its
@@ -2253,32 +2252,24 @@ func _apply_art() -> void:
 
 # --- HUD ---------------------------------------------------------------------
 
+# "TAYA!" over the mortal, in the base's callout pill.
 func _set_callout(text: String, tint: Color, seconds: float) -> void:
 	_callout_time = seconds
-	_show_callout(text, tint, seconds > 0.0)
-
-
-func _show_callout(text: String, tint: Color, shown := true) -> void:
-	if callout_label == null:
-		return
-	callout_label.text = text
-	callout_label.add_theme_color_override("font_color", UITokens.readable_on_dark(tint, UITokens.NIGHT_900))
-	callout_label.visible = shown
+	callout(text, tint, seconds)
 
 
 func _refresh_hud(delta: float) -> void:
 	_callout_time = maxf(0.0, _callout_time - delta)
 	_taya_tip_left = maxf(0.0, _taya_tip_left - delta)
 	var swapping := swap_left(_my_id)
+	# A state's callout is held up frame by frame and lets go a moment after it ends.
 	if swapping > 0.0:
 		_callout_time = 0.0
-		_show_callout("ALIS NA!", TAYA_COLOR)
+		callout("ALIS NA!", TAYA_COLOR, 0.2)
 	elif _callout_time > 0.0:
 		pass  # a timed callout is still up
 	elif is_crumbling():
-		_show_callout("THE LANGIT CRUMBLE!", UITokens.god_text(god))
-	elif callout_label != null:
-		callout_label.visible = false
+		callout("THE LANGIT CRUMBLE!", UITokens.god_text(god), 0.2)
 	if rules_card != null:
 		rules_card.visible = first_visit and _phase == Phase.COUNTDOWN and not drop_active()
 		rules_card.modulate.a = hud_alpha

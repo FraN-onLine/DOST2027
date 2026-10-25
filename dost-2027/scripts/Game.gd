@@ -301,6 +301,7 @@ func _build_trial_order() -> bool:
 
 func _start_current_trial() -> void:
 	var god := trial_order[trial_index]
+	print("[PREP] next trial: trial_%d:%s" % [trial_index + 1, god.id])
 
 	# Every god of the trial order ships its own arena scene (res://scenes/gods/
 	# <god>/); one that does not (or is not implemented) closes the run instead.
@@ -426,15 +427,16 @@ func _count_favor(delta: float) -> void:
 	favor_label.text = str(roundi(_favor_shown))
 
 
-# FAVOR rose: the number pulses (1.0 -> 1.15 -> 1.0 over 0.2 s). FAVOR dropped: it
-# flashes EMBER and fades back. With reduce flashing on there is no pulse, and a
-# drop is a held colour change instead of a flash.
+# FAVOR rose: the number pulses (1.0 -> 1.06 -> 1.0 over 0.2 s), grown from its
+# left edge so it stays inside its panel. FAVOR dropped: it flashes EMBER and fades
+# back. With reduce flashing on there is no pulse, and a drop is a held colour
+# change instead of a flash.
 func _favor_moved(up: bool) -> void:
 	if _favor_tween != null and _favor_tween.is_valid():
 		_favor_tween.kill()
 	favor_label.scale = Vector2.ONE
 	favor_label.modulate = Color.WHITE
-	favor_label.pivot_offset = favor_label.size * 0.5
+	favor_label.pivot_offset = Vector2(0.0, favor_label.size.y * 0.5)
 	var drop := Color(1.0, 0.36, 0.3)  # the gold number, washed EMBER
 	if UITokens.calm():
 		if not up:
@@ -445,7 +447,7 @@ func _favor_moved(up: bool) -> void:
 		return
 	_favor_tween = create_tween()
 	if up:
-		_favor_tween.tween_property(favor_label, "scale", Vector2.ONE * 1.15, 0.1).set_trans(Tween.TRANS_SINE)
+		_favor_tween.tween_property(favor_label, "scale", Vector2.ONE * 1.06, 0.1).set_trans(Tween.TRANS_SINE)
 		_favor_tween.tween_property(favor_label, "scale", Vector2.ONE, 0.1).set_trans(Tween.TRANS_SINE)
 	else:
 		favor_label.modulate = drop

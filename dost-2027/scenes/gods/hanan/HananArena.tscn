@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://dp4er0w7jxl38" path="res://scenes/gods/hanan/HananBaka.tscn" id="5_baka"]
 [ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="6_nrrp5"]
 [ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="7_q1ga2"]
+[ext_resource type="Script" path="res://scripts/gods/hanan/baka_gauge.gd" id="8_gauge"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_w0dj0"]
 atlas = ExtResource("4_2uhhy")
@@ -121,21 +122,7 @@ frame_progress = 0.046383616
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(400, 470)
 
-[node name="HananHud" type="CanvasLayer" parent="." index="9" unique_id=81470394]
-layer = 12
-
-[node name="Callout" type="Label" parent="HananHud" index="0" unique_id=50663764]
-visible = false
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_top = 120.0
-offset_bottom = 150.0
-grow_horizontal = 2
-theme_type_variation = &"HudCallout"
-horizontal_alignment = 1
-
-[node name="BarLayer" type="CanvasLayer" parent="." index="10" unique_id=1058177752]
+[node name="BarLayer" type="CanvasLayer" parent="." index="9" unique_id=1058177752]
 layer = 4
 
 [node name="Bar" type="Control" parent="BarLayer" index="0" unique_id=1051946538]
@@ -144,73 +131,42 @@ layout_mode = 3
 anchors_preset = 0
 offset_left = 1040.0
 offset_top = 130.0
-offset_right = 1090.0
-offset_bottom = 510.0
-
-[node name="Track" type="Panel" parent="BarLayer/Bar" index="0" unique_id=970668020]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_right = 1084.0
+offset_bottom = 396.0
 mouse_filter = 2
-theme_type_variation = &"PanelHud"
+script = ExtResource("8_gauge")
 
-[node name="Box" type="ColorRect" parent="BarLayer/Bar" index="1" unique_id=1662761274]
-layout_mode = 0
-anchor_right = 1.0
-offset_top = 120.0
-offset_bottom = 220.0
-mouse_filter = 2
-color = Color(0.36078432, 0.76862746, 0.5411765, 0.55)
-
-[node name="Indicator" type="ColorRect" parent="BarLayer/Bar" index="2" unique_id=1360483024]
-layout_mode = 0
-anchor_right = 1.0
-offset_left = -6.0
-offset_top = 300.0
-offset_right = 6.0
-offset_bottom = 310.0
-mouse_filter = 2
-color = Color(0.9647059, 0.8235294, 0.47843137, 1)
-
-[node name="Rate" type="Label" parent="BarLayer/Bar" index="3" unique_id=1101827220]
+[node name="Rate" type="Label" parent="BarLayer/Bar" index="0" unique_id=1101827220]
 visible = false
 layout_mode = 0
-offset_left = 58.0
-offset_top = 178.0
-offset_right = 198.0
-offset_bottom = 202.0
-theme_type_variation = &"HudLabel"
+offset_right = 96.0
+offset_bottom = 20.0
+theme_override_font_sizes/font_size = 16
 text = "+40/s  x1.00"
 
-[node name="HoldPrompt" type="Label" parent="BarLayer/Bar" index="4" unique_id=1456759998]
+[node name="HoldPrompt" type="Label" parent="BarLayer/Bar" index="1" unique_id=1456759998]
 visible = false
 layout_mode = 0
-offset_left = 58.0
-offset_top = 140.0
-offset_right = 238.0
-offset_bottom = 164.0
-theme_type_variation = &"HudLabel"
+offset_right = 136.0
+offset_bottom = 20.0
 theme_override_colors/font_color = Color(0.9098039, 0.72156864, 0.2901961, 1)
+theme_override_font_sizes/font_size = 16
 text = "HOLD LEFT CLICK"
 
-[node name="SinkArrow" type="Polygon2D" parent="BarLayer/Bar" index="5" unique_id=38692854]
+[node name="SinkArrow" type="Polygon2D" parent="BarLayer/Bar" index="2" unique_id=38692854]
 visible = false
-position = Vector2(-22, 0)
-color = Color(1, 0.62, 0.55, 1)
-polygon = PackedVector2Array(-8, -7, 8, -7, 0, 8)
+color = Color(0.8784314, 0.38039216, 0.30980393, 1)
+polygon = PackedVector2Array(-6, -9, 6, -9, 6, 1, 10, 1, 0, 11, -10, 1, -6, 1)
 
 [node name="Status" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=1400636208]
 layout_mode = 2
 theme_type_variation = &"HudLabel"
 text = "LEVEL 1  LOW BAKA"
 
-[node name="FaceFocus" type="Marker2D" parent="." index="14" unique_id=1096640058]
+[node name="FaceFocus" type="Marker2D" parent="." index="13" unique_id=1096640058]
 position = Vector2(944, 92)
 
-[node name="ArenaBG" type="Node2D" parent="." index="15" unique_id=1789247891]
+[node name="ArenaBG" type="Node2D" parent="." index="14" unique_id=1789247891]
 position = Vector2(944, 92)
 
 [node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=758506210]
