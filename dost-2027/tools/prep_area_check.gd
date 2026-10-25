@@ -236,11 +236,11 @@ func _networked_rest(view: SubViewport, network: Node) -> void:
 	_check(host.rules.mortal(2).favor == 1000 - item.cost and host.bought_by(2) == [item.id], "the host makes a client's purchase")
 	host._on_prep_purchase_requested(2, str(shelf[1]))
 	_check(host.bought_by(2).size() == 1, "...and refuses its second one")
-	var popups := client.popups_root.get_child_count()
+	var popups := client.favor_popups_root.get_child_count()
 	client._on_god_state_received(host.rules.snapshot())
 	client.arena_read_tick(host.arena_tick_fields())
 	_check(client.rules.local().favor == 1000 - item.cost and client.bought_by(2) == [item.id], "the client mirrors what it paid and bought")
-	_check(client.popups_root.get_child_count() == popups, "the client shows no loss popup for its purchase")
+	_check(client.favor_popups_root.get_child_count() == popups, "the client shows no loss popup for its purchase")
 
 	# The altar's boon, asked for over the (simulated) wire.
 	var boon := _plain_favor(Gods.tala().favors, host.rules.mortal(2))
@@ -252,14 +252,18 @@ func _networked_rest(view: SubViewport, network: Node) -> void:
 	host._on_boon_purchase_requested(2, str(_plain_favor(Gods.tala().favors, host.rules.mortal(2)).id))
 	_check(host.boons_bought_by(2) == [boon.id], "...and refuses its second one")
 	host.rules.mortal(2).favor = client_favor - host.boon_cost
-	popups = client.popups_root.get_child_count()
+	popups = client.favor_popups_root.get_child_count()
 	client._on_god_state_received(host.rules.snapshot())
 	client.arena_read_tick(host.arena_tick_fields())
 	_check(client.rules.local().has_favor(boon.id) and client.boons_bought_by(2) == [boon.id] and client.boons_left(2) == 0,
 		"the client mirrors its boon and that it has none left")
-	_check(client.popups_root.get_child_count() == popups, "...with no loss popup for the FAVOR it spent")
+	_check(client.favor_popups_root.get_child_count() == popups, "...with no loss popup for the FAVOR it spent")
 
 	host._ready_ids = [1, 2]
+	host._rest_age = host.presence_grace + 1.0
+	host._present = [1, 2]
+	_check(host.ready_count() == Vector2i(2, 2) and host._all_ready(), "a mortal who never reached the rest is not waited for (READY 2/2)")
+	host._present = [1, 2, 3]
 	_check(host.ready_count() == Vector2i(2, 3) and not host._all_ready(), "READY 2/3: the rest waits for the third mortal")
 	client.arena_read_tick(host.arena_tick_fields())
 	client._refresh_prep_hud()
@@ -304,7 +308,7 @@ func _altar_boons(prep: PrepArea, me: GodMatch.Mortal) -> void:
 	price = _price_label(menu, 0)
 	_check(price.text == "750 FAVOR" and price.get_theme_color("font_color") == UITokens.readable_on_dark(UITokens.JADE, UITokens.NIGHT_800),
 		"affordable: the price reads 750 FAVOR in JADE")
-	var popups := prep.popups_root.get_child_count()
+	var popups := prep.favor_popups_root.get_child_count()
 	var index := _plain_index(menu)
 	var boon: GodFavor = menu._shown[index]
 	menu._choose(index)
@@ -314,7 +318,7 @@ func _altar_boons(prep: PrepArea, me: GodMatch.Mortal) -> void:
 	_check(prep.altar_hint.text == "BLESSING BOUGHT", "...the altar says the blessing was bought (%s)" % prep.altar_hint.text)
 	_check(paid_pamana and (me.pamana_next != &"" or me.surigao_early > 0), "...on top of the Pamana bought at the Tindahan")
 	_check(prep.hud.event_label.text == "%s bought %s" % [me.display_name, boon.display_name], "everyone hears it (%s)" % prep.hud.event_label.text)
-	_check(prep.popups_root.get_child_count() == popups, "spending is not a loss: no red popup")
+	_check(prep.favor_popups_root.get_child_count() == popups, "spending is not a loss: no red popup")
 
 	# One boon per rest: refused, and the cards lock.
 	var second := _plain_favor(Gods.apolaki().favors, me)

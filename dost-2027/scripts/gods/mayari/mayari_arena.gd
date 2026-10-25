@@ -451,7 +451,7 @@ func _try_shockwave() -> void:
 		if _networked and _net != null:
 			_net.send_arena_shock(_my_id, origin)
 	elif _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_arena_shock", origin)
+		_net.rpc_id(1, "request_arena_shock", origin, scene_token())
 
 
 # Shove every mortal the growing ring has reached, and stop once it is full.

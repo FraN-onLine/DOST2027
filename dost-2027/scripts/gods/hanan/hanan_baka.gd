@@ -26,6 +26,7 @@ const CLIPS: Array[StringName] = [&"low", &"sitting", &"standing"]
 var level := 1
 var _base_scale := Vector2.ONE  # Art's authored size; the levels only stretch it taller
 var _bump: Tween
+var _used: Dictionary = {}  # frame texture -> its painted pixels (screen_rect)
 
 
 func _ready() -> void:
@@ -47,6 +48,23 @@ func set_level(value: int) -> void:
 
 func clip() -> StringName:
 	return art.animation
+
+
+# Where her body is drawn on screen (the frame's painted pixels, not its padding),
+# so the balance bar can keep clear of her.
+func screen_rect() -> Rect2:
+	var frame := art.sprite_frames.get_frame_texture(art.animation, art.frame) if art.sprite_frames != null else null
+	var xform := art.get_global_transform_with_canvas()
+	if frame == null:
+		return Rect2(xform.origin, Vector2.ZERO)
+	if not _used.has(frame):
+		var image := frame.get_image()
+		_used[frame] = image.get_used_rect() if image != null else Rect2i(Vector2i.ZERO, Vector2i(frame.get_size()))
+	var used: Rect2i = _used[frame]
+	var top_left := Vector2(used.position) - (frame.get_size() * 0.5 if art.centered else Vector2.ZERO) + art.offset
+	var a := xform * top_left
+	var b := xform * (top_left + Vector2(used.size))
+	return Rect2(a.min(b), (b - a).abs())
 
 
 # A mortal tripped over her: a short squash and wobble, back to rest.

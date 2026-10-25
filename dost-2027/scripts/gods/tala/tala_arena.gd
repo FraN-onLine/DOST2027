@@ -401,7 +401,7 @@ func _try_throw(mouse_position: Vector2) -> void:
 	if _authority:
 		_start_throw(_my_id, direction)
 	elif _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_tala_throw", direction, player.global_position)
+		_net.rpc_id(1, "request_tala_throw", direction, player.global_position, scene_token())
 
 
 func _on_throw_requested(mortal_id: int, direction: Vector2, requested_origin: Vector2) -> void:

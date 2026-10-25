@@ -93,9 +93,17 @@ extends Node2D
 #   * THE DIALOGUE AND THE MENUS: the god's intro lines, the closing lines, the
 #     God's Due menu and the handshake that keeps every peer on the same line.
 #
-#   * FAVOR POPUPS: the light yellow "+41 FAVOR" that floats off a mortal's head
-#     while a zone pays, and the same popup in its loss colour when something
-#     takes FAVOR away (UI/Popups/favor_popup.tscn, spawn_popup()/favor_popup()).
+#   * FLOATING TEXT: every FAVOR popup, a word over a mortal and a trial's callout
+#     is one pill (UI/Popups/favor_popup.tscn): night indigo, a 1 px JADE / EMBER
+#     border, the number at 16 px (24 for 250+) after the FAVOR coin, the reason
+#     on a second line at 8 px. They live in screen space on the popup layer
+#     (POPUP_LAYER: above the blackout, the sun patches and Hanan's bar, below the
+#     bottom band) and follow their mortal through the follow camera. Each mortal
+#     has a stack - a new popup pushes the older ones up by their real height, at
+#     most POPUP_MAX, the oldest fading early - kept inside the screen, clear of the
+#     left strip and the band. A rival's are 75% size and opacity. favor_popup()
+#     for FAVOR, mortal_popup() for a word, spawn_popup() at a world spot,
+#     callout() for a trial's "TAYA!" / "TRIP!" (one at a time).
 #
 #   * THE NETWORK PLUMBING that is identical for every arena: who is
 #     authoritative, reporting where our mortal is, mirroring the host's FAVOR
@@ -175,8 +183,14 @@ const GOD_PHOTO := TEMP_ICON
 # A FAVOR popup: light yellow when FAVOR arrives, light red when it is taken.
 const POPUP_GAIN_COLOR := UITokens.JADE    # the design system's gain / loss colours
 const POPUP_LOSS_COLOR := UITokens.EMBER
-const POPUP_OFFSET := Vector2(0.0, -42.0)   # above the mortal's head
-const POPUP_STACK := 18.0                    # a gain and a loss at once: one line apart
+const POPUP_OFFSET := Vector2(0.0, -42.0)   # a mortal known only by its position: its head, in world px
+const POPUP_LAYER := 11          # above the blackout (5), Hanan's bar (4) and the sun patches (11, earlier in the tree); below the band (12)
+const POPUP_GAP := 2.0           # px between two popups in a mortal's stack
+const POPUP_MAX := 3             # popups in a stack; a 4th fades the oldest out early
+const POPUP_HEAD_GAP := 4.0      # px between the name tag and the first popup
+const POPUP_BIG_MOMENT := 250    # a change this big is drawn at 24 px
+const RIVAL_POPUP_LOOK := 0.75   # a rival's popups: this size and opacity
+const CALLOUT_TOP := 150.0       # a screen-centred callout's bottom edge, px from the top
 
 const DIALOGUE_TIMEOUT := 20.0
 const GUIDANCE_RADIUS := 150.0
@@ -346,6 +360,14 @@ var _results: Dictionary = {}
 var _gain_pending: Dictionary = {}    # mortal id -> FAVOR gathered, not popped yet
 var _gain_timer := 0.0
 var _popup_recent: Dictionary = {}    # mortal id -> {node, delta, at}: the FAVOR popup last spawned on them
+var popup_layer: CanvasLayer          # the screen-space layer every floating text lives on
+var favor_popups_root: Control        # ...and its root (popups_root is the world FX root)
+var callout_label: Label              # the callout's text (one pill, reused: see callout())
+var _popup_stacks: Dictionary = {}    # mortal id -> Array[FavorPopup], oldest first
+var _world_popups: Dictionary = {}    # FavorPopup -> the world spot it hangs over
+var _callout_pill: FavorPopup
+var _callout_at: Node2D = null        # the mortal it hangs over (null: screen-centred)
+var _callout_left := 0.0
 var _vision_fade := 1.0               # blindness mask fade-in (see Settings.reduce_flashing)
 var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
 var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
@@ -456,6 +478,7 @@ func _ready() -> void:
 	due_menu = DUE_MENU_SCENE.instantiate()
 	ui_layer.add_child(due_menu)
 	due_menu.favor_chosen.connect(_on_favor_chosen)
+	_build_popup_layer()
 
 	# The spawn is authored in the scene - remember it so every round starts from
 	# the drawn spot (never from arithmetic on a rect).
@@ -581,6 +604,13 @@ func arena_read_tick(_state: Dictionary) -> void:
 	pass
 
 
+# A multiplier on this screen's own mortal's walk, on top of the favors and
+# Pamana (_update_movement_favors). Each screen applies it to its own mortal, so
+# it needs no sync. 1.0: no change.
+func arena_speed_scale() -> float:
+	return 1.0
+
+
 func shares_mortal_positions() -> bool:
 	return true
 
@@ -598,7 +628,7 @@ func separate_players() -> bool:
 func _publish_layout() -> void:
 	if not _networked or not _authority or _net == null:
 		return
-	var layout := {"field": _field}
+	var layout := {"field": _field, "scene": scene_token()}
 	layout.merge(arena_layout_fields(), true)
 	_net.publish_arena_layout(layout)
 
@@ -914,7 +944,7 @@ func score_favor(amount: int, reason: String) -> void:
 		_publish_god_state()
 		return
 	if _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_arena_score", amount, reason)
+		_net.rpc_id(1, "request_arena_score", amount, reason, scene_token())
 
 
 func _on_arena_score_requested(peer_id: int, amount: int, reason: String) -> void:
@@ -1107,68 +1137,232 @@ func _reset_screen_impact() -> void:
 
 # --- FAVOR POPUPS -----------------------------------------------------------
 
-# A popup at `origin`: the scene draws it, the arena only says what and where.
-# `icon_texture` is optional - hand one in and the popup carries the little
-# image next to the number (UI/Popups/favor_popup.tscn).
-func spawn_popup(text: String, tint: Color, origin: Vector2, icon_texture: Texture2D = null) -> Node2D:
-	if popups_root == null or origin == Vector2.INF:
-		return null
-	var popup: Node2D = POPUP_SCENE.instantiate()
-	popups_root.add_child(popup)
-	# A small side-step, so two popups landing at once stay readable.
-	popup.global_position = origin + Vector2(randf_range(-7.0, 7.0), 0.0)
-	popup.show_favor(text, tint, icon_texture)
+func _build_popup_layer() -> void:
+	popup_layer = CanvasLayer.new()
+	popup_layer.name = "PopupLayer"
+	popup_layer.layer = POPUP_LAYER
+	add_child(popup_layer)  # after Patches in the tree: drawn over them on the same layer
+	favor_popups_root = Control.new()
+	favor_popups_root.name = "FavorPopups"
+	favor_popups_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	favor_popups_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	popup_layer.add_child(favor_popups_root)
+	_callout_pill = POPUP_SCENE.instantiate()
+	_callout_pill.name = "Callout"
+	_callout_pill.keep = true
+	favor_popups_root.add_child(_callout_pill)
+	_callout_pill.hide_now()
+	callout_label = _callout_pill.number_label
+
+
+func _new_popup() -> FavorPopup:
+	var popup: FavorPopup = POPUP_SCENE.instantiate()
+	favor_popups_root.add_child(popup)
+	favor_popups_root.move_child(_callout_pill, -1)  # the callout stays on top
 	return popup
 
 
-# "+N FAVOR" over a mortal's head - light yellow - or the same popup in the loss
-# colour when N is negative. `reason` is only put in the text when given.
+# A word or number hanging over a world spot (no stack of its own).
+func spawn_popup(text: String, tint: Color, origin: Vector2, icon_texture: Texture2D = null) -> FavorPopup:
+	if favor_popups_root == null or origin == Vector2.INF:
+		return null
+	var popup := _new_popup()
+	popup.show_text(text, tint, "", false, false, reduce_flashing())
+	if icon_texture != null:
+		popup.coin.texture = icon_texture
+		popup.coin.visible = true
+	_world_popups[popup] = origin
+	return popup
+
+
+# A word over a mortal ("TAGGED", "STUNNED"), in its stack like a FAVOR popup.
+func mortal_popup(mortal_id: int, text: String, tint: Color) -> FavorPopup:
+	if favor_popups_root == null:
+		return null
+	var popup := _new_popup()
+	popup.show_text(text, tint, "", false, false, reduce_flashing())
+	_push_popup(mortal_id, popup)
+	return popup
+
+
+# "+250" (with the FAVOR coin) over a mortal - JADE - or "-120" in EMBER when N is
+# negative; `reason`, when given, on the line under it. 250 or more is drawn big.
 #
 # Two popups landing on the same mortal within popup_merge_time are one popup: a
-# second gain (or loss) adds its number to the one already rising, so "+28 FAVOR"
-# texts never stack on top of each other. A change the other way round in that
-# window rises one line above it instead.
-func favor_popup(mortal_id: int, delta: int, reason := "") -> Node2D:
-	if delta == 0:
+# second gain (or loss) adds its number to the one already up (a small bump shows
+# it moved). A change the other way round is a row of its own in the stack.
+func favor_popup(mortal_id: int, delta: int, reason := "") -> FavorPopup:
+	if delta == 0 or favor_popups_root == null:
 		return null
 	var now := Time.get_ticks_msec()
-	var origin := popup_origin(mortal_id)
-	var recent: Dictionary = _popup_recent.get(mortal_id, {})
-	if not recent.is_empty() and is_instance_valid(recent["node"]) and now - int(recent["at"]) <= int(popup_merge_time * 1000.0):
-		if signi(int(recent["delta"])) == signi(delta):
-			recent["delta"] = int(recent["delta"]) + delta
-			var merged: Node2D = recent["node"]
-			merged.relabel(_favor_text(int(recent["delta"]), ""), POPUP_GAIN_COLOR if delta > 0 else POPUP_LOSS_COLOR)
-			return merged
-		if origin != Vector2.INF:
-			origin.y -= POPUP_STACK
 	var tint := POPUP_GAIN_COLOR if delta > 0 else POPUP_LOSS_COLOR
-	var popup := spawn_popup(_favor_text(delta, reason), tint, origin)
-	if popup != null:
-		_popup_recent[mortal_id] = {"node": popup, "delta": delta, "at": now}
+	var recent: Dictionary = _popup_recent.get(mortal_id, {})
+	if not recent.is_empty() and is_instance_valid(recent["node"]) and not (recent["node"] as FavorPopup).is_going() \
+			and now - int(recent["at"]) <= int(popup_merge_time * 1000.0) and signi(int(recent["delta"])) == signi(delta):
+		recent["delta"] = int(recent["delta"]) + delta
+		var merged: FavorPopup = recent["node"]
+		merged.relabel(_favor_number(int(recent["delta"])), tint)
+		return merged
+	var popup := _new_popup()
+	popup.show_text(_favor_number(delta), tint, reason, absi(delta) >= POPUP_BIG_MOMENT, true, reduce_flashing(), delta < 0)
+	_push_popup(mortal_id, popup)
+	_popup_recent[mortal_id] = {"node": popup, "delta": delta, "at": now}
 	return popup
 
 
-func _favor_text(delta: int, reason: String) -> String:
-	var suffix := "" if reason == "" else "   %s" % reason
-	return "%s%d FAVOR%s" % ["+" if delta > 0 else "", delta, suffix]
+func _favor_number(delta: int) -> String:
+	return "%s%d" % ["+" if delta > 0 else "", delta]
+
+
+# Into `mortal_id`'s stack (newest last): a rival's at RIVAL_POPUP_LOOK, and a
+# stack past POPUP_MAX fades its oldest out early.
+func _push_popup(mortal_id: int, popup: FavorPopup) -> void:
+	if mortal_id != _my_id:
+		popup.base_scale = RIVAL_POPUP_LOOK
+		popup.base_alpha = RIVAL_POPUP_LOOK
+	var stack: Array = _popup_stacks.get(mortal_id, [])
+	stack.append(popup)
+	_popup_stacks[mortal_id] = stack
+	var live := stack.filter(func(each) -> bool: return is_instance_valid(each) and not each.is_going())
+	if live.size() > POPUP_MAX:
+		(live[0] as FavorPopup).retire()
+
+
+# A trial's callout ("READY...", "TAYA!", "TRIP!") in the same pill at 24 px, over
+# `at` (our own mortal when null) above its popups - or screen-centred near the top
+# with `centered`. One at a time: the same text again only keeps it up, a new text
+# repaints it in place; seconds <= 0 (or no text) lets it go.
+func callout(text: String, tint: Color, seconds: float, at: Node2D = null, centered := false) -> void:
+	if _callout_pill == null:
+		return
+	if text == "" or seconds <= 0.0:
+		_callout_left = 0.0
+		if _callout_pill.visible and not _callout_pill.is_going():
+			_callout_pill.expire()
+		return
+	_callout_at = null if centered else (at if at != null else player)
+	_callout_left = seconds
+	if _callout_pill.visible and not _callout_pill.is_going():
+		if _callout_pill.number_text() != text:
+			_callout_pill.repaint(text, tint)
+		return
+	_callout_pill.show_text(text, tint, "", true, false, reduce_flashing())
+	_callout_pill.persistent = true
 
 
 # Where a mortal's popups come off: our own mortal's head, or the ghost of a
 # rival. Vector2.INF when we do not know where that mortal is.
 func popup_origin(mortal_id: int) -> Vector2:
-	if mortal_id == _my_id:
-		return player.global_position + POPUP_OFFSET
-	if _ghosts.has(mortal_id) and is_instance_valid(_ghosts[mortal_id]):
-		return (_ghosts[mortal_id] as Node2D).global_position + POPUP_OFFSET
+	var body := popup_body(mortal_id)
+	if body != null:
+		return body.global_position + POPUP_OFFSET
 	var known := mortal_position(mortal_id)
 	return Vector2.INF if known == Vector2.INF else known + POPUP_OFFSET
+
+
+# The body a mortal's popups hang over: ours, a rival's ghost, or a solo bot.
+func popup_body(mortal_id: int) -> Node2D:
+	if mortal_id == _my_id:
+		return player
+	if _ghosts.has(mortal_id) and is_instance_valid(_ghosts[mortal_id]):
+		return _ghosts[mortal_id]
+	var bots = get("_bots")
+	if bots is Dictionary and bots.has(mortal_id) and is_instance_valid(bots[mortal_id]):
+		return bots[mortal_id]
+	return null
+
+
+# The screen point just above a mortal's name tag (Vector2.INF: unknown).
+func _popup_head(mortal_id: int) -> Vector2:
+	var body := popup_body(mortal_id)
+	if body == null:
+		var known := popup_origin(mortal_id)
+		return Vector2.INF if known == Vector2.INF else get_viewport().get_canvas_transform() * known
+	var at := body.get_global_transform_with_canvas().origin
+	var tag = body.get("name_tag")
+	var top := at.y - 52.0
+	if tag is Control and (tag as Control).is_visible_in_tree():
+		top = minf(top, (tag as Control).get_global_transform_with_canvas().origin.y)
+	return Vector2(at.x, top - POPUP_HEAD_GAP)
+
+
+# Every frame: each stack over its mortal (newest at the bottom, the older ones
+# pushed up by their real height), the world popups over their spots, the callout
+# above its mortal's stack - all inside the screen, clear of the left strip and the
+# bottom band.
+func _layout_popups(delta: float) -> void:
+	if favor_popups_root == null:
+		return
+	var view := get_viewport_rect().size
+	var low := view.y
+	if band != null and band.is_visible_in_tree():
+		low = minf(low, band.get_global_rect().position.y)
+	var tops := {}
+	for id in _popup_stacks.keys():
+		var stack: Array = (_popup_stacks[id] as Array).filter(func(each) -> bool: return is_instance_valid(each))
+		if stack.is_empty():
+			_popup_stacks.erase(id)
+			continue
+		_popup_stacks[id] = stack
+		var head := _popup_head(int(id))
+		if head == Vector2.INF:
+			continue
+		var total := 0.0
+		for popup in stack:
+			total += (popup as FavorPopup).stack_height() + POPUP_GAP
+		var y := clampf(head.y, 4.0 + total, low - 4.0)
+		for index in range(stack.size() - 1, -1, -1):
+			var popup: FavorPopup = stack[index]
+			popup.place(Vector2(_popup_x(head.x, popup, view), y))
+			y -= popup.stack_height() + POPUP_GAP
+		tops[int(id)] = y
+	for popup in _world_popups.keys():
+		if not is_instance_valid(popup):
+			_world_popups.erase(popup)
+			continue
+		var spot: Vector2 = get_viewport().get_canvas_transform() * (_world_popups[popup] as Vector2)
+		popup.place(Vector2(_popup_x(spot.x, popup, view), clampf(spot.y, 4.0 + popup.stack_height(), low - 4.0)))
+	if _callout_pill != null and _callout_pill.visible:
+		if _callout_left > 0.0:
+			_callout_left -= delta
+			if _callout_left <= 0.0:
+				_callout_pill.expire()
+		var spot := Vector2((view.x + UI_STRIP_WIDTH) * 0.5, CALLOUT_TOP)
+		if _callout_at != null and is_instance_valid(_callout_at):
+			var owner_id := _my_id if _callout_at == player else -1
+			for id in _popup_stacks.keys():
+				if popup_body(int(id)) == _callout_at:
+					owner_id = int(id)
+			var head := _popup_head(owner_id)
+			if head == Vector2.INF:
+				var at := _callout_at.get_global_transform_with_canvas().origin
+				head = Vector2(at.x, at.y - 56.0)
+			spot = Vector2(head.x, float(tops.get(owner_id, head.y)))
+		var x := _popup_x(spot.x, _callout_pill, view)
+		var avoid := callout_keep_out()
+		var half := _callout_pill.size.x * 0.5
+		if avoid.has_area() and x + half > avoid.position.x and x - half < avoid.end.x and spot.y > avoid.position.y:
+			spot.y = avoid.position.y - 2.0  # (Hanan's bar: the callout sits above it)
+		spot.y = clampf(spot.y, 4.0 + _callout_pill.stack_height(), low - 4.0)
+		_callout_pill.place(Vector2(x, spot.y))
+
+
+# A screen rect the callout must sit above (a trial's own gauge); none by default.
+func callout_keep_out() -> Rect2:
+	return Rect2()
+
+
+# A popup's centre x, nudged inside the screen and clear of the left strip.
+func _popup_x(x: float, popup: FavorPopup, view: Vector2) -> float:
+	var half := popup.size.x * popup.base_scale * 0.5
+	return clampf(x, UI_STRIP_WIDTH + 4.0 + half, maxf(UI_STRIP_WIDTH + 4.0 + half, view.x - 4.0 - half))
 
 
 # Small gains are gathered and shown as one popup: a lit zone pays many times a
 # second, so one popup per credit would be unreadable. Losses and big gains
 # never wait (see _on_favor_changed).
 func _flush_favor_popups(delta: float) -> void:
+	_layout_popups(delta)  # (every arena's frame comes through here, the rest's too)
 	if not popups_enabled or _gain_pending.is_empty():
 		return
 	_gain_timer -= delta
@@ -1375,7 +1569,7 @@ func _use_skill(slot: int) -> void:
 			mortal.cooldowns[bound.id] = 0.0 if mortal.kampilan_ready else rules.skill_cooldown(slot)
 			mortal.kampilan_ready = false
 		if _net != null and _net.has_multiplayer_peer():
-			_net.rpc_id(1, "request_god_skill", slot)
+			_net.rpc_id(1, "request_god_skill", slot, scene_token())
 		_skill_feedback(bound)
 		return
 
@@ -1576,7 +1770,7 @@ func _update_movement_favors(delta: float) -> void:
 	# Banton Burial Cloth: faster for the first seconds of the trial.
 	if rules.pamana_in_window(mortal, Pamanas.BANTON_CLOTH):
 		speed *= Pamanas.by_id(Pamanas.BANTON_CLOTH).param("speed_multiplier", 1.15)
-	player.move_speed = speed
+	player.move_speed = speed * arena_speed_scale()
 
 	if _movement_override_time > 0.0:
 		_movement_override_time = maxf(0.0, _movement_override_time - delta)
@@ -1935,7 +2129,7 @@ func _on_favor_chosen(favor: GodFavor, free_grants_left: int) -> void:
 			_free_grants -= 1
 		_awaiting_grant = favor.id
 		if _net != null and _net.has_multiplayer_peer():
-			_net.rpc_id(1, "request_god_grant", favor.id)
+			_net.rpc_id(1, "request_god_grant", favor.id, scene_token())
 		return
 	_announce_grant(favor)
 
@@ -1979,9 +2173,17 @@ func _log(text: String, color: Color) -> void:
 
 # --- NETWORK ----------------------------------------------------------------
 
+# This arena's scene token (see Network.scene_token): its dialogue prefix and its
+# god, the same on every screen ("trial_2:tala", "prep_1:apolaki").
+func scene_token() -> String:
+	return "%s:%s" % [dialogue_prefix, god_id]
+
+
 func _connect_network() -> void:
 	if _net == null:
 		return
+	if _networked and "scene_token" in _net:
+		_net.scene_token = scene_token()
 	# A name is local data first: this machine's own mortal can be renamed (the
 	# lobby's UPDATE NAME) with or without company, so the tag above it follows
 	# either way. The roster is live too: a client often builds its arena before
@@ -2119,7 +2321,7 @@ func _move_ghosts(delta: float) -> void:
 func _publish_god_state() -> void:
 	if _net == null or not _networked or not _authority:
 		return
-	_net.publish_god_state(rules.snapshot())
+	_net.publish_god_state(rules.snapshot(), scene_token())
 
 
 func _publish_arena_tick() -> void:
@@ -2132,6 +2334,7 @@ func _publish_arena_tick() -> void:
 			_mortal_positions[int(id)] = reported[id]
 	# Everything every arena broadcasts, plus whatever the god's own arena adds.
 	var state := {
+		"scene": scene_token(),
 		"phase": int(_phase),
 		"trial_time": _trial_time,
 		"drop_left": _drop_left,
@@ -2170,6 +2373,11 @@ func _on_mortal_positions_received(positions: Dictionary) -> void:
 
 
 func _apply_arena_tick(state: Dictionary) -> void:
+	# Another scene's tick (a late one from the trial before, an early one from
+	# the rest after) is never this arena's: Network drops it on arrival, and this
+	# guards a tick handed in any other way.
+	if str(state.get("scene", scene_token())) != scene_token():
+		return
 	# The host's round, mirrored: the same second on the clock, where the mortals
 	# are and whatever the god's own arena put on the wire.
 	var remote_phase := int(state.get("phase", int(_phase)))

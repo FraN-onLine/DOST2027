@@ -124,19 +124,15 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @onready var baka: HananBaka = get_node_or_null("ArenaField/Baka")
 @onready var overseer: Sprite2D = get_node_or_null("ArenaField/Overseer")
 @onready var background: Sprite2D = get_node_or_null("Background")
-# The labels sit high (the callout on HananHud, the status and hint in the
-# base's bottom band, both above everything) so they always stay readable.
+# The labels sit high (the callout in the base's popup pill, the status and hint
+# in the base's bottom band, both above every field effect) so they stay readable.
 # The bar sits LOW (BarLayer, below Mayari's VisionLayer and Apolaki's Patches):
 # a blackout or a sun patch must hide it like it hides any other trial's field.
-@onready var hud_layer: CanvasLayer = get_node_or_null("HananHud")
 @onready var bar_layer: CanvasLayer = get_node_or_null("BarLayer")
-@onready var bar: Control = get_node_or_null("BarLayer/Bar")
-@onready var box: ColorRect = get_node_or_null("BarLayer/Bar/Box")
-@onready var indicator: ColorRect = get_node_or_null("BarLayer/Bar/Indicator")
+@onready var bar: BakaGauge = get_node_or_null("BarLayer/Bar")  # drawn by scripts/gods/hanan/baka_gauge.gd
 @onready var rate_label: Label = get_node_or_null("BarLayer/Bar/Rate")
 @onready var hold_prompt: Label = get_node_or_null("BarLayer/Bar/HoldPrompt")
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
-@onready var callout_label: Label = get_node_or_null("HananHud/Callout")
 @onready var blitz_glow: Sprite2D = get_node_or_null("ArenaBG/BlitzGlow")  # a soft oval on the arena floor, under the Baka and the mortal
 @onready var sink_arrow: Polygon2D = get_node_or_null("BarLayer/Bar/SinkArrow")
 
@@ -166,7 +162,6 @@ var _box_speed_factor := 1.0
 var _pending_gain := 0.0
 var _bank_timer := 0.0
 var _ground_y := 0.0
-var _callout_time := 0.0
 var _idle_left := 5.0   # seconds of running free before the idle penalty
 var _frozen := false  # the God's Due menu or a dialogue is open over a vault
 var _ready_left := 0.0  # the READY beat still to run before the vault itself
@@ -524,6 +519,8 @@ func _clean_vault() -> void:
 		_level += 1
 		_clean_in_level = 0
 	_set_callout("CLEAN!  COMBO x%.2f" % _combo, CLEAN_COLOR, 1.2)
+	if bar != null:
+		bar.flash_clean()
 	_leave_vault()
 	player.global_position.x = _to_x  # landed on the far side...
 	_face(baka.global_position.x if baka != null else _from_x)  # ...turned to the Baka again
@@ -540,7 +537,7 @@ func _trip() -> void:
 		score_favor(-penalty, "Tripped over the Baka")
 	_combo = 1.0
 	_trips += 1
-	var text := "TRIP!  -%d FAVOR" % penalty
+	var text := "TRIP!  -%d FAVOR" % penalty if penalty > 0 else "PRACTICE - NO FAVOR LOST"
 	if not _practice_vault:
 		_trips_in_row += 1
 		if _trips_in_row >= mercy_trips and _level > 1:
@@ -551,6 +548,8 @@ func _trip() -> void:
 			text += "\nTHE BAKA CROUCHES"
 			_log("Hanan's mercy - the Baka crouches: %s" % level_name(), god.color)
 	_set_callout(text, TRIP_COLOR, 1.2)
+	if bar != null:
+		bar.crack()
 	_leave_vault()
 	player.global_position.x = _from_x  # at the Baka's feet, on the side they came from
 	if baka != null:
@@ -613,20 +612,12 @@ func _show_baka_height() -> void:
 
 # --- HUD ---------------------------------------------------------------------
 
+# READY... / LEAP! / CLEAN! / TRIP! over the mortal, in the base's callout pill.
 func _set_callout(text: String, tint: Color, seconds: float) -> void:
-	_callout_time = seconds
-	if callout_label == null:
-		return
-	callout_label.text = text
-	callout_label.add_theme_color_override("font_color", UITokens.readable_on_dark(tint, UITokens.NIGHT_900))
-	callout_label.visible = seconds > 0.0
+	callout(text, tint, seconds)
 
 
-func _refresh_hud(delta: float) -> void:
-	if _callout_time > 0.0:
-		_callout_time -= delta
-		if _callout_time <= 0.0 and callout_label != null:
-			callout_label.visible = false
+func _refresh_hud(_delta: float) -> void:
 	var in_vault := _vault_state == Vault.VAULT
 	if rate_label != null:
 		rate_label.visible = in_vault and _ready_left <= 0.0 and is_inside_box()
@@ -634,23 +625,21 @@ func _refresh_hud(delta: float) -> void:
 	if hold_prompt != null:
 		hold_prompt.visible = in_vault and _practice_vault and not _held_once
 		if hold_prompt.visible:
-			hold_prompt.modulate.a = 0.55 + 0.45 * absf(sin(Time.get_ticks_msec() * 0.006))
+			hold_prompt.modulate.a = 1.0 if reduce_flashing() else 0.55 + 0.45 * absf(sin(Time.get_ticks_msec() * 0.006))
 	if bar != null:
-		bar.visible = in_vault
+		bar.visible = in_vault or bar.lingering()
 		if in_vault:
 			_place_bar()
-		if in_vault and box != null and indicator != null:
-			var track := bar.size.y
-			box.size.y = current_box_size() * track
-			box.position.y = (1.0 - _box_center - current_box_size() * 0.5) * track
-			var marker := maxf(4.0, indicator_size * track)
-			indicator.size.y = marker
-			indicator.position.y = (1.0 - _ind_pos) * track - marker * 0.5
-			box.color = Color(0.7, 1, 0.8, 0.55) if is_inside_box() else Color(1, 0.5, 0.45, 0.55)
-		if sink_arrow != null:  # inverted: an arrow beside the indicator while the button sinks it
-			sink_arrow.visible = in_vault and _blitz_vault and _holding and indicator != null
-			if indicator != null:
-				sink_arrow.position = Vector2(-22.0, indicator.position.y + indicator.size.y * 0.5)
+			bar.feed({
+				"ind_pos": _ind_pos, "box_center": _box_center, "box_size": current_box_size(),
+				"marker_size": indicator_size, "inside": _ready_left > 0.0 or is_inside_box(),
+				"grace": clampf(_outside_time / maxf(0.01, grace_time), 0.0, 1.0),
+				"vault": 0.0 if _ready_left > 0.0 else 1.0 - _vault_left / maxf(0.01, _vault_total),
+				"level": _level, "level_name": level_name(), "inverted": _blitz_vault,
+				"earning": _ready_left <= 0.0 and is_inside_box(), "calm": reduce_flashing(),
+				"accent": UITokens.god_accent(god),
+			})
+		_place_bar_pills(in_vault)
 	if status_label != null:
 		status_label.text = "LEVEL %d  %s     COMBO x%.2f     CLEAN %d  TRIPS %d" % [
 			_level, level_name(), _combo, _clean_total, _trips]
@@ -674,12 +663,60 @@ func _refresh_hud(delta: float) -> void:
 
 
 # The bar hangs beside the mortal (on the ground they jumped from, so it does not
-# ride up and down with the jump), kept on screen and clear of the UI strip. Under
-# Half Vision only the lit circle round the mortal shows - and part of the bar
-# with it, the same way a blinded player still sees the field near them.
+# ride up and down with the jump), on the side away from Hanan, and never over her
+# body, the overseer's face, the UI strip or the bottom band. Under Half Vision
+# only the lit circle round the mortal shows - and part of the bar with it, the
+# same way a blinded player still sees the field near them.
 func _place_bar() -> void:
 	var anchor := player.get_global_transform_with_canvas().origin
 	anchor.y += _ground_y - player.global_position.y
 	var view := get_viewport_rect().size
-	var top_left := anchor + bar_offset - Vector2(0.0, bar.size.y * 0.5)
-	bar.position = top_left.clamp(Vector2(UI_STRIP_WIDTH, 0.0), (view - bar.size).max(Vector2(UI_STRIP_WIDTH, 0.0)))
+	var low := view.y
+	if band != null and band.is_visible_in_tree():
+		low = minf(low, band.get_global_rect().position.y)
+	var hanan := baka.screen_rect().grow(4.0) if baka != null else Rect2()
+	var away_right := not hanan.has_area() or anchor.x >= hanan.get_center().x
+	var size := bar.size
+	var x := anchor.x + bar_offset.x if away_right else anchor.x - bar_offset.x - size.x
+	var rect := Rect2(Vector2(x, anchor.y + bar_offset.y - size.y * 0.5), size)
+	for block in [hanan, _face_rect()]:
+		if block.has_area() and rect.intersects(block):
+			rect.position.x = block.end.x if away_right else block.position.x - size.x
+	var lowest := Vector2(UI_STRIP_WIDTH + 2.0, 2.0)
+	rect.position = rect.position.clamp(lowest, (Vector2(view.x, low) - size - Vector2(2.0, 2.0)).max(lowest))
+	if hanan.has_area() and rect.intersects(hanan):  # pushed back into her by a screen edge: above her instead
+		rect.position.y = maxf(2.0, hanan.position.y - size.y)
+	bar.position = rect.position.round()
+	bar.outer_left = not away_right
+
+
+# The callout pill (READY..., TRIP!) sits above the bar, never over its level name.
+func callout_keep_out() -> Rect2:
+	return Rect2(bar.position, bar.size) if bar != null and bar.visible else Rect2()
+
+
+# The overseer's face (the scene's FaceFocus marker), on screen: the bar never covers it.
+func _face_rect() -> Rect2:
+	var face := get_node_or_null("FaceFocus") as Node2D
+	if face == null:
+		return Rect2()
+	return Rect2(face.get_global_transform_with_canvas().origin - Vector2(100.0, 90.0), Vector2(200.0, 180.0))
+
+
+# The rate pill (it grows a little with the combo) and the practice prompt on the
+# bar's outer side, the blitz's sink arrow on the mortal's side of the marker.
+func _place_bar_pills(in_vault: bool) -> void:
+	var track := bar.track_rect()
+	var outer := -6.0 if bar.outer_left else bar.size.x + 6.0
+	if rate_label != null and rate_label.visible:
+		rate_label.reset_size()
+		rate_label.pivot_offset = Vector2(rate_label.size.x if bar.outer_left else 0.0, rate_label.size.y * 0.5)
+		rate_label.scale = Vector2.ONE * (1.0 + 0.08 * (_combo - 1.0))
+		rate_label.position = Vector2(outer - (rate_label.size.x if bar.outer_left else 0.0), track.get_center().y - rate_label.size.y * 0.5).round()
+	if hold_prompt != null and hold_prompt.visible:
+		hold_prompt.reset_size()
+		hold_prompt.position = Vector2(outer - (hold_prompt.size.x if bar.outer_left else 0.0), track.get_center().y - hold_prompt.size.y - 20.0).round()
+	if sink_arrow != null:  # inverted: an arrow beside the marker while the button sinks it
+		sink_arrow.visible = in_vault and _blitz_vault and _holding
+		var beside := track.end.x + 16.0 if bar.outer_left else track.position.x - 16.0
+		sink_arrow.position = Vector2(beside, roundf(track.position.y + (1.0 - _ind_pos) * track.size.y))

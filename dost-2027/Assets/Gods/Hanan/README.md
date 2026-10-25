@@ -11,6 +11,9 @@ needed.
 | `Hanan-Icon.png` | Hanan's portrait, 64 x 64 px like `Assets/Gods/Tala/Tala-Icon.png` | lobby god icon, sidebars, God's Due menu, Almanac | `res://Assets/Placeholders/favor.png` (see the note below) |
 | `Hanan-Overseer.png` | Hanan watching the field, like `Assets/Gods/Tala/Tala-Overseer.png` (one image) | `ArenaField/Overseer` | hidden |
 | `Arena-Background.png` | the arena background, ideally 1152 x 648 (it is stretched to fill the screen) | `Background` | Mayari's `AreanaTemp.png` |
+| `bar_frame.png` | the balance bar's carved frame, 38 x 220 px (the 28 x 210 gauge plus a 5 px frame) | drawn over the frame by `scripts/gods/hanan/baka_gauge.gd` | the drawn gold banig double border |
+| `bar_box.png` | the target zone, any height (stretched to the zone, tinted Hanan's accent / ember outside) | the zone | the drawn gradient |
+| `bar_marker.png` | the jump marker, about 36 x 8 px | centred on the marker | the drawn gold notch |
 
 Hanan herself is the Baka, and she is not a drop-in file any more: she is her own
 scene, `scenes/gods/hanan/HananBaka.tscn` (the old `Baka.png` strip is no longer

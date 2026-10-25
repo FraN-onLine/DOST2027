@@ -340,8 +340,9 @@ func _run() -> void:
 	# A gain pops in the light yellow: big changes at once, small ones gathered
 	# over the popup_flush window (a lit zone pays many times a second, so one
 	# popup per credit would be unreadable).
-	for child in arena.popups_root.get_children():
-		child.queue_free()
+	for child in arena.favor_popups_root.get_children():
+		if child is FavorPopup and not child.keep:
+			child.queue_free()
 	await _frames(2)
 	arena._gain_timer = 0.0
 	arena.bank_favor(arena.popup_big_delta + 5, "trial_check")
@@ -353,7 +354,7 @@ func _run() -> void:
 	print("gain popups: immediate '%s' | gathered '%s' | light yellow=%s" % [
 		big_text, gathered_text, str(Arena.POPUP_GAIN_COLOR)])
 	if not big_text.begins_with("+"):
-		printerr("trial_check: a big gain must pop at once as '+N FAVOR'")
+		printerr("trial_check: a big gain must pop at once as '+N' (with the FAVOR coin)")
 	if gathered_text == big_text:
 		printerr("trial_check: a small gain must be gathered and popped on the flush")
 	print("--- DONE ---")
@@ -362,8 +363,7 @@ func _run() -> void:
 
 # The text of the newest FAVOR popup over a mortal ('' when there is none).
 func _popup_text(arena) -> String:
-	var popups: Array = arena.popups_root.get_children()
+	var popups: Array = arena.favor_popups_root.get_children().filter(func(each) -> bool: return each is FavorPopup and not each.keep and not each.is_queued_for_deletion())
 	if popups.is_empty():
 		return ""
-	var label: Label = popups[popups.size() - 1].get_node_or_null("Box/Label")
-	return label.text if label != null else ""
+	return (popups[popups.size() - 1] as FavorPopup).number_text()

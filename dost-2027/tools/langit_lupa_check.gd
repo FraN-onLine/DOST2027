@@ -163,6 +163,25 @@ func _run() -> void:
 	_check(_arena.taya_id() == 3, "FAVOR stored in Kamalig does not count towards the first Taya")
 	_rules.mortal(2).granary = 0
 
+	# --- the Taya walks 10% faster: the player, and a bot Taya --------------------------
+	_reset(1, [])
+	_arena._update_movement_favors(0.0)
+	_check(is_equal_approx(_arena._base_move_speed, 215.0) and is_equal_approx(_arena.player.move_speed, 215.0 * 1.1),
+		"the player as Taya walks at 215 x 1.1 (%.1f)" % _arena.player.move_speed)
+	_arena.set_taya(2)
+	_arena._update_movement_favors(0.0)
+	_check(is_equal_approx(_arena.player.move_speed, 215.0), "...and back at 215 once the Taya is passed on (%.1f)" % _arena.player.move_speed)
+	_arena._tagback = 0.0
+	_arena._invuln.clear()
+	var hunter: ArenaMortal = _arena._bots[2]
+	hunter.global_position = _arena._field.get_center()
+	_put(1, _arena._field.get_center() + Vector2(200, 0))
+	_put(3, _arena._field.get_center() + Vector2(0, 200))
+	_arena._bots[3].global_position = _arena._field.get_center() + Vector2(0, 200)
+	_arena._move_bots(0.1)
+	var walked := hunter.global_position.distance_to(_arena._field.get_center())
+	_check(is_equal_approx(walked, _arena.bot_speed * 1.1 * 0.1), "a bot Taya gets the same bonus (%.2f px in 0.1 s)" % walked)
+
 	# From here the bots stand where the check puts them.
 	for bot in _arena._bots.values():
 		bot.queue_free()
@@ -523,8 +542,8 @@ func _run() -> void:
 	_check(_arena.god_hunt_id() == 2, "after god_taya_max_time the gods hunt the richest runner on the Lupa (%d)" % _arena.god_hunt_id())
 	var from: Vector2 = _arena._god_at
 	_arena._move_god(0.1)
-	_check(absf(from.distance_to(_arena._god_at) - _arena.god_hunt_speed * 0.1) < 0.5 and _arena._god_at.x > from.x,
-		"...at god_hunt_speed, straight at them (%.1f px in 0.1s)" % from.distance_to(_arena._god_at))
+	_check(absf(from.distance_to(_arena._god_at) - _arena.god_hunt_speed * _arena.taya_speed_bonus * 0.1) < 0.5 and _arena._god_at.x > from.x,
+		"...at god_hunt_speed (with the Taya's bonus), straight at them (%.1f px in 0.1s)" % from.distance_to(_arena._god_at))
 	_arena._god_at = Vector2(700, 440)
 	_arena._check_tag()
 	_check(_arena.taya_id() == LangitLupaArena.GOD_TAYA, "while hunting, the gods tag nobody else")

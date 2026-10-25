@@ -256,17 +256,6 @@ horizontal_alignment = 1
 [node name="AgawanHud" type="CanvasLayer" parent="." index="13" unique_id=1328790674]
 layer = 12
 
-[node name="Callout" type="Label" parent="AgawanHud" index="0" unique_id=1214418893]
-visible = false
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_top = 120.0
-offset_bottom = 150.0
-grow_horizontal = 2
-theme_type_variation = &"HudCallout"
-horizontal_alignment = 1
-
 [node name="Stars" type="Node2D" parent="." index="14" unique_id=467062211]
 z_index = 4
 

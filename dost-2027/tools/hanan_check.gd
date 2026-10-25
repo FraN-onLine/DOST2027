@@ -48,13 +48,14 @@ func _run() -> void:
 	var vision: CanvasLayer = _arena.get_node("VisionLayer")
 	var patches: CanvasLayer = _arena.get_node("Patches")
 	var bar_layer: CanvasLayer = _arena.get_node_or_null("BarLayer")
-	var label_layer: CanvasLayer = _arena.get_node_or_null("HananHud")
+	var label_layer: CanvasLayer = _arena.popup_layer
 	_check(bar_layer != null and _arena.bar.get_parent() == bar_layer, "the balance bar lives on its own layer")
 	_check(bar_layer != null and bar_layer.layer < vision.layer and bar_layer.layer < patches.layer,
 		"the bar is drawn below Mayari's blackout (%d) and Apolaki's sun patches (%d)" % [vision.layer, patches.layer])
 	var band_layer: CanvasLayer = _arena.get_node_or_null("BandLayer")
-	_check(label_layer != null and label_layer.layer > vision.layer and label_layer.layer > patches.layer
-		and _arena.callout_label.get_parent() == label_layer, "the callout is drawn above them")
+	_check(label_layer != null and label_layer.layer > vision.layer and label_layer.layer >= patches.layer
+		and label_layer.get_index() > patches.get_index() and _arena.callout_label.get_canvas_layer_node() == label_layer,
+		"the callout pill is drawn above them (popup layer %d, after the patches)" % (label_layer.layer if label_layer != null else -1))
 	_check(band_layer != null and band_layer.layer > vision.layer and band_layer.layer > patches.layer
 		and _arena.status_label.get_canvas_layer_node() == band_layer and _arena.hint_label.get_canvas_layer_node() == band_layer,
 		"the status and hint, in the bottom band, are drawn above them too")
@@ -70,6 +71,28 @@ func _run() -> void:
 	_check(_arena.bar.position.x + _arena.bar.size.x <= 1152.0, "near the right edge the bar is clamped onto the screen")
 	_arena._leave_vault()
 	_arena._enter_run()
+	# The bar keeps clear of Hanan's body and the bottom band, low or tall, from either side.
+	var band_top: float = _arena.band.get_global_rect().position.y
+	var clear := true
+	for level in [1, 5]:
+		_arena._level = level
+		_arena._show_baka_height()
+		for side in [-1.0, 1.0]:
+			_arena.player.global_position = Vector2(_arena.baka.global_position.x + side * _arena.vault_span * 0.5, 470.0)
+			_arena.begin_vault()
+			_arena._refresh_hud(0.0)
+			var gauge := Rect2(_arena.bar.position, _arena.bar.size)
+			var body: Rect2 = _arena.baka.screen_rect()
+			if gauge.intersects(body) or gauge.end.y > band_top:
+				clear = false
+				printerr("  level %d side %d: bar %s, Hanan %s, band top %.0f" % [level, int(side), str(gauge), str(body), band_top])
+			_arena._leave_vault()
+			_arena._enter_run()
+	_check(clear and _arena.baka.screen_rect().has_area(),
+		"at levels 1 and 5, from either side, the bar never covers Hanan (%s at level 5) or the bottom band" % str(_arena.baka.screen_rect()))
+	_arena._level = 1
+	_arena._show_baka_height()
+	_arena.player.global_position = Vector2(400, 470)
 
 	# --- the bar: hold rises, release falls ---------------------------------------
 	_arena.begin_vault()
@@ -305,7 +328,7 @@ func _run() -> void:
 	var still := true
 	for frame in range(10):
 		_arena._refresh_hud(0.0)
-		still = still and _arena.hud_layer.offset == Vector2.ZERO
+		still = still and _arena.popup_layer.offset == Vector2.ZERO and _arena.band.get_canvas_layer_node().offset == Vector2.ZERO
 		shook = shook or _arena.bar_layer.offset != Vector2.ZERO or _arena.field_root.position != Vector2.ZERO
 	_check(still, "the HUD layer (status, callout, hint) never shakes")
 	_check(shook == _arena.screen_shake_allowed(), "level 5 shakes the field and the bar (when shaking is on)")

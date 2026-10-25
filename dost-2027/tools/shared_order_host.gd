@@ -42,7 +42,7 @@ func _run() -> void:
 	# handed it. A CUSTOM order, so a private random draw on the client would be
 	# impossible to mistake for it.
 	network.set_run_settings({"trials": 3, "order_mode": "custom", "custom_order": ["tala", "mayari", "hanan"],
-		"trial_time": 120.0, "due_step": 750})
+		"trial_time": 120.0, "due_step": 750, "opening_cutscene": "skip"})
 	_say("HOST: setup after set = %s" % str(network.run_settings.to_dict()))
 	var file := FileAccess.open(PORT_FILE, FileAccess.WRITE)
 	if file == null:

@@ -38,6 +38,17 @@ extends Arena
 # results, E / Q and the dash (the phase stays INTRO, which allows none of them),
 # and every screen effect of a loss (_on_sun_favor_changed).
 #
+# NEVER STUCK: a rest never follows a trial's phases (a late RESULTS tick from the
+# trial that just ended would lock the mortal and replay the closing lines). The
+# scene token (Network.scene_token) drops such a tick on arrival, and the rest's own
+# _apply_arena_tick / _end_trial / _enter_playing ignore phases anyway. Whatever a
+# trial left on the mortal (lock, stun, shove, forced walk, drop, squash) is
+# cleared when the rest opens. The host closes within release_grace of its release
+# even if the echo never comes back; a client follows on its own once the host's
+# next trial is on the wire, or the host's clock has read 0 for client_follow_time.
+# READY counts only the mortals connected and in the rest; the clock always wins.
+# [PREP] lines in the log trace intro, unlock, ready, release and close.
+#
 # NO FAVOR MOVES HERE EXCEPT PURCHASES: begin_trial / end_trial are never called
 # (First Light and Favorable Outcome are not paid twice), rules.trial_active stays
 # false (GodMatch ticks no Harvest Pair rule and no Pamana window without it), the
@@ -56,6 +67,9 @@ const ALTAR_ICON_SIZE := 48.0  # the god on the altar, whatever size its icon is
 @export var max_boon_purchases := 1  # boons each mortal may buy here, apart from the Pamana
 @export var offer_count := 3        # Pamana on each mortal's shelf
 @export var stall_reach := 90.0     # how close to the stall LEFT CLICK opens the Tindahan
+@export var release_grace := 1.0    # host: seconds after its release before it closes without the echo
+@export var client_follow_time := 2.0  # client: seconds of the host's clock at 0 before it closes on its own
+@export var presence_grace := 5.0   # host: seconds every connected mortal counts as in the rest, before their word arrives
 
 @onready var altar_icon: Sprite2D = $Camp/Altar/GodIcon
 @onready var altar_name: Label = $Camp/Altar/Name
@@ -78,6 +92,11 @@ var _bought: Dictionary = {}            # mortal id -> Array[StringName] (host d
 var _boons: Dictionary = {}             # mortal id -> Array[StringName] boons bought here (the same)
 var _ready_ids: Array = []              # who said READY (host: Network; client: the tick)
 var _tags: Dictionary = {}              # mortal id -> the name tag last drawn
+var _present: Array = []                # who is in the rest (host: their "here" handshake; client: the tick)
+var _all_here := false                  # host: everyone's "here" arrived (Network clears the list then)
+var _release_left := -1.0               # host: seconds left of release_grace (-1: not released)
+var _zero_clock := 0.0                  # client: seconds the host's clock has read 0
+var _rest_age := 0.0                    # host: seconds since the rest opened
 
 
 # The prep area is not a trial: nobody falls from the sky into it.
@@ -112,17 +131,41 @@ func _start_intro() -> void:
 	popups_enabled = false
 	_paint_camp()
 	trial_time_changed.emit(_time_left)
+	_free_mortal()
+	_present = [_my_id] if _authority else []
+	if _net != null:
+		if _net.has_signal("stale_scene_message"):
+			_net.connect("stale_scene_message", _on_stale_scene_message)
+		if _net.has_signal("dialogue_released"):
+			_net.connect("dialogue_released", _on_here_released)
+		if _networked:
+			_net.report_dialogue_finished(_dialogue_token("here"))  # "I am in the rest" (READY counts only those)
+	_log_prep("intro (%s, %ds)" % [scene_token(), int(prep_time)])
 
 
 # The Game shell calls this once the run's snapshot is in the match: only now do
 # the mortals hold the favors the offers are filtered by.
 func open_prep() -> void:
 	popups_enabled = true
+	_free_mortal()
 	if _authority:
 		for id in _shoppers():
 			_send_offers(id)
 	elif _my_offers.is_empty() and _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_prep_offers")
+		_net.rpc_id(1, "request_prep_offers", scene_token())
+
+
+# Whatever a trial can leave on the mortal - a lock, a stun, a shove, a forced
+# walk, a dash, a drop offset, a squash - is cleared, and it may walk.
+func _free_mortal() -> void:
+	if player == null:
+		return
+	player.clear_trial_state()
+	_log_prep("unlock")
+
+
+func _log_prep(what: String) -> void:
+	print("[PREP] %s %s" % ["host" if _authority else "client %d" % _my_id, what])
 
 
 func _paint_camp() -> void:
@@ -242,7 +285,7 @@ func _on_pamana_chosen(item: Pamana) -> void:
 	if _authority:
 		try_purchase(_my_id, item.id)
 	elif _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_prep_purchase", str(item.id))
+		_net.rpc_id(1, "request_prep_purchase", str(item.id), scene_token())
 
 
 # --- THE ALTAR'S BOONS (the host decides) --------------------------------------------
@@ -286,7 +329,7 @@ func _on_boon_chosen(favor: GodFavor) -> void:
 	if _authority:
 		try_buy_boon(_my_id, favor.id)
 	elif _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_boon_purchase", str(favor.id))
+		_net.rpc_id(1, "request_boon_purchase", str(favor.id), scene_token())
 
 
 # The base's God's Due menu as the altar's shop: every card for boon_cost FAVOR.
@@ -320,6 +363,7 @@ func _ready_up() -> void:
 		return
 	if not _ready_ids.has(_my_id):
 		_ready_ids.append(_my_id)
+	_log_prep("ready")
 	_wait_for_dialogue("ready")  # solo: closes at once; networked: tells the host
 
 
@@ -327,16 +371,42 @@ func is_ready(mortal_id: int) -> bool:
 	return _ready_ids.has(mortal_id)
 
 
-# How many of the CONNECTED mortals are ready, out of how many (a mortal who left
-# is not waited for).
+# How many of the mortals connected AND in the rest are ready, out of how many (a
+# mortal who left, or who never reached the rest, is not waited for).
 func ready_count() -> Vector2i:
 	if not _networked or _net == null:
 		return Vector2i(1 if is_ready(_my_id) else 0, 1)
 	var ready := 0
+	var here := 0
 	for id in _net.players.keys():
+		if not is_present(int(id)):
+			continue
+		here += 1
 		if is_ready(int(id)):
 			ready += 1
-	return Vector2i(ready, _net.players.size())
+	return Vector2i(ready, here)
+
+
+# In the rest: its "here" handshake reached the host (everyone's, once Network
+# released it) - or the rest is younger than presence_grace, so a quick READY
+# never leaves behind a mortal whose word is still on the wire. A client reads the
+# host's list (everyone, before the first tick).
+func is_present(mortal_id: int) -> bool:
+	if not _authority:
+		return _present.is_empty() or _present.has(mortal_id)
+	return _present_ids().has(mortal_id)
+
+
+func _present_ids() -> Array:
+	var connected: Array = _net.players.keys().map(func(id) -> int: return int(id)) if _net != null else [_my_id]
+	if _all_here or _rest_age < presence_grace:
+		return connected
+	return connected.filter(func(id: int) -> bool: return _present.has(id))
+
+
+func _on_here_released(dialogue_id: String) -> void:
+	if dialogue_id == _dialogue_token("here"):
+		_all_here = true
 
 
 func _all_ready() -> bool:
@@ -348,8 +418,10 @@ func _all_ready() -> bool:
 func _release_prep() -> void:
 	if _closed:
 		return
+	_log_prep("release (%s)" % ("all ready" if _all_ready() else "time"))
 	if _networked and _net != null:
 		_dialogue_wait_id = _dialogue_token("ready")
+		_release_left = release_grace  # closes by itself if the echo never comes back
 		_net.release_dialogue(_dialogue_wait_id)  # comes back as dialogue_released
 	else:
 		_close_prep()
@@ -370,7 +442,53 @@ func _close_prep() -> void:
 	player.set_lock(true)
 	if _authority:
 		_publish_god_state()  # the last word before the next trial reads it
+	_log_prep("close")
 	prep_closed.emit()
+
+
+# The scene that follows this rest: trial N+1 (this rest is prep_N).
+func next_scene_token() -> String:
+	return "trial_%d:%s" % [int(dialogue_prefix.get_slice("_", 1)) + 1, next_god_id]
+
+
+# A client: the host's next trial is already on the wire - its release never
+# reached us. Follow it.
+func _on_stale_scene_message(_kind: String, scene: String) -> void:
+	if not _authority and not _closed and scene == next_scene_token():
+		_log_prep("the host is in %s: following" % scene)
+		_close_prep()
+
+
+# A rest follows no trial phase: a tick from another scene is ignored, and only
+# the rest's own clock, positions and fields are read from its own - never a
+# RESULTS that would lock the mortal and replay the closing lines.
+func _apply_arena_tick(state: Dictionary) -> void:
+	if _authority or str(state.get("scene", scene_token())) != scene_token():
+		return
+	_trial_time = float(state.get("trial_time", _trial_time))
+	trial_time_changed.emit(_trial_time)
+	hud.set_time_left(_trial_time)
+	var mortals: Dictionary = state.get("mortals", {})
+	_mortal_positions.clear()
+	for id in mortals.keys():
+		_mortal_positions[int(id)] = mortals[id]
+	arena_read_tick(state)
+	var banner := str(state.get("banner", ""))
+	if banner != "" and banner != _last_banner:
+		_last_banner = banner
+		_show_banner(banner, state.get("banner_color", god.color), 1.2)
+	var event := str(state.get("event", ""))
+	if event != "" and event != _last_event:
+		_last_event = event
+		_log(event, state.get("event_color", god.color))
+
+
+func _end_trial() -> void:
+	pass  # a rest has no trial to end
+
+
+func _enter_playing() -> void:
+	pass  # ...and none to enter
 
 
 func is_closed() -> bool:
@@ -395,13 +513,27 @@ func _process(delta: float) -> void:
 				for id in _net.dialogue_finished_ids(_dialogue_token("ready")):
 					if not _ready_ids.has(int(id)):
 						_ready_ids.append(int(id))
-			if _time_left <= 0.0 or _all_ready():
+			_rest_age += delta
+			if _networked and _net != null and not _all_here:
+				for id in _net.dialogue_finished_ids(_dialogue_token("here")):
+					if not _present.has(int(id)):
+						_present.append(int(id))
+			if _release_left > 0.0:
+				_release_left -= delta
+				if _release_left <= 0.0:
+					_log_prep("no release echo: closing")
+					_close_prep()
+			elif _time_left <= 0.0 or _all_ready():
 				_release_prep()
 		if _networked:
 			_publish_net_tick(delta)
 	else:
 		_time_left = _trial_time
 		_client_tick(delta)
+		_zero_clock = _zero_clock + delta if _time_left <= 0.0 else 0.0
+		if _zero_clock > client_follow_time and not _closed:
+			_log_prep("the host's clock has read 0 for %.1fs: following" % _zero_clock)
+			_close_prep()
 	_flush_favor_popups(delta)
 	_move_ghosts(delta)
 	_refresh_prep_hud()
@@ -456,13 +588,17 @@ func _tag(mortal_id: int, body: ArenaMortal) -> void:
 # ready, and who bought what (so a buyer's card reads BINILI, and the altar's
 # cards lock once their boons are bought).
 func arena_tick_fields() -> Dictionary:
-	return {"ready": _ready_ids.duplicate(), "bought": _ids_out(_bought), "boons": _ids_out(_boons)}
+	return {"ready": _ready_ids.duplicate(), "present": _present_ids(), "bought": _ids_out(_bought), "boons": _ids_out(_boons)}
 
 
 func arena_read_tick(state: Dictionary) -> void:
 	_ready_ids.clear()
 	for id in state.get("ready", []):
 		_ready_ids.append(int(id))
+	if state.has("present"):
+		_present.clear()
+		for id in state["present"]:
+			_present.append(int(id))
 	_bought = _ids_in(state.get("bought", {}))
 	_boons = _ids_in(state.get("boons", {}))
 

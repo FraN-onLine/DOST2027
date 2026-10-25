@@ -195,7 +195,6 @@ const JAUNT_OFFSET := Vector2(-48.0, 0.0)  # where Tala lands beside the god she
 @onready var mine_hold_ring: Line2D = get_node_or_null("Bases/Mine/Hold")
 @onready var bathala_hold_ring: Line2D = get_node_or_null("Bases/Bathala/Hold")
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
-@onready var callout_label: Label = get_node_or_null("AgawanHud/Callout")
 @onready var shocks_root: Node2D = get_node_or_null("Shocks")
 
 var _gods: Array[AgawanGod] = []       # every god on the field, host-run
@@ -230,7 +229,6 @@ var _pause := 0.0                     # seconds the field still stands still aft
 var _count := 0.0                     # seconds left in the round's "3 - 2 - 1"
 var _round_count_shown := -1
 var _rule_lock := false               # this script locked the local mortal (frozen / reset)
-var _callout_left := 0.0
 var _star_nodes: Array[Sprite2D] = []
 var _mark_labels: Dictionary = {}     # mortal id -> Label (the frozen countdown)
 
@@ -603,7 +601,7 @@ func _freeze_mortal(mortal_id: int, from: Vector2, source := &"") -> bool:
 	_frozen_mortals[mortal_id] = freeze_time
 	lose_favor(tagged_favor, "Tagged by a god", mortal_id)
 	knock_mortal(mortal_id, from, 0.3, 260.0)
-	spawn_popup("TAGGED", Arena.POPUP_LOSS_COLOR, popup_origin(mortal_id))
+	mortal_popup(mortal_id, "TAGGED", Arena.POPUP_LOSS_COLOR)
 	_apply_touch_effect(source, mortal_id)
 	return true
 
@@ -627,7 +625,7 @@ func _blind_mortal(mortal_id: int, seconds: float) -> void:
 	if mortal_id == _my_id:
 		_blind_time = maxf(_blind_time, seconds)
 	else:
-		spawn_popup("BLINDED", UITokens.STAR, popup_origin(mortal_id))
+		mortal_popup(mortal_id, "BLINDED", UITokens.STAR)
 
 
 # Hanan's light: the same shove a knockback uses, with the stun on top. The
@@ -638,7 +636,7 @@ func _stun_mortal(mortal_id: int, from: Vector2) -> void:
 		return
 	_stun_mortals[mortal_id] = maxf(float(_stun_mortals.get(mortal_id, 0.0)), stun_time)
 	knock_mortal(mortal_id, from, stun_time, stun_force, true)
-	spawn_popup("STUNNED", UITokens.GOLD, popup_origin(mortal_id))
+	mortal_popup(mortal_id, "STUNNED", UITokens.GOLD)
 
 
 func _is_stunned(mortal_id: int) -> bool:
@@ -969,7 +967,7 @@ func _try_attack() -> void:
 		if _net != null:
 			_net.send_arena_shock(_my_id, origin)
 	elif _net != null and _net.has_multiplayer_peer():
-		_net.rpc_id(1, "request_arena_shock", origin)
+		_net.rpc_id(1, "request_arena_shock", origin, scene_token())
 
 
 # A live god's touch (or any ally's pulse) thaws a frozen god at once.
@@ -1063,7 +1061,7 @@ func _tick_shocks(delta: float) -> void:
 				shock.get("hit", {})[mortal_id] = true
 				_thaw_mortal(mortal_id)
 				bank_favor(unfreeze_favor, "Unfroze an ally", int(shock["caster"]))
-				spawn_popup("THAWED", Arena.POPUP_GAIN_COLOR, popup_origin(mortal_id))
+				mortal_popup(mortal_id, "THAWED", Arena.POPUP_GAIN_COLOR)
 		# Break Tala's stars in reach. Hanan's light is only dodged.
 		for at in range(_stars.size() - 1, -1, -1):
 			if str(_stars[at].get("kind", "star")) == "stun":
@@ -1509,13 +1507,9 @@ func _apply_tint() -> void:
 		field_root.apply_tint(UITokens.GOLD_HI if _judgment else UITokens.GOLD_LO)
 
 
+# A round's word, in the shared callout pill near the top of the screen.
 func _callout(text: String) -> void:
-	if callout_label == null:
-		return
-	callout_label.text = text
-	callout_label.add_theme_color_override("font_color", UITokens.god_text(god))
-	callout_label.visible = true
-	_callout_left = callout_time
+	callout(text, UITokens.god_text(god), callout_time, null, true)
 
 
 func _refresh_hud(delta: float) -> void:
@@ -1536,7 +1530,3 @@ func _refresh_hud(delta: float) -> void:
 		status_label.add_theme_color_override("font_color", UITokens.god_text(god))
 	if hint_label != null:
 		hint_label.text = "%s FREEZE GODS, THAW ALLIES   %s" % [key_cap(&"attack"), favor_keys_hint()]
-	if callout_label != null and _callout_left > 0.0:
-		_callout_left -= delta
-		if _callout_left <= 0.0:
-			callout_label.visible = false
