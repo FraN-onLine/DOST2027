@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_god"]
+[ext_resource type="Texture2D" uid="uid://c13451knmmngw" path="res://Assets/Gods/Bathala/BATHALAFAVOR.png" id="2_wcu74"]
 [ext_resource type="Texture2D" uid="uid://celskxwofnwhk" path="res://Assets/Gods/Bathala/bathala_portrait.png" id="3_a85m2"]
-[ext_resource type="Texture2D" uid="uid://2k14435xm3sv" path="res://Assets/Placeholders/favor.png" id="3_icon"]
 [ext_resource type="Texture2D" uid="uid://8ff6ee7fpm4m" path="res://Assets/Gods/Icons/BathalaIcon.png" id="3_wcu74"]
 
 [sub_resource type="Resource" id="Favor_partnership_mayari"]
@@ -14,7 +14,7 @@ display_name = "Our Partnership Ends Here (Mayari)"
 description = "Lose 500 FAVOR now; every other mortal, your teammates included, is struck by Mayari's blindness for 10s. A blinded team is easier for the gods to beat. A favor is about sacrifice."
 kind = 2
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("3_icon")
+icon = ExtResource("2_wcu74")
 params = {
 "blind_duration": 10.0,
 "cost": 500
@@ -28,7 +28,7 @@ display_name = "Our Partnership Ends Here (Apolaki)"
 description = "Lose 500 FAVOR now; every other mortal, your teammates included, is seared by 4 Sun Patches for 10s. A blinded team is easier for the gods to beat. A favor is about sacrifice."
 kind = 2
 color = Color(1, 0.55, 0.2, 1)
-icon = ExtResource("3_icon")
+icon = ExtResource("2_wcu74")
 params = {
 "cost": 500,
 "sun_count": 4,
@@ -43,7 +43,7 @@ display_name = "Bathala Na"
 description = "Pour out every God's Due you hold; gain 350 FAVOR for each one spent this way. A favor is about sacrifice."
 kind = 2
 color = Color(1, 0.95, 0.78, 1)
-icon = ExtResource("3_icon")
+icon = ExtResource("2_wcu74")
 params = {
 "per_due": 350
 }
@@ -56,7 +56,7 @@ display_name = "Si Batman"
 description = "Lose 1500 FAVOR now; from here on nothing can take your FAVOR away until the game ends. A favor is about sacrifice."
 kind = 2
 color = Color(0.45, 0.47, 0.55, 1)
-icon = ExtResource("3_icon")
+icon = ExtResource("2_wcu74")
 params = {
 "cost": 1500
 }
@@ -72,7 +72,7 @@ kind = 1
 cooldown = 60.0
 duration = 4.0
 color = Color(0.55, 0.85, 1, 1)
-icon = ExtResource("3_icon")
+icon = ExtResource("2_wcu74")
 params = {
 "halve": 0.5,
 "regrow": 0.8,
@@ -90,7 +90,7 @@ kind = 1
 cooldown = 45.0
 duration = 6.0
 color = Color(0.7, 0.85, 1, 1)
-icon = ExtResource("3_icon")
+icon = ExtResource("2_wcu74")
 params = {
 "halve": 0.5,
 "regrow": 1.2,

@@ -82,6 +82,7 @@ payout_worst = 100
 tie_window = 0.25
 langit_spacing = 140.0
 langit_fade_in = 0.3
+hop_lead = 20.0
 season_interval = 12.0
 shift_warning = 1.0
 crumble_time = 0.4
@@ -150,10 +151,10 @@ default_color = Color(0.56, 0.78, 0.33, 0.8)
 
 [node name="Langits" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1546766142]
 
-[node name="Langit1" parent="ArenaField/Langits" index="0" instance=ExtResource("8_langit")]
+[node name="Langit1" parent="ArenaField/Langits" index="0" unique_id=303701797 instance=ExtResource("8_langit")]
 visible = false
 
-[node name="Langit2" parent="ArenaField/Langits" index="1" instance=ExtResource("9_langit")]
+[node name="Langit2" parent="ArenaField/Langits" index="1" unique_id=273334116 instance=ExtResource("9_langit")]
 visible = false
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=632666614]
