@@ -19,14 +19,14 @@ const TAB_SECTIONS := ["audio", "video", "controls", "gameplay"]
 const VOLUMES := {"master": "Master volume", "music": "Music volume", "sfx": "SFX volume", "ui": "UI volume"}
 const IGNORED_MOUSE := [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 
-@onready var tabs: TabContainer = $Panel/Margin/VBox/Tabs
-@onready var audio_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Audio/List
-@onready var video_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Video/List
-@onready var controls_scroll: ScrollContainer = $Panel/Margin/VBox/Tabs/Controls
-@onready var controls_list: VBoxContainer = $Panel/Margin/VBox/Tabs/Controls/List
-@onready var gameplay_tab: VBoxContainer = $Panel/Margin/VBox/Tabs/Gameplay/List
-@onready var reset_button: Button = $Panel/Margin/VBox/Buttons/ResetButton
-@onready var back_button: Button = $Panel/Margin/VBox/Buttons/BackButton
+@onready var tabs: TabContainer = $CenterContainer/Stack/Panel/Margin/VBox/Tabs
+@onready var audio_tab: VBoxContainer = $CenterContainer/Stack/Panel/Margin/VBox/Tabs/Audio/List
+@onready var video_tab: VBoxContainer = $CenterContainer/Stack/Panel/Margin/VBox/Tabs/Video/List
+@onready var controls_scroll: ScrollContainer = $CenterContainer/Stack/Panel/Margin/VBox/Tabs/Controls
+@onready var controls_list: VBoxContainer = $CenterContainer/Stack/Panel/Margin/VBox/Tabs/Controls/List
+@onready var gameplay_tab: VBoxContainer = $CenterContainer/Stack/Panel/Margin/VBox/Tabs/Gameplay/List
+@onready var reset_button: Button = $CenterContainer/Stack/Panel/Margin/VBox/Buttons/ResetButton
+@onready var back_button: Button = $CenterContainer/Stack/BackButton
 @onready var confirm: ConfirmationDialog = $ConfirmDialog
 
 var _bind_buttons := {}                 # action -> Button
@@ -60,7 +60,7 @@ func _ready() -> void:
 	add_child(_conflict_dialog)
 
 	for index in TAB_SECTIONS.size():
-		tabs.set_tab_title(index, TAB_SECTIONS[index].capitalize())
+		tabs.set_tab_title(index, TAB_SECTIONS[index].to_upper())
 	_build_all()
 	tabs.get_tab_bar().grab_focus()
 
@@ -122,8 +122,11 @@ func _check_row(parent: Control, text: String, section: String, key: String) -> 
 	var check := CheckButton.new()
 	check.button_pressed = Settings.get_value(section, key)
 	check.toggled.connect(func(on: bool) -> void: Settings.set_value(section, key, on))
-	check.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_row(parent, text, check)
+	# The row stretches its control; the switch stays its own (64x32) size, right
+	# beside the label.
+	var box := HBoxContainer.new()
+	box.add_child(check)
+	_row(parent, text, box)
 
 
 func _option_row(parent: Control, text: String, labels: Array, selected: int, on_pick: Callable) -> OptionButton:

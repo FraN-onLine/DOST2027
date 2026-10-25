@@ -55,11 +55,11 @@ func _run() -> void:
 	_check(options != null and options.name == "Options", "OPTIONS opens res://scenes/Options.tscn")
 	if options == null:
 		return _finish(settings)
-	var tabs: TabContainer = options.get_node("Panel/Margin/VBox/Tabs")
+	var tabs: TabContainer = options.get_node("CenterContainer/Stack/Panel/Margin/VBox/Tabs")
 	_check(tabs.get_tab_count() == 4, "the Options screen has four tabs")
-	_check(options.get_node("Panel/Margin/VBox/Tabs/Controls/List").get_child_count() == settings.ACTIONS.size(),
+	_check(options.get_node("CenterContainer/Stack/Panel/Margin/VBox/Tabs/Controls/List").get_child_count() == settings.ACTIONS.size(),
 		"the Controls tab has a row for every rebindable action")
-	var back: Button = options.get_node_or_null("Panel/Margin/VBox/Buttons/BackButton")
+	var back: Button = options.get_node_or_null("CenterContainer/Stack/BackButton")
 	_check(back != null, "the Options screen offers a BACK button")
 	if back != null:
 		back.pressed.emit()

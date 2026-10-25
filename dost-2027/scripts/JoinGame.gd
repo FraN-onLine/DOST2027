@@ -8,18 +8,18 @@ extends Control
 const SEARCH_TEXT := "Searching your network"
 const DOT_SECONDS := 0.6
 
-@onready var host_list = $CenterContainer/Columns/NetworkCard/VBox/List/HostListScroll
-@onready var host_list_vbox = $CenterContainer/Columns/NetworkCard/VBox/List/HostListScroll/HostListVBox
-@onready var no_hosts_label = $CenterContainer/Columns/NetworkCard/VBox/List/NoHostsLabel
-@onready var refresh_button = $CenterContainer/Columns/NetworkCard/VBox/SearchRow/RefreshButton
-@onready var back_button = $BackButton
-@onready var status_label = $StatusLabel
-@onready var search_spinner = $CenterContainer/Columns/NetworkCard/VBox/SearchRow/SearchLabel
-@onready var name_input = $CenterContainer/Columns/FormCard/VBox/NameInput
-@onready var lobby_id_input = $CenterContainer/Columns/FormCard/VBox/LobbyIdInput
-@onready var join_lobby_button = $CenterContainer/Columns/FormCard/VBox/JoinLobbyButton
-@onready var ip_input: LineEdit = $CenterContainer/Columns/FormCard/VBox/IpInput
-@onready var join_ip_button: Button = $CenterContainer/Columns/FormCard/VBox/JoinIpButton
+@onready var host_list = $CenterContainer/Stack/Columns/NetworkCard/VBox/List/HostListScroll
+@onready var host_list_vbox = $CenterContainer/Stack/Columns/NetworkCard/VBox/List/HostListScroll/HostListVBox
+@onready var no_hosts_label = $CenterContainer/Stack/Columns/NetworkCard/VBox/List/NoHostsLabel
+@onready var refresh_button = $CenterContainer/Stack/Columns/NetworkCard/VBox/SearchRow/RefreshButton
+@onready var back_button = $CenterContainer/Stack/BackButton
+@onready var status_label = $CenterContainer/Stack/StatusLabel
+@onready var search_spinner = $CenterContainer/Stack/Columns/NetworkCard/VBox/SearchRow/SearchLabel
+@onready var name_input = $CenterContainer/Stack/Columns/FormCard/VBox/NameInput
+@onready var lobby_id_input = $CenterContainer/Stack/Columns/FormCard/VBox/LobbyIdInput
+@onready var join_lobby_button = $CenterContainer/Stack/Columns/FormCard/VBox/JoinLobbyButton
+@onready var ip_input: LineEdit = $CenterContainer/Stack/Columns/FormCard/VBox/IpInput
+@onready var join_ip_button: Button = $CenterContainer/Stack/Columns/FormCard/VBox/JoinIpButton
 
 const IP_JOIN_SECONDS := 6.0  # ENet waits far longer than a friend will
 

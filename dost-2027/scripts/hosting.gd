@@ -4,10 +4,10 @@ extends Control
 # bottom of the card) with BACK as a ghost in the bottom-left corner - the same
 # layout as the Join screen.
 
-@onready var name_input = $CenterContainer/Card/VBoxContainer/NameInput
-@onready var start_button = $CenterContainer/Card/VBoxContainer/StartButton
-@onready var back_button = $BackButton
-@onready var status_label = $CenterContainer/Card/VBoxContainer/StatusLabel
+@onready var name_input = $CenterContainer/Stack/Card/VBoxContainer/NameInput
+@onready var start_button = $CenterContainer/Stack/Card/VBoxContainer/StartButton
+@onready var back_button = $CenterContainer/Stack/BackButton
+@onready var status_label = $CenterContainer/Stack/Card/VBoxContainer/StatusLabel
 
 func _ready():
 	# Connect button signals

@@ -26,6 +26,7 @@ Network="*res://scripts/Network.gd"
 Global="*res://scripts/Global.gd"
 Settings="*res://scripts/Settings.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+UISounds="*res://scenes/UISounds.tscn"
 
 [display]
 

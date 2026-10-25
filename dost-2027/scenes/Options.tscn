@@ -35,109 +35,115 @@ texture = ExtResource("2_sky")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="Panel" type="PanelContainer" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 48.0
-offset_top = 16.0
-offset_right = -48.0
-offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="Stack" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer/Stack"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
 theme_type_variation = &"PanelCard"
 
-[node name="Margin" type="MarginContainer" parent="Panel"]
+[node name="Margin" type="MarginContainer" parent="CenterContainer/Stack/Panel"]
 layout_mode = 2
 theme_override_constants/margin_left = 0
 theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 0
 theme_override_constants/margin_bottom = 0
 
-[node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Stack/Panel/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="TitleLabel" type="Label" parent="Panel/Margin/VBox"]
+[node name="TitleLabel" type="Label" parent="CenterContainer/Stack/Panel/Margin/VBox"]
 layout_mode = 2
 theme_type_variation = &"DisplayLabel"
 text = "OPTIONS"
 horizontal_alignment = 1
 
-[node name="Tabs" type="TabContainer" parent="Panel/Margin/VBox"]
+[node name="Tabs" type="TabContainer" parent="CenterContainer/Stack/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 320)
 layout_mode = 2
 size_flags_vertical = 3
 current_tab = 0
 
-[node name="Audio" type="ScrollContainer" parent="Panel/Margin/VBox/Tabs"]
+[node name="Audio" type="ScrollContainer" parent="CenterContainer/Stack/Panel/Margin/VBox/Tabs"]
 layout_mode = 2
 horizontal_scroll_mode = 0
 follow_focus = true
 metadata/_tab_index = 0
 
-[node name="List" type="VBoxContainer" parent="Panel/Margin/VBox/Tabs/Audio"]
+[node name="List" type="VBoxContainer" parent="CenterContainer/Stack/Panel/Margin/VBox/Tabs/Audio"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="Video" type="ScrollContainer" parent="Panel/Margin/VBox/Tabs"]
+[node name="Video" type="ScrollContainer" parent="CenterContainer/Stack/Panel/Margin/VBox/Tabs"]
 visible = false
 layout_mode = 2
 horizontal_scroll_mode = 0
 follow_focus = true
 metadata/_tab_index = 1
 
-[node name="List" type="VBoxContainer" parent="Panel/Margin/VBox/Tabs/Video"]
+[node name="List" type="VBoxContainer" parent="CenterContainer/Stack/Panel/Margin/VBox/Tabs/Video"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="Controls" type="ScrollContainer" parent="Panel/Margin/VBox/Tabs"]
+[node name="Controls" type="ScrollContainer" parent="CenterContainer/Stack/Panel/Margin/VBox/Tabs"]
 visible = false
 layout_mode = 2
 horizontal_scroll_mode = 0
 metadata/_tab_index = 2
 
-[node name="List" type="VBoxContainer" parent="Panel/Margin/VBox/Tabs/Controls"]
+[node name="List" type="VBoxContainer" parent="CenterContainer/Stack/Panel/Margin/VBox/Tabs/Controls"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="Gameplay" type="ScrollContainer" parent="Panel/Margin/VBox/Tabs"]
+[node name="Gameplay" type="ScrollContainer" parent="CenterContainer/Stack/Panel/Margin/VBox/Tabs"]
 visible = false
 layout_mode = 2
 horizontal_scroll_mode = 0
 follow_focus = true
 metadata/_tab_index = 3
 
-[node name="List" type="VBoxContainer" parent="Panel/Margin/VBox/Tabs/Gameplay"]
+[node name="List" type="VBoxContainer" parent="CenterContainer/Stack/Panel/Margin/VBox/Tabs/Gameplay"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="Buttons" type="HBoxContainer" parent="Panel/Margin/VBox"]
+[node name="Buttons" type="HBoxContainer" parent="CenterContainer/Stack/Panel/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="BackButton" type="Button" parent="Panel/Margin/VBox/Buttons"]
-custom_minimum_size = Vector2(120, 32)
-layout_mode = 2
-tooltip_text = "Saves your settings and goes back."
-theme_type_variation = &"GhostButton"
-text = "BACK"
-
-[node name="Spacer" type="Control" parent="Panel/Margin/VBox/Buttons"]
+[node name="Spacer" type="Control" parent="CenterContainer/Stack/Panel/Margin/VBox/Buttons"]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="ResetButton" type="Button" parent="Panel/Margin/VBox/Buttons"]
+[node name="ResetButton" type="Button" parent="CenterContainer/Stack/Panel/Margin/VBox/Buttons"]
 custom_minimum_size = Vector2(120, 32)
 layout_mode = 2
 tooltip_text = "Puts every setting on this tab back to its default."
 theme_type_variation = &"DangerButton"
 text = "RESET TAB"
+
+[node name="BackButton" type="Button" parent="CenterContainer/Stack"]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+size_flags_horizontal = 4
+tooltip_text = "Saves your settings and goes back."
+theme_type_variation = &"GhostButton"
+text = "BACK"
 
 [node name="ConfirmDialog" type="ConfirmationDialog" parent="."]
 title = "Keep these settings?"

@@ -50,7 +50,6 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_bottom = -40.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -106,17 +105,10 @@ layout_mode = 2
 tooltip_text = "The heirlooms the Tindahan sells, and their history."
 theme_type_variation = &"SecondaryButton"
 
-[node name="BackButton" type="Button" parent="Index"]
+[node name="BackButton" type="Button" parent="Index/Center/VBox"]
 custom_minimum_size = Vector2(120, 32)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -58.0
-offset_right = 144.0
-offset_bottom = -24.0
-grow_vertical = 0
+layout_mode = 2
+size_flags_horizontal = 4
 theme_type_variation = &"GhostButton"
 text = "BACK"
 

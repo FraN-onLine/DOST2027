@@ -75,11 +75,12 @@ text = "LOBBY ID"
 vertical_alignment = 1
 
 [node name="LobbyIdLabel" type="Label" parent="Page/VBox/Header/LobbyIdBox" unique_id=845840231]
+custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
 tooltip_text = "Friends type this on their JOIN screen."
 mouse_filter = 1
 theme_type_variation = &"CodeLabel"
-text = "ABCD"
+text = "----"
 horizontal_alignment = 1
 vertical_alignment = 1
 

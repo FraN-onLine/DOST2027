@@ -69,7 +69,7 @@ func _ready():
 	if is_host:
 		status_label.text = "You are the host. Waiting for players..."
 		# Show the lobby ID so friends can join directly - no IP/port needed
-		lobby_id_label.text = Network.lobby_id
+		lobby_id_label.text = Network.lobby_id if Network.lobby_id != "" else "----"
 		lobby_id_box.visible = true
 		# ...and the IPs, for friends on a VPN where the broadcast never reaches them
 		ips_line.text = HostAddress.ips_line(IP.get_local_addresses(), Network.host_port())
@@ -225,7 +225,6 @@ func _update_player_list():
 	# Update start game button state
 	if is_host:
 		_update_start_button()
-		status_label.text = "Players: " + str(connected_players.size()) + "/" + str(Network.MAX_PLAYERS)
 
 
 # A filled seat: [icon in its god's accent frame] name ............ [HOST]
