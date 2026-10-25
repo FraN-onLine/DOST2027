@@ -35,6 +35,8 @@ extends Arena
 #   gods still Taya pays by the mortals' times as usual (all zero: a tie).
 #   god_starts_as_taya = false brings back the old rule: the rhyme lands on the
 #   mortal with the most FAVOR (ties: random).
+#   The Taya walks taya_speed_bonus (10%) faster - the player, a bot and the gods
+#   as THE Taya (not Ikapati as the blitz's second Taya); the dash is unchanged.
 #   Between mortals the Taya passes on a touch (tag_radius) to any runner on the
 #   Lupa; the new Taya cannot tag for tagback_immunity seconds (its marker blinks)
 #   and the runner who just passed it on cannot be tagged back for tagged_mercy
@@ -202,6 +204,7 @@ enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 @export var fixed_trial_time := 60.0     # the round length here (0 = the lobby's)
 @export var tag_radius := 26.0           # how close the Taya must get to tag
 @export var tagback_immunity := 1.0      # seconds a new Taya cannot tag
+@export var taya_speed_bonus := 1.10     # the Taya walks this much faster (player, bot Taya, Ikapati as THE Taya)
 @export var tagged_mercy := 1.0          # seconds the old Taya cannot be tagged back
 @export var tag_steal := 60              # FAVOR a tag moves from the runner to the Taya
 @export var taya_clearance := 100.0      # no Langit lands this close to the Taya
@@ -377,6 +380,11 @@ func _ready() -> void:
 
 func collect_units() -> void:
 	_apply_art()
+
+
+# The Taya walks taya_speed_bonus faster (each screen, its own mortal).
+func arena_speed_scale() -> float:
+	return taya_speed_bonus if _taya == _my_id and _phase == Phase.PLAYING else 1.0
 
 
 # The effect timers (Arena.local_effects) this game adds: the blitz, the ALIS clock when
@@ -1520,7 +1528,7 @@ func _move_bots(delta: float) -> void:
 		var rooted := int(id) == _taya and (_chanting or _root_left > 0.0)
 		var step := Vector2.ZERO if rooted else _bot_heading(int(id), here, delta)
 		if step.length() > 0.01:
-			here += step.normalized() * bot_speed * delta
+			here += step.normalized() * bot_speed * (taya_speed_bonus if int(id) == _taya else 1.0) * delta
 		if int(id) == _taya:
 			here = _push_out(here)
 		here = here.clamp(low + Vector2.ONE * bot.radius, _field.end - Vector2.ONE * bot.radius)
@@ -1692,7 +1700,10 @@ func _move_god(delta: float) -> void:
 	if not _god_rooted():
 		step = _bot_taya_heading(GOD_TAYA, _god_at, _god_hunt)
 	if step.length() > 0.01:
-		_god_at += step.normalized() * (god_hunt_speed if _god_hunt >= 0 else god_speed) * delta
+		var walk := god_hunt_speed if _god_hunt >= 0 else god_speed
+		if _taya == GOD_TAYA:  # THE Taya walks faster (not as the blitz's second Taya)
+			walk *= taya_speed_bonus
+		_god_at += step.normalized() * walk * delta
 	var body := Vector2.ONE * (_god_body.radius if _god_body != null else 13.0)
 	_god_at = _push_out(_god_at).clamp(_field.position + body, _field.end - body)
 

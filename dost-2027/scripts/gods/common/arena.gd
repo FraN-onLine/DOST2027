@@ -581,6 +581,13 @@ func arena_read_tick(_state: Dictionary) -> void:
 	pass
 
 
+# A multiplier on this screen's own mortal's walk, on top of the favors and
+# Pamana (_update_movement_favors). Each screen applies it to its own mortal, so
+# it needs no sync. 1.0: no change.
+func arena_speed_scale() -> float:
+	return 1.0
+
+
 func shares_mortal_positions() -> bool:
 	return true
 
@@ -1576,7 +1583,7 @@ func _update_movement_favors(delta: float) -> void:
 	# Banton Burial Cloth: faster for the first seconds of the trial.
 	if rules.pamana_in_window(mortal, Pamanas.BANTON_CLOTH):
 		speed *= Pamanas.by_id(Pamanas.BANTON_CLOTH).param("speed_multiplier", 1.15)
-	player.move_speed = speed
+	player.move_speed = speed * arena_speed_scale()
 
 	if _movement_override_time > 0.0:
 		_movement_override_time = maxf(0.0, _movement_override_time - delta)
