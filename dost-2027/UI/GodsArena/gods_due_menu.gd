@@ -13,7 +13,8 @@ extends Control
 # REPLACES <old skill>, and the choice is only ASKED for (boon_chosen): the arena
 # - the host - decides. A voucher or a free grant is never spent there: it waits
 # for the next trial (a small line says so). In a trial boon_cost is 0 and nothing
-# of this shows.
+# of this shows. The Playground opens it with free_boons: the same altar cards,
+# but nothing is paid and nothing is limited - a god's whole list to try.
 
 signal favor_chosen(favor: GodFavor, free_grants_left: int)
 signal boon_chosen(favor: GodFavor)
@@ -33,6 +34,7 @@ var _free_grants := 0
 var _remote := false  # multiplayer client: only ask, never change local rules
 var _boon_cost := 0   # > 0 at the altar: no voucher means the cards are for sale
 var _boons_left := 0  # boons this player may still buy here
+var _free_boons := false  # the Playground's altar: every card is free and unlimited
 var _shown: Array[GodFavor] = []
 var _kept_note: Label  # at the altar: the vouchers held are kept for the next trial
 
@@ -45,13 +47,14 @@ func is_open() -> bool:
 	return visible
 
 
-func open(host_god: God, host_match: GodMatch, free_grants := 0, remote := false, boon_cost := 0, boons_left := 0) -> void:
+func open(host_god: God, host_match: GodMatch, free_grants := 0, remote := false, boon_cost := 0, boons_left := 0, free_boons := false) -> void:
 	_god = host_god
 	_match = host_match
 	_free_grants = free_grants
 	_remote = remote
 	_boon_cost = boon_cost
 	_boons_left = boons_left
+	_free_boons = free_boons
 	_rebuild()
 	visible = true
 	UITokens.reveal(self)
@@ -77,7 +80,9 @@ func _rebuild() -> void:
 	var due := 0
 	if mortal != null:
 		due = mortal.due
-	if selling():
+	if _free_boons:
+		due_label.text = "FREE BLESSINGS OF %s" % _god.display_name.to_upper()
+	elif selling():
 		due_label.text = "BUY A BLESSING - %d FAVOR" % _boon_cost
 	elif _free_grants > 0:
 		due_label.text = "A GOD INTERVENES - ONE FAVOR IS FREE"
@@ -88,7 +93,7 @@ func _rebuild() -> void:
 		_kept_note = _caption("Your God's Due vouchers are kept for the next trial.", UITokens.FAINT)
 		_kept_note.name = "KeptNote"
 		due_label.add_sibling(_kept_note)
-	_kept_note.visible = selling() and due > 0
+	_kept_note.visible = selling() and not _free_boons and due > 0
 
 	# Every opening rolls a fresh set. E/Q candidates stay eligible because
 	# selecting one replaces the currently owned skill in that slot.
@@ -113,7 +118,7 @@ func _rebuild() -> void:
 
 # The cards are for sale: always at the altar (whatever vouchers are held), never in a trial.
 func selling() -> bool:
-	return _boon_cost > 0
+	return _boon_cost > 0 or _free_boons
 
 
 func _make_note(text: String) -> Label:
@@ -134,15 +139,16 @@ func _make_note(text: String) -> Label:
 func _make_row(number: int, favor: GodFavor, due: int) -> VBoxContainer:
 	var mortal := _match.local()
 	var for_sale := selling()
+	var locked := for_sale and not _free_boons and _boons_left <= 0
 	var affordable := _free_grants > 0 or due > 0
 	if for_sale:
-		affordable = mortal != null and mortal.favor >= _boon_cost
+		affordable = _free_boons or (mortal != null and mortal.favor >= _boon_cost)
 	var current_skill: GodFavor = mortal.favor_in_slot(favor.slot) if mortal != null and favor.is_skill() else null
 
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", UITokens.SPACE_8)
 	column.custom_minimum_size.x = COLUMN_WIDTH
-	column.modulate.a = 1.0 if affordable and not (for_sale and _boons_left <= 0) else 0.5
+	column.modulate.a = 1.0 if affordable and not locked else 0.5
 
 	var key := Label.new()
 	key.text = UITokens.key_text(StringName("due_choice_%d" % number))
@@ -165,7 +171,9 @@ func _make_row(number: int, favor: GodFavor, due: int) -> VBoxContainer:
 
 	var cost_color := UITokens.JADE if affordable else UITokens.EMBER
 	var cost_text := ""
-	if for_sale and _boons_left <= 0:
+	if _free_boons:
+		cost_text = "FREE"
+	elif for_sale and _boons_left <= 0:
 		cost_text = "%d FAVOR - LOCKED" % _boon_cost
 		cost_color = UITokens.FAINT
 	elif for_sale:
@@ -233,8 +241,10 @@ func _choose(index: int) -> void:
 	var mortal := _match.local()
 	if selling():
 		# A boon: asked for, never decided here - the arena (the host) checks it
-		# and the next snapshot brings it back.
-		if _boons_left <= 0 or mortal == null or mortal.favor < _boon_cost:
+		# and the next snapshot brings it back. The Playground's altar is free.
+		if mortal == null:
+			return
+		if not _free_boons and (_boons_left <= 0 or mortal.favor < _boon_cost):
 			return
 		boon_chosen.emit(favor)
 		close()

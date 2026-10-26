@@ -9,6 +9,8 @@
 [ext_resource type="Texture2D" uid="uid://cxkcpecrakrk6" path="res://Assets/Gods/lam-ang-walking.png" id="6_fxuyk"]
 [ext_resource type="Texture2D" uid="uid://dox5ui7dkb383" path="res://Assets/Gods/lam-ang_jump.png" id="7_nxx0t"]
 [ext_resource type="Texture2D" uid="uid://tuodoq57kabn" path="res://Assets/Placeholders/fx/stun_star.png" id="7_stun"]
+[ext_resource type="Texture2D" uid="uid://b8wr73qkqld3s" path="res://Assets/Gods/MapulonIkapati/Weeded.png" id="10_cfrcs"]
+[ext_resource type="Texture2D" uid="uid://bnld3vo40wpug" path="res://Assets/Gods/Tala/Tranced.png" id="10_wwxri"]
 
 [sub_resource type="Gradient" id="Gradient_shadow"]
 offsets = PackedFloat32Array(0, 0.55, 1)
@@ -275,8 +277,53 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_mortal"]
 radius = 60.0
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_af5nn"]
-radius = 24.0
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_l6k6b"]
+radius = 20.0
+height = 70.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iwf77"]
+atlas = ExtResource("10_wwxri")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_skfhv"]
+atlas = ExtResource("10_wwxri")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_57qmd"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iwf77")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_skfhv")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iaaty"]
+atlas = ExtResource("10_cfrcs")
+region = Rect2(0, 0, 12, 12)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7iqs5"]
+atlas = ExtResource("10_cfrcs")
+region = Rect2(12, 0, 12, 12)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_yf5fn"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iaaty")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7iqs5")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="Mortal" type="CharacterBody2D" unique_id=680107735]
 motion_mode = 1
@@ -334,10 +381,7 @@ material = SubResource("ShaderMaterial_bandana")
 position = Vector2(0, -31.5)
 scale = Vector2(1.7078125, 1.6453125)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-animation = &"jump"
 autoplay = "default"
-frame = 8
-frame_progress = 1.0
 
 [node name="StunStars" type="Node2D" parent="." unique_id=1837210819]
 visible = false
@@ -367,9 +411,8 @@ position = Vector2(0, -15)
 shape = SubResource("CircleShape2D_mortal")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1298435770]
-position = Vector2(0, -7)
-shape = SubResource("CircleShape2D_af5nn")
-metadata/_edit_lock_ = true
+position = Vector2(0, -17)
+shape = SubResource("CapsuleShape2D_l6k6b")
 
 [node name="NameTag" type="Label" parent="." unique_id=345467521]
 offset_left = -60.0
@@ -396,3 +439,18 @@ bus = &"SFX"
 
 [node name="Whoosh" type="AudioStreamPlayer2D" parent="." unique_id=166317865]
 bus = &"SFX"
+
+[node name="Tranced" type="AnimatedSprite2D" parent="." unique_id=807809908]
+position = Vector2(0, -71)
+scale = Vector2(1.5937501, 1.2760423)
+sprite_frames = SubResource("SpriteFrames_57qmd")
+autoplay = "default"
+frame_progress = 0.42922235
+
+[node name="Weeded" type="AnimatedSprite2D" parent="." unique_id=100833085]
+visible = false
+position = Vector2(-4.7683716e-07, 0)
+scale = Vector2(2.7500002, 3.1666665)
+sprite_frames = SubResource("SpriteFrames_yf5fn")
+autoplay = "default"
+frame_progress = 0.9320147

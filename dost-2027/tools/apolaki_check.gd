@@ -304,34 +304,34 @@ func _run() -> void:
 	_arena.duelist.icon.frame = 5
 	_arena.duelist._tick_attack_window()
 	_check(_landed == 0, "his swing misses while the mortal stands outside his area")
-	# The window itself: 3 is too early, 5 and 7 are live, 8 is too late.
+	# The window itself: 4 is too early, 5 and 8 are live, 9 is too late.
 	_arena.duelist.global_position = _arena.player.global_position
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
-	_arena.duelist.icon.frame = 3
+	_arena.duelist.icon.frame = 4
 	_arena.duelist._tick_attack_window()
-	_check(_landed == 0, "his swing is not live before frame 4")
+	_check(_landed == 0, "his swing is not live before frame 5")
 	_arena.duelist.icon.frame = 5
 	_arena.duelist._tick_attack_window()
 	_arena.duelist._tick_attack_window()
 	_check(_landed == 1, "his swing connects once per swing inside his area")
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
-	_arena.duelist.icon.frame = 8
+	_arena.duelist.icon.frame = 9
 	_arena.duelist._tick_attack_window()
-	_check(_landed == 1, "his swing is closed after frame 7")
-	_check(_arena.duelist.attack_hit_open_frame == 4 and _arena.duelist.attack_hit_close_frame == 7,
-		"his swing is live on frames 4..7")
+	_check(_landed == 1, "his swing is closed after frame 8")
+	_check(_arena.duelist.attack_hit_open_frame == 5 and _arena.duelist.attack_hit_close_frame == 8,
+		"his swing is live on frames 5..8")
 	# The window stays open across all of its frames: a mortal that was out of
 	# reach on one live frame and steps in on a later one still gets hit - this
 	# is the rule that stops his stick from passing through a mortal untouched.
 	_arena.duelist.global_position = _arena.player.global_position + Vector2(600.0, 0.0)
 	_arena.duelist._enter(ApolakiDuelist.State.ATTACK)
-	_arena.duelist.icon.frame = 4
+	_arena.duelist.icon.frame = 5
 	_arena.duelist._tick_attack_window()
 	_check(_landed == 1, "a live frame outside his area spends nothing")
 	_arena.duelist.global_position = _arena.player.global_position
 	_arena.duelist.icon.frame = 6
 	_arena.duelist._tick_attack_window()
-	_arena.duelist.icon.frame = 7
+	_arena.duelist.icon.frame = 8
 	_arena.duelist._tick_attack_window()
 	_check(_landed == 2, "stepping into his area on a later live frame lands the swing")
 
@@ -404,15 +404,19 @@ func _run() -> void:
 	_check(_arena.rules.local().favor == great_before + 1, "The Great gains 1 FAVOR while any patch is active")
 
 	var compromise: GodFavor = _arena.god.get_favor(&"siblings_compromise_sun")
+	_check(_arena.rules.is_favor_eligible(compromise, 2), "Sibling's Compromise needs no Mayari favor")
 	_arena.rules.bestow_favor(compromise)
+	var patches_before := (_arena._sun_patches.get(immune_id, []) as Array).size()
 	_arena._apply_skill_effect(compromise, _arena._my_id)
-	_check(is_equal_approx(float(_arena._double_loss.get(2, 0.0)), 5.0), "Sibling's Compromise doubles opponent losses for five seconds")
-	var doubled_before: int = _arena.rules.mortal(2).favor
-	_arena.lose_favor(10, "doubled test", 2)
-	_check(_arena.rules.mortal(2).favor == doubled_before - 20, "active Compromise doubles a FAVOR loss")
+	_check((_arena._sun_patches.get(immune_id, []) as Array).size() == patches_before + 7,
+		"Sibling's Compromise drops seven sun patches at once (%d -> %d)" % [patches_before, (_arena._sun_patches.get(immune_id, []) as Array).size()])
+	_check(is_equal_approx(float(_arena._loss_boost.get(2, 0.0)), 5.0), "Sibling's Compromise boosts opponent losses for five seconds")
+	var boosted_before: int = _arena.rules.mortal(2).favor
+	_arena.lose_favor(10, "boosted test", 2)
+	_check(_arena.rules.mortal(2).favor == boosted_before - 11, "active Compromise makes a FAVOR loss 10% larger")
 	var caster_before: int = _arena.rules.local().favor
 	_arena.lose_favor(10, "caster test", _arena._my_id)
-	_check(_arena.rules.local().favor == caster_before - 5, "Sibling's Compromise does not double the caster's loss")
+	_check(_arena.rules.local().favor == caster_before - 5, "Sibling's Compromise leaves the caster's loss alone")
 
 	var unmoving: GodFavor = _arena.god.get_favor(&"the_unmoving")
 	_arena.rules.bestow_favor(unmoving)

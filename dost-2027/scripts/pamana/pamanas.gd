@@ -15,6 +15,7 @@ const PAMANA_DIR := "res://resources/pamana"
 const MANUNGGUL_JAR := &"manunggul_jar"
 const TORN_CEDULAS := &"torn_cedulas"
 const BANTON_CLOTH := &"banton_cloth"
+const BATO_BATO_SA_LANGIT := &"bato_bato_sa_langit"
 const AGIMAT := &"agimat"
 const MIGHTY_PEN := &"mighty_pen"
 const MUTYA := &"mutya"
@@ -37,6 +38,10 @@ static func _load() -> void:
 	var files := dir.get_files()
 	files.sort()
 	for file in files:
+		# Exported builds list foo.tres.remap, not foo.tres (load() follows the
+		# remap to the packed .res). Strip it so the registry still finds items.
+		if file.ends_with(".remap"):
+			file = file.trim_suffix(".remap")
 		if not file.ends_with(".tres"):
 			continue
 		var item: Pamana = load("%s/%s" % [PAMANA_DIR, file])

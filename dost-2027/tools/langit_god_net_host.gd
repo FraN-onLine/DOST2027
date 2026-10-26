@@ -112,7 +112,8 @@ func _run() -> void:
 	# --- the blitz: Ikapati comes back as a second Taya; one Langit crumbles alone -----------------
 	arena._trial_time = arena.langit_blitz_time + 0.2
 	_check(await _until(func() -> bool: return arena._blitz, 3.0), "the blitz starts on the host at %ds left" % int(arena.langit_blitz_time))
-	_check(arena.second_taya() and arena._taya == client_id, "Ikapati is back as a second Taya beside the client")
+	_check(arena.second_taya() and arena._taya == client_id and arena._taya2 == LangitLupaArena.GOD_TAYA,
+		"Ikapati is back as a second Taya beside the client")
 	arena.set_mortal_invuln(1, 999.0)  # she cannot tag the host's mortal until the check below says so
 	await _until(func() -> bool: return false, 2.0)  # the client checks the banner and the two markers
 	for attempt in range(6):
@@ -122,25 +123,25 @@ func _run() -> void:
 	_check(arena._blitz and arena.second_taya(), "...and she is still hunting at the end")
 	await _until(func() -> bool: return false, 2.0)
 
-	# --- Ikapati's tag passes the Taya: the host's mortal is tagged, the client is a runner again --
-	var before := arena._taya
+	# --- Ikapati's tag passes her slot: the host's mortal takes it, the client stays the first Taya --
 	arena._reset_god_chant()
 	arena._invuln.clear()
 	arena.player.set_lock(false)
 	arena.player.global_position = arena._god_at + Vector2(0, 14)
-	await _until(func() -> bool: return arena._taya != before, 3.0)  # she tags it on her next tick
-	_check(before == client_id and arena._taya == 1, "Ikapati tags the host's mortal: it is the one Taya")
-	_check(arena.is_mortal_invulnerable(client_id), "...the client, the old Taya, is a runner with tagged_mercy (taya before: %d, mercy %s)" % [before, str(arena._invuln)])
-	_check(arena._god_runs and not arena.second_taya() and arena._god_leave == 0.0 and arena._god_at != Vector2.INF, "...and Ikapati is a runner")
-	await _until(func() -> bool: return false, 4.0)  # the client moves its TAYA marker to the host's mortal
+	await _until(func() -> bool: return arena._taya2 == 1, 3.0)  # she tags it on her next tick
+	_check(arena._taya == client_id and arena._taya2 == 1, "Ikapati tags the host's mortal: it holds the second Taya slot, the client stays the first")
+	_check(arena.is_mortal_invulnerable(LangitLupaArena.GOD_TAYA), "...Ikapati, the old slot holder, is a runner with tagged_mercy")
+	_check(arena._god_runs and arena.second_taya() and arena._god_leave == 0.0 and arena._god_at != Vector2.INF, "...and she is a runner: still two Tayas")
+	await _until(func() -> bool: return false, 4.0)  # the client draws both markers
 
-	# --- the host's mortal tags the running Ikapati on the Lupa: she is the Taya again -------------
-	arena._tagback = 0.0
+	# --- the host's mortal (the second Taya) tags the running Ikapati: she takes her slot back ----
+	arena._tagback2 = 0.0
 	arena._invuln.clear()
 	arena._god_at = arena._god_spot()
 	arena.player.global_position = arena._god_at + Vector2(10, 0)
 	arena._check_tag()
-	_check(arena._taya == LangitLupaArena.GOD_TAYA and not arena._god_runs, "the host's mortal tags her on the Lupa: Ikapati is the Taya again")
+	_check(arena._taya == client_id and arena._taya2 == LangitLupaArena.GOD_TAYA and not arena._god_runs,
+		"the second Taya tags her on the Lupa: Ikapati is the second Taya again, the client stays the first")
 	arena.set_mortal_invuln(1, 999.0)  # nobody is tagged while the client looks
 	arena.set_mortal_invuln(client_id, 999.0)
 	await _until(func() -> bool: return false, 4.0)  # the client sees her back as the Taya

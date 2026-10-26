@@ -182,6 +182,9 @@ func gain_multiplier(m: Mortal) -> float:
 			mult *= favor.param("gain_mult_while_active", 1.0)
 		if favor.id == &"panahon_ng_anihan" and time_left <= favor.param("window", 15.0):
 			mult *= favor.param("gain_mult", 1.3)
+		# The Last Light: Tala's dusk - the trial's closing seconds pay better.
+		if favor.id == &"last_light" and time_left <= favor.param("window", 30.0):
+			mult *= favor.param("gain_mult", 1.15)
 	if pamana_in_window(m, Pamanas.MUTYA):
 		mult *= Pamanas.by_id(Pamanas.MUTYA).param("gain_multiplier", 1.2)
 	return mult
@@ -203,10 +206,11 @@ func add_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 	var m := _resolve(player_id)
 	if m == null or amount == 0:
 		return 0
-	# Scale by the gain modifiers, but keep the leftover fraction pending so a
-	# +10% (Full Moon) really is +10% over a run of small ticks.
+	# Scale by the gain modifiers to the nearest whole FAVOR (a +15% on 100 pays 15,
+	# not 14.9999), keeping the leftover fraction pending so a run of small ticks
+	# still adds up to the full percentage.
 	var scaled := float(amount) * gain_multiplier(m) + m.pending_favor
-	var gained := int(scaled)
+	var gained := roundi(scaled)
 	m.pending_favor = scaled - float(gained)
 	if gained == 0:
 		return 0
@@ -526,6 +530,8 @@ func _tick_bathala_regrowth(m: Mortal, delta: float) -> void:
 #   Banton Cloth   the arena's move speed (Arena._update_movement_favors)
 #   The Mutya      gain_multiplier, while the window lasts
 #   Kampilan       use_skill: the first cast recharges at once
+#   Bato Bato sa Langit   _wake_pamana: one occupied E / Q slot gets a random
+#                  skill of the same slot from another god (never Bathala's)
 #   Surigao Gold   _check_milestones: the next God's Due comes early (it waits
 #                  for that milestone, not for a trial - surigao_early)
 # Everything but Surigao Gold expires at end_trial, used or not.
@@ -534,12 +540,44 @@ func pamana_in_window(m: Mortal, pamana_id: StringName) -> bool:
 	return m.pamana_active == pamana_id and m.pamana_window > 0.0
 
 
+# Bato Bato sa Langit's pool for one slot: every E / Q skill another god can
+# hand over (never Bathala's, never one the mortal already holds).
+func bato_bato_pool(m: Mortal, slot: int) -> Array[GodFavor]:
+	var pool: Array[GodFavor] = []
+	if m == null:
+		return pool
+	for god in Gods.all():
+		if god.id == Gods.BATHALA:
+			continue
+		for favor in god.favors:
+			if favor.slot != slot or not favor.is_skill():
+				continue
+			if m.has_favor(favor.id) or not is_favor_eligible(favor, m.id):
+				continue
+			pool.append(favor)
+	return pool
+
+
+# The occupied slots Bato Bato sa Langit can change: only ones with somewhere to go.
+func bato_bato_slots(m: Mortal) -> Array[int]:
+	var slots: Array[int] = []
+	if m == null:
+		return slots
+	for slot in [GodFavor.Slot.E, GodFavor.Slot.Q]:
+		if m.favor_in_slot(slot) != null and not bato_bato_pool(m, slot).is_empty():
+			slots.append(slot)
+	return slots
+
+
 # Would `pamana` help this mortal at all? A skill item needs a skill in its slot,
-# and a second Surigao Gold is never offered while one is still waiting.
+# Bato Bato needs a skill another god can actually replace, and a second Surigao
+# Gold is never offered while one is still waiting.
 func pamana_useful(pamana: Pamana, player_id: int = -1) -> bool:
 	var m := _resolve(player_id)
 	if m == null or pamana == null:
 		return false
+	if pamana.id == Pamanas.BATO_BATO_SA_LANGIT:
+		return not bato_bato_slots(m).is_empty()
 	var has_e := m.favor_in_slot(GodFavor.Slot.E) != null
 	var has_q := m.favor_in_slot(GodFavor.Slot.Q) != null
 	match pamana.needs:
@@ -609,7 +647,25 @@ func _wake_pamana(m: Mortal) -> void:
 	if pamana.id == Pamanas.AGIMAT:
 		m.agimat_charges = int(pamana.param("charges", 3.0))
 	m.kampilan_ready = pamana.id == Pamanas.KAMPILAN
-	_fire_pamana(m, pamana.id, "%s AWAKENS" % pamana.display_name.to_upper())
+	if pamana.id == Pamanas.BATO_BATO_SA_LANGIT:
+		_swap_bato_bato(m)
+	else:
+		_fire_pamana(m, pamana.id, "%s AWAKENS" % pamana.display_name.to_upper())
+
+
+# Bato Bato sa Langit: one occupied E / Q slot is handed to a random skill of the
+# same slot from another god (Bathala's skills are never in the pool).
+func _swap_bato_bato(m: Mortal) -> void:
+	var slots := bato_bato_slots(m)
+	if slots.is_empty():
+		_fire_pamana(m, Pamanas.BATO_BATO_SA_LANGIT, "BATO BATO SA LANGIT - NO OTHER SKILL TO TAKE")
+		return
+	var slot: int = slots[randi() % slots.size()]
+	var pool := bato_bato_pool(m, slot)
+	var before := m.favor_in_slot(slot)
+	var picked := pool[randi() % pool.size()]
+	bestow_favor(picked, m.id)
+	_fire_pamana(m, Pamanas.BATO_BATO_SA_LANGIT, "BATO BATO SA LANGIT - %s BECOMES %s" % [before.display_name.to_upper(), picked.display_name.to_upper()])
 
 
 func _fire_pamana(m: Mortal, pamana_id: StringName, text: String) -> void:
@@ -632,6 +688,8 @@ static func pamana_badges(m: Mortal) -> Array:
 		elif active.id == Pamanas.AGIMAT:
 			text += " x%d" % m.agimat_charges
 		elif active.id == Pamanas.KAMPILAN and not m.kampilan_ready:
+			text += " (spent)"
+		elif active.id == Pamanas.BATO_BATO_SA_LANGIT:
 			text += " (spent)"
 		out.append({"pamana": active, "text": text})
 	var waiting := Pamanas.by_id(m.pamana_next)

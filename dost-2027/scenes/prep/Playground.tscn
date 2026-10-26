@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/prep/PrepArea.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/prep/playground.gd" id="2_playground"]
+
+[node name="Playground" instance=ExtResource("1_base")]
+script = ExtResource("2_playground")
+prep_time = 0.0
+embedded = false
+dialogue_prefix = "playground"
+simulate_rivals = true
+rival_names = PackedStringArray("DUMMY")
+
+[node name="DummySpawn" type="Marker2D" parent="."]
+position = Vector2(700, 250)
+
+[node name="LeaveButton" type="Button" parent="PrepHud"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -142.0
+offset_top = -92.0
+offset_right = -16.0
+offset_bottom = -56.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_type_variation = &"GhostButton"
+text = "LEAVE"

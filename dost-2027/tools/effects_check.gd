@@ -7,7 +7,7 @@ extends SceneTree
 #   * a Pamana's opening window shows too; its charges stay on the badge (no timer)
 #   * what has been put on us shows in EMBER, after the buffs: Ligaw na Damo, Drowsy, Rooted
 #     (and they travel in the host's snapshot, so a client sees them), Half Vision's blindness,
-#     Sun Patches, doubled losses (and they travel in the world tick), Tala's pull, a stun
+#     Sun Patches, boosted losses (and they travel in the world tick), Tala's pull, a stun
 #   * Langit Lupa adds ALIS, a closed Langit and the tag-back buffer
 #   * the note (Kabiyak's other half, Kamalig's granary) is never covered: the effects stack
 #     under it, and so does Langit Lupa's TAYA list
@@ -102,13 +102,13 @@ func _run() -> void:
 	me.rooted_time = 3.0
 	arena._blind_time = 1.0
 	arena._sun_patches[arena._my_id] = [3.0, 1.0]
-	arena._double_loss[arena._my_id] = 4.0
+	arena._loss_boost[arena._my_id] = 4.0
 	arena._movement_override_caster = 5
 	arena._movement_override_time = 2.0
 	arena.player.hit(Vector2.LEFT, 1.4, 400.0)
 	me.durations[half_vision.id] = 1.2  # a buff of our own beside them, to see the order
 	hud._sync_effects()
-	var wanted := [&"weeds", &"drowsy", &"rooted", &"blind", &"sun_patches", &"double_loss", &"pulled", &"stun"]
+	var wanted := [&"weeds", &"drowsy", &"rooted", &"blind", &"sun_patches", &"loss_boost", &"pulled", &"stun"]
 	var all_there := true
 	var all_ember := true
 	for key in wanted:
@@ -116,7 +116,7 @@ func _run() -> void:
 		all_there = all_there and debuff != null
 		all_ember = all_ember and debuff != null and debuff.harmful and debuff.name_label.get_theme_color("font_color") == UITokens.EMBER \
 			and debuff.bar.get_theme_stylebox("fill").bg_color == UITokens.EMBER
-	_check(all_there, "weeds, drowsy, rooted, blindness, sun patches, doubled losses, the pull and a stun all show (%s)" % str(_keys(hud)))
+	_check(all_there, "weeds, drowsy, rooted, blindness, sun patches, boosted losses, the pull and a stun all show (%s)" % str(_keys(hud)))
 	_check(all_ember, "...every one of them in EMBER, name and bar")
 	var keys := _keys(hud)
 	_check(keys[0] == &"skill_half_vision" and keys.slice(1).all(func(key: StringName) -> bool: return wanted.has(key)),
@@ -142,14 +142,88 @@ func _run() -> void:
 	arena._update_movement_favors(0.0)
 	_check(is_equal_approx(arena.player.move_speed, full_speed * Arena.DROWSY_SPEED),
 		"a drowsy mortal walks at half speed (%.1f of %.1f)" % [arena.player.move_speed, full_speed])
-	me.drowsy_time = 0.0
+
+	# --- Rest and Refreshed counts down, then ends in the usual stars -------------------------------
+	arena.player._stun = 0.0
+	arena.player._stun_fx = 0.0
+	me.stun_time = 0.0
+	me.drowsy_time = 4.0
 	arena._watch_afflictions()
-	_check(arena.player.rooted and arena._root_tether != null, "a rooted mortal is held, tethered to a shadow")
-	_check(arena._root_shadow.distance_to(arena.player.global_position + Vector2(-arena.player.facing * Arena.ROOT_SHADOW_BACK, 0.0)) < 0.01,
-		"...and the shadow sits behind them")
+	_check(arena.player.drowsy_count.visible and arena.player.drowsy_count.text == "4",
+		"a drowsy mortal wears a small countdown (%s)" % arena.player.drowsy_count.text)
+	me.drowsy_time = 2.2
+	arena._watch_afflictions()
+	_check(arena.player.drowsy_count.text == "3", "...counting the seconds to the end (%s)" % arena.player.drowsy_count.text)
+	me.drowsy_time = 1.0
+	arena._watch_afflictions()
+	_check(arena.player.drowsy_count.text == "1", "...down to 1 (%s)" % arena.player.drowsy_count.text)
+	me.drowsy_time = 0.0
+	me.stun_time = 0.8
+	arena._watch_afflictions()
+	arena.player._update_stun_stars(0.0)
+	_check(not arena.player.drowsy_count.visible and arena.player.is_stunned() and arena.player.stun_stars.visible,
+		"...and the end is the usual stun, stars overhead")
+	me.stun_time = 0.0
+	me.drowsy_time = 0.0
+	arena.player._stun = 0.0
+	arena.player._stun_fx = 0.0
+	me.rooted_time = 0.0
+	arena._clear_roots()
+	arena.player._forced_move_time = 0.0
+	arena.player.set_lock(false)
+	arena._phase = Arena.Phase.PLAYING
+	rules.simulate_rivals = false  # a rival's shove must not cut the drag short
+	arena.player.global_position = arena._field.get_center()
+	arena.player.facing = 1
+	arena._watch_afflictions()
+	me.rooted_time = 3.0
+	arena._watch_afflictions()
+	var leash: Dictionary = arena._root_leashes.get(arena._my_id, {})
+	var planted: Vector2 = leash.get("shadow", Vector2.INF)
+	var tether: Node2D = leash.get("tether")
+	_check(not leash.is_empty() and tether != null and is_instance_valid(tether),
+		"a rooted mortal is leashed to a shadow")
+	_check(planted.distance_to(arena.player.global_position + Vector2(-arena.player.facing * Arena.ROOT_SHADOW_BACK, 0.0)) < 0.01,
+		"...planted behind them")
+	arena.player.velocity = Vector2.ZERO
+	arena.player._steer(Vector2.RIGHT, 0.1)
+	_check(arena.player.velocity.x > 0.0, "the root does not take the walk away (velocity %.1f)" % arena.player.velocity.x)
+	arena.player.velocity = Vector2.ZERO
+	arena.player.global_position += Vector2(80.0, 0.0)
+	arena._watch_afflictions()
+	var line := tether.get_node("Line") as Line2D
+	_check(line.points[0].distance_to(arena.player.global_position + Vector2(0.0, -6.0)) < 0.01 and line.points[1].distance_to(planted) < 0.01,
+		"...and the tether stretches behind them as they walk, the shadow staying planted")
 	me.rooted_time = 0.0
 	arena._watch_afflictions()
-	_check(not arena.player.rooted and arena._root_tether == null, "the root lets go when its clock runs out")
+	_check(arena._root_leashes.is_empty() and is_equal_approx(arena.player._return_time, Arena.ROOT_DRAG_TIME)
+		and arena.player._return_target.distance_to(planted) < 0.01,
+		"when the root's clock runs out, they are dragged back to the shadow")
+	var guard := 0
+	while arena.player._return_time > 0.0 and guard < 300:
+		await process_frame
+		guard += 1
+	_check(arena.player.global_position.distance_to(planted) < 1.0,
+		"...arriving on it (%.1f px off)" % arena.player.global_position.distance_to(planted))
+
+	# --- a rival's root shows on our screen too ---------------------------------------------------------
+	var rival_id := 2
+	var rival_mortal := rules.mortal(rival_id)
+	_check(rival_mortal != null, "there is a rival mortal to root")
+	if rival_mortal != null:
+		var ghost: ArenaMortal = Arena.MORTAL_SCENE.instantiate()
+		arena.ghosts_root.add_child(ghost)
+		ghost.global_position = arena.player.global_position + Vector2(140.0, 0.0)
+		arena._ghosts[rival_id] = ghost
+		rival_mortal.rooted_time = 3.0
+		arena._watch_afflictions()
+		_check(arena._root_leashes.has(rival_id) and ghost.global_position.distance_to(arena._root_leashes[rival_id]["shadow"]) > 1.0,
+			"a rival's root is drawn on our screen too (tether and shadow)")
+		rival_mortal.rooted_time = 0.0
+		arena._watch_afflictions()
+		_check(not arena._root_leashes.has(rival_id), "...and it lets go when their clock runs out")
+		ghost.queue_free()
+		arena._ghosts.erase(rival_id)
 
 	# --- the note is never covered ------------------------------------------------------------------------------
 	me.favors.append(Gods.favor_by_id(&"kabiyak"))
@@ -182,15 +256,15 @@ func _run() -> void:
 	_check(is_equal_approx(client.mortal(2).weeds_time, 6.0) and client.mortal(2).weeds_caster == 1, "...and the weeds, with who sent them")
 	host.queue_free()
 	client.queue_free()
-	var tick_state := {"phase": int(Arena.Phase.PLAYING), "double_loss": {arena._my_id: 3.0}}
-	arena._double_loss.clear()
+	var tick_state := {"phase": int(Arena.Phase.PLAYING), "loss_boost": {arena._my_id: 3.0}}
+	arena._loss_boost.clear()
 	arena._authority = false
-	arena._double_loss_seen.clear()
+	arena._loss_boost_seen.clear()
 	arena._apply_arena_tick(tick_state)
-	_check(float(arena._double_loss_seen.get(arena._my_id, 0.0)) == 3.0 and not arena._double_loss.has(arena._my_id),
-		"a client reads doubled losses off the world tick, into its own copy (the rule's stays the host's)")
+	_check(float(arena._loss_boost_seen.get(arena._my_id, 0.0)) == 3.0 and not arena._loss_boost.has(arena._my_id),
+		"a client reads boosted losses off the world tick, into its own copy (the rule's stays the host's)")
 	hud._sync_effects()
-	_check(hud._effect_rows.has(&"double_loss"), "...and shows them")
+	_check(hud._effect_rows.has(&"loss_boost"), "...and shows them")
 	arena._authority = true
 
 	# --- Langit Lupa --------------------------------------------------------------------------------------------------

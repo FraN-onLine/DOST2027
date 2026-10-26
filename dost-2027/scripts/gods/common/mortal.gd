@@ -72,9 +72,6 @@ extends CharacterBody2D
 @export var land_sound: AudioStream  # the thud of coming down from the sky at GO (skipped when empty)
 
 var locked := false
-# Held in place by Down to Homeland's root: no walk, no dash, no shove gets through
-# until the arena lifts it and drags the mortal back to its shadow.
-var rooted := false
 # THE DROP AT GO (the arena's, see Arena THE GO DROP): look only, like everything
 # below FEEL. The body never moves - it waits on its spawn point - while the sprite
 # and what rides above it (name tag, glow, stars) are lifted by drop_offset, so a
@@ -100,9 +97,14 @@ var _stun := 0.0
 # is stumbling without being shoved (a broken chant).
 var _stun_fx := 0.0
 var _stun_angle := 0.0
+# Rest and Refreshed's small 3-2-1 over the head while the drowsiness lasts.
+var drowsy_count: Label = null
+var _drowsy_shown := -1
 var _knockback := Vector2.ZERO
 var _forced_move_time := 0.0
 var _forced_move_direction := Vector2.ZERO
+var _return_target := Vector2.ZERO
+var _return_time := 0.0
 var _dash_time := 0.0
 var _dash_velocity := Vector2.ZERO
 var _bob := 0.0
@@ -203,6 +205,7 @@ func _ready() -> void:
 	if sprite != null:
 		sprite.animation_changed.connect(_on_animation_changed)
 		_on_animation_changed()
+	_build_drowsy_count()
 
 
 # Put the player's bandana (and cloak) colour on this mortal (and only this one: the material
@@ -276,6 +279,14 @@ func force_movement(direction: Vector2, duration: float) -> void:
 	_forced_move_time = maxf(_forced_move_time, duration)
 
 
+# Dragged straight back to a spot over `duration` (Down to Homeland's shadow),
+# however far the mortal wandered: the pace follows the distance left, and it
+# stops dead on arrival instead of sliding past.
+func return_to(target: Vector2, duration: float) -> void:
+	_return_target = target
+	_return_time = maxf(0.01, duration)
+
+
 # A quick burst of `distance` pixels over `time` seconds along `direction`, or
 # the way the mortal faces when it is zero (standing still). Walls and the
 # arena's bounds still stop it. When it runs out the mortal carries on at
@@ -298,15 +309,16 @@ func clear_trial_state() -> void:
 	_stun_fx = 0.0
 	_knockback = Vector2.ZERO
 	_forced_move_time = 0.0
+	_return_time = 0.0
 	_dash_time = 0.0
 	_dash_velocity = Vector2.ZERO
 	drop_offset = Vector2.ZERO
 	drop_hidden = false
 	drop_shadow = 1.0
 	blink_left = 0.0
-	rooted = false
 	scale = Vector2.ONE
 	velocity = Vector2.ZERO
+	clear_drowsy_count()
 	set_lock(false)
 
 
@@ -342,6 +354,43 @@ func show_floating_text(text: String, tint := Color.WHITE, duration := 2.2) -> v
 	_floating_velocity = Vector2(0.0, -18.0)
 
 
+# Rest and Refreshed: the small 3, 2, 1 over the head while the drowsiness runs,
+# in the same EMBER as the HUD's DROWSY row. The drowsiness ends in the usual
+# stun stars (the arena announces that).
+func _build_drowsy_count() -> void:
+	drowsy_count = Label.new()
+	drowsy_count.name = "DrowsyCount"
+	drowsy_count.theme_type_variation = &"WorldValue"
+	drowsy_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	drowsy_count.position = Vector2(-20.0, -116.0)
+	drowsy_count.size = Vector2(40.0, 20.0)
+	drowsy_count.pivot_offset = Vector2(20.0, 10.0)
+	drowsy_count.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drowsy_count.z_index = 3
+	drowsy_count.visible = false
+	drowsy_count.add_theme_color_override("font_color", UITokens.EMBER)
+	add_child(drowsy_count)
+
+
+func show_drowsy_count(seconds: int) -> void:
+	if drowsy_count == null or seconds <= 0:
+		return
+	if seconds != _drowsy_shown:
+		_drowsy_shown = seconds
+		drowsy_count.text = str(seconds)
+		drowsy_count.scale = Vector2.ONE * 1.4
+		var tween := create_tween()
+		tween.tween_property(drowsy_count, "scale", Vector2.ONE, 0.18)
+	drowsy_count.visible = true
+
+
+func clear_drowsy_count() -> void:
+	_drowsy_shown = -1
+	if drowsy_count != null:
+		drowsy_count.visible = false
+		drowsy_count.scale = Vector2.ONE
+
+
 # --- ANIMATION ---------------------------------------------------------------
 # The clips an arena can play (authored on Sprite in Mortal.tscn). The mortal
 # only plays them and reports back the running clip and its frame, so a game can
@@ -350,8 +399,7 @@ func show_floating_text(text: String, tint := Color.WHITE, duration := 2.2) -> v
 # swaps between them as it starts and stops (see _update_look); any other clip an
 # arena plays holds until it has played out, then the mortal falls back to the walk
 # or the idle by itself (an arena can say so sooner with play_locomotion). A stunned
-# mortal, and the player while locked (dialogue, a rooted chant), show the idle.
-
+# mortal, and the player while locked (dialogue, a chant), show the idle.
 const ANIM_IDLE := &"default"
 
 # Play an authored clip. An unknown name is ignored, so a mortal in an arena
@@ -370,13 +418,14 @@ func play_animation(anim: StringName) -> void:
 # otherwise. What an arena calls when an action clip is over, so a mortal that
 # strikes while running goes back to running.
 func play_locomotion() -> void:
-	play_animation(ANIM_WALK if _walking and not _rooted() else ANIM_IDLE)
+	play_animation(ANIM_WALK if _walking and not _held() else ANIM_IDLE)
 
 
 # Stunned, or the player held still by the arena: shown idle whatever it slides at.
-# (Ghosts and bots stay locked for life - their motion decides, not the lock.)
-func _rooted() -> bool:
-	return is_stunned() or rooted or (locked and _player_driven)
+# (Ghosts and bots stay locked for life - their motion decides, not the lock. A
+# root does not hold a mortal: Down to Homeland only drags them back at the end.)
+func _held() -> bool:
+	return is_stunned() or (locked and _player_driven)
 
 
 func current_animation() -> StringName:
@@ -445,13 +494,21 @@ func _apply_facing() -> void:
 
 func _physics_process(delta: float) -> void:
 	var dash_ended := false
+	var landed := false
 	_moving = false
 	if _stun > 0.0:
 		_stun = maxf(0.0, _stun - delta)
 		velocity = _knockback
 		_knockback = _knockback.move_toward(Vector2.ZERO, 1400.0 * delta)
-	elif rooted:
-		velocity = Vector2.ZERO
+	elif _return_time > 0.0:
+		var to_target := _return_target - global_position
+		_return_time = maxf(0.0, _return_time - delta)
+		if _return_time <= delta or to_target.length() < 2.0:
+			velocity = to_target / maxf(delta, 0.001)  # the last step lands it
+			_return_time = 0.0
+			landed = true
+		else:
+			velocity = to_target / _return_time
 	elif _dash_time > 0.0:
 		velocity = _dash_velocity
 		_dash_time -= delta
@@ -467,6 +524,8 @@ func _physics_process(delta: float) -> void:
 		_steer(Input.get_vector("move_left", "move_right", "move_up", "move_down"), delta)
 
 	move_and_slide()
+	if landed:
+		velocity = Vector2.ZERO
 	if dash_ended:
 		velocity = _dash_velocity.normalized() * move_speed  # flows on into the walk
 	if bounds.size != Vector2.ZERO:
@@ -588,7 +647,7 @@ func _update_look(moved: Vector2, delta: float) -> void:
 		play_locomotion()  # the action has played out
 		own_clip = true
 	if own_clip:
-		var clip := ANIM_WALK if _walking and not _rooted() and sprite.sprite_frames.has_animation(ANIM_WALK) else ANIM_IDLE
+		var clip := ANIM_WALK if _walking and not _held() and sprite.sprite_frames.has_animation(ANIM_WALK) else ANIM_IDLE
 		if sprite.animation != clip:
 			sprite.play(clip)
 		sprite.speed_scale = lerpf(1.0, 1.8, ratio)  # quicker steps, a livelier cloak
@@ -670,13 +729,15 @@ func _apply_drop_look(delta: float) -> void:
 		shadow.self_modulate.a = 0.0 if drop_hidden else drop_shadow
 	if name_tag != null:
 		name_tag.self_modulate.a = drawn
+	if drowsy_count != null:
+		drowsy_count.self_modulate.a = drawn
 	if glow != null:
 		glow.self_modulate.a = drawn
 	var lift := drop_offset - _lifted
 	if lift == Vector2.ZERO:
 		return
 	_lifted = drop_offset
-	for part in [name_tag, floating_text, glow, stun_stars]:
+	for part in [name_tag, floating_text, drowsy_count, glow, stun_stars]:
 		if part != null:
 			part.position += lift
 

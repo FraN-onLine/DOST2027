@@ -242,6 +242,29 @@ func _run() -> void:
 	_arena._add_sun_patches(_arena._my_id, 1, 1.5)
 	_check(not _arena._sun_patches.has(_arena._my_id), "Unswerved prevents Sun Patches for its duration")
 
+	# --- THE LAST LIGHT: Tala's dusk pays better --------------------------------
+	var last_light: GodFavor = _arena.god.get_favor(&"last_light")
+	_check(last_light != null and not last_light.is_skill(), "Tala bestows The Last Light as a passive")
+	_check(_arena.rules.bestow_favor(last_light), "...and a mortal can take it")
+	var me := _arena.rules.local()
+	var before := me.favor
+	_arena.rules.time_left = 40.0
+	_arena.rules.add_favor(100, "check")
+	_check(me.favor - before == 100, "outside the last 30 seconds FAVOR is unchanged (%d)" % (me.favor - before))
+	before = me.favor
+	_arena.rules.time_left = 30.0
+	_arena.rules.add_favor(100, "check")
+	_check(me.favor - before == 115, "the last 30 seconds yield 15%% more FAVOR (%d)" % (me.favor - before))
+	# The leftover fraction carries over, so a run of small gains gets its 15% too.
+	before = me.favor
+	_arena.rules.add_favor(10, "check")
+	_arena.rules.add_favor(10, "check")
+	_check(me.favor - before == 23, "a run of small gains carries the fraction (20 -> 23)")
+	before = me.favor
+	_arena.rules.time_left = INF
+	_arena.rules.add_favor(100, "check")
+	_check(me.favor - before == 100, "payouts once the trial is over are not the last light (%d)" % (me.favor - before))
+
 	print("Tala checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
 	quit(1 if _problems > 0 else 0)

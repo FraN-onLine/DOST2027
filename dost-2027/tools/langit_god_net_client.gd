@@ -132,24 +132,28 @@ func _run() -> void:
 	var node := arena.langits_root.get_child(0) as Node2D
 	_check(node.visible and node.position.distance_to(arena._langits[0]) < 4.0, "...drawn where the host put it")
 
-	# --- Ikapati's tag passes the Taya: the TAYA marker moves to the host's mortal ----------------
+	# --- Ikapati's tag gives the host's mortal her slot; the client keeps the first ----------------
 	var host_id := 1
-	_check(await _until(func() -> bool: return arena._taya == host_id, 20.0), "the client sees Ikapati's tag make the host's mortal the Taya")
+	_check(await _until(func() -> bool: return arena._taya2 == host_id and arena._taya == network.multiplayer.get_unique_id(), 20.0),
+		"the client sees Ikapati's tag give the host's mortal the second Taya slot")
 	await _frames(4)
 	var ghost: Node2D = arena._ghosts.get(host_id)
-	_check(ghost != null and arena.taya_marker.visible and arena.taya_marker.global_position.distance_to(ghost.global_position) < 2.0,
-		"...the TAYA marker moves onto it on this screen")
-	_check(not arena._god_marker.visible and arena._god_runs and not arena.second_taya() and body.visible,
-		"...while Ikapati stays on the field as a runner, her TAYA marker hidden")
-	_check(arena.hud.banner_label.text == "IKAPATI IS RUNNING", "...and the banner says so (%s)" % arena.hud.banner_label.text)
-	_check(arena._taya != network.multiplayer.get_unique_id(), "...and the client is a runner again")
+	_check(ghost != null and arena._god_marker.visible and arena._god_marker.global_position.distance_to(ghost.global_position) < 2.0,
+		"...the second TAYA marker moves onto it on this screen")
+	_check(arena.taya_marker.visible and arena.taya_marker.global_position.distance_to(arena.player.global_position) < 2.0,
+		"...and the first TAYA marker stays over the client")
+	_check(arena._god_runs and body.visible, "...Ikapati stays on the field as a runner, her body drawn")
+	_check(arena.hud.banner_label.text != "IKAPATI IS RUNNING", "...and the client's banner is not told it is running (%s)" % arena.hud.banner_label.text)
+	_check(arena._taya == network.multiplayer.get_unique_id(), "...the client is still the first Taya")
 
-	# --- the host's mortal tags her: she is the Taya again, with the one marker over her ------------
-	_check(await _until(func() -> bool: return arena._taya == LangitLupaArena.GOD_TAYA, 20.0), "the client sees Ikapati tagged: she is the Taya")
+	# --- the host's mortal tags her: she takes the second slot back, two markers again ------------
+	_check(await _until(func() -> bool: return arena._taya2 == LangitLupaArena.GOD_TAYA, 20.0), "the client sees Ikapati tagged: she is the second Taya again")
 	await _frames(4)
 	_check(not arena._god_runs and arena.hud.banner_label.text == "IKAPATI IS TAYA", "...IKAPATI IS TAYA (%s)" % arena.hud.banner_label.text)
-	_check(arena.taya_marker.visible and not arena._god_marker.visible and arena.taya_marker.global_position.distance_to(body.global_position) < arena._god_lift + 2.0,
-		"...the one TAYA marker is over her")
+	_check(arena._taya == network.multiplayer.get_unique_id(), "...the client keeps the first Taya slot")
+	_check(arena.taya_marker.visible and arena._god_marker.visible and arena.taya_marker.global_position.distance_to(arena.player.global_position) < 2.0
+		and arena._god_marker.global_position.distance_to(body.global_position) < arena._god_lift + 2.0,
+		"...the two TAYA markers are over the client and over her")
 	_finish()
 
 

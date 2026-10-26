@@ -11,6 +11,8 @@ extends SceneTree
 #     only, stacking with The Bountiful
 #   * the Mutya raises gains inside the window only
 #   * the Kampilan recharges the first cast only
+#   * Bato Bato sa Langit turns one occupied E / Q slot into a random skill of
+#     the same slot from another god (never Bathala's)
 #   * Surigao Gold moves one milestone 200 FAVOR early, then stops
 #   * every field survives a snapshot round trip
 #   * spend_favor is no loss: refused when short, no Waning Moon, no Sun God
@@ -35,14 +37,15 @@ func _frames(count: int) -> void:
 func _run() -> void:
 	# --- the data -------------------------------------------------------------------
 	var items := Pamanas.all()
-	_check(items.size() == 8, "eight Pamana are registered (%d)" % items.size())
+	_check(items.size() == 9, "nine Pamana are registered (%d)" % items.size())
 	var ids: Array = items.map(func(p: Pamana) -> String: return str(p.id))
-	_check(ids == ["agimat", "banton_cloth", "kampilan", "manunggul_jar", "mighty_pen", "mutya", "surigao_gold", "torn_cedulas"],
+	_check(ids == ["agimat", "banton_cloth", "bato_bato_sa_langit", "kampilan", "manunggul_jar", "mighty_pen", "mutya", "surigao_gold", "torn_cedulas"],
 		"they are listed sorted by id")
-	_check(Pamanas.by_id(&"agimat").cost == 100 and Pamanas.by_id(&"mutya").cost == 250 and Pamanas.by_id(&"surigao_gold").cost == 50,
-		"the costs match the table")
+	_check(Pamanas.by_id(&"agimat").cost == 100 and Pamanas.by_id(&"mutya").cost == 250 and Pamanas.by_id(&"surigao_gold").cost == 50
+		and Pamanas.by_id(&"bato_bato_sa_langit").cost == 350, "the costs match the table")
 	_check(Pamanas.by_id(&"torn_cedulas").needs == Pamana.Needs.E_SKILL and Pamanas.by_id(&"mighty_pen").needs == Pamana.Needs.Q_SKILL
-		and Pamanas.by_id(&"kampilan").needs == Pamana.Needs.ANY_SKILL, "the skill items say what they need")
+		and Pamanas.by_id(&"kampilan").needs == Pamana.Needs.ANY_SKILL and Pamanas.by_id(&"bato_bato_sa_langit").needs == Pamana.Needs.ANY_SKILL,
+		"the skill items say what they need")
 	_check(Pamanas.by_id(&"mutya").timing == Pamana.Timing.FIRST_WINDOW and is_equal_approx(Pamanas.by_id(&"mutya").window, 30.0),
 		"a FIRST_WINDOW item lasts 30 seconds")
 	for item in items:
@@ -169,6 +172,50 @@ func _run() -> void:
 	_check(_fired.size() == 1 and str(_fired[0][2]) == "KAMPILAN - SKILL RECHARGED", "...and says so")
 	rules.use_skill(GodFavor.Slot.Q, 1)
 	_check(me.cooldown_left(q_skill.id) > 0.0, "the second cast recharges as usual")
+
+	# --- Bato Bato sa Langit ----------------------------------------------------------
+	var bato := Pamanas.by_id(Pamanas.BATO_BATO_SA_LANGIT)
+	rules = _match()
+	me = rules.mortal(1)
+	_check(not rules.pamana_useful(bato, 1), "Bato Bato is not offered with no E or Q")
+	var old_e := _skill(GodFavor.Slot.E)
+	rules.bestow_favor(old_e, 1)
+	_check(rules.pamana_useful(bato, 1), "it is offered once there is a skill to change")
+	me.pamana_next = Pamanas.BATO_BATO_SA_LANGIT
+	_start(rules)
+	var new_e := me.favor_in_slot(GodFavor.Slot.E)
+	var new_id: StringName = new_e.id if new_e != null else &""
+	_check(new_e != null and new_e.id != old_e.id and new_e.god_id != Gods.BATHALA,
+		"the E skill becomes another god's E (%s -> %s)" % [old_e.id, new_id])
+	_check(not me.has_favor(old_e.id), "...and the old skill is gone")
+	var pool := rules.bato_bato_pool(me, GodFavor.Slot.E)
+	var only_other_gods := true
+	var holds_a_pool_skill := false
+	for favor in pool:
+		only_other_gods = only_other_gods and favor.god_id != Gods.BATHALA
+		holds_a_pool_skill = holds_a_pool_skill or me.has_favor(favor.id)
+	_check(only_other_gods and not holds_a_pool_skill, "the pool is other gods' skills it does not hold")
+
+	# Both slots filled: exactly one is replaced, and the other stays.
+	rules = _match()
+	me = rules.mortal(1)
+	var e_before := _skill(GodFavor.Slot.E)
+	var q_before := _skill(GodFavor.Slot.Q)
+	rules.bestow_favor(e_before, 1)
+	rules.bestow_favor(q_before, 1)
+	var e_id := e_before.id
+	var q_id := q_before.id
+	me.pamana_next = Pamanas.BATO_BATO_SA_LANGIT
+	_start(rules)
+	var e_now := me.favor_in_slot(GodFavor.Slot.E)
+	var q_now := me.favor_in_slot(GodFavor.Slot.Q)
+	var changed := 0
+	if e_now != null and e_now.id != e_id:
+		changed += 1
+	if q_now != null and q_now.id != q_id:
+		changed += 1
+	_check(e_now != null and q_now != null and e_now.god_id != Gods.BATHALA and q_now.god_id != Gods.BATHALA
+		and changed == 1, "with both slots filled exactly one changes (%d)" % changed)
 
 	# --- Surigao Gold ----------------------------------------------------------------
 	rules = _match()

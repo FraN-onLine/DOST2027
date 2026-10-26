@@ -12,6 +12,7 @@ extends Control
 @onready var subtitle_label: Label = $CenterContainer/VBoxContainer/Lockup/SubtitleLabel
 @onready var host_button = $CenterContainer/VBoxContainer/HostButton
 @onready var join_button = $CenterContainer/VBoxContainer/JoinButton
+@onready var playground_button = $CenterContainer/VBoxContainer/PlaygroundButton
 @onready var almanac_button = $CenterContainer/VBoxContainer/AlmanacButton
 @onready var options_button = $CenterContainer/VBoxContainer/OptionsButton
 @onready var quit_button =$CenterContainer/VBoxContainer/QuitButton
@@ -21,6 +22,7 @@ func _ready():
 	# Connect button signals
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
+	playground_button.pressed.connect(_on_playground_pressed)
 	almanac_button.pressed.connect(_on_almanac_pressed)
 	options_button.pressed.connect(_on_options_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
@@ -47,6 +49,11 @@ func _on_host_pressed():
 func _on_join_pressed():
 	# Switch to join scene which auto-discovers hosts on LAN
 	get_tree().change_scene_to_file("res://scenes/JoinGame.tscn")
+
+# The Playground: the preparation area opened to every god's altar, with a dummy
+# rival to try the favors on. Esc / LEAVE brings the player straight back here.
+func _on_playground_pressed():
+	get_tree().change_scene_to_file("res://scenes/prep/Playground.tscn")
 
 # The Almanac lists every Favor of every god - its own BACK button brings the
 # player straight back here.

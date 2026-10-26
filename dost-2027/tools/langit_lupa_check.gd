@@ -196,13 +196,17 @@ func _run() -> void:
 	_rules.mortal(2).rooted_time = 3.0
 	hunter.global_position = _arena._field.get_center()
 	_arena._move_bots(0.1)
-	_check(hunter.global_position.distance_to(_arena._field.get_center()) < 0.01 and _arena._bot_root_tether.has(2),
-		"a rooted bot stays put, tethered to its shadow")
+	var shadow: Vector2 = _arena._bot_root_shadow.get(2, Vector2.INF)
+	_check(hunter.global_position.distance_to(_arena._field.get_center()) > 0.01 and _arena._bot_root_tether.has(2)
+		and shadow != Vector2.INF, "a rooted bot keeps walking, tethered to its shadow")
 	_rules.mortal(2).rooted_time = 0.0
-	var before_drag := hunter.global_position
 	_arena._move_bots(0.1)
-	_check(not _arena._bot_root_tether.has(2) and hunter.global_position.distance_to(before_drag) > 0.01,
-		"when the root lifts, the bot is dragged towards its shadow")
+	_check(not _arena._bot_root_tether.has(2) and _arena._bot_root_drag.has(2),
+		"when the root lifts, the bot is dragged back towards its shadow")
+	for step in range(4):
+		_arena._move_bots(0.1)
+	_check(hunter.global_position.distance_to(shadow) < 1.0,
+		"...and arrives on it (%.1f px off)" % hunter.global_position.distance_to(shadow))
 
 	# From here the bots stand where the check puts them.
 	for bot in _arena._bots.values():

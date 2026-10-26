@@ -215,8 +215,9 @@ func _run() -> void:
 	_check(is_equal_approx(_arena.season_length(), 3.0) and _arena._season_timer <= 3.0,
 		"...the season turns every 3 s (%.1fs to the next)" % _arena._season_timer)
 	_check(_arena.hud.banner_label.text == "BLITZ!", "...one BLITZ! banner (%s)" % _arena.hud.banner_label.text)
-	_check(_arena.second_taya() and _arena.taya_id() == 3 and _arena._god_leave == 0.0,
-		"with the gods gone, Ikapati comes back as a second Taya beside the mortal one")
+	_check(_arena.second_taya() and _arena.taya_id() == 3 and _arena.taya2_id() == LangitLupaArena.GOD_TAYA
+		and _arena._god_leave == 0.0,
+		"with the gods gone, Ikapati comes back as the blitz's second Taya beside the mortal one")
 	_check(_arena._god_at.distance_to(_arena.mortal_position(3)) >= _arena.taya_clearance and _arena._push_out(_arena._god_at) == _arena._god_at,
 		"...on the Lupa, taya_clearance from the mortal Taya (%s)" % str(_arena._god_at))
 	_arena._process(0.0)
@@ -227,42 +228,53 @@ func _run() -> void:
 	var keys := _arena.arena_local_effects().map(func(entry: Dictionary) -> StringName: return entry["key"])
 	_check(keys.has(&"blitz"), "...and a BLITZ effect timer runs (%s)" % str(keys))
 	var tick := _arena.arena_tick_fields()
-	_check(tick.get("blitz") == true and tick.has("god_at") and tick.has("god_step") and tick.has("cloud_state") and tick.has("cloud_id"),
+	_check(tick.get("blitz") == true and tick.has("god_at") and tick.has("god_step") and tick.has("cloud_state") and tick.has("cloud_id")
+		and tick.get("taya2") == LangitLupaArena.GOD_TAYA,
 		"the blitz, Ikapati and every Langit's state ride the tick")
-	# her tag passes the Taya to the runner while a mortal (3) is Taya
+	# her tag passes HER slot to the runner while the mortal Taya (3) keeps the first
 	_arena._god_time = 999.0
 	_arena._move_god(DT)
 	_check(_arena.god_hunt_id() == -1, "her safety-valve hunt is off in the blitz")
 	_put(1, _arena._god_at + Vector2(10, 0))
 	_set_favor(1000, 1000, 1000)
 	_arena._streak[1] = 3
-	_arena._chanting = true  # the mortal Taya is mid-chant
+	_arena._chanting = true  # the first Taya is mid-chant
+	_arena._chant_caller = 3
 	_arena._chant_step = 2
+	_arena._tagback2 = 0.0
 	_arena._check_god_tag()
-	_check(_arena.taya_id() == 1, "Ikapati tags runner B: B is the mortal Taya now (%d)" % _arena.taya_id())
+	_check(_arena.taya_id() == 3 and _arena.taya2_id() == 1,
+		"Ikapati tags runner B: B takes her second slot and A stays the first Taya (%d / %d)" % [_arena.taya_id(), _arena.taya2_id()])
 	_check(_rules.mortal(1).favor == 1000 - _arena.tag_steal and _rules.mortal(3).favor == 1000 and _rules.mortal(2).favor == 1000,
 		"...B loses tag_steal, and nobody gains it (%d / %d)" % [_rules.mortal(1).favor, _rules.mortal(3).favor])
 	_check(_arena.streak_of(1) == 0, "...and B's streak ends")
-	_check(is_equal_approx(_arena._tagback, _arena.tagback_immunity), "...B cannot tag for tagback_immunity")
-	_check(not _arena._chanting and _arena._chant_step == 0, "...the old Taya's chant in progress is cancelled")
-	_check(_arena.is_mortal_invulnerable(3) and is_equal_approx(float(_arena._invuln[3]), _arena.tagged_mercy),
-		"...the old Taya A is a runner with tagged_mercy")
+	_check(is_equal_approx(_arena._tagback2, _arena.tagback_immunity), "...B cannot tag for tagback_immunity")
+	_check(_arena._chanting and _arena._chant_caller == 3 and _arena._chant_step == 2,
+		"...the first Taya's chant in progress is untouched (two Tayas, two chants)")
+	_check(_arena.is_mortal_invulnerable(LangitLupaArena.GOD_TAYA) and float(_arena._invuln[LangitLupaArena.GOD_TAYA]) >= _arena.tagged_mercy - 0.01,
+		"...Ikapati, the old second Taya, is a runner with tagged_mercy")
 	_check(_arena.hud.banner_label.text == "YOU ARE TAYA", "...B's screen says YOU ARE TAYA (%s)" % _arena.hud.banner_label.text)
-	_check(_arena._god_leave == 0.0 and _arena._god_at != Vector2.INF and _arena._god_runs and not _arena.god_hunts() and not _arena.second_taya(),
-		"...and Ikapati is a runner: no _gods_leave, no hunting, one Taya")
+	_check(_arena._god_leave == 0.0 and _arena._god_at != Vector2.INF and _arena._god_runs and not _arena.god_hunts() and _arena.second_taya(),
+		"...and Ikapati is a runner while B keeps the second slot: still two Tayas")
 	_arena._process(0.0)
-	_check(not _arena._god_marker.visible and _arena._god_body.visible and _arena.taya_marker.visible,
-		"...her TAYA marker hides (only B's is drawn) and she stays on the field")
+	_check(_arena._god_marker.visible and _arena._god_body.visible and _arena.taya_marker.visible,
+		"...the second TAYA marker moves to B and Ikapati stays on the field")
 	_check(_arena.strip_note() == "BLITZ: IKAPATI IS RUNNING", "...the strip says so (%s)" % _arena.strip_note())
-	_check(_arena.arena_tick_fields().get("god_runs") == true, "...and her role rides the tick")
+	_check(_arena.arena_tick_fields().get("god_runs") == true and _arena.arena_tick_fields().get("taya2") == 1,
+		"...and her role and both Taya slots ride the tick")
 	var a_time := _arena.taya_seconds(3)
 	var b_time := _arena.taya_seconds(1)
 	_tick(0.5)
-	_check(is_equal_approx(_arena.taya_seconds(3), a_time) and _arena.taya_seconds(1) > b_time, "...A's Taya clock stops and B's runs")
-	_check(_arena.arena_tick_fields().get("taya") == 1 and _arena.arena_tick_fields().get("blitz") == true, "the new Taya rides the tick to every screen")
+	_check(_arena.taya_seconds(3) > a_time and _arena.taya_seconds(1) > b_time,
+		"...both Tayas keep their own TIME AS TAYA")
+	_check(_arena.arena_tick_fields().get("taya") == 3 and _arena.arena_tick_fields().get("blitz") == true,
+		"the first Taya rides the tick to every screen")
 	# her chant dooms the occupied Langit too, and pays nobody
 	_reset(3)
 	_arena._blitz = true
+	_arena._taya2 = LangitLupaArena.GOD_TAYA
+	_arena._tagback2 = 0.0
+	_arena._god_runs = false
 	_arena._god_at = SPOTS[0] + Vector2(0, 70)
 	_put(3, FAR)
 	_put(1, SPOTS[0])
@@ -287,13 +299,14 @@ func _run() -> void:
 	_put(3, FAR + Vector2(0, -60))
 	_arena._trial_time = _arena.langit_blitz_time
 	_tick(0.0)
-	_check(_arena._blitz and _arena.taya_id() == LangitLupaArena.GOD_TAYA and _arena._god_at.distance_to(Vector2(650, 450)) < 1.0,
-		"with the gods still Taya at 30 s, Ikapati stays where she is, as the Taya")
+	_check(_arena._blitz and _arena.taya_id() == LangitLupaArena.GOD_TAYA and _arena.taya2_id() == -1 and _arena._god_at.distance_to(Vector2(650, 450)) < 1.0,
+		"with the gods still Taya at 30 s, Ikapati stays where she is, the only Taya")
 	_arena._tagback = 0.0
 	_put(2, _arena._god_at + Vector2(10, 0))
 	_set_favor(1000, 1000, 1000)
 	_arena._check_tag()
-	_check(_arena.taya_id() == 2 and _rules.mortal(2).favor == 1000 - _arena.tag_steal, "her first tag makes that runner the Taya (paying tag_steal)")
+	_check(_arena.taya_id() == 2 and _arena.taya2_id() == -1 and _rules.mortal(2).favor == 1000 - _arena.tag_steal,
+		"her first tag makes that runner the only Taya (paying tag_steal)")
 	_check(_arena._god_leave == 0.0 and _arena._god_at != Vector2.INF and _arena._god_runs and not _arena.god_hunts(),
 		"...and she is a runner (no Ikaw na! exit)")
 	_arena._move_god(_arena.god_leave_time + 1.0)
@@ -309,6 +322,8 @@ func _run() -> void:
 	var ika := LangitLupaArena.GOD_TAYA
 	_reset(1)
 	_arena._blitz = true
+	_arena._taya2 = 2  # a mortal holds the other slot while she runs
+	_arena._tagback2 = 0.0
 	_arena._god_runs = true
 	_set_favor(1000, 1000, 1000)
 	_put(1, FAR)
@@ -321,7 +336,8 @@ func _run() -> void:
 	_arena._tick_crossings()
 	_check(_rules.mortal(1).favor == 1000 and _rules.mortal(2).favor == 1000 and _rules.mortal(3).favor == 1000 and _arena.streak_of(ika) == 0,
 		"...a crossing pays nobody: no FAVOR, no streak")
-	_check(_arena._hunter_spots().size() == 1 and not _arena._hunter_spots().has(_arena._god_at), "bot runners do not flee her while she runs")
+	_check(_arena._hunter_spots().size() == 2 and not _arena._hunter_spots().has(_arena._god_at),
+		"bot runners flee the two Tayas, not her while she runs")
 	_put(1, SPOTS[1] + Vector2(10, 0))
 	_arena._check_tag()
 	_check(_arena.taya_id() == 1, "the Taya cannot tag her inside a pillar's SafeArea")
@@ -348,21 +364,24 @@ func _run() -> void:
 	_arena._tagback = 0.0
 	_set_favor(1000, 1000, 1000)
 	_arena._check_tag()
-	_check(_arena.taya_id() == ika and not _arena._god_runs and _arena.god_hunts(), "the Taya tags her on the Lupa: she is the Taya again")
+	_check(_arena.taya_id() == ika and _arena.taya2_id() == 2 and not _arena._god_runs and _arena.god_hunts(),
+		"the first Taya tags her on the Lupa: she is the Taya again, the second slot untouched")
 	_check(_rules.mortal(1).favor == 1000 and _rules.mortal(2).favor == 1000 and _rules.mortal(3).favor == 1000, "...no FAVOR moves (she has none to steal)")
 	_check(_arena.is_mortal_invulnerable(1) and is_equal_approx(_arena._tagback, _arena.tagback_immunity), "...the tagger is a runner with tagged_mercy, she has tagback_immunity")
 	_check(_arena.hud.banner_label.text == "IKAPATI IS TAYA", "...and every screen says IKAPATI IS TAYA (%s)" % _arena.hud.banner_label.text)
 	_check(_arena._hunter_spots().has(_arena._god_at), "...bot runners flee her again")
 	_arena._drain_pending.clear()
 	_tick(DT)
-	_check(_arena._drain_pending.is_empty() and not _arena._taya_time.has(ika), "...with no drain and no TIME AS TAYA")
+	_check(_arena._drain_pending.keys() == [2] and not _arena._taya_time.has(ika),
+		"...the mortal second Taya drains, Ikapati keeps no TIME AS TAYA")
 	_arena._tagback = 0.0
 	_arena._invuln.clear()
-	_put(2, _arena._god_at + Vector2(8, 0))
+	_put(1, FAR)
+	_put(3, _arena._god_at + Vector2(8, 0))
 	_set_favor(1000, 1000, 1000)
 	_arena._check_tag()
-	_check(_arena.taya_id() == 2 and _arena._god_runs and _rules.mortal(2).favor == 1000 - _arena.tag_steal and _arena._god_leave == 0.0,
-		"her next tag as the Taya passes it on, and she runs again")
+	_check(_arena.taya_id() == 3 and _arena._taya2 == 2 and _arena._god_runs and _rules.mortal(3).favor == 1000 - _arena.tag_steal and _arena._god_leave == 0.0,
+		"her next tag as the Taya passes the first slot on and she runs again")
 
 	# a client mirrors the blitz from the tick: one banner
 	tick = _arena.arena_tick_fields()
@@ -409,6 +428,9 @@ func _reset(taya: int) -> void:
 	_arena._season_timer = 1000.0
 	_arena._trial_time = 50.0
 	_arena._blitz = false
+	_arena._taya2 = -1
+	_arena._tagback2 = 0.0
+	_arena._chant_caller = -1
 	_arena.set_taya(taya)
 	_arena._god_at = Vector2.INF
 	_arena._god_leave = 0.0

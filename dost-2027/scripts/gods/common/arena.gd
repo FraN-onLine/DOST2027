@@ -55,7 +55,7 @@ extends Node2D
 #   * THE EFFECT TIMERS: local_effects() lists everything running on THIS screen's
 #     mortal - its own lasting skills and a Pamana's opening window (buffs), and what
 #     rivals, traps and knocks have put on it: Ligaw na Damo, Drowsy, Rooted, Half Vision's
-#     blindness, Sun Patches, doubled losses, Tala's pull, a stun (debuffs). The HUD draws
+#     blindness, Sun Patches, boosted losses, Tala's pull, a stun (debuffs). The HUD draws
 #     them as a stack in its top-right corner. An arena adds its own through
 #     arena_local_effects(); every number comes from where it already lives, so the stack
 #     never disagrees with the rule it shows.
@@ -379,7 +379,7 @@ var _callout_at: Node2D = null        # the mortal it hangs over (null: screen-c
 var _callout_left := 0.0
 var _vision_fade := 1.0               # blindness mask fade-in (see Settings.reduce_flashing)
 var _sun_patches: Dictionary = {}     # mortal id -> Array[float] seconds left
-var _double_loss: Dictionary = {}     # mortal id -> seconds of doubled FAVOR loss
+var _loss_boost: Dictionary = {}      # mortal id -> seconds of Sibling's Compromise: their losses cost more
 # The caster behind each sun patch, kept beside the timers (aligned arrays):
 var _sun_patch_sources: Dictionary = {}   # mortal id -> Array[int], caster id per _sun_patches timer (-1 = none)
 var _great_pending: Dictionary = {}   # mortal id -> fractional FAVOR
@@ -396,11 +396,11 @@ var _base_move_speed := 215.0
 var _guidance_time := 0.0
 var _movement_override_caster := -1
 var _movement_override_time := 0.0
-var _double_loss_seen: Dictionary = {}  # what the host last said about doubled losses (a client's copy, for the HUD)
-# Rest and Refreshed / Down to Homeland on THIS screen's mortal (see _watch_afflictions).
-var _rooted_seen := false
-var _root_shadow := Vector2.ZERO
-var _root_tether: Node2D = null
+var _loss_boost_seen: Dictionary = {}  # what the host last said about boosted losses (a client's copy, for the HUD)
+# Rest and Refreshed / Down to Homeland on THIS screen (see _watch_afflictions).
+# A leash per rooted mortal we can see: id -> {shadow: Vector2, tether: Node2D}.
+var _root_leashes: Dictionary = {}
+var _drowsy_seen: Dictionary = {}  # mortal id -> still drowsy (so the end is announced once)
 var _dash_cd := 0.0
 var _dash_buffered := 0.0  # seconds a too-early SPACE still waits (see dash_buffer)
 # The impact currently running on THIS screen: seconds left of the field's
@@ -687,6 +687,7 @@ func _start_countdown() -> void:
 	_countdown = countdown_time
 	_count_shown = -1
 	_reset_drop()
+	_clear_roots()
 	player.set_lock(true)
 	# The full round is already on the clock while the mortals wait through the
 	# 3 - 2 - 1, and the host broadcasts it, so every screen shows the round
@@ -732,7 +733,7 @@ func _start_trial(show_go := true) -> void:
 	_sun_patches.clear()
 	_sun_patch_sources.clear()
 	clear_sun_patches()
-	_double_loss.clear()
+	_loss_boost.clear()
 	_great_pending.clear()
 	_victor_claimed.clear()
 	_rivalry_claimed.clear()
@@ -754,6 +755,13 @@ func _start_trial(show_go := true) -> void:
 
 func _process(delta: float) -> void:
 	_tick_drop(delta)
+	_tick_flow(delta)
+	_tick_world(delta)
+
+
+# The flow of a trial: the dialogue handshake and the phase clock. A screen that
+# runs no trial (the Playground) ticks only the world below.
+func _tick_flow(delta: float) -> void:
 	if _authority and _networked and not _dialogue_waiting:
 		var waiting_kind := "intro" if _phase == Phase.INTRO else "results" if _phase == Phase.RESULTS else ""
 		var waiting_id := _dialogue_token(waiting_kind) if waiting_kind != "" else ""
@@ -788,6 +796,11 @@ func _process(delta: float) -> void:
 	# The host is the clock: it broadcasts the round it just advanced - phase,
 	# seconds, where the mortals are, where the arena's own units walked - so
 	# every client shows the same second and the same world.
+
+
+# What every screen plays every frame, whatever the phase: the host's tick, the
+# popups, the arena's own clocks, the ghosts, the movement favors and the HUD.
+func _tick_world(delta: float) -> void:
 	if _authority and _networked and _phase != Phase.INTRO:
 		_publish_net_tick(delta)
 	_flush_favor_popups(delta)
@@ -940,8 +953,16 @@ func lose_favor(amount: int, reason: String, mortal_id := -1, drain := false) ->
 	if rules == null or amount <= 0:
 		return 0
 	var target_id := rules.local_id if mortal_id < 0 else mortal_id
-	var adjusted := amount * (2 if float(_double_loss.get(target_id, 0.0)) > 0.0 else 1)
+	var adjusted := amount
+	if float(_loss_boost.get(target_id, 0.0)) > 0.0:
+		adjusted = int(round(float(amount) * (1.0 + loss_boost_share())))
 	return rules.lose_favor(adjusted, reason, target_id, drain)
+
+
+# How much larger a FAVOR loss gets while Apolaki's sun patches mark a mortal.
+func loss_boost_share() -> float:
+	var sun := Gods.favor_by_id(&"siblings_compromise_sun")
+	return sun.param("loss_boost", 0.1) if sun != null else 0.1
 
 
 # The arena's one way to say "this mortal just earned (or lost) FAVOR", for the
@@ -1494,6 +1515,7 @@ func _end_trial() -> void:
 	_phase = Phase.RESULTS
 	_end_intro_shot()
 	_reset_drop()
+	_clear_roots()
 	player.set_lock(true)
 	_blind_time = 0.0
 	_gain_pending.clear()
@@ -1610,7 +1632,7 @@ func _use_skill(slot: int) -> void:
 # Our own mortal is ours to move on every peer, so no host round trip is needed:
 # the new position travels like any other step. Returns true when it dashed.
 func try_dash() -> bool:
-	if not dash_enabled or _phase != Phase.PLAYING or _dash_cd > 0.0 or player.locked or player.rooted or player.is_stunned():
+	if not dash_enabled or _phase != Phase.PLAYING or _dash_cd > 0.0 or player.locked or player.is_stunned():
 		return false
 	if dialogue.is_active() or due_menu.is_open():
 		return false
@@ -1657,8 +1679,8 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 		for mortal in rules.mortals.values():
 			if mortal.id == caster_id:
 				continue
-			_double_loss[mortal.id] = maxf(float(_double_loss.get(mortal.id, 0.0)), duration)
-			_add_sun_patches(mortal.id, 1, duration, caster_id)
+			_loss_boost[mortal.id] = maxf(float(_loss_boost.get(mortal.id, 0.0)), duration)
+			_add_sun_patches(mortal.id, 7, duration, caster_id)
 		_publish_god_state()
 	elif favor.id == &"let_us_light_your_way":
 		var duration := maxf(0.0, favor.duration)
@@ -1772,35 +1794,86 @@ func _update_movement_favors(delta: float) -> void:
 
 
 # --- THE E SKILLS' AFFLICTIONS ON OUR OWN MORTAL -------------------------------
+# Rest and Refreshed: the small 3-2-1 over every drowsy mortal's head while the
+# drowsiness runs, then the usual stun stars (the host announces the end once, so
+# every screen gets them). The clocks are the host's; this only reads them.
+func _watch_drowsy() -> void:
+	for id in rules.mortals.keys():
+		var mortal: GodMatch.Mortal = rules.mortal(int(id))
+		var body := mortal_node(int(id))
+		if mortal == null or body == null:
+			continue
+		if mortal.drowsy_time > 0.0:
+			body.show_drowsy_count(int(ceil(mortal.drowsy_time)))
+			_drowsy_seen[int(id)] = true
+			continue
+		body.clear_drowsy_count()
+		if _drowsy_seen.erase(int(id)) and _authority and mortal.stun_time > 0.0:
+			announce_stun(int(id), mortal.stun_time)
+
+
 # What Rest and Refreshed and Down to Homeland leave on a mortal. The host keeps
-# the clocks (GodMatch._tick_afflictions) and this screen only reads its own
-# mortal's share, so every screen stops and drags its own body the same way. A
-# drowsy mortal walks slower; the drowsiness ends in a stun. A rooted one is held
-# where they stand, tethered to a dark shadow behind them, and dragged back
-# toward it when the root ends.
+# the clocks (GodMatch._tick_afflictions) and every screen reads them: a drowsy
+# mortal walks slower and the drowsiness ends in a stun; a rooted one keeps
+# walking with a dark shadow dragging behind them, and when the root's clock runs
+# out it pulls them back to where it was planted.
 func _watch_afflictions() -> void:
 	if player == null or rules == null:
 		return
+	_watch_drowsy()
+	_watch_roots()
 	var mortal := rules.local()
 	if mortal == null:
 		return
 	if mortal.stun_time > 0.0:
 		player.stun(mortal.stun_time)
-	var rooted_now := mortal.rooted_time > 0.0
-	if rooted_now and not _rooted_seen:
-		_rooted_seen = true
-		_root_shadow = player.global_position + Vector2(-player.facing * ROOT_SHADOW_BACK, 0.0)
-		player.rooted = true
-		_root_tether = _make_root_tether(player.global_position + Vector2(0.0, -6.0), _root_shadow)
-	elif not rooted_now and _rooted_seen:
-		_rooted_seen = false
-		player.rooted = false
-		if _phase == Phase.PLAYING:
-			player.force_movement(_root_shadow - player.global_position, ROOT_DRAG_TIME)
-		_fade_root_tether(_root_tether)
-		_root_tether = null
-	if _rooted_seen and _root_tether != null and is_instance_valid(_root_tether):
-		_set_tether_points(_root_tether, player.global_position + Vector2(0.0, -6.0), _root_shadow)
+
+
+# Every rooted mortal we can see carries their own leash - ours, a rival's ghost,
+# a solo arena's bot (through watch_root) - so a root is never only its victim's
+# screen's business. The leash does not hold them: they walk while it lasts, the
+# tether stretching as they go, and when its clock runs out OUR mortal is dragged
+# back to the shadow. A ghost's return arrives in the positions the host sends.
+func _watch_roots() -> void:
+	for id in rules.mortals.keys():
+		var body := mortal_node(int(id))
+		if body != null:
+			var mortal := rules.mortal(int(id))
+			watch_root(int(id), body, mortal != null and mortal.rooted_time > 0.0)
+	for id in _root_leashes.keys():
+		if not rules.mortals.has(id):
+			watch_root(int(id), null, false)
+
+
+# The leash for one body: plant the shadow the first frame its root shows, let
+# the tether follow it while the clock runs, and fade the shadow away (dragging
+# our own mortal back) when the clock runs out. `body` is null when it leaves the
+# screen, which only puts the shadow away.
+func watch_root(mortal_id: int, body: ArenaMortal, rooted_now: bool) -> void:
+	var leash: Dictionary = _root_leashes.get(mortal_id, {})
+	if rooted_now and body != null and leash.is_empty():
+		var shadow := body.global_position + Vector2(-body.facing * ROOT_SHADOW_BACK, 0.0)
+		if _field.size != Vector2.ZERO:
+			var inset := Vector2(ROOT_SHADOW_SIZE.x, ROOT_SHADOW_SIZE.y)
+			shadow = shadow.clamp(_field.position + inset, _field.end - inset)
+		var tether := _make_root_tether(body.global_position + Vector2(0.0, -6.0), shadow)
+		leash = {"shadow": shadow, "tether": tether}
+		_root_leashes[mortal_id] = leash
+	elif not rooted_now and not leash.is_empty():
+		_root_leashes.erase(mortal_id)
+		_fade_root_tether(leash["tether"])
+		if body != null and mortal_id == _my_id and _phase == Phase.PLAYING:
+			body.return_to(leash["shadow"], ROOT_DRAG_TIME)
+		return
+	if body != null and not leash.is_empty():
+		_set_tether_points(leash["tether"], body.global_position + Vector2(0.0, -6.0), leash["shadow"])
+
+
+# A trial starting or ending leaves no leash behind.
+func _clear_roots() -> void:
+	for leash in _root_leashes.values():
+		_fade_root_tether(leash["tether"])
+	_root_leashes.clear()
 
 
 # The shadow's body: a tether line and a flattened dark ellipse, in the world
@@ -2075,12 +2148,12 @@ func _tick_sun_favors(delta: float) -> void:
 		else:
 			_sun_patches[mortal_id] = active
 			_sun_patch_sources[mortal_id] = active_sources
-	for mortal_id in _double_loss.keys().duplicate():
-		var remaining := maxf(0.0, float(_double_loss[mortal_id]) - delta)
+	for mortal_id in _loss_boost.keys().duplicate():
+		var remaining := maxf(0.0, float(_loss_boost[mortal_id]) - delta)
 		if remaining <= 0.0:
-			_double_loss.erase(mortal_id)
+			_loss_boost.erase(mortal_id)
 		else:
-			_double_loss[mortal_id] = remaining
+			_loss_boost[mortal_id] = remaining
 	_refresh_sun_patches()
 	_tick_the_great(delta)
 	_tick_siblings_rivalry()
@@ -2415,7 +2488,7 @@ func _publish_arena_tick() -> void:
 		"event": event_text,
 		"event_color": hud.event_label.get_theme_color("font_color"),
 		"sun_patches": _sun_patches.duplicate(true),
-		"double_loss": _double_loss.duplicate(),
+		"loss_boost": _loss_boost.duplicate(),
 	}
 	state.merge(arena_tick_fields(), true)
 	_net.publish_arena_state(state)
@@ -2464,7 +2537,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 	for id in mortals.keys():
 		_mortal_positions[int(id)] = mortals[id]
 	_sun_patches = state.get("sun_patches", {}).duplicate(true)
-	_double_loss_seen = state.get("double_loss", {}).duplicate()
+	_loss_boost_seen = state.get("loss_boost", {}).duplicate()
 	var local_mortal := rules.local()
 	if local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		_erase_sun_patches(_my_id)
@@ -2698,9 +2771,9 @@ func local_effects() -> Array[Dictionary]:
 		for seconds in patches:
 			longest = maxf(longest, float(seconds))
 		out.append(effect(&"sun_patches", "SUN PATCHES" if patches.size() > 1 else "SUN PATCH", SUN_PATCH_ICON, UITokens.EMBER, longest, 0.0, true))
-	var doubled := float((_double_loss if _authority else _double_loss_seen).get(_my_id, 0.0))
-	if doubled > 0.0:
-		out.append(effect(&"double_loss", "DOUBLE LOSS", Gods.favor_by_id(&"siblings_compromise_sun").icon, UITokens.EMBER, doubled, 0.0, true))
+	var boosted := float((_loss_boost if _authority else _loss_boost_seen).get(_my_id, 0.0))
+	if boosted > 0.0:
+		out.append(effect(&"loss_boost", "LOSS +%d%%" % int(round(loss_boost_share() * 100.0)), Gods.favor_by_id(&"siblings_compromise_sun").icon, UITokens.EMBER, boosted, 0.0, true))
 	if _movement_override_time > 0.0 and _movement_override_caster != _my_id:
 		out.append(favor_effect(&"pulled", &"let_us_light_your_way", _movement_override_time, 0.0, true))
 	if player != null and player.stun_left() > 0.0:

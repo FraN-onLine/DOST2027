@@ -57,6 +57,11 @@ static func _load() -> void:
 	var files := dir.get_files()
 	files.sort()
 	for file in files:
+		# An exported build stores foo.tres as foo.tres.remap (the packed data is
+		# foo.res); load() still follows the remap, but the folder listing shows
+		# the .remap name, so strip it before looking for .tres files.
+		if file.ends_with(".remap"):
+			file = file.trim_suffix(".remap")
 		if not file.ends_with(".tres"):
 			continue
 		var god: God = load("%s/%s" % [GOD_DIR, file])

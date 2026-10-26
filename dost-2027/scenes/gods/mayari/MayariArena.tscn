@@ -140,7 +140,7 @@ default_color = Color(1, 1, 1, 0.08)
 
 [node name="GodOverSeer" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1907198770]
 z_index = -1
-position = Vector2(935, 131)
+position = Vector2(932, 156)
 scale = Vector2(4.145794, 4.291193)
 sprite_frames = SubResource("SpriteFrames_overseer")
 autoplay = "default"

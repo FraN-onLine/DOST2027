@@ -7,7 +7,18 @@ extends SceneTree
 # Run: godot --headless --path <project> -s res://tools/build_pamana.gd
 
 const OUT_DIR := "res://resources/pamana"
-const ICON := "res://Assets/Placeholders/favor.png"  # placeholder art until the real icons arrive
+const ICON := "res://Assets/Placeholders/favor.png"  # fallback art for an item with no icon yet
+const ITEM_ICONS := {
+	"manunggul_jar": "res://Assets/Items/m-jar.png",
+	"torn_cedulas": "res://Assets/Items/sedula.png",
+	"banton_cloth": "res://Assets/Items/burial-cloth.png",
+	"agimat": "res://Assets/Items/agimat.png",
+	"mighty_pen": "res://Assets/Items/mighty-pen.png",
+	"mutya": "res://Assets/Items/mutya.png",
+	"kampilan": "res://Assets/Items/kampilan.png",
+	"surigao_gold": "res://Assets/Items/surigao-gold.png",
+	"bato_bato_sa_langit": "res://Assets/Items/bato-bato-sa-langit.png",
+}
 
 const ITEMS := [
 	{
@@ -39,6 +50,16 @@ const ITEMS := [
 		"history": "Found in 1936 in a burial cave on Banton Island, wrapped with human remains inside a wooden coffin. It is the oldest known ikat-dyed textile in the Philippines and one of the oldest in Southeast Asia, proof that weavers here mastered resist-dyeing long before the Spanish came. It is kept at the National Museum.",
 		"flavor": "Woven to travel with the dead.",
 		"color": Color("#5E7FD6"),  # indigo-blue
+	},
+	{
+		"id": &"bato_bato_sa_langit", "name": "Bato Bato sa Langit", "cost": 350,
+		"timing": Pamana.Timing.WHOLE_TRIAL, "needs": Pamana.Needs.ANY_SKILL,
+		"effect": "Next trial: one of your E or Q skills becomes a random skill in that slot from another god (never Bathala's).",
+		"params": {},
+		"era": "Traditional", "origin": "Across the Philippines",
+		"history": "A children's game-song known across the Philippines. Players sit in a circle and sing \"Bato-bato sa langit, ang tamaan 'wag magalit\" (\"Stone, stone in the sky, whoever is hit should not get angry\") while one of them walks behind the others with a stone or slipper. When the song ends, the one chosen must catch the one who left it. The words and the rules change from town to town, but the game has been passed down for generations.",
+		"flavor": "Ang tamaan, 'wag magalit.",
+		"color": Color("#6E7E8F"),  # stone slate
 	},
 	{
 		"id": &"agimat", "name": "The Agimat", "cost": 100,
@@ -99,8 +120,8 @@ const WINDOW := 30.0  # every FIRST_WINDOW item lasts the first 30 seconds
 
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
-	var icon: Texture2D = load(ICON)
 	for spec in ITEMS:
+		var icon: Texture2D = load(ITEM_ICONS.get(str(spec["id"]), ICON))
 		var item := Pamana.new()
 		item.id = spec["id"]
 		item.display_name = spec["name"]

@@ -82,6 +82,19 @@ duration = 10.0
 color = Color(0.2, 0.32, 0.62, 1)
 icon = ExtResource("2_pnj1g")
 
+[sub_resource type="Resource" id="Favor_last_light"]
+script = ExtResource("1_favor")
+id = &"last_light"
+god_id = &"tala"
+display_name = "The Last Light"
+description = "In the last 30 seconds of any trial, you gain 15% more FAVOR. End-of-trial payouts do not count."
+color = Color(0.2, 0.32, 0.62, 1)
+icon = ExtResource("2_pnj1g")
+params = {
+"gain_mult": 1.15,
+"window": 30.0
+}
+
 [resource]
 script = ExtResource("3_god")
 id = &"tala"
@@ -93,7 +106,7 @@ game_name = "TUMBANG PRESO"
 game_blurb = "Throw slippers past Tala to knock down one of her guarded cans, then retrieve your slipper and return to the line."
 arena_scene = "res://scenes/gods/tala/TalaArena.tscn"
 implemented = true
-favors = Array[ExtResource("1_favor")]([SubResource("Favor_bountiful_e"), SubResource("Favor_bountiful_q"), SubResource("Favor_shining"), SubResource("Favor_guidance"), SubResource("Favor_light_way"), SubResource("Favor_unbothered")])
+favors = Array[ExtResource("1_favor")]([SubResource("Favor_bountiful_e"), SubResource("Favor_bountiful_q"), SubResource("Favor_shining"), SubResource("Favor_guidance"), SubResource("Favor_light_way"), SubResource("Favor_unbothered"), SubResource("Favor_last_light")])
 portrait = ExtResource("4_pnj1g")
 intro_lines = Array[String](["Tumbang Preso! A simple game of aim, timing, and a little bit of luck.", "Knock down the cans, but mind where you throw. I would hate to see you hit something... or someone... you didn't intend to.", "Now then, let's see if you can hit what you mean to hit, little mortals!"])
 trial_end_lines = Array[String](["Splendid! Your aim has improved quite nicely.", "You know, the stars are rather particular about where they shine. Not everything that catches your eye is meant to be yours.", "Sometimes, you must learn to look carefully before you reach for something."])

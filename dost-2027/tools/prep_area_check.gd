@@ -91,7 +91,7 @@ func _run() -> void:
 		distinct[id] = true
 	_check(offers.size() == 3 and distinct.size() == 3, "three different Pamana are offered (%s)" % str(offers))
 	_check(prep.offers_for(1) == offers and prep.my_offers() == offers, "asking again gets the same shelf")
-	var skill_items := [Pamanas.TORN_CEDULAS, Pamanas.MIGHTY_PEN, Pamanas.KAMPILAN]
+	var skill_items := [Pamanas.TORN_CEDULAS, Pamanas.MIGHTY_PEN, Pamanas.KAMPILAN, Pamanas.BATO_BATO_SA_LANGIT]
 	var leaked := false
 	for roll in range(40):
 		for id in prep._roll_offers(1):
@@ -107,8 +107,9 @@ func _run() -> void:
 	for roll in range(60):
 		for id in prep._roll_offers(1):
 			seen[id] = true
-	_check(not seen.has(Pamanas.MIGHTY_PEN) and seen.has(Pamanas.TORN_CEDULAS) and seen.has(Pamanas.KAMPILAN),
-		"with an E skill only: the Cedulas and the Kampilan can come, the Pen never (%s)" % str(seen.keys()))
+	_check(not seen.has(Pamanas.MIGHTY_PEN) and seen.has(Pamanas.TORN_CEDULAS) and seen.has(Pamanas.KAMPILAN)
+		and seen.has(Pamanas.BATO_BATO_SA_LANGIT),
+		"with an E skill only: the Cedulas, the Kampilan and Bato Bato can come, the Pen never (%s)" % str(seen.keys()))
 	me.surigao_early = 200
 	seen.clear()
 	for roll in range(60):

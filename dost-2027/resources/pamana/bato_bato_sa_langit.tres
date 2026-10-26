@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Pamana" format=3]
+
+[ext_resource type="Texture2D" uid="uid://bxixhg3xwl2gp" path="res://Assets/Items/bato-bato-sa-langit.png" id="1_bato"]
+[ext_resource type="Script" uid="uid://pylem8t2rgfm" path="res://scripts/pamana/pamana.gd" id="2_51m0a"]
+
+[resource]
+script = ExtResource("2_51m0a")
+id = &"bato_bato_sa_langit"
+display_name = "Bato Bato sa Langit"
+cost = 350
+effect = "Next trial: one of your E or Q skills becomes a random skill in that slot from another god (never Bathala's)."
+era = "Traditional"
+origin = "Across the Philippines"
+history = "A children's game-song known across the Philippines. Players sit in a circle and sing \"Bato-bato sa langit, ang tamaan 'wag magalit\" (\"Stone, stone in the sky, whoever is hit should not get angry\") while one of them walks behind the others with a stone or slipper. When the song ends, the one chosen must catch the one who left it. The words and the rules change from town to town, but the game has been passed down for generations."
+flavor = "Ang tamaan, 'wag magalit."
+needs = 3
+color = Color(0.43137255, 0.49411765, 0.56078434, 1)
+icon = ExtResource("1_bato")

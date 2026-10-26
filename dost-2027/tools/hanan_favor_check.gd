@@ -178,6 +178,27 @@ func _run() -> void:
 		"a client sees the drowsiness, and the stun it ends in")
 	_check(is_equal_approx(client.mortal(2).stun_time, 0.0), "...with no stun until it does")
 	client.queue_free()
+	# The drowsy mortal wears a small 3-2-1, then the usual stun stars.
+	_setup(0, 0, 0)
+	_rules.cast_rest_and_refreshed(2, rest)  # a rival's Sleep reaches us
+	_arena._watch_afflictions()
+	_check(_arena.player.drowsy_count.visible and _arena.player.drowsy_count.text == "3",
+		"Sleep counts 3 over the drowsy mortal (%s)" % _arena.player.drowsy_count.text)
+	_rules._tick_afflictions(_rules.mortal(1), 1.1)
+	_arena._watch_afflictions()
+	_check(_arena.player.drowsy_count.text == "2", "...then 2 (%s)" % _arena.player.drowsy_count.text)
+	_rules._tick_afflictions(_rules.mortal(1), 1.0)
+	_arena._watch_afflictions()
+	_check(_arena.player.drowsy_count.text == "1", "...then 1 (%s)" % _arena.player.drowsy_count.text)
+	_rules._tick_afflictions(_rules.mortal(1), 1.0)
+	_arena._watch_afflictions()
+	_arena.player._update_stun_stars(0.0)
+	_check(not _arena.player.drowsy_count.visible and _arena.player.is_stunned() and _arena.player.stun_stars.visible,
+		"...and it ends in the usual stun, stars overhead")
+	_rules.mortal(1).stun_time = 0.0
+	_arena.player._stun = 0.0
+	_arena.player._stun_fx = 0.0
+	_arena._watch_afflictions()
 
 	# --- Morning Chases the Night ------------------------------------------------------------
 	_setup(0, 0, 0)

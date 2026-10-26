@@ -107,6 +107,13 @@ size_flags_horizontal = 4
 theme_type_variation = &"SecondaryButton"
 text = "JOIN GAME"
 
+[node name="PlaygroundButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=954221443]
+custom_minimum_size = Vector2(260, 52)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"SecondaryButton"
+text = "PLAYGROUND"
+
 [node name="PlayGap" type="Control" parent="CenterContainer/VBoxContainer" unique_id=981092929]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
