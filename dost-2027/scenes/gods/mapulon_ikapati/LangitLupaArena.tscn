@@ -70,7 +70,6 @@ animations = [{
 
 [node name="Arena" unique_id=628936061 instance=ExtResource("1_arena")]
 script = ExtResource("2_script")
-fixed_trial_time = 60.0
 tag_radius = 26.0
 tagback_immunity = 1.0
 tagged_mercy = 1.0

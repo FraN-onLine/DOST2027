@@ -91,6 +91,12 @@ var bandana_index := 0
 # Which way the mortal faces: 1 = right (the way the art is drawn), -1 = left.
 var facing := 1
 
+# The afflictions' own look, driven by the arena from replicated state: the
+# Weeded clump at the feet, Tala's Tranced sparkles overhead, and a word over
+# the head for whichever is on (ROOTED / WEEDED).
+var _weeded_on := false
+var _tranced_on := false
+
 var _stun := 0.0
 # Seconds the stars still circle the head. Look only: hit() sets it with the stun, and
 # an arena sets it (show_stun) for a mortal it can't hit() here - a ghost - or one that
@@ -182,6 +188,9 @@ const DROP_SHADOW_SMALL := 0.35  # the shadow's size when the mortal is still hi
 @onready var whoosh: AudioStreamPlayer2D = $Whoosh
 @onready var name_tag: Label = $NameTag
 @onready var floating_text: Label = $FloatingStatus
+@onready var status_tag: Label = $StatusTag
+@onready var tranced_sprite: AnimatedSprite2D = $Tranced
+@onready var weeded_sprite: AnimatedSprite2D = $Weeded
 @onready var damage_area: Area2D = get_node("Arnis-Damage-Area")
 @onready var body_collision: CollisionShape2D = $CollisionShape2D
 
@@ -319,6 +328,9 @@ func clear_trial_state() -> void:
 	scale = Vector2.ONE
 	velocity = Vector2.ZERO
 	clear_drowsy_count()
+	set_weeded(false)
+	set_tranced(false)
+	set_status("")
 	set_lock(false)
 
 
@@ -342,6 +354,38 @@ func set_display_name(text: String, tint := Color(1, 1, 1, 0.85)) -> void:
 func set_tag_color(tint: Color) -> void:
 	if name_tag != null:
 		name_tag.add_theme_color_override("font_color", tint)
+
+
+# Ligaw na Damo: the weed clump at the feet, for as long as the weeds hold.
+func set_weeded(active: bool) -> void:
+	var was := _weeded_on
+	_weeded_on = active
+	if weeded_sprite == null:
+		return
+	weeded_sprite.visible = active
+	if active and (not was or not weeded_sprite.is_playing()):
+		weeded_sprite.play()
+
+
+# Tala's Let Us Light Your Way: the tranced sparkles over the head.
+func set_tranced(active: bool) -> void:
+	var was := _tranced_on
+	_tranced_on = active
+	if tranced_sprite == null:
+		return
+	tranced_sprite.visible = active
+	if active and (not was or not tranced_sprite.is_playing()):
+		tranced_sprite.play()
+
+
+# A word over the head for an affliction (ROOTED, WEEDED); empty hides it.
+func set_status(text: String, tint := Color.WHITE) -> void:
+	if status_tag == null:
+		return
+	status_tag.text = text
+	status_tag.visible = text != ""
+	if text != "":
+		status_tag.add_theme_color_override("font_color", tint)
 
 
 func show_floating_text(text: String, tint := Color.WHITE, duration := 2.2) -> void:
@@ -611,6 +655,11 @@ func _update_look(moved: Vector2, delta: float) -> void:
 	var shown := sprite.visible  # Langit Lupa's gods wear a mortal body with the sprite hidden
 	if shadow != null:
 		shadow.visible = shown
+	# The affliction art rides with the body (and hides when the body does).
+	if tranced_sprite != null:
+		tranced_sprite.visible = _tranced_on and shown
+	if weeded_sprite != null:
+		weeded_sprite.visible = _weeded_on and shown
 	_hit_flash = maxf(0.0, _hit_flash - delta / 0.12)
 	var peak := 1.6 if _setting("reduce_flashing") else 3.0
 	var blink := 0.7 if blink_left > 0.0 and fmod(blink_left, 0.2) < 0.1 else 0.0
@@ -729,15 +778,21 @@ func _apply_drop_look(delta: float) -> void:
 		shadow.self_modulate.a = 0.0 if drop_hidden else drop_shadow
 	if name_tag != null:
 		name_tag.self_modulate.a = drawn
+	if status_tag != null:
+		status_tag.self_modulate.a = drawn
 	if drowsy_count != null:
 		drowsy_count.self_modulate.a = drawn
 	if glow != null:
 		glow.self_modulate.a = drawn
+	if tranced_sprite != null:
+		tranced_sprite.self_modulate.a = drawn
+	if weeded_sprite != null:
+		weeded_sprite.self_modulate.a = drawn
 	var lift := drop_offset - _lifted
 	if lift == Vector2.ZERO:
 		return
 	_lifted = drop_offset
-	for part in [name_tag, floating_text, drowsy_count, glow, stun_stars]:
+	for part in [name_tag, status_tag, floating_text, drowsy_count, glow, stun_stars, tranced_sprite, weeded_sprite]:
 		if part != null:
 			part.position += lift
 

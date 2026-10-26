@@ -25,6 +25,10 @@ extends PrepArea
 
 const DUMMY_ID := 2
 const DUMMY_BANDANA := 6  # orange, so it never reads as our own mortal
+# How close the mortal may press before the dummy is shoved along: the two
+# capsules touch at 40 px, so a little past that keeps the push going while the
+# walk holds into it.
+const DUMMY_PUSH_GAP := 44.0
 const ALTAR_REACH := 120.0
 # Six altars around the fire (Camp/Campfire is at 700, 340), one per god, in a
 # hexagon turned on its side so none stands on the mortal's spawn below the fire
@@ -241,7 +245,27 @@ func _process(delta: float) -> void:
 	_tick_invuln(delta)
 	_tick_sun_favors(delta)
 	_tick_world(delta)
+	_push_dummy()
 	_refresh_playground_hud()
+
+
+# The dummy is a body to lean on: walking into it shoves it along the field,
+# still locked so it never walks on its own. The rules' copy of its position
+# moves with it, or the ghost glide would pull it straight back.
+func _push_dummy() -> void:
+	var dummy := _ghosts.get(DUMMY_ID) as ArenaMortal
+	if dummy == null or not is_instance_valid(dummy) or player == null:
+		return
+	var away := dummy.global_position - player.global_position
+	if away.length() >= DUMMY_PUSH_GAP:
+		return
+	var way := away.normalized() if away.length() > 0.01 else Vector2(player.facing, 0.0)
+	var here := player.global_position + way * DUMMY_PUSH_GAP
+	if _field.size != Vector2.ZERO:
+		var inset := Vector2(dummy.radius, dummy.radius)
+		here = here.clamp(_field.position + inset, _field.end - inset)
+	dummy.global_position = here
+	_mortal_positions[DUMMY_ID] = here
 
 
 func _refresh_playground_hud() -> void:

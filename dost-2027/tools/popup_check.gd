@@ -60,6 +60,12 @@ func _run() -> void:
 		"both keep inside the screen, clear of the left strip and the bottom band")
 	var head_y: float = arena.player.get_global_transform_with_canvas().origin.y
 	_check(maxf(a.end.y, b.end.y) < head_y - 40.0, "they sit above the mortal's head and name tag")
+	# Bato Bato sa Langit: the caught blessing names its god over the mortal.
+	var bato: FavorPopup = arena._bato_bato_popup(arena._my_id, Gods.favor_by_id(&"half_vision"))
+	await _frames(1)
+	_check(bato != null and bato.number_text() == "SI MORTAL AY NATAMAAN!" and bato.reason_label.visible
+		and bato.reason_label.text == "MAYARI - HALF VISION",
+		"Bato Bato names the god whose blessing caught the mortal (%s / %s)" % [bato.number_text() if bato != null else "", bato.reason_label.text if bato != null else ""])
 	var vision: CanvasLayer = arena.get_node("VisionLayer")
 	var patches: CanvasLayer = arena.get_node("Patches")
 	_check(arena.popup_layer.layer > vision.layer and arena.popup_layer.layer >= patches.layer and arena.popup_layer.get_index() > patches.get_index()

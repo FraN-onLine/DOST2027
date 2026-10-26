@@ -440,7 +440,18 @@ bus = &"SFX"
 [node name="Whoosh" type="AudioStreamPlayer2D" parent="." unique_id=166317865]
 bus = &"SFX"
 
+[node name="StatusTag" type="Label" parent="." unique_id=638494988]
+visible = false
+offset_left = -80.0
+offset_top = -116.0
+offset_right = 80.0
+offset_bottom = -100.0
+theme_type_variation = &"WorldLabel"
+theme_override_constants/outline_size = 2
+horizontal_alignment = 1
+
 [node name="Tranced" type="AnimatedSprite2D" parent="." unique_id=807809908]
+visible = false
 position = Vector2(0, -71)
 scale = Vector2(1.5937501, 1.2760423)
 sprite_frames = SubResource("SpriteFrames_57qmd")

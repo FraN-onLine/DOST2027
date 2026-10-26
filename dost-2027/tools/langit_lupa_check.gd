@@ -203,8 +203,10 @@ func _run() -> void:
 	_arena._move_bots(0.1)
 	_check(not _arena._bot_root_tether.has(2) and _arena._bot_root_drag.has(2),
 		"when the root lifts, the bot is dragged back towards its shadow")
-	for step in range(4):
+	var drag_guard := 0
+	while _arena._bot_root_drag.has(2) and drag_guard < 20:
 		_arena._move_bots(0.1)
+		drag_guard += 1
 	_check(hunter.global_position.distance_to(shadow) < 1.0,
 		"...and arrives on it (%.1f px off)" % hunter.global_position.distance_to(shadow))
 
@@ -713,8 +715,8 @@ func _run() -> void:
 	var game: Control = load("res://scenes/Game.tscn").instantiate()
 	view.add_child(game)
 	await _frames(4)
-	_check(game.arena != null and is_equal_approx(game.arena.trial_time, 60.0), "the shell keeps Langit Lupa at 60s over a 90s lobby setting")
-	_check(game.timer_label.text == "1:00", "the clock shows 1:00 (%s)" % game.timer_label.text)
+	_check(game.arena != null and is_equal_approx(game.arena.trial_time, 90.0), "the shell gives Langit Lupa the lobby's 90s round")
+	_check(game.timer_label.text == "1:30", "the clock shows 1:30 (%s)" % game.timer_label.text)
 	# TIME AS TAYA lives in the player panels on the left strip, not in a HUD list.
 	var shell_arena: LangitLupaArena = game.arena
 	var me: int = game.rules.local().id

@@ -205,7 +205,6 @@ const RULES_LUPA_GODS := "LUPA: the Taya can tag you here. Mapulon & Ikapati are
 enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 
 @export_category("Langit Lupa")
-@export var fixed_trial_time := 60.0     # the round length here (0 = the lobby's)
 @export var tag_radius := 26.0           # how close the Taya must get to tag
 @export var tagback_immunity := 1.0      # seconds a new Taya cannot tag
 @export var taya_speed_bonus := 1.10     # the Taya walks this much faster (player, bot Taya, Ikapati as THE Taya)
@@ -377,8 +376,6 @@ var _god_jump_on := -1               # this screen: the Langit she is stepping o
 
 
 func _ready() -> void:
-	if fixed_trial_time > 0.0:
-		trial_time = fixed_trial_time
 	_read_langit_box()
 	_decorate_langits()
 	super._ready()

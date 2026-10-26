@@ -215,7 +215,9 @@ func _run() -> void:
 	_arena.slipper_range = 850.0
 
 	var bountiful_e: GodFavor = _arena.god.get_favor(&"the_bountiful_e")
-	_arena.rules.bestow_favor(_arena.god.get_favor(&"let_us_light_your_way"))
+	var light_way: GodFavor = _arena.god.get_favor(&"let_us_light_your_way")
+	_check(is_equal_approx(light_way.duration, 1.25), "Let Us Light Your Way pulls for .25s longer")
+	_arena.rules.bestow_favor(light_way)
 	_arena.rules.bestow_favor(bountiful_e)
 	_check(is_equal_approx(_arena.rules.skill_cooldown(GodFavor.Slot.E), 27.0), "Bountiful E reduces cooldown by 10%")
 	var shining: GodFavor = _arena.god.get_favor(&"the_shining")

@@ -181,6 +181,8 @@ func _run() -> void:
 	var old_e := _skill(GodFavor.Slot.E)
 	rules.bestow_favor(old_e, 1)
 	_check(rules.pamana_useful(bato, 1), "it is offered once there is a skill to change")
+	var swaps: Array = []
+	rules.bato_bato_swapped.connect(func(id: int, favor: GodFavor) -> void: swaps.append([id, favor.id]))
 	me.pamana_next = Pamanas.BATO_BATO_SA_LANGIT
 	_start(rules)
 	var new_e := me.favor_in_slot(GodFavor.Slot.E)
@@ -195,6 +197,15 @@ func _run() -> void:
 		only_other_gods = only_other_gods and favor.god_id != Gods.BATHALA
 		holds_a_pool_skill = holds_a_pool_skill or me.has_favor(favor.id)
 	_check(only_other_gods and not holds_a_pool_skill, "the pool is other gods' skills it does not hold")
+	_check(swaps.size() == 1 and int(swaps[0][0]) == 1 and swaps[0][1] == new_id,
+		"the swap names the blessing that caught them (%s)" % str(swaps))
+	# The swapped skill rewrites what the mortal carries: it outlives the trial.
+	var carried := new_id
+	rules.end_trial()
+	rules.trial_active = true
+	rules.begin_trial()
+	var next_trial := me.favor_in_slot(GodFavor.Slot.E)
+	_check(next_trial != null and next_trial.id == carried, "the Bato Bato blessing is permanent across trials (%s)" % carried)
 
 	# Both slots filled: exactly one is replaced, and the other stays.
 	rules = _match()

@@ -410,7 +410,7 @@ func _run() -> void:
 	_arena._apply_skill_effect(compromise, _arena._my_id)
 	_check((_arena._sun_patches.get(immune_id, []) as Array).size() == patches_before + 7,
 		"Sibling's Compromise drops seven sun patches at once (%d -> %d)" % [patches_before, (_arena._sun_patches.get(immune_id, []) as Array).size()])
-	_check(is_equal_approx(float(_arena._loss_boost.get(2, 0.0)), 5.0), "Sibling's Compromise boosts opponent losses for five seconds")
+	_check(is_equal_approx(float(_arena._loss_boost.get(2, 0.0)), 3.0), "Sibling's Compromise boosts opponent losses for three seconds")
 	var boosted_before: int = _arena.rules.mortal(2).favor
 	_arena.lose_favor(10, "boosted test", 2)
 	_check(_arena.rules.mortal(2).favor == boosted_before - 11, "active Compromise makes a FAVOR loss 10% larger")

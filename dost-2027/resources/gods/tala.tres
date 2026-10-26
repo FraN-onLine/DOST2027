@@ -61,11 +61,11 @@ script = ExtResource("1_favor")
 id = &"let_us_light_your_way"
 god_id = &"tala"
 display_name = "Let Us Light Your Way"
-description = "E - for one second, other mortals move toward you. Cooldown: 30s."
+description = "E - for 1.25 seconds, other mortals move toward you. Cooldown: 30s."
 slot = 1
 kind = 1
 cooldown = 30.0
-duration = 1.0
+duration = 1.25
 color = Color(0.2, 0.32, 0.62, 1)
 icon = ExtResource("2_pnj1g")
 

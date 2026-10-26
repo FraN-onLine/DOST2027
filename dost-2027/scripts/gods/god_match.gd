@@ -29,6 +29,9 @@ signal favor_fired(player_id: int, favor: GodFavor, text: String)
 # A Pamana just did something (it awoke, cancelled a loss, recharged a skill...):
 # the arena turns it into a banner / event line in the item's colour.
 signal pamana_fired(player_id: int, pamana: Pamana, text: String)
+# Bato Bato sa Langit swapped one of a mortal's skills: the blessing they caught,
+# so every screen can say who hit them.
+signal bato_bato_swapped(player_id: int, favor: GodFavor)
 
 const MILESTONE_STEP := 1000  # default: every 1000 FAVOR hands out one God's Due
 const LOCAL_ID := 1
@@ -665,6 +668,9 @@ func _swap_bato_bato(m: Mortal) -> void:
 	var before := m.favor_in_slot(slot)
 	var picked := pool[randi() % pool.size()]
 	bestow_favor(picked, m.id)
+	# The swap rewrites the carried skill itself, so it lasts for the rest of the
+	# run - no expiry at end_trial.
+	bato_bato_swapped.emit(m.id, picked)
 	_fire_pamana(m, Pamanas.BATO_BATO_SA_LANGIT, "BATO BATO SA LANGIT - %s BECOMES %s" % [before.display_name.to_upper(), picked.display_name.to_upper()])
 
 
@@ -832,7 +838,6 @@ func store_in_granary(player_id: int, favor: GodFavor) -> int:
 
 
 func _tick_harvest(m: Mortal, delta: float) -> void:
-	m.weeds_time = maxf(0.0, m.weeds_time - delta)
 	if not authority:
 		return
 	for index in range(m.regrowths.size() - 1, -1, -1):
@@ -1164,9 +1169,10 @@ func _tick_mortal(m: Mortal, delta: float) -> void:
 		m.durations[favor_id] = maxf(0.0, float(m.durations[favor_id]) - delta)
 	if authority:
 		_tick_afflictions(m, delta)
-	# Only a running trial ticks the per-second rules (the Harvest Pair's weeds
-	# and regrowth) and a Pamana's window: the preparation area between two
-	# trials keeps trial_active false, so nothing there pays or takes FAVOR.
+	# A weed's clock runs everywhere its victim is: the Playground keeps
+	# trial_active false, and a cast just before a trial ends must not wait out
+	# the intermission. Regrowth and a Pamana's window still need a running trial.
+	m.weeds_time = maxf(0.0, m.weeds_time - delta)
 	if trial_active:
 		m.pamana_window = maxf(0.0, m.pamana_window - delta)
 		_tick_harvest(m, delta)

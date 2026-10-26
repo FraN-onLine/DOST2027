@@ -319,12 +319,10 @@ func _start_current_trial() -> void:
 	arena_instance.embedded = true
 	# The lobby's run settings, synced to every peer with the order: the round
 	# length and the God's Due step are set before the arena enters the tree (its
-	# _ready builds the GodMatch from them). Bathala's finale has no arena, so it
-	# is never touched.
+	# _ready builds the GodMatch from them). Every arena follows the lobby's round
+	# length; Bathala's finale has no arena, so it is never touched.
 	var settings: RunSettings = Network.run_settings
-	# An arena with a round length of its own (Langit Lupa: 60s) keeps it.
-	var fixed = arena_instance.get("fixed_trial_time")
-	arena_instance.trial_time = float(fixed) if fixed != null and float(fixed) > 0.0 else settings.trial_time
+	arena_instance.trial_time = settings.trial_time
 	arena_instance.due_step = settings.due_step
 	# A god's blitz (last-stand) mode follows the lobby's god_blitz_mode (default on).
 	# Only arenas that declare `god_blitz_mode` (Mayari, and later others) honor it.

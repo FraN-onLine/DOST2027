@@ -132,6 +132,11 @@ func _run() -> void:
 	hud._sync_effects()
 	_check(not hud._effect_rows.has(&"weeds"), "the Harvest Pair's clocks only run in a trial: no weeds between trials")
 	_check(hud._effect_rows.has(&"drowsy") and hud._effect_rows.has(&"rooted"), "...but the E skills' afflictions outlive the trial flag (they are Langit Lupa's too)")
+	me.weeds_time = 6.0
+	rules._tick_mortal(me, 1.0)
+	_check(is_equal_approx(me.weeds_time, 5.0),
+		"a weed's clock keeps running between trials instead of freezing (%.1fs left)" % me.weeds_time)
+	me.weeds_time = 0.0
 	rules.trial_active = true
 
 	# --- the afflictions reach this screen's own body -----------------------------------------------------------
@@ -168,6 +173,7 @@ func _run() -> void:
 	arena.player._stun = 0.0
 	arena.player._stun_fx = 0.0
 	me.rooted_time = 0.0
+	me.weeds_time = 0.0
 	arena._clear_roots()
 	arena.player._forced_move_time = 0.0
 	arena.player.set_lock(false)
@@ -185,6 +191,8 @@ func _run() -> void:
 		"a rooted mortal is leashed to a shadow")
 	_check(planted.distance_to(arena.player.global_position + Vector2(-arena.player.facing * Arena.ROOT_SHADOW_BACK, 0.0)) < 0.01,
 		"...planted behind them")
+	_check(arena.player.status_tag.visible and arena.player.status_tag.text == "ROOTED",
+		"a rooted mortal says ROOTED over their head (%s)" % arena.player.status_tag.text)
 	arena.player.velocity = Vector2.ZERO
 	arena.player._steer(Vector2.RIGHT, 0.1)
 	_check(arena.player.velocity.x > 0.0, "the root does not take the walk away (velocity %.1f)" % arena.player.velocity.x)
@@ -199,12 +207,55 @@ func _run() -> void:
 	_check(arena._root_leashes.is_empty() and is_equal_approx(arena.player._return_time, Arena.ROOT_DRAG_TIME)
 		and arena.player._return_target.distance_to(planted) < 0.01,
 		"when the root's clock runs out, they are dragged back to the shadow")
+	_check(arena._root_pulls.has(arena._my_id) and arena.player.status_tag.text == "ROOTED",
+		"...the tether stays up and still says ROOTED through the drag")
+	# Drive the drag in lockstep with physics: the live match keeps running around
+	# this screen, and its shoves must not interrupt the pull the test is reading.
+	var had_process := arena.is_processing()
+	var had_rules := rules.is_processing()
+	arena.set_process(false)
+	rules.set_process(false)
+	arena.player._stun = 0.0
+	me.stun_time = 0.0
+	var step := arena.get_physics_process_delta_time()
 	var guard := 0
 	while arena.player._return_time > 0.0 and guard < 300:
-		await process_frame
+		await arena.get_tree().physics_frame
+		arena._watch_afflictions(step)
 		guard += 1
 	_check(arena.player.global_position.distance_to(planted) < 1.0,
 		"...arriving on it (%.1f px off)" % arena.player.global_position.distance_to(planted))
+	_check(arena._root_pulls.has(arena._my_id) and arena.player.status_tag.text == "ROOTED",
+		"...and the shadow keeps a beat, still ROOTED, before it fades")
+	guard = 0
+	while arena._root_pulls.has(arena._my_id) and guard < 300:
+		await arena.get_tree().physics_frame
+		arena._watch_afflictions(step)
+		guard += 1
+	_check(not arena._root_pulls.has(arena._my_id), "...then the leash lets go")
+	arena.set_process(had_process)
+	rules.set_process(had_rules)
+
+	# --- Ligaw na Damo's weed clump, and Tala's tranced sparkles ----------------------------------
+	me.weeds_time = 6.0
+	me.weeds_caster = 2
+	arena._watch_afflictions()
+	_check(arena.player.weeded_sprite.visible and arena.player.weeded_sprite.is_playing(),
+		"a weeded mortal grows the weed clump at their feet")
+	_check(arena.player.status_tag.visible and arena.player.status_tag.text == "WEEDED",
+		"...and says WEEDED over their head (%s)" % arena.player.status_tag.text)
+	me.weeds_time = 0.0
+	arena._watch_afflictions()
+	_check(not arena.player.weeded_sprite.visible and not arena.player.status_tag.visible,
+		"when the weeds end, the clump and the word go")
+	arena._movement_override_caster = 5
+	arena._movement_override_time = 2.0
+	arena._watch_afflictions()
+	_check(arena.player.tranced_sprite.visible and arena.player.tranced_sprite.is_playing(),
+		"a mortal Tala is pulling wears the tranced sparkles")
+	arena._movement_override_time = 0.0
+	arena._watch_afflictions()
+	_check(not arena.player.tranced_sprite.visible, "...and they go when the pull ends")
 
 	# --- a rival's root shows on our screen too ---------------------------------------------------------
 	var rival_id := 2

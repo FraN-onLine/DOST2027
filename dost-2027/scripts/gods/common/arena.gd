@@ -207,7 +207,8 @@ const CAST_TEXT_CONTRAST := 7.0
 # them for its OWN mortal, so only the numbers travel.
 const DROWSY_SPEED := 0.5          # a drowsy mortal walks at this share of their speed
 const ROOT_SHADOW_BACK := 90.0     # px behind the mortal the dark shadow waits
-const ROOT_DRAG_TIME := 0.4        # seconds the shadow drags them back when the root ends
+const ROOT_DRAG_TIME := 0.6        # seconds the shadow drags them back when the root ends
+const ROOT_SHADOW_LINGER := 0.2    # a beat at the shadow before the leash fades
 const ROOT_SHADOW_SIZE := Vector2(28.0, 10.0)
 const ROOT_SHADOW_COLOR := Color(0.05, 0.04, 0.09, 0.72)
 const ROOT_TETHER_COLOR := Color(0.1, 0.08, 0.16, 0.85)
@@ -400,6 +401,9 @@ var _loss_boost_seen: Dictionary = {}  # what the host last said about boosted l
 # Rest and Refreshed / Down to Homeland on THIS screen (see _watch_afflictions).
 # A leash per rooted mortal we can see: id -> {shadow: Vector2, tether: Node2D}.
 var _root_leashes: Dictionary = {}
+# A root that just let go: id -> {shadow, tether, left}. The tether stays for the
+# drag home, so every screen sees the mortal pulled back to it.
+var _root_pulls: Dictionary = {}
 var _drowsy_seen: Dictionary = {}  # mortal id -> still drowsy (so the end is announced once)
 var _dash_cd := 0.0
 var _dash_buffered := 0.0  # seconds a too-early SPACE still waits (see dash_buffer)
@@ -473,6 +477,7 @@ func _ready() -> void:
 	rules.notice.connect(_on_notice)
 	rules.favor_fired.connect(_on_favor_fired)
 	rules.pamana_fired.connect(_on_pamana_fired)
+	rules.bato_bato_swapped.connect(_on_bato_bato_swapped)
 	rules.skill_used.connect(_on_skill_used)
 
 	hud = HUD_SCENE.instantiate()
@@ -808,7 +813,7 @@ func _tick_world(delta: float) -> void:
 	_apply_blindness(delta)
 	_move_ghosts(delta)
 	_update_movement_favors(delta)
-	_watch_afflictions()
+	_watch_afflictions(delta)
 	_watch_local_pamana()
 	_tick_shake(delta)
 	_tick_flash(delta)
@@ -1209,11 +1214,11 @@ func spawn_popup(text: String, tint: Color, origin: Vector2) -> FavorPopup:
 
 
 # A word over a mortal ("TAGGED", "STUNNED"), in its stack like a FAVOR popup.
-func mortal_popup(mortal_id: int, text: String, tint: Color) -> FavorPopup:
+func mortal_popup(mortal_id: int, text: String, tint: Color, reason := "") -> FavorPopup:
 	if favor_popups_root == null:
 		return null
 	var popup := _new_popup()
-	popup.show_text(text, tint, "", false, reduce_flashing())
+	popup.show_text(text, tint, reason, false, reduce_flashing())
 	_push_popup(mortal_id, popup)
 	return popup
 
@@ -1791,6 +1796,29 @@ func _update_movement_favors(delta: float) -> void:
 			var target := mortal_position(_movement_override_caster)
 			if target != Vector2.INF:
 				player.force_movement(target - player.global_position, 0.08)
+		_pull_solo_ghosts(delta)
+
+
+# Tala's pull on a body no peer is reporting (the Playground's dummy): step it
+# toward the caster here, keeping the rules' copy with it so the ghost glide
+# cannot pull it back. Networked ghosts are pulled by their own screens.
+func _pull_solo_ghosts(delta: float) -> void:
+	if _networked:
+		return
+	var caster := popup_body(_movement_override_caster)
+	if caster == null:
+		return
+	for id in _ghosts.keys():
+		if int(id) == _movement_override_caster:
+			continue
+		var ghost := _ghosts[id] as ArenaMortal
+		if ghost == null or not is_instance_valid(ghost):
+			continue
+		var to_caster := caster.global_position - ghost.global_position
+		if to_caster.length() < 1.0:
+			continue
+		ghost.global_position += to_caster.normalized() * minf(ghost.move_speed * delta, to_caster.length())
+		_mortal_positions[int(id)] = ghost.global_position
 
 
 # --- THE E SKILLS' AFFLICTIONS ON OUR OWN MORTAL -------------------------------
@@ -1817,11 +1845,14 @@ func _watch_drowsy() -> void:
 # mortal walks slower and the drowsiness ends in a stun; a rooted one keeps
 # walking with a dark shadow dragging behind them, and when the root's clock runs
 # out it pulls them back to where it was planted.
-func _watch_afflictions() -> void:
+func _watch_afflictions(delta := 0.0) -> void:
 	if player == null or rules == null:
 		return
 	_watch_drowsy()
-	_watch_roots()
+	_watch_roots(delta)
+	_watch_weeds()
+	_watch_tranced()
+	_watch_statuses()
 	var mortal := rules.local()
 	if mortal == null:
 		return
@@ -1833,8 +1864,9 @@ func _watch_afflictions() -> void:
 # a solo arena's bot (through watch_root) - so a root is never only its victim's
 # screen's business. The leash does not hold them: they walk while it lasts, the
 # tether stretching as they go, and when its clock runs out OUR mortal is dragged
-# back to the shadow. A ghost's return arrives in the positions the host sends.
-func _watch_roots() -> void:
+# back to the shadow while the tether stays up for the pull. A ghost's return
+# arrives in the positions the host sends, and its tether follows it home.
+func _watch_roots(delta := 0.0) -> void:
 	for id in rules.mortals.keys():
 		var body := mortal_node(int(id))
 		if body != null:
@@ -1843,12 +1875,13 @@ func _watch_roots() -> void:
 	for id in _root_leashes.keys():
 		if not rules.mortals.has(id):
 			watch_root(int(id), null, false)
+	_watch_root_pulls(delta)
 
 
 # The leash for one body: plant the shadow the first frame its root shows, let
-# the tether follow it while the clock runs, and fade the shadow away (dragging
-# our own mortal back) when the clock runs out. `body` is null when it leaves the
-# screen, which only puts the shadow away.
+# the tether follow it while the clock runs, and keep it up for the drag home
+# when the clock runs out. `body` is null when it leaves the screen, which only
+# puts the shadow away.
 func watch_root(mortal_id: int, body: ArenaMortal, rooted_now: bool) -> void:
 	var leash: Dictionary = _root_leashes.get(mortal_id, {})
 	if rooted_now and body != null and leash.is_empty():
@@ -1861,12 +1894,95 @@ func watch_root(mortal_id: int, body: ArenaMortal, rooted_now: bool) -> void:
 		_root_leashes[mortal_id] = leash
 	elif not rooted_now and not leash.is_empty():
 		_root_leashes.erase(mortal_id)
-		_fade_root_tether(leash["tether"])
-		if body != null and mortal_id == _my_id and _phase == Phase.PLAYING:
-			body.return_to(leash["shadow"], ROOT_DRAG_TIME)
+		# Our own mortal is dragged by its physics; a solo screen's dummy has no
+		# peer behind it, so _watch_root_pulls walks it home. A networked ghost is
+		# dragged by its own screen and follows through the positions it reports.
+		if body != null and _phase == Phase.PLAYING:
+			_root_pulls[mortal_id] = {
+				"shadow": leash["shadow"],
+				"tether": leash["tether"],
+				"left": ROOT_DRAG_TIME,
+				"hold": ROOT_SHADOW_LINGER,
+			}
+			if mortal_id == _my_id:
+				body.return_to(leash["shadow"], ROOT_DRAG_TIME)
+		else:
+			_fade_root_tether(leash["tether"])
 		return
 	if body != null and not leash.is_empty():
 		_set_tether_points(leash["tether"], body.global_position + Vector2(0.0, -6.0), leash["shadow"])
+
+
+# The tether stays taut through the drag back, the shadow holds a beat once the
+# mortal lands on it, and only then do both fade.
+func _watch_root_pulls(delta: float) -> void:
+	for id in _root_pulls.keys().duplicate():
+		var pull: Dictionary = _root_pulls[id]
+		var body := popup_body(int(id))
+		var mortal_body := body as ArenaMortal
+		# A stun holds the mortal where it stands: the leash and its clock wait,
+		# so the pull is never cut short by a shove landing mid-drag.
+		var paused: bool = mortal_body != null and mortal_body.is_stunned()
+		if mortal_body != null and int(id) != _my_id and not _networked and not paused:
+			var left := float(pull["left"])
+			if left > 0.0:
+				var to_shadow: Vector2 = pull["shadow"] - body.global_position
+				body.global_position += to_shadow * minf(1.0, delta / maxf(left, 0.001))
+				_mortal_positions[int(id)] = body.global_position
+		if body != null:
+			_set_tether_points(pull["tether"], body.global_position + Vector2(0.0, -6.0), pull["shadow"])
+		if paused:
+			continue
+		if float(pull["left"]) > 0.0:
+			pull["left"] = maxf(0.0, float(pull["left"]) - delta)
+			if float(pull["left"]) <= 0.0 and mortal_body != null and int(id) != _my_id and not _networked:
+				mortal_body.global_position = pull["shadow"]
+				_mortal_positions[int(id)] = mortal_body.global_position
+		else:
+			pull["hold"] = maxf(0.0, float(pull["hold"]) - delta)
+			if float(pull["hold"]) <= 0.0:
+				_root_pulls.erase(id)
+				_fade_root_tether(pull["tether"])
+
+
+# Ligaw na Damo: the weed clump at the feet of every weeded mortal, ours and theirs.
+func _watch_weeds() -> void:
+	for id in rules.mortals.keys():
+		var body := popup_body(int(id))
+		var mortal := rules.mortal(int(id))
+		if body != null:
+			body.set_weeded(mortal != null and mortal.weeds_time > 0.0)
+
+
+# Tala's Let Us Light Your Way: the sparkles over every mortal it is pulling
+# (all of them but the caster), on every screen that hears the host's clock.
+func _watch_tranced() -> void:
+	var pulling := _movement_override_time > 0.0
+	for id in rules.mortals.keys():
+		var body := popup_body(int(id))
+		if body != null:
+			body.set_tranced(pulling and int(id) != _movement_override_caster)
+
+
+# The word over the head: ROOTED while the leash holds (and through its drag),
+# WEEDED while Ligaw na Damo does.
+func _watch_statuses() -> void:
+	var weeds := Gods.favor_by_id(&"ligaw_na_damo")
+	for id in rules.mortals.keys():
+		var body := popup_body(int(id))
+		var mortal := rules.mortal(int(id))
+		if body == null or mortal == null:
+			continue
+		var rooted := mortal.rooted_time > 0.0 or _root_pulls.has(int(id))
+		var weeded := mortal.weeds_time > 0.0
+		if rooted and weeded:
+			body.set_status("ROOTED + WEEDED", UITokens.EMBER)
+		elif rooted:
+			body.set_status("ROOTED", UITokens.EMBER)
+		elif weeded:
+			body.set_status("WEEDED", weeds.color if weeds != null else UITokens.EMBER)
+		else:
+			body.set_status("")
 
 
 # A trial starting or ending leaves no leash behind.
@@ -1874,6 +1990,9 @@ func _clear_roots() -> void:
 	for leash in _root_leashes.values():
 		_fade_root_tether(leash["tether"])
 	_root_leashes.clear()
+	for pull in _root_pulls.values():
+		_fade_root_tether(pull["tether"])
+	_root_pulls.clear()
 
 
 # The shadow's body: a tether line and a flattened dark ellipse, in the world
@@ -2680,6 +2799,24 @@ func _on_pamana_fired(player_id: int, pamana: Pamana, text: String) -> void:
 		_show_banner(text, UICards.pamana_edge(pamana), 1.6)
 
 
+# Bato Bato sa Langit: the host names whose blessing caught the mortal, over their
+# head on every screen, in that god's colour.
+func _on_bato_bato_swapped(player_id: int, favor: GodFavor) -> void:
+	_bato_bato_popup(player_id, favor)
+	_send_fx({"kind": "bato", "id": player_id, "favor": str(favor.id)})
+
+
+func _bato_bato_popup(player_id: int, favor: GodFavor) -> FavorPopup:
+	if favor == null:
+		return null
+	var god := Gods.by_id(favor.god_id)
+	var tint := UITokens.god_accent(god)
+	var reason := favor.display_name.to_upper()
+	if god != null:
+		reason = "%s - %s" % [god.display_name.to_upper(), reason]
+	return mortal_popup(player_id, "SI %s AY NATAMAAN!" % mortal_label(player_id).to_upper(), tint, reason)
+
+
 # Client: the host's Pamana banners are only for the host's own mortal, so a
 # client reads its item's moments off the snapshots instead - it woke, the Agimat
 # spent a charge, the Kampilan recharged, Surigao Gold paid.
@@ -2897,7 +3034,11 @@ func _on_arena_fx_received(fx: Dictionary) -> void:
 	if _authority or separate_players():
 		return
 	var id := int(fx.get("id", -1))
-	if fx.get("kind", "") == "hit":
+	var kind := str(fx.get("kind", ""))
+	if kind == "bato":
+		_bato_bato_popup(id, Gods.favor_by_id(StringName(str(fx.get("favor", "")))))
+		return
+	if kind == "hit":
 		hit_effects(fx.get("at", Vector2.INF), fx.get("dir", Vector2.RIGHT))
 		if id == _my_id:
 			return  # our own hit() already put the stars over our head

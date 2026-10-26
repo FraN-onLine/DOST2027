@@ -107,6 +107,31 @@ func _run() -> void:
 		_check(dummy.global_position.distance_to(playground.dummy_spawn.global_position) < 1.0,
 			"it stands on the authored spawn")
 
+	# The dummy is pushable: leaning into it shoves it along the field.
+	var dummy_start: Vector2 = playground.dummy_spawn.global_position
+	playground.player.global_position = dummy_start - Vector2(40.0, 0.0)
+	playground._process(DT)
+	_check(dummy.global_position.x > dummy_start.x + 1.0,
+		"walking into the dummy pushes it along (%.1f -> %.1f)" % [dummy_start.x, dummy.global_position.x])
+	_check(playground._mortal_positions[DUMMY_ID].distance_to(dummy.global_position) < 0.01,
+		"...and the rules follow where it was pushed, so it stays there")
+	playground.player.global_position = Vector2(700, 460)
+	dummy.global_position = dummy_start
+	playground._mortal_positions[DUMMY_ID] = dummy_start
+
+	# No trial runs here, but the weeds' clock does: it used to freeze with
+	# trial_active false (and so in the Playground, forever).
+	playground.rules.cast_ligaw_na_damo(playground._my_id, Gods.favor_by_id(&"ligaw_na_damo"))
+	var weeds_before := dummy_mortal.weeds_time
+	_tick(playground, 1.0)
+	_check(weeds_before > 0.0 and is_equal_approx(dummy_mortal.weeds_time, weeds_before - 1.0),
+		"the weeds' clock runs with no trial (%.2fs left)" % dummy_mortal.weeds_time)
+	_check(dummy.status_tag.visible and dummy.status_tag.text == "WEEDED",
+		"...and the dummy says WEEDED while they last")
+	dummy_mortal.weeds_time = 0.0
+	playground._process(DT)
+	_check(not dummy.status_tag.visible, "...and both go when the clock runs out")
+
 	# Nothing in the rest moves FAVOR: no rival drip, no regrowth, no clock.
 	var before := {}
 	for mortal in playground.rules.mortals.values():
@@ -225,8 +250,16 @@ func _run() -> void:
 	_check(playground._root_leashes.has(DUMMY_ID)
 		and (playground._root_leashes[DUMMY_ID] as Dictionary)["shadow"] == shadow,
 		"...and its shadow stays planted")
-	_tick(playground, 2.1)
+	_tick(playground, 2.0)
 	_check(not playground._root_leashes.has(DUMMY_ID), "the leash is gone after 3s")
+	_check(playground._root_pulls.has(DUMMY_ID), "the dummy is pulled back toward its shadow")
+	var before_drag := dummy.global_position.distance_to(shadow)
+	_tick(playground, 0.25)
+	_check(dummy.global_position.distance_to(shadow) < before_drag - 1.0 and playground._root_pulls.has(DUMMY_ID),
+		"...visibly walking to the circle while the leash stays up (%.1f px left)" % dummy.global_position.distance_to(shadow))
+	_tick(playground, 0.625)
+	_check(dummy.global_position.distance_to(shadow) < 1.0 and not playground._root_pulls.has(DUMMY_ID),
+		"...landing on it before the leash fades")
 
 	# Our own mortal's root is drawn here too, and drags us back when it ends.
 	playground.player.global_position = Vector2(700, 460)
@@ -239,6 +272,21 @@ func _run() -> void:
 	_check(not playground._root_leashes.has(playground._my_id), "our root ends after 3s")
 	_check(playground.player._return_time > 0.0 and playground.player._return_target.distance_to(mine) < 1.0,
 		"...and drags us back toward the shadow")
+
+	# --- TALA: THE PULL REACHES THE DUMMY TOO -------------------------------------------
+	playground.player.global_position = Vector2(700, 460)
+	var light_way := Gods.favor_by_id(&"let_us_light_your_way")
+	_check(playground.rules.bestow_favor(light_way), "Let Us Light Your Way can be taken")
+	var pulled_from := dummy.global_position.distance_to(playground.player.global_position)
+	playground._use_skill(GodFavor.Slot.E)
+	_check(playground._movement_override_time > 0.0, "the pull is running")
+	playground._process(DT)
+	_check(dummy.global_position.distance_to(playground.player.global_position) < pulled_from - 1.0,
+		"the dummy is pulled toward the caster (%.1f -> %.1f px)" % [pulled_from, dummy.global_position.distance_to(playground.player.global_position)])
+	_check(dummy.tranced_sprite.visible and dummy.tranced_sprite.is_playing(), "...wearing the tranced sparkles")
+	_tick(playground, 1.5)
+	playground._process(DT)
+	_check(not dummy.tranced_sprite.visible, "...until the pull ends")
 
 	# --- APOLAKI: THE E ADDS SEVEN SUN PATCHES ------------------------------------------
 	var sun := Gods.favor_by_id(&"siblings_compromise_sun")
