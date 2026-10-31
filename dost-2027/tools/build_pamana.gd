@@ -52,6 +52,16 @@ const ITEMS := [
 		"color": Color("#5E7FD6"),  # indigo-blue
 	},
 	{
+		"id": &"miniature_balangay", "name": "Miniature Balangay", "cost": 150,
+		"timing": Pamana.Timing.WHOLE_TRIAL, "needs": Pamana.Needs.NOTHING,
+		"effect": "Next trial: the first Sun Patches, Weeded, Rooted, Stun, Drowsy, Tranced or Blindness another mortal's E skill puts on you is nullified.",
+		"params": {},
+		"era": "c. 320–1250 AD", "origin": "Butuan, Agusan del Norte",
+		"history": "The balangay is a plank-built wooden boat, its boards lashed and pegged together without nails, sailed by the ancestors of today's seafaring peoples. Nine balangays were recovered in Butuan in the 1970s, dated by radiocarbon to between roughly 320 and 1250 AD, and they are now National Cultural Treasures. Small wooden and gold boat models were also placed with the dead and kept as charms, a boat to carry a soul safely across the water.",
+		"flavor": "You fared the seas to escape the hit.",
+		"color": Color("#3E8FA3"),  # sail water teal
+	},
+	{
 		"id": &"bato_bato_sa_langit", "name": "Bato Bato sa Langit", "cost": 350,
 		"timing": Pamana.Timing.WHOLE_TRIAL, "needs": Pamana.Needs.ANY_SKILL,
 		"effect": "Next trial: one of your E or Q skills becomes a random skill in that slot from another god (never Bathala's).",

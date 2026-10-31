@@ -23,6 +23,12 @@ extends Arena
 #   the left half (south -> west -> north). The court is AUTHORED in the scene
 #   (ArenaField/Pad and Tile1..Tile10): drag a tile and the game plays there.
 #
+# STONES
+#   A thrown stone rests on its tile in the colour of the mortal who threw it, and
+#   leaves the court the moment it is picked up (it is in hand). Every screen draws
+#   every rival's stone too: a client reports its stone's tile to the host, the host
+#   carries the whole set out on the world tick.
+#
 # A LAP
 #   THROW   Aim with the mouse. The dotted arc and the reticle show where the
 #           stone will come down (gold over a tile); HOLD LEFT CLICK to load the
@@ -153,6 +159,9 @@ var _was_stunned := false
 var _blitz := false
 var _blitz_phase := 0.0
 
+var _stones_seen: Dictionary = {}   # client: mortal id -> the tile their stone rests on (0: none)
+var _last_reported_stone := -1      # the tile we last told the host about
+
 
 func _ready() -> void:
 	_head_left = head_time
@@ -202,6 +211,10 @@ func arena_round_reset() -> void:
 	_was_stunned = false
 	_blitz = false
 	_blitz_phase = 0.0
+	_stones_seen.clear()
+	_last_reported_stone = -1
+	if _networked and _authority and _net != null:
+		_net.piko_stones.clear()
 	player.scale = Vector2.ONE
 	player.global_position = _pad_point()
 	player.set_lock(true)
@@ -709,6 +722,7 @@ func _leave_lap() -> void:
 		head_label.visible = false
 	if board != null:
 		board.set_state(0, 0, 0, true, false)
+	_report_stone()
 
 
 func _expected_tile() -> int:
@@ -751,8 +765,9 @@ func _update_blitz(delta: float) -> void:
 # --- NODES / HUD -------------------------------------------------------------
 
 func _sync_nodes() -> void:
+	_report_stone()
 	if board != null:
-		board.set_state(_stone, _expected_tile(), _current, not _leg_return, _blitz)
+		board.set_state(_local_stone_tile(), _expected_tile(), _current, not _leg_return, _blitz, _stone_entries())
 	var accent := UITokens.god_accent(god)
 	var calm := reduce_flashing()
 	var live: bool = _phase == Phase.PLAYING and not player.is_stunned() and not dialogue.is_active() and not due_menu.is_open()
@@ -777,6 +792,7 @@ func _sync_nodes() -> void:
 		throw_aim.flying = flying
 		if throw_aim.visible:
 			throw_aim.accent = accent
+			throw_aim.stone_color = _stone_color(_my_id)
 			throw_aim.power = _throw_charge
 			throw_aim.height = throw_height
 			throw_aim.from = player.global_position + Vector2(0.0, -16.0)
@@ -818,6 +834,74 @@ func _sync_nodes() -> void:
 			if _head_left <= 4.0 and not calm:
 				scale_pulse = 1.0 + 0.12 * absf(sin(Time.get_ticks_msec() * 0.008))
 			head_label.scale = Vector2.ONE * scale_pulse
+
+
+# --- THE STONES ON THE COURT -----------------------------------------------------
+# A stone is on the court while it has landed and not yet been picked up: the
+# moment the mortal collects it on the way back it is in their hand, and the board
+# stops drawing it. Every mote of the court wears the colour of the mortal who
+# threw it, and every screen draws every rival's stone too.
+
+func _local_stone_tile() -> int:
+	return 0 if _pickup else _stone
+
+
+# The colour of a mortal's stone: the bandana they wear, lightened enough to read
+# against the dark court.
+func _stone_color(mortal_id: int) -> Color:
+	return UITokens.bandana_color(bandana_of(mortal_id)).lightened(0.12)
+
+
+# Every stone this screen can see: its own live one, and every rival's as the host
+# last said (the host reads its own report table, a client the world tick).
+func _stone_entries() -> Array:
+	var by_id := {}
+	var mine := _local_stone_tile()
+	if mine > 0:
+		by_id[_my_id] = mine
+	var reported: Dictionary = {}
+	if _networked and _net != null:
+		reported = _net.piko_stones if _authority else _stones_seen
+	for id in reported.keys():
+		var tile := int(reported[id])
+		if int(id) == _my_id or tile <= 0:
+			continue
+		by_id[int(id)] = tile
+	var out: Array = []
+	for id in by_id.keys():
+		out.append({"tile": by_id[id], "color": _stone_color(int(id))})
+	return out
+
+
+# A client's stone moves its own lap along: tell the host where it rests whenever
+# that changes (0 when it is in the air or in the hand).
+func _report_stone() -> void:
+	if not _networked or _authority or _net == null or not _net.has_multiplayer_peer():
+		return
+	var tile := _local_stone_tile()
+	if tile == _last_reported_stone:
+		return
+	_last_reported_stone = tile
+	_net.rpc_id(1, "report_piko_stone", tile)
+
+
+# The host rides every mortal's stone on the world tick, so each screen draws the
+# whole court; a client adopts the list it last received.
+func arena_tick_fields() -> Dictionary:
+	if not _networked or _net == null:
+		return {}
+	var stones := {_my_id: _local_stone_tile()}
+	var reported: Dictionary = _net.piko_stones
+	for id in reported.keys():
+		stones[int(id)] = int(reported[id])
+	return {"piko_stones": stones}
+
+
+func arena_read_tick(state: Dictionary) -> void:
+	var stones: Dictionary = state.get("piko_stones", {})
+	_stones_seen.clear()
+	for id in stones.keys():
+		_stones_seen[int(id)] = int(stones[id])
 
 
 func _target_charge() -> float:

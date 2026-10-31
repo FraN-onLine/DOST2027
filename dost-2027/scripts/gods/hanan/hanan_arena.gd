@@ -67,13 +67,14 @@ extends Arena
 #
 # GISING NA! (the alarm clock)
 #   Twice a round Hanan sets an alarm over ONE side of her Baka: a clock ticks
-#   alarm_time seconds down to 0 and that half of the floor is tinted. Standing
-#   on the marked side when it rings costs alarm_penalty FAVOR. The first starts
-#   at a random moment with more than baka_blitz_time left, so it always rings
-#   before the Blitz; the second starts somewhere in the last 15-30 seconds, so it
-#   runs through the Blitz. Both are this mortal's own (the trial is personal) and
-#   are driven by the shared round clock, exactly like the Blitz is. The alarm
-#   waits while a dialogue or the God's Due menu is open, like the idle clock.
+#   alarm_time seconds down to 0 and the mortal standing on that side flickers
+#   red. Standing on the marked side when it rings costs alarm_penalty FAVOR. The
+#   first starts at a random moment with more than baka_blitz_time left, so it
+#   always rings before the Blitz; the second starts somewhere in the last 15-30
+#   seconds, so it runs through the Blitz. Both are this mortal's own (the trial
+#   is personal) and are driven by the shared round clock, exactly like the Blitz
+#   is. The alarm waits while a dialogue or the God's Due menu is open, like the
+#   idle clock.
 #
 # The bar works in 0..1 "bar heights" (0 = bottom of the gauge), so the HUD only
 # has to scale it to pixels. Every number is an @export - tune it in the inspector.
@@ -150,10 +151,9 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 @onready var blitz_glow: Sprite2D = get_node_or_null("ArenaBG/BlitzGlow")  # a soft oval on the arena floor, under the Baka and the mortal
 @onready var sink_arrow: Polygon2D = get_node_or_null("BarLayer/Bar/SinkArrow")
-# GISING NA!'s marking: the tinted half of the floor, the clock over the marked
-# side and its count. All three live under ArenaField so they shake with the field.
+# GISING NA!'s marking: the clock over the marked side and its count, plus the
+# red flick on the mortal. They live under ArenaField so they shake with the field.
 @onready var alarm_root: Node2D = get_node_or_null("ArenaField/Alarm")
-@onready var alarm_half: ColorRect = get_node_or_null("ArenaField/Alarm/Half")
 @onready var alarm_clock: AnimatedSprite2D = get_node_or_null("ArenaField/Alarm/Clock/AnimatedSprite2D")
 @onready var alarm_count: Label = get_node_or_null("ArenaField/Alarm/Count")
 
@@ -197,6 +197,7 @@ var _alarm_active := false
 var _alarm_left := 0.0
 var _alarm_side := 1         # -1 = Hanan's left, +1 = her right
 var _alarm_shake_left := 0.0
+var _alarm_blink := 0.0      # drives the red flick on a mortal standing on the marked side
 
 
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
@@ -242,6 +243,8 @@ func arena_round_reset() -> void:
 	_alarm_active = false
 	_alarm_left = 0.0
 	_alarm_shake_left = 0.0
+	_alarm_blink = 0.0
+	player.modulate = Color.WHITE
 	_roll_alarms()
 	if alarm_root != null:
 		alarm_root.visible = false
@@ -285,7 +288,7 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	_tick_hanan(delta)
 	_tick_alarm(delta)
-	_refresh_alarm()
+	_refresh_alarm(delta)
 	_refresh_hud(delta)
 
 
@@ -442,21 +445,22 @@ func _on_alarm_side() -> bool:
 	return (player.global_position.x < split) == (_alarm_side < 0)
 
 
-# The marking: the tinted half of the floor and the clock over it, counting down.
-func _refresh_alarm() -> void:
-	if alarm_root == null:
-		return
-	alarm_root.visible = _alarm_active
+# The marking: the clock over the marked side counting down and, while the mortal
+# stands on that side, a red flick on the mortal itself - no box over the floor.
+func _refresh_alarm(delta := 0.0) -> void:
+	if alarm_root != null:
+		alarm_root.visible = _alarm_active
+	if _alarm_active and _on_alarm_side():
+		_alarm_blink += delta
+		var pulse := 0.5 + 0.5 * sin(_alarm_blink * TAU * 3.0)
+		var strength := (0.35 + 0.65 * pulse) * (0.6 if reduce_flashing() else 1.0)
+		player.modulate = Color.WHITE.lerp(TRIP_COLOR, strength)
+	else:
+		_alarm_blink = 0.0
+		if player.modulate != Color.WHITE:
+			player.modulate = Color.WHITE
 	if not _alarm_active:
 		return
-	var split := baka.global_position.x if baka != null else _field.get_center().x
-	if alarm_half != null:
-		if _alarm_side < 0:
-			alarm_half.position = _field.position
-			alarm_half.size = Vector2(split - _field.position.x, _field.size.y)
-		else:
-			alarm_half.position = Vector2(split, _field.position.y)
-			alarm_half.size = Vector2(_field.end.x - split, _field.size.y)
 	if alarm_clock != null:
 		var fraction := 0.22 if _alarm_side < 0 else 0.78
 		alarm_clock.global_position = Vector2(_field.position.x + _field.size.x * fraction, _field.position.y + 46.0)

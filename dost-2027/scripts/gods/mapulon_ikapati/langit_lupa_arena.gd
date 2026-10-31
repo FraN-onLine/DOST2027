@@ -152,10 +152,12 @@ extends Arena
 #
 # THE EARTHQUAKE
 #   Mapulon's ground moves every quake_interval_min..quake_interval_max seconds.
-#   For quake_time seconds the field jumps and the walk keys drive every mortal
-#   the other way (dashes and shoves are the arena's own moves, not inverted). The
-#   host owns the schedule and sends the clock (quake_left) in the tick, so every
-#   screen shakes and inverts together; the effect timers and the hint say so.
+#   For quake_time seconds the WHOLE SCREEN jumps (the arena, the god, the
+#   mortals and the Taya marker - the starry sky and the HUD stay put) and the
+#   walk keys drive every mortal the other way (dashes and shoves are the arena's
+#   own moves, not inverted). The host owns the schedule and sends the clock
+#   (quake_left) in the tick, so every screen shakes and inverts together; the
+#   effect timers and the hint say so.
 #
 # THE PAYOUT
 #   When the clock runs out the pair pays by least time as Taya: payout_best for
@@ -198,6 +200,7 @@ const RHYME: Array[String] = ["LANGIT...", "LUPA...", "IMPYERNO!"]
 const MOVE_ACTIONS: Array[StringName] = [&"move_up", &"move_right", &"move_down", &"move_left"]
 # The Taya id while Mapulon & Ikapati are it (-1 is "no Taya"; mortals are >= 1).
 const GOD_TAYA := -2
+const QUAKE_SHAKE_POWER := 1.6  # the quake's jump, in shake_pixels, over the whole screen
 # The gods' body as Taya (see THE GODS' LOOK).
 const GOD_TAYA_SCENE := preload("res://scenes/gods/mapulon_ikapati/IkapatiTaya.tscn")
 # The two sky platforms (scenes/gods/mapulon_ikapati): one pillar clip each. Their
@@ -298,6 +301,7 @@ enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 @onready var overseer: Sprite2D = get_node_or_null("ArenaField/Overseer")
 @onready var god_overseer: AnimatedSprite2D = get_node_or_null("ArenaField/GodOverSeer")
 @onready var background: Sprite2D = get_node_or_null("Background")
+@onready var sky: Sprite2D = get_node_or_null("ArenaBG/Sky")
 @onready var bots_root: Node2D = get_node_or_null("Bots")
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 @onready var rules_card: Control = get_node_or_null("LangitHud/RulesCard")
@@ -328,6 +332,8 @@ var _season_timer := 0.0             # seconds to the next crumble
 var _blitz := false                  # the last langit_blitz_time seconds (host-decided, mirrored)
 var _quake_left := 0.0               # seconds of the earthquake still to run (host-decided, mirrored)
 var _quake_timer := 0.0              # host: seconds to the next earthquake
+var _quake_shake_left := 0.0         # seconds the screen itself still jumps for
+var _sky_rest := Vector2.ZERO        # where the starry backdrop sits while the ground is still
 # The chant as the host keeps it (and every screen draws it):
 var _chanting := false
 var _chant_caller := -1              # the Taya whose chant this is (either slot)
@@ -393,6 +399,8 @@ func _ready() -> void:
 	_read_langit_box()
 	_decorate_langits()
 	super._ready()
+	if sky != null:
+		_sky_rest = sky.position
 	_spawn_bots()
 	_spawn_god()
 	var lupa_rule := get_node_or_null("LangitHud/RulesCard/Lines/Lupa") as Label
@@ -470,6 +478,8 @@ func arena_round_reset() -> void:
 	_reset_god_chant()
 	_quake_left = 0.0
 	_quake_timer = randf_range(quake_interval_min, quake_interval_max) if _authority else 0.0
+	_quake_shake_left = 0.0
+	_apply_quake_offset(Vector2.ZERO)
 	player.movement_inverted = false
 	for runners in [_swap, _closed, _shoving, _on, _last_left, _close_call, _streak, _bot_goal, _bot_react, _bot_chant]:
 		runners.clear()
@@ -1289,9 +1299,50 @@ func _tick_quake(delta: float) -> void:
 
 
 func _announce_quake(seconds: float) -> void:
-	_shake_screen(seconds, 0.9)
+	_quake_shake_left = seconds
 	_show_banner("EARTHQUAKE!", UITokens.EMBER, 1.5)
-	_log("An earthquake! The field shakes and movement is inverted.", UITokens.EMBER)
+	_log("An earthquake! The whole screen shakes and movement is inverted.", UITokens.EMBER)
+
+
+# The quake belongs to the whole screen: every world drawing (the field, the god,
+# the mortals and the markers) rides the view, so the view itself carries the
+# jump and nothing in world space moves - positions, bounds and the rules stay
+# exactly where they are. The starry SKY is the one thing left still (it is the
+# sky, not the ground), so it takes the jump back in its own position and hangs
+# where it always did. The HUD lives on CanvasLayers and never shakes. With the
+# follow camera on, the camera owns the view, so the shake lands on its offset
+# instead (after its limits, which is why the base aims the camera itself rather
+# than using that offset).
+func _tick_quake_shake(delta: float) -> void:
+	var offset := Vector2.ZERO
+	if _quake_shake_left > 0.0 and _phase == Phase.PLAYING and screen_shake_allowed():
+		_quake_shake_left = maxf(0.0, _quake_shake_left - delta)
+		var fade := clampf(_quake_shake_left / 0.5, 0.0, 1.0)  # the ground settles in the last half second
+		offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_pixels * QUAKE_SHAKE_POWER * fade
+	else:
+		_quake_shake_left = 0.0
+	_apply_quake_offset(offset)
+
+
+func _apply_quake_offset(offset: Vector2) -> void:
+	if sky != null:
+		sky.position = _sky_rest - offset
+	if camera != null:
+		camera.offset = offset
+		return
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	var canvas := viewport.canvas_transform
+	if canvas.origin != offset:
+		canvas.origin = offset
+		viewport.canvas_transform = canvas
+
+
+# Never hand the next screen a view left mid-quake.
+func _exit_tree() -> void:
+	_apply_quake_offset(Vector2.ZERO)
+	super._exit_tree()
 
 
 func quake_active() -> bool:
@@ -2199,6 +2250,7 @@ func _process(delta: float) -> void:
 	if not _authority and _phase == Phase.PLAYING:
 		_quake_left = maxf(0.0, _quake_left - delta)  # runs the host's clock on between ticks
 	player.movement_inverted = _quake_left > 0.0 and _phase == Phase.PLAYING
+	_tick_quake_shake(delta)
 	_tick_my_chant(delta)
 	if is_taya(_my_id) and _phase == Phase.PLAYING:
 		player.global_position = _push_out(player.global_position)

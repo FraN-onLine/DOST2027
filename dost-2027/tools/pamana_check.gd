@@ -11,6 +11,9 @@ extends SceneTree
 #     only, stacking with The Bountiful
 #   * the Mutya raises gains inside the window only
 #   * the Kampilan recharges the first cast only
+#   * the Miniature Balangay nullifies the first Sun Patches / Weeded / Rooted /
+#     Stun / Drowsy / Tranced / Blindness another mortal's E skill lands on its
+#     holder (a favor's curse or a god's touch is not an E skill), once
 #   * Bato Bato sa Langit turns one occupied E / Q slot into a random skill of
 #     the same slot from another god (never Bathala's)
 #   * Surigao Gold moves one milestone 200 FAVOR early, then stops
@@ -37,9 +40,9 @@ func _frames(count: int) -> void:
 func _run() -> void:
 	# --- the data -------------------------------------------------------------------
 	var items := Pamanas.all()
-	_check(items.size() == 9, "nine Pamana are registered (%d)" % items.size())
+	_check(items.size() == 10, "ten Pamana are registered (%d)" % items.size())
 	var ids: Array = items.map(func(p: Pamana) -> String: return str(p.id))
-	_check(ids == ["agimat", "banton_cloth", "bato_bato_sa_langit", "kampilan", "manunggul_jar", "mighty_pen", "mutya", "surigao_gold", "torn_cedulas"],
+	_check(ids == ["agimat", "banton_cloth", "bato_bato_sa_langit", "kampilan", "manunggul_jar", "mighty_pen", "miniature_balangay", "mutya", "surigao_gold", "torn_cedulas"],
 		"they are listed sorted by id")
 	_check(Pamanas.by_id(&"agimat").cost == 100 and Pamanas.by_id(&"mutya").cost == 250 and Pamanas.by_id(&"surigao_gold").cost == 50
 		and Pamanas.by_id(&"bato_bato_sa_langit").cost == 350, "the costs match the table")
@@ -173,6 +176,50 @@ func _run() -> void:
 	rules.use_skill(GodFavor.Slot.Q, 1)
 	_check(me.cooldown_left(q_skill.id) > 0.0, "the second cast recharges as usual")
 
+	# --- Miniature Balangay -------------------------------------------------------------
+	rules = _match()
+	me = rules.mortal(1)
+	me.pamana_next = Pamanas.MINIATURE_BALANGAY
+	_start(rules)
+	_fired.clear()
+	rules.pamana_fired.connect(func(id: int, item: Pamana, text: String) -> void: _fired.append([id, item.id, text]))
+	rules.cast_rest_and_refreshed(2, Gods.favor_by_id(&"rest_and_refreshed"))
+	_check(me.drowsy_time == 0.0 and me.drowsy_stun == 0.0 and me.balangay_spent,
+		"the boat carries a rival's E drowsiness (and the stun it would end in) off")
+	_check(_fired.size() == 1 and str(_fired[0][2]).contains("DROWSINESS"), "...and names it (%s)" % str(_fired))
+	rules.cast_down_to_homeland(2, Gods.favor_by_id(&"down_to_homeland"))
+	_check(me.rooted_time > 0.0, "...a later E roots as usual")
+
+	rules = _match()
+	me = rules.mortal(1)
+	me.pamana_next = Pamanas.MINIATURE_BALANGAY
+	_start(rules)
+	rules.cast_ligaw_na_damo(2, Gods.favor_by_id(&"ligaw_na_damo"))
+	_check(me.weeds_time == 0.0 and me.balangay_spent, "the boat fends the weeds, once")
+
+	rules = _match()
+	me = rules.mortal(1)
+	me.pamana_next = Pamanas.MINIATURE_BALANGAY
+	_start(rules)
+	_check(rules.stun_mortal(1, 2.0, 2) == 0.0 and me.stun_time == 0.0 and me.stun_records == 0 and me.balangay_spent,
+		"a rival's E stun is fended, without counting as a stun")
+	rules = _match()
+	me = rules.mortal(1)
+	me.pamana_next = Pamanas.MINIATURE_BALANGAY
+	_start(rules)
+	_check(rules.stun_mortal(1, 2.0, -1) > 0.0 and not me.balangay_spent,
+		"a stun with no E caster behind it is not fended")
+	_check(rules.stun_mortal(1, 1.0, 1) > 0.0 and not me.balangay_spent, "...nor is a mortal's own")
+	# The First Cleanse comes first: the boat waits for a status the favor cannot take.
+	rules = _match()
+	me = rules.mortal(1)
+	me.favors.append(Gods.favor_by_id(&"first_cleanse"))
+	me.pamana_next = Pamanas.MINIATURE_BALANGAY
+	_start(rules)
+	_check(rules.stun_mortal(1, 2.0, 2) == 0.0 and not me.balangay_spent,
+		"The First Cleanse takes the first stun, leaving the boat")
+	_check(rules.stun_mortal(1, 2.0, 2) == 0.0 and me.balangay_spent, "...then the boat takes the next")
+
 	# --- Bato Bato sa Langit ----------------------------------------------------------
 	var bato := Pamanas.by_id(Pamanas.BATO_BATO_SA_LANGIT)
 	rules = _match()
@@ -265,11 +312,13 @@ func _run() -> void:
 	me.jar_lost = 77
 	me.kampilan_ready = true
 	me.surigao_early = 200
+	me.balangay_spent = true
 	var copy := _match()
 	copy.apply_snapshot(rules.snapshot())
 	var mirror := copy.mortal(1)
 	_check(mirror.pamana_next == Pamanas.MUTYA and mirror.pamana_active == Pamanas.AGIMAT and is_equal_approx(mirror.pamana_window, 12.5)
-		and mirror.agimat_charges == 2 and mirror.jar_lost == 77 and mirror.kampilan_ready and mirror.surigao_early == 200,
+		and mirror.agimat_charges == 2 and mirror.jar_lost == 77 and mirror.kampilan_ready and mirror.surigao_early == 200
+		and mirror.balangay_spent,
 		"every Pamana field survives a snapshot round trip")
 	var reasons: Array = []
 	copy.favor_changed.connect(func(_id: int, _f: int, _d: int, reason: String) -> void: reasons.append(reason))
@@ -321,6 +370,37 @@ func _run() -> void:
 	_check(arena.favor_popups_root.get_child_count() == popups, "no red loss popup follows a purchase")
 	arena.lose_favor(100, "Test", 1)
 	_check(not arena._sun_patches.is_empty(), "(a real loss still feeds The Sun God and The Ruler)")
+
+	# --- Miniature Balangay: the E skills that only the arena can land ------------------
+	arena._sun_patches.clear()
+	arena._sun_patch_sources.clear()
+	arena._loss_boost.clear()
+	arena._blind_time = 0.0
+	arena._movement_override_time = 0.0
+	arena._trance_fended = []
+	var holder := arena.rules.mortal(1)
+	holder.pamana_active = Pamanas.MINIATURE_BALANGAY
+	holder.balangay_spent = false
+	arena._apply_skill_effect(Gods.favor_by_id(&"siblings_compromise_sun"), 2)
+	_check(not arena._sun_patches.has(1) and not arena._loss_boost.has(1) and holder.balangay_spent,
+		"on the field the boat carries Apolaki's E Sun Patches (and their loss boost) off")
+	arena._apply_skill_effect(Gods.favor_by_id(&"siblings_compromise_sun"), 2)
+	_check(arena._sun_patches.get(1, []).size() == 7 and arena._loss_boost.has(1),
+		"...the next E's seven patches land (%s)" % str(arena._sun_patches.get(1, []).size()))
+	holder.balangay_spent = false
+	arena._blind_time = 0.0
+	arena._apply_skill_effect(Gods.favor_by_id(&"half_vision"), 2)
+	_check(arena._blind_time == 0.0 and holder.balangay_spent,
+		"a rival's Half Vision is fended off this screen")
+	arena._apply_skill_effect(Gods.favor_by_id(&"half_vision"), 2)
+	_check(arena._blind_time > 0.0, "...the next one darkens it")
+	holder.balangay_spent = false
+	arena._movement_override_time = 0.0
+	arena._apply_skill_effect(Gods.favor_by_id(&"let_us_light_your_way"), 2)
+	_check(arena._trance_fended.has(1) and arena._movement_override_time > 0.0,
+		"Tala's E trance is fended, though the pull still runs for everybody else")
+	arena._apply_skill_effect(Gods.favor_by_id(&"let_us_light_your_way"), 2)
+	_check(arena._trance_fended.is_empty(), "...the next one trances this mortal too")
 
 	print("Pamana checks: %d problem(s)" % _problems)
 	print("--- DONE ---")

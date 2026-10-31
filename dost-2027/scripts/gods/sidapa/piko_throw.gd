@@ -25,6 +25,7 @@ var flight_to := Vector2.ZERO
 var flight_t := 0.0        # 0..1 across the flight
 var height := 90.0
 var accent := Color(0.62, 0.45, 0.95)
+var stone_color := STONE_FILL   # the thrower's colour, set by the arena
 
 var _pulse := 0.0
 
@@ -90,5 +91,6 @@ func _draw_stone_at(at: Vector2, scale: float) -> void:
 		at + Vector2(8.0, -4.0) * scale, at + Vector2(9.0, 4.0) * scale, at + Vector2(3.0, 9.0) * scale,
 		at + Vector2(-5.0, 8.0) * scale, at + Vector2(-10.0, 5.0) * scale,
 	])
-	draw_colored_polygon(body, STONE_FILL)
-	draw_arc(at, 13.0 * scale, 0.0, TAU, 20, Color(GOLD.r, GOLD.g, GOLD.b, 0.5), 2.0, true)
+	draw_colored_polygon(body, stone_color)
+	var ring := stone_color.lightened(0.45)
+	draw_arc(at, 13.0 * scale, 0.0, TAU, 20, Color(ring.r, ring.g, ring.b, 0.5), 2.0, true)

@@ -397,6 +397,7 @@ var _base_move_speed := 215.0
 var _guidance_time := 0.0
 var _movement_override_caster := -1
 var _movement_override_time := 0.0
+var _trance_fended: Array[int] = []   # Miniature Balangay: whose trance this pull nullified
 var _loss_boost_seen: Dictionary = {}  # what the host last said about boosted losses (a client's copy, for the HUD)
 # Rest and Refreshed / Down to Homeland on THIS screen (see _watch_afflictions).
 # A leash per rooted mortal we can see: id -> {shadow: Vector2, tether: Node2D}.
@@ -1731,18 +1732,28 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 	if favor.id == &"half_vision":
 		var radius := favor.param("vision_radius", 0.16)
 		var duration := maxf(0.0, favor.duration)
+		# Miniature Balangay: a victim whose first E affliction was still to come
+		# fends this one off - the host spends it for them and spares their screen.
+		var shielded: Array[int] = []
+		if _authority:
+			for mortal in rules.mortals.values():
+				if mortal.id != caster_id and rules.balangay_swallow(mortal.id, caster_id, "BLINDNESS"):
+					shielded.append(mortal.id)
 		if caster_id == _my_id:
 			_log("Half Vision - everyone else sees only a circle around them", favor.color)
-		else:
+		elif not shielded.has(_my_id):
 			_blind_radius = radius
 			_blind_time = maxf(_blind_time, _morning_cap(duration))
 			_log("Half Vision - you see only a circle around your mortal", favor.color)
 		if _authority and _networked and _net != null:
-			_net.send_arena_blind(caster_id, radius, duration)
+			_net.send_arena_blind(caster_id, radius, duration, shielded)
 	elif favor.id == &"siblings_compromise_sun" and _authority:
 		var duration := maxf(0.0, favor.duration)
 		for mortal in rules.mortals.values():
 			if mortal.id == caster_id:
+				continue
+			# The balangay carries the whole blot off, this E's patches and all.
+			if rules.balangay_swallow(mortal.id, caster_id, "SUN PATCHES"):
 				continue
 			_loss_boost[mortal.id] = maxf(float(_loss_boost.get(mortal.id, 0.0)), duration)
 			_add_sun_patches(mortal.id, 7, duration, caster_id)
@@ -1750,9 +1761,15 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 	elif favor.id == &"let_us_light_your_way":
 		# A Little More Control stretches the Tranced pull too.
 		var duration := maxf(0.0, favor.duration) + rules.control_bonus(caster_id)
+		var fended: Array[int] = []
+		if _authority:
+			for mortal in rules.mortals.values():
+				if mortal.id != caster_id and rules.balangay_swallow(mortal.id, caster_id, "TRANCE"):
+					fended.append(mortal.id)
+		_trance_fended = fended
 		_start_movement_override(caster_id, duration)
 		if _authority and _networked and _net != null:
-			_net.send_arena_movement_override(caster_id, duration)
+			_net.send_arena_movement_override(caster_id, duration, fended)
 	elif favor.id == &"bagong_umaga" and _authority:
 		var restored := rules.restore_recent_losses(caster_id, favor.param("lookback", 5.0))
 		_log("Bagong Umaga - %s gets back %d FAVOR" % [mortal_label(caster_id), restored], favor.color)
@@ -1812,14 +1829,19 @@ func _start_movement_override(caster_id: int, duration: float) -> void:
 	if duration <= 0.0:
 		if caster_id == _movement_override_caster:
 			_movement_override_time = 0.0
+			_trance_fended = []
 		return
 	_movement_override_caster = caster_id
 	_movement_override_time = maxf(_movement_override_time, duration)
 
 
-func _on_movement_override_received(caster_id: int, duration: float) -> void:
+func _on_movement_override_received(caster_id: int, duration: float, shielded := []) -> void:
 	if caster_id == _my_id:
 		return
+	_trance_fended = []
+	if duration > 0.0:
+		for id in shielded:
+			_trance_fended.append(int(id))
 	_start_movement_override(caster_id, duration)
 
 
@@ -2037,7 +2059,9 @@ func _update_movement_favors(delta: float) -> void:
 
 	if _movement_override_time > 0.0:
 		_movement_override_time = maxf(0.0, _movement_override_time - delta)
-		if _movement_override_caster != _my_id:
+		if _movement_override_time <= 0.0:
+			_trance_fended = []
+		elif _movement_override_caster != _my_id and not _trance_fended.has(_my_id):
 			var target := mortal_position(_movement_override_caster)
 			if target != Vector2.INF:
 				player.force_movement(target - player.global_position, 0.08)
@@ -2054,7 +2078,7 @@ func _pull_solo_ghosts(delta: float) -> void:
 	if caster == null:
 		return
 	for id in _ghosts.keys():
-		if int(id) == _movement_override_caster:
+		if int(id) == _movement_override_caster or _trance_fended.has(int(id)):
 			continue
 		var ghost := _ghosts[id] as ArenaMortal
 		if ghost == null or not is_instance_valid(ghost):
@@ -2206,7 +2230,7 @@ func _watch_tranced() -> void:
 	for id in rules.mortals.keys():
 		var body := popup_body(int(id))
 		if body != null:
-			body.set_tranced(pulling and int(id) != _movement_override_caster)
+			body.set_tranced(pulling and int(id) != _movement_override_caster and not _trance_fended.has(int(id)))
 
 
 # The word over the head: ROOTED while the leash holds (and through its drag),
@@ -2573,9 +2597,10 @@ func _rivalry_blind_rivals(owner: GodMatch.Mortal, favor_id: StringName, thresho
 		_add_sun_patches(rival.id, 4, block_time)
 
 
-# Another mortal cast Half Vision: darken THIS screen (unless we are the caster).
-func _on_arena_blind_received(caster_id: int, radius: float, duration: float) -> void:
-	if _authority or caster_id == _my_id or duration <= 0.0:
+# Another mortal cast Half Vision: darken THIS screen (unless we are the caster, or
+# the host already had our balangay fend this one off).
+func _on_arena_blind_received(caster_id: int, radius: float, duration: float, shielded := []) -> void:
+	if _authority or caster_id == _my_id or duration <= 0.0 or shielded.has(_my_id):
 		return
 	var mortal := rules.local()
 	if mortal != null and mortal.duration_left(&"unswerved_unbothered") > 0.0:
@@ -3076,7 +3101,7 @@ func _watch_local_pamana() -> void:
 	var m := rules.local() if rules != null else null
 	if _authority or m == null:
 		return
-	var now := {"active": m.pamana_active, "agimat": m.agimat_charges, "kampilan": m.kampilan_ready, "surigao": m.surigao_early}
+	var now := {"active": m.pamana_active, "agimat": m.agimat_charges, "kampilan": m.kampilan_ready, "balangay": m.balangay_spent, "surigao": m.surigao_early}
 	var before := _pamana_seen
 	_pamana_seen = now
 	if before.is_empty():
@@ -3092,6 +3117,9 @@ func _watch_local_pamana() -> void:
 	elif now["active"] == Pamanas.KAMPILAN and before["kampilan"] and not now["kampilan"]:
 		item = Pamanas.by_id(Pamanas.KAMPILAN)
 		text = "KAMPILAN - SKILL RECHARGED"
+	elif now["active"] == Pamanas.MINIATURE_BALANGAY and not bool(before["balangay"]) and bool(now["balangay"]):
+		item = Pamanas.by_id(Pamanas.MINIATURE_BALANGAY)
+		text = "MINIATURE BALANGAY - THE HIT IS FENDED OFF"
 	elif int(before["surigao"]) > 0 and int(now["surigao"]) <= 0:
 		item = Pamanas.by_id(Pamanas.SURIGAO_GOLD)
 		text = "SURIGAO GOLD - GOD'S DUE ARRIVES EARLY"

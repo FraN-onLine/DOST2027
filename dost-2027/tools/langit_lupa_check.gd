@@ -785,9 +785,9 @@ func _run() -> void:
 	other.queue_free()
 
 	# --- the earthquakes --------------------------------------------------------------------------
-	# The host owns the schedule, shakes the field for 3 s and turns every mortal's
-	# walk keys around while it lasts; the clock rides the tick so every screen
-	# shakes and inverts together.
+	# The host owns the schedule, shakes the WHOLE screen for 3 s and turns every
+	# mortal's walk keys around while it lasts; the clock rides the tick so every
+	# screen shakes and inverts together.
 	_reset(_arena._my_id, [])
 	_check(is_equal_approx(_arena.quake_interval_min, 25.0) and is_equal_approx(_arena.quake_interval_max, 45.0)
 		and is_equal_approx(_arena.quake_time, 3.0),
@@ -796,7 +796,27 @@ func _run() -> void:
 	_arena._quake_timer = 0.05
 	_arena._tick_quake(0.1)
 	_check(_arena.quake_active() and is_equal_approx(_arena._quake_left, _arena.quake_time),
-		"when the interval runs out the field shakes for the whole quake_time")
+		"when the interval runs out the ground shakes for the whole quake_time")
+	_check(_arena._quake_shake_left > 0.0, "the quake shakes the whole screen, not just the field")
+	var quake_view := _arena.get_viewport()
+	_arena._apply_quake_offset(Vector2(7.0, -5.0))
+	_check(quake_view.canvas_transform.origin == Vector2(7.0, -5.0),
+		"the view itself jumps, so the god, the arena and every world drawing move together")
+	_check(_arena.sky != null and _arena.sky.position == _arena._sky_rest - Vector2(7.0, -5.0),
+		"the starry sky alone stays still while the rest of the world jumps")
+	_arena._apply_quake_offset(Vector2.ZERO)
+	_check(quake_view.canvas_transform.origin == Vector2.ZERO and _arena.sky.position == _arena._sky_rest,
+		"...and settles exactly back at rest, the sky included")
+	var cam := Camera2D.new()
+	_arena.camera = cam
+	_arena._apply_quake_offset(Vector2(4.0, 4.0))
+	_check(cam.offset == Vector2(4.0, 4.0) and quake_view.canvas_transform.origin == Vector2.ZERO,
+		"with the follow camera on, its offset shakes the view instead")
+	_check(_arena.sky.position == _arena._sky_rest - Vector2(4.0, 4.0),
+		"...and the sky stays still there too")
+	_arena.camera = null
+	cam.free()
+	_arena._apply_quake_offset(Vector2.ZERO)
 	_arena._process(0.0)
 	_check(_arena.player.movement_inverted, "...and the walk keys drive the mortal backwards")
 	_arena._refresh_hud(0.0)
@@ -806,6 +826,9 @@ func _run() -> void:
 	_check(not _arena.quake_active()
 		and _arena._quake_timer >= _arena.quake_interval_min - 0.001 and _arena._quake_timer <= _arena.quake_interval_max,
 		"when it stops the next one is rolled 25-45 s away (%.1f s)" % _arena._quake_timer)
+	_arena._quake_shake_left = 0.01
+	_arena._process(0.02)
+	_check(_arena.get_viewport().canvas_transform.origin == Vector2.ZERO, "the screen settles when the quake runs out")
 	_arena._process(0.0)
 	_check(not _arena.player.movement_inverted, "walking is normal again")
 	var quake_tick: Dictionary = _arena.arena_tick_fields()
@@ -817,6 +840,8 @@ func _run() -> void:
 	quake_tick["quake_left"] = 0.0
 	_arena.arena_read_tick(quake_tick)
 	_check(not _arena.quake_active(), "...and stops when the host does")
+	_arena._quake_shake_left = 0.0
+	_arena._apply_quake_offset(Vector2.ZERO)
 	_arena._quake_timer = 1000.0
 
 	# --- the other gods' favors still work here -------------------------------------------------

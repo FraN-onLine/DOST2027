@@ -603,18 +603,19 @@ func _run() -> void:
 	_check(_arena.alarm_root.visible and _arena.alarm_count.text == "10",
 		"the clock shows 10 and marks the field")
 	var split: float = _arena.baka.global_position.x
-	if _arena._alarm_side < 0:
-		_check(is_equal_approx(_arena.alarm_half.position.x, _arena._field.position.x)
-			and is_equal_approx(_arena.alarm_half.size.x, split - _arena._field.position.x),
-			"the tinted half is the floor on Hanan's left")
-	else:
-		_check(is_equal_approx(_arena.alarm_half.position.x, split)
-			and is_equal_approx(_arena.alarm_half.size.x, _arena._field.end.x - split),
-			"the tinted half is the floor on Hanan's right")
 	var clock_x: float = _arena.alarm_clock.global_position.x
 	_check((_arena._alarm_side < 0 and clock_x < split) or (_arena._alarm_side > 0 and clock_x > split),
 		"the clock stands on the side it marks")
 	_check(_arena._field.has_point(_arena.alarm_clock.global_position), "...and on the floor of that side")
+	_check(_arena.alarm_root.get_node_or_null("Half") == null,
+		"the marked side is no box over the floor")
+	_arena.player.global_position = _arena.baka.global_position + Vector2(_arena._alarm_side * 200.0, 0.0)
+	_arena._refresh_alarm(DT)
+	_check(_arena.player.modulate.r > _arena.player.modulate.g and _arena.player.modulate.g < 1.0,
+		"a mortal standing on the marked side flickers red")
+	_arena.player.global_position = _arena.baka.global_position - Vector2(_arena._alarm_side * 200.0, 0.0)
+	_arena._refresh_alarm(DT)
+	_check(_arena.player.modulate == Color.WHITE, "...and the other side leaves the mortal alone")
 	_arena._refresh_hud(DT)
 	_check(_arena.status_label.text.begins_with("GISING NA!"), "the bottom band counts the alarm down")
 	_check(_arena.hint_label.text.begins_with("GISING NA!"), "...and the hint strip says to get off that side")
@@ -630,6 +631,7 @@ func _run() -> void:
 		"standing on the marked side costs 300 FAVOR (%d left)" % _arena.rules.local().favor)
 	_check(_arena.callout_label.text.begins_with("GISING NA!"), '...and says "GISING NA!"')
 	_check(_arena._alarm_shake_left > 0.0 and not _arena.alarm_root.visible, "the ring shakes the field and the marking goes")
+	_check(_arena.player.modulate == Color.WHITE, "...and the red flick stops with the clock")
 	# The other side is safe.
 	_arena._alarm_starts.clear()
 	_arena._alarm_starts.append(_arena._trial_time)

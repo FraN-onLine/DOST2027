@@ -46,6 +46,7 @@ extends Arena
 @export var star_finale_time := 10.0     # the last seconds: one star every interval
 @export var star_finale_interval := 2.0
 @export var star_scatter := 24.0         # px a star lands off the mortal it aims at
+@export var star_spread := 90.0          # px a repeat star is thrown wide of the mortal it shares
 @export var star_stun := 0.4             # seconds the hit stuns the mortal
 
 # THE GUARD WHO CUTS YOU OFF. Every so often she hurries along her OWN route to
@@ -845,8 +846,11 @@ func _rect_exit_t(start: Vector2, finish: Vector2, bounds: Rect2) -> float:
 # Tala throws the sky at the field twice per round, on her own clock: an opening
 # volley of star_opening stars when star_start_fraction of the trial is left,
 # then one every star_finale_interval seconds through the last star_finale_time.
-# A star lands where a mortal stood when it was thrown (scattered star_scatter),
-# and frames 13-14 of its scene are the damage beat - the fall is the warning.
+# A star lands where a mortal stood when it was thrown (scattered star_scatter);
+# the stars of one volley are aimed at different mortals, and a mortal who would
+# take a second one from the same volley has it thrown star_spread px wide, so a
+# volley spreads across the field instead of stacking. Frames 13-14 of its scene
+# are the damage beat - the fall is the warning.
 # The host throws them, owns their clocks and scores the hits; every screen
 # draws one scene per star and advances the same ages between ticks.
 
@@ -887,17 +891,24 @@ func _tick_stars(delta: float) -> void:
 	_move_stars(delta)
 
 
-# One star per mortal, so a volley spreads across the field; a repeat (fewer
-# mortals than stars) is scattered off the same spot, and every star is kept
-# inside the field's own floor.
+# One star per mortal, so a volley spreads across the field. A mortal that would
+# take a second star from the same volley has it thrown wide of them instead
+# (star_spread px out, on its own angle), never on top of the one already aimed
+# at them, and every star is kept inside the field's own floor.
 func _drop_stars(count: int, opening: bool) -> void:
 	var entries := mortal_entries()
 	if entries.is_empty():
 		return
+	var phase := _rng.randf_range(0.0, TAU)
+	var repeats := maxi(1, count - entries.size())
 	for index in range(count):
 		var entry: Dictionary = entries[index % entries.size()]
 		var target: Vector2 = entry["pos"]
-		target += Vector2(_rng.randf_range(-star_scatter, star_scatter), _rng.randf_range(-star_scatter, star_scatter))
+		if opening and index >= entries.size():
+			var angle := phase + TAU * float(index - entries.size()) / float(repeats) + _rng.randf_range(-0.3, 0.3)
+			target += Vector2(cos(angle), sin(angle)) * star_spread * _rng.randf_range(0.85, 1.2)
+		else:
+			target += Vector2(_rng.randf_range(-star_scatter, star_scatter), _rng.randf_range(-star_scatter, star_scatter))
 		target = target.clamp(_field.position + Vector2(40.0, 40.0), _field.end - Vector2(40.0, 40.0))
 		_star_seq += 1
 		_stars.append({"id": _star_seq, "position": target, "age": 0.0, "struck": false})

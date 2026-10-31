@@ -20,6 +20,7 @@ const AGIMAT := &"agimat"
 const MIGHTY_PEN := &"mighty_pen"
 const MUTYA := &"mutya"
 const KAMPILAN := &"kampilan"
+const MINIATURE_BALANGAY := &"miniature_balangay"
 const SURIGAO_GOLD := &"surigao_gold"
 
 static var _items: Dictionary = {}  # id -> Pamana

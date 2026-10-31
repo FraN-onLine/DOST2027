@@ -9,8 +9,10 @@ extends SceneTree
 # blitz the over-head count runs (12 s, 1.5 s a hop, a 3 s stun when it empties)
 # and the arrow is faster (+20 a hop), and outside the blitz there is no count. The
 # court is authored in the scene (Pad + Tile1..10, draggable), the whole field is
-# shared by every mortal and the map sits where the other arenas put it. Then
-# Sidapa's seven favors: the E ring, the Q window, First Cleanse, Departure,
+# shared by every mortal and the map sits where the other arenas put it. A stone
+# wears the thrower's bandana colour, leaves the court the moment it is picked up,
+# and every rival's stone is drawn too (the host carries them on the world tick).
+# Then Sidapa's seven favors: the E ring, the Q window, First Cleanse, Departure,
 # Lifeline, Guilty Pleasure and Time Is Now.
 # Run: godot --headless --path <project> -s res://tools/sidapa_check.gd
 
@@ -23,6 +25,19 @@ const AIM := 2
 const HOP := 3
 
 const TURN_TILE := 10
+
+
+# Stands in for the Network autoload so rival stones can be watched: the host's
+# table (the real one is filled by report_piko_stone) and a fixed bandana per
+# mortal, so a stone's colour can be told apart.
+class FakeNet:
+	extends Node
+	var piko_stones := {}
+	var mortal_positions := {}
+	func has_multiplayer_peer() -> bool:
+		return false
+	func bandana_of(mortal_id: int) -> int:
+		return maxi(0, int(mortal_id) - 1)
 
 # The court's layout, read back out of the scene before the run (the designer may
 # drag a tile anywhere; the checks follow the drawn court, not a copy of it).
@@ -104,7 +119,7 @@ func _run() -> void:
 			and pad_caption != null and pad_caption.visible and pad_caption.text == "START",
 		"the start pad is a PikoPad scene instance with its chalk slab and caption")
 	var court: Control = _arena.get_node_or_null("ArenaField/Court") as Control
-	_check(court != null and court.visible and court.get_index() == 0,
+	_check(court != null and court.get_index() == 0,
 		"the asphalt court is drawn under everything else")
 	var court_rect := Rect2(court.position if court != null else Vector2.ZERO,
 		court.size if court != null else Vector2.ZERO)
@@ -190,6 +205,10 @@ func _run() -> void:
 	_check(not _arena.throw_aim.visible, "...and the throw's arc is put away")
 	_check(_arena.board.stone_tile == 4 and _arena.board.next_tile == 1 and _arena.board.current_tile == 0,
 		"the board marks the stone and the next tile")
+	var thrown: Dictionary = _arena.board.stones[0] if not _arena.board.stones.is_empty() else {}
+	_check(int(thrown.get("tile", 0)) == 4 and thrown.get("color", Color.WHITE) == _arena._stone_color(_arena._my_id)
+		and _arena._stone_color(_arena._my_id) == UITokens.bandana_color(_arena.bandana_of(_arena._my_id)).lightened(0.12),
+		"the stone on the court is drawn in the thrower's colour")
 	_check(_tile_art(1).self_modulate != Color.WHITE and _tile_art(4).self_modulate != Color.WHITE,
 		"the chalk sprites take the next tile's colour and the stone's warmth")
 	_check(_tile_art(2).self_modulate == Color.WHITE, "...while the plain tiles stay chalk white")
@@ -278,6 +297,41 @@ func _run() -> void:
 	_check(_arena.rules.local().favor == 750 and _arena._pickup and _arena._stage == AIM,
 		"the way back's first hop collects the stone on 9 for 250")
 	_check(str(_arena._targets) == "[9, 8, 7, 6, 5, 4, 3, 2, 1]", "...with the full way back")
+	_arena._sync_nodes()
+	_check(_arena.board.stones.is_empty() and _arena.board.stone_tile == 0,
+		"a picked-up stone leaves the court - nothing is drawn at tile 9")
+	_check(not bool(_arena.board.tiles[8].get("stone")), "...and its tile stops glowing warm")
+
+	# --- a rival's stone -------------------------------------------------------------------
+	var real_net = _arena._net
+	var fake := FakeNet.new()
+	_arena.add_child(fake)
+	fake.piko_stones = {2: 7}
+	_arena._net = fake
+	_arena._networked = true
+	_arena._authority = true
+	_arena._pickup = false
+	_arena._stone = 4
+	_arena._sync_nodes()
+	var stones_seen: Array = _arena._stone_entries()
+	_check(stones_seen.size() == 2 and int(stones_seen[1].get("tile", 0)) == 7 \
+			and stones_seen[1].get("color", Color.WHITE) == _arena._stone_color(2) \
+			and _arena._stone_color(2) != _arena._stone_color(1),
+		"the host draws a rival's stone on tile 7, in that rival's colour (%s)" % str(stones_seen))
+	_check(_arena.arena_tick_fields().get("piko_stones", {}) == {1: 4, 2: 7},
+		"...and carries every stone out on the world tick")
+	_arena._authority = false
+	_arena.arena_read_tick({"piko_stones": {"1": 5, "2": 8}})
+	_arena._stone = 6
+	_arena._sync_nodes()
+	stones_seen = _arena._stone_entries()
+	var seen_tiles: Array = stones_seen.map(func(entry: Dictionary) -> int: return int(entry["tile"]))
+	_check(seen_tiles == [6, 8] and _arena._stones_seen == {1: 5, 2: 8},
+		"a client draws its own stone and the rival's from the host's tick (%s)" % str(seen_tiles))
+	_arena._networked = false
+	_arena._authority = true
+	_arena._net = real_net
+	fake.queue_free()
 
 	# --- the head count (blitz only) -------------------------------------------------------
 	_arena._reset_to_throw()

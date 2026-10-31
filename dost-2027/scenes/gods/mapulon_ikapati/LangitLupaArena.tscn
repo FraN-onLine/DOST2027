@@ -72,6 +72,7 @@ animations = [{
 script = ExtResource("2_script")
 tag_radius = 26.0
 tagback_immunity = 1.0
+taya_speed_bonus = 1.1
 tagged_mercy = 1.0
 tag_steal = 60
 taya_clearance = 100.0
@@ -91,6 +92,9 @@ reform_delay = 0.5
 langit_blitz_time = 30.0
 blitz_season_interval = 3.0
 blitz_shift_warning = 0.6
+quake_interval_min = 25.0
+quake_interval_max = 45.0
+quake_time = 3.0
 chant_cooldown = 5.0
 chant_length = 5
 chant_beat = 0.8
@@ -369,7 +373,7 @@ position = Vector2(952, 104)
 [node name="ArenaBG" type="Node2D" parent="." index="18" unique_id=340503268]
 position = Vector2(944, 92)
 
-[node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=260950648]
+[node name="Sky" type="Sprite2D" parent="ArenaBG" index="0" unique_id=260950648]
 z_index = -2
 position = Vector2(-368.25, 226.5)
 scale = Vector2(0.6040356, 0.63663363)

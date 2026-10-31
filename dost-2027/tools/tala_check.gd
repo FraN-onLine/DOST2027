@@ -265,6 +265,14 @@ func _run() -> void:
 	_arena._tick_stars(1.0 / 60.0)
 	_check(_arena._stars.size() == _arena.star_opening,
 		"with 60%% of the trial left Tala drops her opening volley (%d stars)" % _arena._stars.size())
+	var spots: Array[Vector2] = []
+	for star in _arena._stars:
+		spots.append(star["position"])
+	var min_gap := INF
+	for i in range(spots.size()):
+		for j in range(i + 1, spots.size()):
+			min_gap = minf(min_gap, spots[i].distance_to(spots[j]))
+	_check(min_gap >= 60.0, "the opening volley lands spread out, not stacked (closest pair %.0f px)" % min_gap)
 	_arena._render_stars()
 	_check(_arena._star_nodes.size() == _arena.star_opening, "...and every screen draws one scene per star")
 	for index in range(200):

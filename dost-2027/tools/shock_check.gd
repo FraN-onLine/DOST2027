@@ -21,7 +21,7 @@ class FakeNet:
 		hits.append({"peer": peer_id, "hit": hit})
 	func send_arena_shock(_caster_id: int, _origin: Vector2) -> void:
 		pass
-	func publish_god_state(_state: Dictionary) -> void:
+	func publish_god_state(_state: Dictionary, _scene := "") -> void:
 		pass
 	func publish_arena_state(_state: Dictionary) -> void:
 		pass
@@ -37,9 +37,9 @@ class FakeNet:
 	# so no host path can hit a missing method while this check runs.
 	func publish_mortal_positions(_positions: Dictionary) -> void:
 		pass
-	func send_arena_blind(_caster_id: int, _radius: float, _duration: float) -> void:
+	func send_arena_blind(_caster_id: int, _radius: float, _duration: float, _shielded := []) -> void:
 		pass
-	func send_arena_movement_override(_caster_id: int, _duration: float) -> void:
+	func send_arena_movement_override(_caster_id: int, _duration: float, _shielded := []) -> void:
 		pass
 
 

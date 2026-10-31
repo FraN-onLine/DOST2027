@@ -96,6 +96,7 @@ class Mortal:
 	var agimat_charges: int = 0        # The Agimat: losses it can still cancel
 	var jar_lost: int = 0              # Manunggul Jar: FAVOR lost this trial
 	var kampilan_ready: bool = false   # Kampilan: the first cast is still to come
+	var balangay_spent: bool = false   # Miniature Balangay: its one fend has been used
 	var surigao_early: int = 0         # Surigao Gold: FAVOR early for the next God's Due (0 = none)
 
 	func favor_by_id(favor_id: StringName) -> GodFavor:
@@ -542,6 +543,9 @@ func _tick_bathala_regrowth(m: Mortal, delta: float) -> void:
 #   Banton Cloth   the arena's move speed (Arena._update_movement_favors)
 #   The Mutya      gain_multiplier, while the window lasts
 #   Kampilan       use_skill: the first cast recharges at once
+#   Miniature Balangay   balangay_swallow: the first Sun Patches / Weeded /
+#                  Rooted / Stun / Drowsy / Tranced / Blindness another mortal's
+#                  E skill puts on the holder is nullified, then it is spent
 #   Bato Bato sa Langit   _wake_pamana: one occupied E / Q slot gets a random
 #                  skill of the same slot from another god (never Bathala's)
 #   Surigao Gold   _check_milestones: the next God's Due comes early (it waits
@@ -650,6 +654,7 @@ func _wake_pamana(m: Mortal) -> void:
 	m.agimat_charges = 0
 	m.jar_lost = 0
 	m.kampilan_ready = false
+	m.balangay_spent = false
 	var pamana := Pamanas.by_id(m.pamana_active)
 	if pamana == null:
 		m.pamana_active = &""
@@ -689,6 +694,23 @@ func _fire_pamana(m: Mortal, pamana_id: StringName, text: String) -> void:
 		pamana_fired.emit(m.id, pamana, text)
 
 
+# Miniature Balangay: the first affliction another mortal's E skill would put on
+# the holder is carried off on the boat - the status never lands and the item is
+# spent. `what` only names the status in the event line. Returns true when it
+# swallowed this instance; the caller then leaves the mortal alone. A stun is
+# offered to The First Cleanse first (see stun_mortal), so a mortal holding both
+# keeps the boat for a status the favor cannot take.
+func balangay_swallow(target_id: int, source_id: int, what: String) -> bool:
+	var m := mortal(target_id)
+	if m == null or m.pamana_active != Pamanas.MINIATURE_BALANGAY or m.balangay_spent:
+		return false
+	if source_id < 0 or source_id == target_id:
+		return false
+	m.balangay_spent = true
+	_fire_pamana(m, Pamanas.MINIATURE_BALANGAY, "MINIATURE BALANGAY - %s FENDS OFF %s" % [m.display_name.to_upper(), what])
+	return true
+
+
 # What a mortal carries, for the HUD badges: [{pamana, text}], the live item (with
 # its seconds or charges), the one waiting for the next trial, and Surigao Gold.
 static func pamana_badges(m: Mortal) -> Array:
@@ -703,6 +725,8 @@ static func pamana_badges(m: Mortal) -> Array:
 		elif active.id == Pamanas.AGIMAT:
 			text += " x%d" % m.agimat_charges
 		elif active.id == Pamanas.KAMPILAN and not m.kampilan_ready:
+			text += " (spent)"
+		elif active.id == Pamanas.MINIATURE_BALANGAY and m.balangay_spent:
 			text += " (spent)"
 		elif active.id == Pamanas.BATO_BATO_SA_LANGIT:
 			text += " (spent)"
@@ -766,6 +790,9 @@ func cast_rest_and_refreshed(caster_id: int, favor: GodFavor) -> int:
 	for m in mortals.values():
 		if m.id == caster_id:
 			continue
+		# The boat carries the drowsiness (and the stun it would end in) away.
+		if balangay_swallow(m.id, caster_id, "DROWSINESS"):
+			continue
 		m.drowsy_time = maxf(m.drowsy_time, favor.param("drowsy_time", 3.0))
 		m.drowsy_caster = caster_id
 		m.drowsy_stun = maxf(m.drowsy_stun, favor.param("stun_time", 0.8))
@@ -821,6 +848,8 @@ func cast_down_to_homeland(caster_id: int, favor: GodFavor) -> int:
 	for m in mortals.values():
 		if m.id == caster_id:
 			continue
+		if balangay_swallow(m.id, caster_id, "ROOTS"):
+			continue
 		m.rooted_time = maxf(m.rooted_time, root_time)
 		m.rooted_caster = caster_id
 		reached += 1
@@ -841,6 +870,8 @@ func stun_mortal(target_id: int, seconds: float, source_id := -1) -> float:
 	if cleanse != null and not m.first_cleanse_used:
 		m.first_cleanse_used = true
 		favor_fired.emit(m.id, cleanse, "The First Cleanse - %s's first stun is cancelled" % m.display_name)
+		return 0.0
+	if balangay_swallow(m.id, source_id, "STUN"):
 		return 0.0
 	var length := seconds
 	var departure: GodFavor = m.favor_by_id(&"departure_is_not_now")
@@ -885,6 +916,8 @@ func control_bonus(source_id: int) -> float:
 func cast_ligaw_na_damo(caster_id: int, favor: GodFavor) -> void:
 	for m in mortals.values():
 		if m.id != caster_id:
+			if balangay_swallow(m.id, caster_id, "WEEDS"):
+				continue
 			m.weeds_time = maxf(0.0, favor.duration)
 			m.weeds_caster = caster_id
 			m.weeds_pending = 0.0
@@ -1036,6 +1069,7 @@ func snapshot() -> Dictionary:
 			"agimat": m.agimat_charges,
 			"jar_lost": m.jar_lost,
 			"kampilan": m.kampilan_ready,
+			"balangay": m.balangay_spent,
 			"surigao": m.surigao_early,
 			# What is running on this mortal, so its own screen can show it: the
 			# Harvest Pair's weeds and the E skills' afflictions.
@@ -1084,6 +1118,7 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.agimat_charges = int(entry.get("agimat", m.agimat_charges))
 		m.jar_lost = int(entry.get("jar_lost", m.jar_lost))
 		m.kampilan_ready = bool(entry.get("kampilan", m.kampilan_ready))
+		m.balangay_spent = bool(entry.get("balangay", m.balangay_spent))
 		m.surigao_early = int(entry.get("surigao", m.surigao_early))
 		m.weeds_time = float(entry.get("weeds", 0.0))
 		m.weeds_caster = int(entry.get("weeds_caster", m.weeds_caster))

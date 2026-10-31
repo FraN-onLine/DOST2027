@@ -48,10 +48,10 @@ signal arena_layout_received(layout)      # host -> clients: field / corners / c
 signal arena_state_received(state)        # host -> clients: 10 Hz world tick
 signal mortal_positions_received(positions)  # host -> clients: the fast position stream
 signal arena_hit_received(hit)            # host -> the peer whose mortal was hit
-signal arena_blind_received(caster_id, radius, duration)  # host -> everyone but the caster
+signal arena_blind_received(caster_id, radius, duration, shielded)  # host -> everyone but the caster
 signal arena_fx_received(fx)              # host -> everyone: a hit landed / a mortal is stunned (look only)
 signal arena_cast_received(caster_id, favor_id)           # host -> clients: this mortal just used this skill
-signal arena_movement_override_received(caster_id, duration)
+signal arena_movement_override_received(caster_id, duration, shielded)
 
 signal arena_shock_requested(caster_id, origin)           # client -> host: I threw my attack
 signal arena_shock_received(caster_id, origin)            # host -> clients: draw this wave
@@ -93,6 +93,7 @@ var _host_listen_port := DISCOVERY_PORT
 var _discovered_hosts := {}  # "ip:discovery_port" -> {name, ip, port, lobby_id, discovery_port, last_seen}
 var god_state := {}         # peer_id -> {favor, due, favors, cooldowns, ...} (host: authoritative)
 var mortal_positions := {}  # peer_id -> Vector2 (host: latest reported position)
+var piko_stones := {}       # peer_id -> int (host: the tile that peer's Piko stone rests on, 0 = none)
 # THE SCENE TOKEN. Every scene-scoped message carries the scene it was sent from
 # ("<dialogue prefix>:<god id>", Arena.scene_token(): "trial_2:tala", "prep_1:apolaki").
 # The shell names each arena the same way on every screen, so the host and the
@@ -1166,6 +1167,7 @@ func start_god_games(scene_path := "res://scenes/Game.tscn") -> void:
 		rpc("rpc_sync_trial_order", trial_order_ids.duplicate())
 	god_state.clear()
 	mortal_positions.clear()
+	piko_stones.clear()
 	for pid in players.keys():
 		god_state[int(pid)] = {
 			"favor": 0, "due": 0, "favors": [], "cooldowns": {},
@@ -1368,6 +1370,18 @@ func report_mortal_position(position: Vector2) -> void:
 	mortal_positions[sender] = position
 
 
+# A Piko stone rests on a tile the machine that threw it owns: the client reports
+# the tile, the host carries every stone back out on the world tick (SidapaArena).
+@rpc("any_peer", "unreliable_ordered")
+func report_piko_stone(tile: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	piko_stones[sender] = tile
+
+
 # --- mortal positions: host -> clients ----------------------------------------
 # The world tick is a fat message (FAVOR, sliders, the god's own state) and it
 # only goes out at net_tick_rate, so a rival's ghost used to sit still between
@@ -1412,19 +1426,21 @@ func rpc_arena_hit(hit: Dictionary) -> void:
 # screen is only ever darkened on the machine that draws it. So the host sends
 # the cast out to every peer and each arena decides: if the caster is me, keep
 # my eyes open; otherwise close the mask in for the favor's duration.
-func send_arena_blind(caster_id: int, radius: float, duration: float) -> void:
+# `shielded` names the mortals whose Miniature Balangay already fended this cast
+# off on the host - their screens stay lit.
+func send_arena_blind(caster_id: int, radius: float, duration: float, shielded := []) -> void:
 	if not has_multiplayer_peer():
 		return
 	if duration <= 0.0:
 		return
-	rpc("rpc_arena_blind", caster_id, radius, duration, scene_token)
+	rpc("rpc_arena_blind", caster_id, radius, duration, shielded, scene_token)
 
 
 @rpc("any_peer", "reliable")
-func rpc_arena_blind(caster_id: int, radius: float, duration: float, scene: String) -> void:
+func rpc_arena_blind(caster_id: int, radius: float, duration: float, shielded: Array, scene: String) -> void:
 	if multiplayer.is_server() or not is_current_scene(scene, "blind"):
 		return
-	emit_signal("arena_blind_received", caster_id, radius, duration)
+	emit_signal("arena_blind_received", caster_id, radius, duration, shielded)
 
 
 # A hit that landed or a mortal that stumbled, said to every other screen so each draws
@@ -1444,17 +1460,18 @@ func rpc_arena_fx(fx: Dictionary) -> void:
 
 
 # A duration of 0 cancels a running override (the host saying the pull is over).
-func send_arena_movement_override(caster_id: int, duration: float) -> void:
+# `shielded` names the mortals whose Miniature Balangay fended this pull off.
+func send_arena_movement_override(caster_id: int, duration: float, shielded := []) -> void:
 	if not has_multiplayer_peer() or duration < 0.0:
 		return
-	rpc("rpc_arena_movement_override", caster_id, duration, scene_token)
+	rpc("rpc_arena_movement_override", caster_id, duration, shielded, scene_token)
 
 
 @rpc("any_peer", "reliable")
-func rpc_arena_movement_override(caster_id: int, duration: float, scene: String) -> void:
+func rpc_arena_movement_override(caster_id: int, duration: float, shielded: Array, scene: String) -> void:
 	if multiplayer.is_server() or not is_current_scene(scene, "movement override"):
 		return
-	emit_signal("arena_movement_override_received", caster_id, duration)
+	emit_signal("arena_movement_override_received", caster_id, duration, shielded)
 
 # --- shockwave (Patintero): the mortal's attack ------------------------------
 # A mortal's attack (the `attack` action) throws a shockwave out around itself.

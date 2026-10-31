@@ -7,7 +7,7 @@
 [ext_resource type="Script" uid="uid://d3cadlov1ova6" path="res://scripts/gods/sidapa/piko_gauge.gd" id="5_gauge"]
 [ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="6_bg"]
 [ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="7_floor"]
-[ext_resource type="PackedScene" path="res://scenes/gods/sidapa/PikoTile.tscn" id="8_tile"]
+[ext_resource type="PackedScene" uid="uid://vhx4geqxvjt6" path="res://scenes/gods/sidapa/PikoTile.tscn" id="8_tile"]
 [ext_resource type="PackedScene" path="res://scenes/gods/sidapa/PikoPad.tscn" id="9_pad"]
 [ext_resource type="Script" uid="uid://sh4g1lox3v0e" path="res://scripts/gods/sidapa/piko_throw.gd" id="9_throw"]
 

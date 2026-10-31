@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Pamana" format=3 uid="uid://ce8fc848uf56a"]
+
+[ext_resource type="Texture2D" uid="uid://bvlj40gpqyi1w" path="res://Assets/cards/Card-back-temp.png" id="1_k32vd"]
+[ext_resource type="Script" uid="uid://pylem8t2rgfm" path="res://scripts/pamana/pamana.gd" id="2_ky7c7"]
+
+[resource]
+script = ExtResource("2_ky7c7")
+id = &"miniature_balangay"
+display_name = "Miniature Balangay"
+cost = 150
+effect = "Next trial: the first Sun Patches, Weeded, Rooted, Stun, Drowsy, Tranced or Blindness another mortal's E skill puts on you is nullified."
+era = "c. 320–1250 AD"
+origin = "Butuan, Agusan del Norte"
+history = "The balangay is a plank-built wooden boat, its boards lashed and pegged together without nails, sailed by the ancestors of today's seafaring peoples. Nine balangays were recovered in Butuan in the 1970s, dated by radiocarbon to between roughly 320 and 1250 AD, and they are now National Cultural Treasures. Small wooden and gold boat models were also placed with the dead and kept as charms, a boat to carry a soul safely across the water."
+flavor = "You fared the seas to escape the hit."
+color = Color(0.24313726, 0.56078434, 0.6392157, 1)
+icon = ExtResource("1_k32vd")
