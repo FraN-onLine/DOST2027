@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://cooxg02aboca5"]
+
+[ext_resource type="Texture2D" uid="uid://sirrboa0lahg" path="res://Assets/Gods/Hanan/HananClock.png" id="1_cl473"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f7kbj"]
+atlas = ExtResource("1_cl473")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pij8w"]
+atlas = ExtResource("1_cl473")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4k2as"]
+atlas = ExtResource("1_cl473")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s6glr"]
+atlas = ExtResource("1_cl473")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f7kbj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pij8w")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4k2as")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s6glr")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 12.0
+}]
+
+[node name="Clock" type="Node2D" unique_id=1484584091]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1742361915]
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+autoplay = "default"
+frame_progress = 0.755881
