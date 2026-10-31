@@ -244,6 +244,67 @@ func _run() -> void:
 	_arena._add_sun_patches(_arena._my_id, 1, 1.5)
 	_check(not _arena._sun_patches.has(_arena._my_id), "Unswerved prevents Sun Patches for its duration")
 
+	# --- SHOOTING STARS ---------------------------------------------------------
+	# The star's own scene decides both the hitbox and when frames 13-14 land.
+	_check(is_equal_approx(_arena._star_damage_time, 13.0 / 12.0),
+		"frames 13-14 land 13 frames into the star's own clip (%.2fs)" % _arena._star_damage_time)
+	_check(is_equal_approx(_arena._star_box.x, 62.0 * 0.5 * 1.4226867) and is_equal_approx(_arena._star_box.y, 23.0 * 0.5 * 1.5895153),
+		"the star's Area2D, scaled, is the body that takes the hit")
+	for can in _arena._cans:
+		can.visible = false
+	_arena._stars.clear()
+	_arena._opening_stars_done = false
+	_arena._finale_stars = false
+	_arena._finale_timer = 0.0
+	_arena._invuln.clear()
+	_arena.player.global_position = _lane()
+	_arena.player._knockback = Vector2.ZERO
+	_arena.rules.local().favor = 500
+	_arena.star_scatter = 0.0
+	_arena._trial_time = _arena.trial_time * _arena.star_start_fraction
+	_arena._tick_stars(1.0 / 60.0)
+	_check(_arena._stars.size() == _arena.star_opening,
+		"with 60%% of the trial left Tala drops her opening volley (%d stars)" % _arena._stars.size())
+	_arena._render_stars()
+	_check(_arena._star_nodes.size() == _arena.star_opening, "...and every screen draws one scene per star")
+	for index in range(200):
+		_arena._tick_stars(1.0 / 60.0)
+		if _arena.rules.local().favor < 500:
+			break
+	_check(_arena.rules.local().favor == 500 - _arena.star_penalty,
+		"a star that lands on you costs 350 FAVOR (left %d)" % _arena.rules.local().favor)
+	_check(_arena.player._knockback != Vector2.ZERO, "...and shoves you off the spot it fell on")
+	# The volley is a warning, not a triple charge: the mercy seconds hold.
+	_arena.player.global_position = Vector2(600, 400)
+	for index in range(200):
+		_arena._tick_stars(1.0 / 60.0)
+	_check(_arena.rules.local().favor == 500 - _arena.star_penalty,
+		"the same star volley cannot charge one mortal more than once")
+	_arena._stars.clear()
+	_arena._render_stars()
+	_check(_arena._star_nodes.is_empty(), "a star that is spent has its scene taken away")
+	_arena.player.global_position = Vector2(300, 600)
+	_arena._opening_stars_done = true
+	_arena._finale_stars = false
+	_arena._finale_timer = 0.0
+	_arena._trial_time = _arena.star_finale_time - 0.1
+	_arena._tick_stars(1.0 / 60.0)
+	_check(_arena._stars.size() == 1, "the last 10 seconds open with a star at once")
+	_arena._tick_stars(1.0)
+	_check(_arena._stars.size() == 1, "...then wait the interval before the next")
+	_arena._tick_stars(1.0)
+	_check(_arena._stars.size() == 2, "...and one more every 2 seconds to the end")
+	var star_mirror: Dictionary = _arena.arena_tick_fields()
+	star_mirror["stars"] = [{"id": 99, "position": Vector2(640, 420), "age": 0.0, "struck": false}]
+	_arena._stars.clear()
+	_arena.arena_read_tick(star_mirror)
+	_check(_arena._stars.size() == 1 and _arena._star_nodes.has("99"),
+		"a client draws the stars the host sends in the tick")
+	_check(_arena._star_nodes["99"].global_position == Vector2(640, 420), "...where the host says they fall")
+	_arena._stars.clear()
+	_arena._render_stars()
+	_arena.star_scatter = 24.0
+
 	# --- THE LAST LIGHT: Tala's dusk pays better --------------------------------
 	var last_light: GodFavor = _arena.god.get_favor(&"last_light")
 	_check(last_light != null and not last_light.is_skill(), "Tala bestows The Last Light as a passive")

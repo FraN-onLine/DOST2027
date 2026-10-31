@@ -34,6 +34,20 @@ extends Arena
 @export var can_hit_shake_time := 0.12    # YOUR slipper downs a can (a light kick)
 @export var tala_hit_shake_time := 0.15    # YOUR slipper reaches Tala (a light kick)
 
+@export_category("Shooting Stars")
+# Tala throws the sky at the field twice: once when star_start_fraction of the
+# round is left (three stars land together), and once every star_finale_interval
+# seconds through the last star_finale_time seconds. A star lands where a mortal
+# stood when it was thrown; its scene's frames 13-14 are the damage beat, so the
+# fall itself is the warning. A hit costs star_penalty FAVOR.
+@export var star_penalty := 350
+@export var star_start_fraction := 0.6   # trial time remaining when the opening volley falls
+@export var star_opening := 3            # stars in that volley
+@export var star_finale_time := 10.0     # the last seconds: one star every interval
+@export var star_finale_interval := 2.0
+@export var star_scatter := 24.0         # px a star lands off the mortal it aims at
+@export var star_stun := 0.4             # seconds the hit stuns the mortal
+
 # THE GUARD WHO CUTS YOU OFF. Every so often she hurries along her OWN route to
 # meet a slipper in the air: seek_chance is rolled when a slipper is thrown, and
 # she walks to the spot of her beat nearest where its path would reach her,
@@ -55,12 +69,19 @@ extends Arena
 # The gold the field pulses in blitz: a rect over the floor, under the lines, cans and mortals.
 @onready var blitz_glow: ColorRect = get_node_or_null("ArenaField/BlitzGlow")
 @onready var slippers_root: Node2D = get_node_or_null("Slippers")
+@onready var stars_root: Node2D = get_node_or_null("ArenaField/Stars")
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 # Slipper.tscn: the slipper's own scene. `toss` while it flies, `grounded`
 # once it lands - type 1 is your own, type 2 a rival's.
 const SLIPPER_SCENE := preload("res://scenes/gods/tala/Slipper.tscn")
 const SLIPPER_TOSS_SUFFIX := "toss"          # slipper-type-N-toss: the thrown clip
 const SLIPPER_GROUNDED_SUFFIX := "grounded"  # slipper-type-N-grounded: the landed one
+# Shootingstar.tscn: a star falls in and bursts where its root stands. Frames
+# 13-14 are the damage beat (the scene's own 12 fps clip decides when they land),
+# and the probe of that clip also gives the hitbox from the scene's Area2D.
+const STAR_SCENE := preload("res://scenes/gods/tala/shootingstar.tscn")
+const STAR_FRAMES := &"default"
+const STAR_DAMAGE_FRAME := 13
 
 var _cans: Array[AnimatedSprite2D] = []
 var _can_labels: Dictionary = {}   # can index -> the authored INACTIVE tag hanging over it
@@ -75,6 +96,7 @@ var _tala_hit_owner := -1  # whose slipper Tala caught last
 const CAN_ACTIVE_ANIM := &"hittable"
 const CAN_DOWN_ANIM := &"down"
 const BLITZ_GOLD := Color(1.0, 0.84, 0.0)
+const STAR_COLOR := Color(1.0, 0.88, 0.45)
 const CAN_INACTIVE_DIM := Color(0.55, 0.55, 0.62)
 var _slippers: Dictionary = {}
 var _slipper_nodes: Dictionary = {}
@@ -105,11 +127,24 @@ var _blitz_phase := 0.0       # the glow's pulse clock
 var _second_tala: AnimatedSprite2D = null   # her double - walks her route the other way round during blitz
 var _double_distance := 0.0   # how far along the route the double stands (the mirror of _tala_distance)
 var _double_dir := -1.0       # the way it is walking: against Tala's
+# SHOOTING STARS (see SHOOTING STARS). The host keeps _stars and mirrors it; every
+# screen draws one scene per star from its position and age.
+var _stars: Array[Dictionary] = []
+var _star_nodes: Dictionary = {}   # star id -> its scene on this screen
+var _star_seq := 0
+var _star_damage_time := 1.1       # seconds into the clip when frames 13-14 land
+var _star_lifetime := 2.4          # seconds the whole clip runs
+var _star_box := Vector2(44.0, 18.0)  # half the scene's scaled hitbox...
+var _star_box_offset := Vector2(0.0, -7.0)  # ...and where it sits off the root
+var _opening_stars_done := false
+var _finale_stars := false
+var _finale_timer := 0.0
 
 
 func _ready() -> void:
 	super._ready()
 	_rng.randomize()
+	_read_star_scene()
 	for id in rules.mortals.keys():
 		_modes.get_or_add(int(id), "ready")
 	_update_local_bounds()
@@ -301,6 +336,7 @@ func arena_rules_tick(delta: float) -> void:
 	_check_pickups()
 	_check_tala_touch()
 	_repair_cans(delta)
+	_tick_stars(delta)
 
 
 func arena_round_reset() -> void:
@@ -340,6 +376,15 @@ func arena_round_reset() -> void:
 			slipper.queue_free()
 	_slipper_nodes.clear()
 	_local_mode = "ready"
+	_stars.clear()
+	_star_seq = 0
+	_opening_stars_done = false
+	_finale_stars = false
+	_finale_timer = 0.0
+	for star_node in _star_nodes.values():
+		if is_instance_valid(star_node):
+			star_node.queue_free()
+	_star_nodes.clear()
 	_update_local_bounds()
 
 
@@ -369,6 +414,9 @@ func _refresh_can(can_index: int) -> void:
 func _process(delta: float) -> void:
 	super._process(delta)
 	_update_blitz(delta)
+	if not _authority:
+		_advance_star_ages(delta)
+	_render_stars()
 	_update_local_bounds()
 	_render_slippers()
 	_refresh_status()
@@ -793,6 +841,166 @@ func _rect_exit_t(start: Vector2, finish: Vector2, bounds: Rect2) -> float:
 	return clampf(t, 0.0, 1.0)
 
 
+# --- SHOOTING STARS ----------------------------------------------------------
+# Tala throws the sky at the field twice per round, on her own clock: an opening
+# volley of star_opening stars when star_start_fraction of the trial is left,
+# then one every star_finale_interval seconds through the last star_finale_time.
+# A star lands where a mortal stood when it was thrown (scattered star_scatter),
+# and frames 13-14 of its scene are the damage beat - the fall is the warning.
+# The host throws them, owns their clocks and scores the hits; every screen
+# draws one scene per star and advances the same ages between ticks.
+
+# Probe the star's own clip and hitbox instead of guessing: the scene's 12 fps
+# clip decides when frames 13-14 land, and its Area2D is the body a star takes
+# down.
+func _read_star_scene() -> void:
+	var probe: Node = STAR_SCENE.instantiate()
+	var sprite: AnimatedSprite2D = probe.get_node_or_null("AnimatedSprite2D")
+	if sprite != null and sprite.sprite_frames != null and sprite.sprite_frames.has_animation(STAR_FRAMES):
+		var frames := sprite.sprite_frames
+		var speed := maxf(0.001, frames.get_animation_speed(STAR_FRAMES))
+		var elapsed := 0.0
+		for index in range(frames.get_frame_count(STAR_FRAMES)):
+			if index == STAR_DAMAGE_FRAME:
+				_star_damage_time = elapsed
+			elapsed += frames.get_frame_duration(STAR_FRAMES, index) / speed
+		_star_lifetime = maxf(_star_damage_time + 0.35, elapsed)
+	var shape_node: CollisionShape2D = probe.get_node_or_null("Area2D/CollisionShape2D")
+	if shape_node != null and shape_node.shape is RectangleShape2D:
+		_star_box = (shape_node.shape as RectangleShape2D).size * 0.5 * probe.scale
+		_star_box_offset = shape_node.position * probe.scale
+	probe.free()
+
+
+func _tick_stars(delta: float) -> void:
+	if not _opening_stars_done and trial_time > 0.0 and _trial_time <= trial_time * star_start_fraction:
+		_opening_stars_done = true
+		_drop_stars(star_opening, true)
+	if not _finale_stars and _trial_time <= star_finale_time:
+		_finale_stars = true
+		_finale_timer = 0.0
+	if _finale_stars:
+		_finale_timer -= delta
+		if _finale_timer <= 0.0:
+			_finale_timer = star_finale_interval
+			_drop_stars(1, false)
+	_move_stars(delta)
+
+
+# One star per mortal, so a volley spreads across the field; a repeat (fewer
+# mortals than stars) is scattered off the same spot, and every star is kept
+# inside the field's own floor.
+func _drop_stars(count: int, opening: bool) -> void:
+	var entries := mortal_entries()
+	if entries.is_empty():
+		return
+	for index in range(count):
+		var entry: Dictionary = entries[index % entries.size()]
+		var target: Vector2 = entry["pos"]
+		target += Vector2(_rng.randf_range(-star_scatter, star_scatter), _rng.randf_range(-star_scatter, star_scatter))
+		target = target.clamp(_field.position + Vector2(40.0, 40.0), _field.end - Vector2(40.0, 40.0))
+		_star_seq += 1
+		_stars.append({"id": _star_seq, "position": target, "age": 0.0, "struck": false})
+	if opening:
+		_show_banner("STARS FALL!", STAR_COLOR, 2.0)
+		_log("Tala hurls shooting stars at the field - keep moving!", STAR_COLOR)
+
+
+func _move_stars(delta: float) -> void:
+	for star in _stars:
+		var before := float(star.get("age", 0.0))
+		var now := before + delta
+		star["age"] = now
+		if not bool(star.get("struck", false)) and before < _star_damage_time and now >= _star_damage_time:
+			star["struck"] = true
+			_strike_star(star)
+	for index in range(_stars.size() - 1, -1, -1):
+		if float(_stars[index].get("age", 0.0)) >= _star_lifetime:
+			_stars.remove_at(index)
+
+
+# The damage beat: whoever stands in the star's own Area2D takes star_penalty
+# FAVOR and a shove the way a star would. The mercy seconds (shared with every
+# other hit) keep a volley from charging the same mortal three times at once.
+func _strike_star(star: Dictionary) -> void:
+	var at: Vector2 = (star.get("position", Vector2.ZERO) as Vector2) + _star_box_offset
+	for entry in mortal_entries():
+		var mortal_id := int(entry["id"])
+		if is_mortal_invulnerable(mortal_id):
+			continue
+		var position: Vector2 = entry["pos"]
+		if absf(position.x - at.x) > _star_box.x + player.radius:
+			continue
+		if absf(position.y - at.y) > _star_box.y + player.radius:
+			continue
+		set_mortal_invuln(mortal_id, invuln_time)
+		var lost := lose_favor(star_penalty, "struck by a shooting star", mortal_id)
+		knock_mortal(mortal_id, at, star_stun, 0.0, true)
+		if mortal_id == _my_id:
+			if lost > 0:
+				_log("A shooting star strikes you  (-%d FAVOR)" % lost, Color(1.0, 0.55, 0.4))
+			else:
+				_log("A shooting star strikes you - your favor held", STAR_COLOR)
+			continue
+		if lost > 0:
+			_log("%s is struck by a shooting star  (-%d FAVOR)" % [mortal_label(mortal_id), lost], Color(1.0, 0.6, 0.5))
+
+
+# Every screen runs the ages on its own between ticks, the way it runs the
+# earthquake clock; only the host scores the hits (_move_stars does that).
+func _advance_star_ages(delta: float) -> void:
+	for star in _stars:
+		star["age"] = float(star.get("age", 0.0)) + delta
+	for index in range(_stars.size() - 1, -1, -1):
+		if float(_stars[index].get("age", 0.0)) >= _star_lifetime:
+			_stars.remove_at(index)
+
+
+func _render_stars() -> void:
+	if stars_root == null:
+		return
+	var live := {}
+	for star in _stars:
+		var key := str(int(star.get("id", 0)))
+		var node: Node2D = _star_nodes.get(key)
+		if not is_instance_valid(node):
+			node = STAR_SCENE.instantiate()
+			stars_root.add_child(node)
+			_star_nodes[key] = node
+		node.global_position = star.get("position", Vector2.ZERO)
+		_show_star_frame(node, float(star.get("age", 0.0)))
+		live[key] = true
+	for key in _star_nodes.keys().duplicate():
+		if not live.has(key):
+			_star_nodes[key].queue_free()
+			_star_nodes.erase(key)
+
+
+# The clip is stepped by hand from the star's age: its frames do not all last
+# the same (frame 15 holds the burst), so the frame is read off the durations,
+# not off a uniform fps.
+func _show_star_frame(node: Node2D, age: float) -> void:
+	var sprite: AnimatedSprite2D = node.get_node_or_null("AnimatedSprite2D")
+	if sprite == null or sprite.sprite_frames == null or not sprite.sprite_frames.has_animation(STAR_FRAMES):
+		return
+	if sprite.animation != STAR_FRAMES:
+		sprite.play(STAR_FRAMES)
+	if sprite.is_playing():
+		sprite.pause()
+	var frames := sprite.sprite_frames
+	var speed := maxf(0.001, frames.get_animation_speed(STAR_FRAMES))
+	var count := frames.get_frame_count(STAR_FRAMES)
+	var elapsed := 0.0
+	var index := count - 1
+	for frame_index in range(count):
+		var span := frames.get_frame_duration(STAR_FRAMES, frame_index) / speed
+		if age < elapsed + span:
+			index = frame_index
+			break
+		elapsed += span
+	sprite.frame = index
+
+
 func arena_tick_fields() -> Dictionary:
 	var can_repairs: Dictionary = {}
 	for index in range(_cans.size()):
@@ -813,6 +1021,7 @@ func arena_tick_fields() -> Dictionary:
 		"can_hit_owner": _can_hit_owner,
 		"tala_hits": _tala_hits,
 		"tala_hit_owner": _tala_hit_owner,
+		"stars": _stars.duplicate(true),
 	}
 
 
@@ -846,8 +1055,13 @@ func arena_read_tick(state: Dictionary) -> void:
 		_seen_tala_hits = _tala_hits
 		if int(state.get("tala_hit_owner", -1)) == _my_id:
 			_shake_tala_hit()
+	_stars.clear()
+	for star in state.get("stars", []):
+		if star is Dictionary:
+			_stars.append(star)
 	_update_local_bounds()
 	_render_slippers()
+	_render_stars()
 
 
 func _update_local_bounds() -> void:

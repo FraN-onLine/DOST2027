@@ -150,6 +150,13 @@ extends Arena
 #   (taya, taya2) ride the tick; clients draw a TAYA marker over each slot (Ikapati's
 #   in her colour) and a running Ikapati like any runner.
 #
+# THE EARTHQUAKE
+#   Mapulon's ground moves every quake_interval_min..quake_interval_max seconds.
+#   For quake_time seconds the field jumps and the walk keys drive every mortal
+#   the other way (dashes and shoves are the arena's own moves, not inverted). The
+#   host owns the schedule and sends the clock (quake_left) in the tick, so every
+#   screen shakes and inverts together; the effect timers and the hint say so.
+#
 # THE PAYOUT
 #   When the clock runs out the pair pays by least time as Taya: payout_best for
 #   first place down to payout_worst for last, evenly spread. Times within
@@ -231,6 +238,11 @@ enum Cloud { SOLID, CRUMBLING, GONE, FORMING }
 @export var langit_blitz_time := 30.0    # the last seconds: Ikapati hunts too, the seasons race
 @export var blitz_season_interval := 3.0
 @export var blitz_shift_warning := 0.6
+
+@export_category("Earthquakes")
+@export var quake_interval_min := 25.0   # seconds between two quakes is random in this...
+@export var quake_interval_max := 45.0   # ...to this range
+@export var quake_time := 3.0            # seconds the field shakes and movement is inverted
 
 @export_category("Chant")
 @export var chant_cooldown := 5.0
@@ -314,6 +326,8 @@ var _next_cloud := 0                 # host: the next Langit id
 var _season := 0                     # how many layouts the field has had
 var _season_timer := 0.0             # seconds to the next crumble
 var _blitz := false                  # the last langit_blitz_time seconds (host-decided, mirrored)
+var _quake_left := 0.0               # seconds of the earthquake still to run (host-decided, mirrored)
+var _quake_timer := 0.0              # host: seconds to the next earthquake
 # The chant as the host keeps it (and every screen draws it):
 var _chanting := false
 var _chant_caller := -1              # the Taya whose chant this is (either slot)
@@ -407,6 +421,8 @@ func arena_local_effects() -> Array[Dictionary]:
 		return out
 	if _blitz:
 		out.append(effect(&"blitz", "BLITZ - IKAPATI RUNS TOO" if _god_runs else "BLITZ - IKAPATI HUNTS TOO", null, UITokens.god_accent(god), maxf(0.0, _trial_time), langit_blitz_time, true))
+	if _quake_left > 0.0:
+		out.append(effect(&"quake", "EARTHQUAKE - MOVEMENT INVERTED", null, UITokens.EMBER, _quake_left, quake_time, true))
 	var swapping := swap_left(_my_id)
 	if swapping > 0.0:
 		out.append(effect(&"alis", "ALIS - CHANGE PLACES", null, UITokens.EMBER, swapping, swap_time, true))
@@ -452,6 +468,9 @@ func arena_round_reset() -> void:
 	_god_runs = false
 	_god_dash_left = 0.0
 	_reset_god_chant()
+	_quake_left = 0.0
+	_quake_timer = randf_range(quake_interval_min, quake_interval_max) if _authority else 0.0
+	player.movement_inverted = false
 	for runners in [_swap, _closed, _shoving, _on, _last_left, _close_call, _streak, _bot_goal, _bot_react, _bot_chant]:
 		runners.clear()
 	for tether in _bot_root_tether.values():
@@ -472,6 +491,7 @@ func arena_rules_tick(delta: float) -> void:
 	_move_bots(delta)
 	_move_god(delta)
 	_tick_season(delta)
+	_tick_quake(delta)
 	_tick_clouds(delta)
 	if _taya == -1 or (_taya != GOD_TAYA and rules.mortal(_taya) == null):
 		_choose_taya(_highest_favor_ids())
@@ -508,6 +528,7 @@ func arena_tick_fields() -> Dictionary:
 		"blitz": _blitz,
 		"season": _season,
 		"season_left": _season_timer,
+		"quake_left": _quake_left,
 		"chanting": _chanting,
 		"chant_caller": _chant_caller,
 		"chant_step": _chant_step,
@@ -538,6 +559,11 @@ func arena_read_tick(state: Dictionary) -> void:
 	_tagback2 = float(state.get("tagback2", _tagback2))
 	_taya_time = state.get("taya_time", _taya_time).duplicate()
 	_season_timer = float(state.get("season_left", _season_timer))
+	var quake := float(state.get("quake_left", _quake_left))
+	# A fresh quake is a jump up the clock; the tail alone must not re-announce it.
+	if quake > _quake_left + 1.0:
+		_announce_quake(quake)
+	_quake_left = quake
 	var langits: Array = state.get("langits", [])
 	_langits.clear()
 	for spot in langits:
@@ -1242,6 +1268,34 @@ func _tick_season(delta: float) -> void:
 	if _season_timer <= 0.0:
 		_season_timer += season_length()
 		_turn_season()
+
+
+# --- EARTHQUAKES ---------------------------------------------------------------
+# Mapulon's ground moves every 25-45 s: for quake_time seconds the field jumps
+# and the walk keys drive every mortal the other way. The host owns the schedule
+# and sends the clock in the tick, so every screen shakes and inverts together.
+
+func _tick_quake(delta: float) -> void:
+	if _quake_left > 0.0:
+		_quake_left = maxf(0.0, _quake_left - delta)
+		if _quake_left <= 0.0:
+			_quake_timer = randf_range(quake_interval_min, quake_interval_max)
+		return
+	_quake_timer -= delta
+	if _quake_timer <= 0.0:
+		_quake_timer = 0.0
+		_quake_left = quake_time
+		_announce_quake(quake_time)
+
+
+func _announce_quake(seconds: float) -> void:
+	_shake_screen(seconds, 0.9)
+	_show_banner("EARTHQUAKE!", UITokens.EMBER, 1.5)
+	_log("An earthquake! The field shakes and movement is inverted.", UITokens.EMBER)
+
+
+func quake_active() -> bool:
+	return _quake_left > 0.0
 
 
 # Mapulon turns the season: the Langit crumble (everyone on them drops onto the
@@ -2142,6 +2196,9 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	if not _authority and _phase == Phase.PLAYING:
+		_quake_left = maxf(0.0, _quake_left - delta)  # runs the host's clock on between ticks
+	player.movement_inverted = _quake_left > 0.0 and _phase == Phase.PLAYING
 	_tick_my_chant(delta)
 	if is_taya(_my_id) and _phase == Phase.PLAYING:
 		player.global_position = _push_out(player.global_position)
@@ -2498,3 +2555,5 @@ func _refresh_hud(delta: float) -> void:
 			hint_label.text = "TAG RUNNERS ON THE LUPA   %s   %s DASH" % [chant, key_cap(&"dash")]
 		else:
 			hint_label.text = "REACH A NEW LANGIT   %s DASH   %s" % [key_cap(&"dash"), favor_keys_hint()]
+		if _quake_left > 0.0:
+			hint_label.text = "EARTHQUAKE! MOVEMENT INVERTED   " + hint_label.text

@@ -85,6 +85,10 @@ var drop_shadow := 1.0
 var bounds := Rect2()
 var ring_color := Color(1, 0.95, 0.8)
 var radius := 13.0
+# Langit Lupa's earthquakes: the walk keys drive the mortal the other way. The
+# arena sets it each frame; a dash or a shove is the arena's own move and is not
+# inverted.
+var movement_inverted := false
 # Which of UITokens.BANDANA_COLORS this mortal's bandana wears (0 = the drawn red).
 var bandana_index := 0
 
@@ -575,7 +579,10 @@ func _physics_process(delta: float) -> void:
 	elif locked:
 		velocity = Vector2.ZERO
 	else:
-		_steer(Input.get_vector("move_left", "move_right", "move_up", "move_down"), delta)
+		var walk := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		if movement_inverted:
+			walk = -walk
+		_steer(walk, delta)
 
 	move_and_slide()
 	if landed:

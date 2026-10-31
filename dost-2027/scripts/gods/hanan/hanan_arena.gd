@@ -65,6 +65,16 @@ extends Arena
 #     line in the bottom band, the hint strip, an arrow on the bar while held, and an
 #     INVERTED! callout at the start of each blitz vault.
 #
+# GISING NA! (the alarm clock)
+#   Twice a round Hanan sets an alarm over ONE side of her Baka: a clock ticks
+#   alarm_time seconds down to 0 and that half of the floor is tinted. Standing
+#   on the marked side when it rings costs alarm_penalty FAVOR. The first starts
+#   at a random moment with more than baka_blitz_time left, so it always rings
+#   before the Blitz; the second starts somewhere in the last 15-30 seconds, so it
+#   runs through the Blitz. Both are this mortal's own (the trial is personal) and
+#   are driven by the shared round clock, exactly like the Blitz is. The alarm
+#   waits while a dialogue or the God's Due menu is open, like the idle clock.
+#
 # The bar works in 0..1 "bar heights" (0 = bottom of the gauge), so the HUD only
 # has to scale it to pixels. Every number is an @export - tune it in the inspector.
 
@@ -107,6 +117,11 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @export var vault_trigger_distance := 60.0
 @export var jump_height := 90.0            # pixels the mortal rises at the top of the bar
 
+@export_category("Gising Na!")
+@export var alarm_time := 10.0             # seconds the clock ticks before it rings
+@export var alarm_penalty := 300           # FAVOR lost by standing on the marked side
+@export var alarm_shake_time := 0.4        # seconds the alarm rings the field (Over the Moon's shake_pixels)
+
 @export_category("Balance Bar")
 @export var lift_accel := 2.6              # bar heights/s^2 while the button is held
 @export var gravity := 2.2                 # bar heights/s^2 while it is not
@@ -135,6 +150,12 @@ const TRIP_COLOR := Color(1, 0.5, 0.45)
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 @onready var blitz_glow: Sprite2D = get_node_or_null("ArenaBG/BlitzGlow")  # a soft oval on the arena floor, under the Baka and the mortal
 @onready var sink_arrow: Polygon2D = get_node_or_null("BarLayer/Bar/SinkArrow")
+# GISING NA!'s marking: the tinted half of the floor, the clock over the marked
+# side and its count. All three live under ArenaField so they shake with the field.
+@onready var alarm_root: Node2D = get_node_or_null("ArenaField/Alarm")
+@onready var alarm_half: ColorRect = get_node_or_null("ArenaField/Alarm/Half")
+@onready var alarm_clock: AnimatedSprite2D = get_node_or_null("ArenaField/Alarm/Clock/AnimatedSprite2D")
+@onready var alarm_count: Label = get_node_or_null("ArenaField/Alarm/Count")
 
 var _vault_state := Vault.RUN
 var _level := 1
@@ -170,6 +191,12 @@ var _to_x := 0.0        # ...to the landing side
 var _practice := false  # first visit: the next vault is the practice vault
 var _practice_vault := false
 var _held_once := false
+# GISING NA! STATE
+var _alarm_starts: Array[float] = []  # trial-time marks the alarms begin at (biggest first)
+var _alarm_active := false
+var _alarm_left := 0.0
+var _alarm_side := 1         # -1 = Hanan's left, +1 = her right
+var _alarm_shake_left := 0.0
 
 
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
@@ -212,6 +239,12 @@ func arena_round_reset() -> void:
 	_blitz_vault = false
 	if blitz_glow != null:
 		blitz_glow.visible = false
+	_alarm_active = false
+	_alarm_left = 0.0
+	_alarm_shake_left = 0.0
+	_roll_alarms()
+	if alarm_root != null:
+		alarm_root.visible = false
 	_leave_vault()
 	_enter_run(false)  # the base put the mortal on its spawn and unlocks it when the round starts
 	_set_callout("", Color.WHITE, 0.0)
@@ -251,6 +284,8 @@ func trip_penalty() -> int:
 func _process(delta: float) -> void:
 	super._process(delta)
 	_tick_hanan(delta)
+	_tick_alarm(delta)
+	_refresh_alarm()
 	_refresh_hud(delta)
 
 
@@ -306,6 +341,8 @@ func arena_local_effects() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if _idle_ticking() and _idle_left < 3.0:
 		out.append(effect(&"idle", "IDLE", null, TRIP_COLOR, _idle_left, 3.0, true))
+	if _alarm_active:
+		out.append(effect(&"alarm", "GISING NA!", null, TRIP_COLOR, _alarm_left, alarm_time, true))
 	return out
 
 
@@ -328,6 +365,108 @@ func _update_blitz(delta: float) -> void:
 	_blitz_phase += delta * 3.0
 	var accent := UITokens.god_accent(god)
 	blitz_glow.modulate = Color(accent.r, accent.g, accent.b, 0.12 if reduce_flashing() else 0.08 + 0.2 * (sin(_blitz_phase) * 0.5 + 0.5))
+
+
+# --- GISING NA! (THE ALARM CLOCK) --------------------------------------------
+# Two alarms a round, both on this mortal's own clock (driven by the shared round
+# time): one starts with more than baka_blitz_time left, so it always rings before
+# the Blitz, and one starts in the last 15-30 seconds, so it runs through the
+# Blitz. The marked side is Hanan's left or right; standing there when it rings
+# costs alarm_penalty FAVOR.
+
+func _roll_alarms() -> void:
+	_alarm_starts.clear()
+	var first_floor := baka_blitz_time + alarm_time + 1.0
+	var first_ceil := trial_time - 4.0
+	if first_ceil > first_floor:
+		_alarm_starts.append(randf_range(first_floor, first_ceil))
+	if trial_time > baka_blitz_time:
+		_alarm_starts.append(randf_range(15.0, 30.0))
+	_alarm_starts.sort()
+	_alarm_starts.reverse()  # the next alarm to start is the one with the most time left
+
+
+func _tick_alarm(delta: float) -> void:
+	if _phase != Phase.PLAYING:
+		_alarm_active = false
+		_alarm_left = 0.0
+		return
+	# A dialogue or the God's Due menu pauses the alarm, like the idle clock.
+	if dialogue.is_active() or due_menu.is_open():
+		return
+	if _alarm_active:
+		_alarm_left -= delta
+		if _alarm_left <= 0.0:
+			_ring_alarm()
+		return
+	if not _alarm_starts.is_empty() and _trial_time <= _alarm_starts[0]:
+		_start_alarm()
+
+
+func _start_alarm() -> void:
+	_alarm_starts.pop_front()
+	_alarm_active = true
+	_alarm_left = alarm_time
+	_alarm_side = -1 if randf() < 0.5 else 1
+	var side_text := alarm_side_text().to_lower()
+	_set_callout("ALARM! LEAVE THE %s SIDE" % side_text.to_upper(), TRIP_COLOR, 1.4)
+	_log("Hanan winds an alarm over the %s side - do not be there when it rings!" % side_text, TRIP_COLOR)
+
+
+func _ring_alarm() -> void:
+	_alarm_active = false
+	_alarm_left = 0.0
+	_alarm_shake_left = alarm_shake_time
+	var side_text := alarm_side_text().to_lower()
+	if not _on_alarm_side():
+		_set_callout("SAFE!", CLEAN_COLOR, 0.9)
+		_log("The alarm rings - you were clear of the %s side." % side_text, CLEAN_COLOR)
+		return
+	_show_banner("GISING NA!", TRIP_COLOR, 1.8)
+	var lost := mini(alarm_penalty, local_favor())  # never below 0
+	if lost <= 0:
+		_set_callout("GISING NA!", TRIP_COLOR, 1.2)
+		return
+	score_favor(-lost, "Gising na!")
+	_set_callout("GISING NA!  -%d FAVOR" % lost, TRIP_COLOR, 1.2)
+	_log("Gising na! You were on the %s side  (-%d FAVOR)" % [side_text, lost], TRIP_COLOR)
+
+
+func alarm_side_text() -> String:
+	return "LEFT" if _alarm_side < 0 else "RIGHT"
+
+
+# Hanan splits the field: her left is everything west of her, her right east.
+func _on_alarm_side() -> bool:
+	var split := baka.global_position.x if baka != null else _field.get_center().x
+	return (player.global_position.x < split) == (_alarm_side < 0)
+
+
+# The marking: the tinted half of the floor and the clock over it, counting down.
+func _refresh_alarm() -> void:
+	if alarm_root == null:
+		return
+	alarm_root.visible = _alarm_active
+	if not _alarm_active:
+		return
+	var split := baka.global_position.x if baka != null else _field.get_center().x
+	if alarm_half != null:
+		if _alarm_side < 0:
+			alarm_half.position = _field.position
+			alarm_half.size = Vector2(split - _field.position.x, _field.size.y)
+		else:
+			alarm_half.position = Vector2(split, _field.position.y)
+			alarm_half.size = Vector2(_field.end.x - split, _field.size.y)
+	if alarm_clock != null:
+		var fraction := 0.22 if _alarm_side < 0 else 0.78
+		alarm_clock.global_position = Vector2(_field.position.x + _field.size.x * fraction, _field.position.y + 46.0)
+		if not alarm_clock.is_playing():
+			alarm_clock.play()
+	if alarm_count != null:
+		alarm_count.text = str(ceili(maxf(_alarm_left, 0.0)))
+		alarm_count.reset_size()
+		var spot := alarm_clock.global_position if alarm_clock != null else _field.get_center()
+		alarm_count.global_position = Vector2(spot.x - alarm_count.size.x * 0.5, spot.y + 30.0)
 
 
 # Hold LEFT CLICK to rise (in a blitz vault: to sink). Read in _input (not _unhandled_input) because the shell
@@ -617,7 +756,7 @@ func _set_callout(text: String, tint: Color, seconds: float) -> void:
 	callout(text, tint, seconds)
 
 
-func _refresh_hud(_delta: float) -> void:
+func _refresh_hud(delta: float) -> void:
 	var in_vault := _vault_state == Vault.VAULT
 	if rate_label != null:
 		rate_label.visible = in_vault and _ready_left <= 0.0 and is_inside_box()
@@ -645,6 +784,8 @@ func _refresh_hud(_delta: float) -> void:
 			_level, level_name(), _combo, _clean_total, _trips]
 		if _blitz:  # (a leap already running keeps the old controls until it ends)
 			status_label.text = ("INVERTED: HOLD TO SINK" if _blitz_vault or not in_vault else "INVERTED AFTER THIS LEAP") + "     " + status_label.text
+		if _alarm_active:
+			status_label.text = "GISING NA! %s %d" % [alarm_side_text(), ceili(maxf(_alarm_left, 0.0))] + "     " + status_label.text
 	if hint_label != null:
 		if in_vault and _blitz_vault:
 			hint_label.text = "%s HOLD TO SINK, LET GO TO RISE   KEEP THE JUMP IN THE BOX" % key_cap(&"attack")
@@ -652,11 +793,17 @@ func _refresh_hud(_delta: float) -> void:
 			hint_label.text = "HOLD %s TO RISE   LET GO TO FALL   KEEP THE JUMP IN THE BOX" % key_cap(&"attack")
 		else:
 			hint_label.text = "RUN INTO THE BAKA TO LEAP   %s" % favor_keys_hint()
+		if _alarm_active:
+			hint_label.text = "GISING NA! GET OFF THE %s SIDE   %s" % [alarm_side_text(), favor_keys_hint()]
 	# Over the Moon shakes the field and the bar - never the labels, which must
-	# stay readable - unless the player turned shaking off.
+	# stay readable - unless the player turned shaking off. Gising Na!'s ring adds
+	# its own, dying off over alarm_shake_time.
 	var shake := Vector2.ZERO
 	if in_vault and _level >= 5 and screen_shake_allowed():
-		shake = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_pixels
+		shake += Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_pixels
+	_alarm_shake_left = maxf(0.0, _alarm_shake_left - delta)
+	if _alarm_shake_left > 0.0 and screen_shake_allowed():
+		shake += Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_pixels * (_alarm_shake_left / maxf(0.001, alarm_shake_time))
 	if bar_layer != null:
 		bar_layer.offset = shake
 	field_root.position = shake

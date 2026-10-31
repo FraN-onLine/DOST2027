@@ -14,7 +14,9 @@ extends SceneTree
 # pushed off a Langit; crossings, close calls and streaks pay; a tag moves
 # tag_steal; tagged_mercy stops a tag-back; seasons move every Langit (clear of
 # the UI strip and the Taya) and reopen them; Time as Taya, its drain and the
-# payout (shown in the results' bonus); the 60s round; and the dash (only here).
+# payout (shown in the results' bonus); the 60s round; the dash (only here); and
+# the earthquakes (25-45 s apart, 3 s of shaking with the walk keys inverted,
+# mirrored from the host).
 # Run: godot --headless --path <project> -s res://tools/langit_lupa_check.gd
 
 const DT := 0.25  # exact in binary, so four steps are exactly one second
@@ -781,6 +783,41 @@ func _run() -> void:
 	other.player.set_lock(false)
 	_check(not other.dash_enabled and not other.try_dash(), "the dash is off in other arenas")
 	other.queue_free()
+
+	# --- the earthquakes --------------------------------------------------------------------------
+	# The host owns the schedule, shakes the field for 3 s and turns every mortal's
+	# walk keys around while it lasts; the clock rides the tick so every screen
+	# shakes and inverts together.
+	_reset(_arena._my_id, [])
+	_check(is_equal_approx(_arena.quake_interval_min, 25.0) and is_equal_approx(_arena.quake_interval_max, 45.0)
+		and is_equal_approx(_arena.quake_time, 3.0),
+		"earthquakes come every 25-45 s and last 3 s")
+	_arena._quake_left = 0.0
+	_arena._quake_timer = 0.05
+	_arena._tick_quake(0.1)
+	_check(_arena.quake_active() and is_equal_approx(_arena._quake_left, _arena.quake_time),
+		"when the interval runs out the field shakes for the whole quake_time")
+	_arena._process(0.0)
+	_check(_arena.player.movement_inverted, "...and the walk keys drive the mortal backwards")
+	_arena._refresh_hud(0.0)
+	_check(_arena.hint_label.text.begins_with("EARTHQUAKE!"), "...and the hint strip says so")
+	for index in range(200):
+		_arena._tick_quake(1.0 / 60.0)
+	_check(not _arena.quake_active()
+		and _arena._quake_timer >= _arena.quake_interval_min - 0.001 and _arena._quake_timer <= _arena.quake_interval_max,
+		"when it stops the next one is rolled 25-45 s away (%.1f s)" % _arena._quake_timer)
+	_arena._process(0.0)
+	_check(not _arena.player.movement_inverted, "walking is normal again")
+	var quake_tick: Dictionary = _arena.arena_tick_fields()
+	_check(quake_tick.has("quake_left"), "the earthquake clock rides the arena tick")
+	quake_tick["quake_left"] = 2.5
+	_arena._quake_left = 0.0
+	_arena.arena_read_tick(quake_tick)
+	_check(is_equal_approx(_arena._quake_left, 2.5), "a client shakes on the host's word")
+	quake_tick["quake_left"] = 0.0
+	_arena.arena_read_tick(quake_tick)
+	_check(not _arena.quake_active(), "...and stops when the host does")
+	_arena._quake_timer = 1000.0
 
 	# --- the other gods' favors still work here -------------------------------------------------
 	_arena._phase = Arena.Phase.PLAYING

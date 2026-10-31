@@ -7,7 +7,8 @@ extends SceneTree
 # vault goes back); leaving the box past the grace time is a trip that leaves them
 # on the approach side (FAVOR lost by level, combo reset, no teleport); two trips
 # in a row lower the level; the first-visit practice vault; the Baka gets smaller
-# / faster as the levels climb; and the labels never shake.
+# / faster as the levels climb; the Gising Na! alarm clock; and the labels never
+# shake.
 # Run: godot --headless --path <project> -s res://tools/hanan_check.gd
 
 const DT := 1.0 / 60.0
@@ -572,6 +573,86 @@ func _run() -> void:
 	_check(_arena.callout_label.visible and _arena.callout_label.text.begins_with("LEAP!"), "the last 2 s warn LEAP!")
 	_check(_arena.arena_local_effects().size() == 1, "...and the effect timers count the IDLE down")
 	_arena._enter_run()
+
+	# --- GISING NA!: the alarm clock ----------------------------------------------------------
+	# Two alarms a round: one starts with more than 30 s + the clock left (so it always
+	# rings before the Blitz), one starts in the last 15-30 s. Standing on Hanan's
+	# marked side when the clock hits 0 costs 300 FAVOR.
+	_arena._alarm_active = false
+	_arena._alarm_left = 0.0
+	_arena._alarm_shake_left = 0.0
+	_arena._trial_time = 999.0
+	_arena._roll_alarms()
+	_check(_arena._alarm_starts.size() == 2, "a round sets two alarms")
+	var first_start: float = _arena._alarm_starts[0]
+	var second_start: float = _arena._alarm_starts[1]
+	_check(first_start > _arena.baka_blitz_time + _arena.alarm_time,
+		"the first alarm starts so it rings with more than 30 s left (%.1f s)" % first_start)
+	_check(second_start >= 15.0 and second_start <= 30.0,
+		"the second alarm starts in the last 15-30 s (%.1f s)" % second_start)
+	_arena.player.global_position = _arena.baka.global_position + Vector2(300.0, 0.0)
+	_arena._trial_time = first_start + 1.0
+	_arena._tick_alarm(DT)
+	_check(not _arena._alarm_active, "the first alarm waits for its moment")
+	_arena._trial_time = first_start - 0.1
+	_arena._tick_alarm(DT)
+	_check(_arena._alarm_active and _arena._alarm_left <= _arena.alarm_time,
+		"then a 10 s clock starts ticking")
+	_check(_arena._alarm_starts.size() == 1, "...once, with the second still to come")
+	_arena._refresh_alarm()
+	_check(_arena.alarm_root.visible and _arena.alarm_count.text == "10",
+		"the clock shows 10 and marks the field")
+	var split: float = _arena.baka.global_position.x
+	if _arena._alarm_side < 0:
+		_check(is_equal_approx(_arena.alarm_half.position.x, _arena._field.position.x)
+			and is_equal_approx(_arena.alarm_half.size.x, split - _arena._field.position.x),
+			"the tinted half is the floor on Hanan's left")
+	else:
+		_check(is_equal_approx(_arena.alarm_half.position.x, split)
+			and is_equal_approx(_arena.alarm_half.size.x, _arena._field.end.x - split),
+			"the tinted half is the floor on Hanan's right")
+	var clock_x: float = _arena.alarm_clock.global_position.x
+	_check((_arena._alarm_side < 0 and clock_x < split) or (_arena._alarm_side > 0 and clock_x > split),
+		"the clock stands on the side it marks")
+	_check(_arena._field.has_point(_arena.alarm_clock.global_position), "...and on the floor of that side")
+	_arena._refresh_hud(DT)
+	_check(_arena.status_label.text.begins_with("GISING NA!"), "the bottom band counts the alarm down")
+	_check(_arena.hint_label.text.begins_with("GISING NA!"), "...and the hint strip says to get off that side")
+	_check(_arena.arena_local_effects().size() == 1, "...and the effect timers count it down")
+	# Standing on the marked side when it rings.
+	_arena.rules.local().favor = 500
+	_arena.player.global_position = _arena.baka.global_position + Vector2(_arena._alarm_side * 200.0, 0.0)
+	_arena._alarm_left = 0.05
+	_arena._tick_alarm(0.1)
+	_arena._refresh_alarm()
+	_check(not _arena._alarm_active, "the clock rings at 0")
+	_check(_arena.rules.local().favor == 500 - _arena.alarm_penalty,
+		"standing on the marked side costs 300 FAVOR (%d left)" % _arena.rules.local().favor)
+	_check(_arena.callout_label.text.begins_with("GISING NA!"), '...and says "GISING NA!"')
+	_check(_arena._alarm_shake_left > 0.0 and not _arena.alarm_root.visible, "the ring shakes the field and the marking goes")
+	# The other side is safe.
+	_arena._alarm_starts.clear()
+	_arena._alarm_starts.append(_arena._trial_time)
+	_arena._tick_alarm(DT)
+	_arena.player.global_position = _arena.baka.global_position - Vector2(_arena._alarm_side * 200.0, 0.0)
+	_arena.rules.local().favor = 500
+	_arena._alarm_left = 0.05
+	_arena._tick_alarm(0.1)
+	_check(_arena.rules.local().favor == 500 and _arena.callout_label.text.begins_with("SAFE!"),
+		"the side it did not mark is safe when it rings")
+	# The penalty never takes FAVOR the mortal does not have.
+	_arena._alarm_starts.clear()
+	_arena._alarm_starts.append(_arena._trial_time)
+	_arena._tick_alarm(DT)
+	_arena.player.global_position = _arena.baka.global_position + Vector2(_arena._alarm_side * 200.0, 0.0)
+	_arena.rules.local().favor = 100
+	_arena._alarm_left = 0.05
+	_arena._tick_alarm(0.1)
+	_check(_arena.rules.local().favor == 0, "the alarm never takes FAVOR below 0 (%d)" % _arena.rules.local().favor)
+	_arena._trial_time = 999.0
+	_arena._alarm_starts.clear()
+	_arena._alarm_shake_left = 0.0
+	_arena._refresh_hud(DT)
 
 	# --- the trial ends mid-vault: what it earned is banked --------------------------------
 	_arena._level = 1
