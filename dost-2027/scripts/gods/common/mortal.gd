@@ -283,6 +283,16 @@ func stun(seconds: float) -> void:
 	show_stun(seconds)
 
 
+# The shove alone, for a hit whose stun was cancelled (The First Cleanse): the
+# body still flies, nothing holds it.
+func shove(direction: Vector2, force: float) -> void:
+	_knockback = direction.normalized() * force
+	_flash = 0.35
+	_hit_direction = direction.normalized()
+	_hit_squash = 1.0
+	_hit_flash = 1.0
+
+
 func force_movement(direction: Vector2, duration: float) -> void:
 	_forced_move_direction = direction.normalized()
 	_forced_move_time = maxf(_forced_move_time, duration)

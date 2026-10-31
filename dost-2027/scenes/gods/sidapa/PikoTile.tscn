@@ -1,0 +1,36 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/gods/sidapa/piko_tile.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/Gods/Sidapa/piko_tile_chalk.png" id="2_chalk"]
+[ext_resource type="FontFile" path="res://Assets/fonts/Minecraftia-UI.ttf" id="3_font"]
+
+[node name="PikoTile" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Background" type="Sprite2D" parent="."]
+texture = ExtResource("2_chalk")
+
+[node name="Number" type="Label" parent="."]
+offset_left = -42.0
+offset_top = -42.0
+offset_right = 42.0
+offset_bottom = 42.0
+theme_override_colors/font_color = Color(0.96, 0.95, 0.91, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 30
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Caption" type="Label" parent="."]
+visible = false
+offset_left = -42.0
+offset_top = 22.0
+offset_right = 42.0
+offset_bottom = 38.0
+theme_override_colors/font_color = Color(1, 0.84, 0.55, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 10
+text = "TURN"
+horizontal_alignment = 1
+vertical_alignment = 1

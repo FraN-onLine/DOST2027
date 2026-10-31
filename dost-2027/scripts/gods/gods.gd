@@ -22,6 +22,7 @@ const APOLAKI := &"apolaki"
 const TALA := &"tala"
 const HANAN := &"hanan"
 const MAPULON_IKAPATI := &"mapulon_ikapati"
+const SIDAPA := &"sidapa"
 const BATHALA := &"bathala"
 
 # The God Games' own name: the title screen and the finale read these, so the
@@ -141,6 +142,10 @@ static func hanan() -> God:
 
 static func mapulon_ikapati() -> God:
 	return by_id(MAPULON_IKAPATI)
+
+
+static func sidapa() -> God:
+	return by_id(SIDAPA)
 
 
 static func bathala() -> God:

@@ -77,6 +77,10 @@ class Mortal:
 	var rooted_time: float = 0.0       # Down to Homeland: seconds of root left
 	var rooted_caster: int = -1
 	var stun_time: float = 0.0         # an affliction's stun still to sit through
+	# Sidapa's favors (see SIDAPA'S STUNS below):
+	var stun_records: int = 0          # stuns suffered this trial (Time Is Now)
+	var first_cleanse_used: bool = false
+	var control_time: float = 0.0      # A Little More Control's window, seconds left
 	var regrowths: Array = []          # [seconds left, amount] waiting to grow back
 	var granary: int = 0               # Kamalig: FAVOR stored, out of the total
 	# Bathala's sacrifices (see the BATHALA'S FAVORS section below):
@@ -202,6 +206,11 @@ func loss_multiplier(m: Mortal) -> float:
 			mult *= favor.param("loss_mult", 0.5)
 		if favor.is_skill() and m.duration_left(favor.id) > 0.0:
 			mult *= favor.param("loss_mult_while_active", 1.0)
+	# Guilty Pleasure: what is taken while the stun still holds costs less.
+	if m.stun_time > 0.0:
+		var pleasure: GodFavor = m.favor_by_id(&"guilty_pleasure")
+		if pleasure != null:
+			mult *= 1.0 - pleasure.param("loss_reduction", 0.8)
 	return mult
 
 
@@ -713,6 +722,8 @@ static func pamana_badges(m: Mortal) -> Array:
 func begin_trial() -> void:
 	for m in mortals.values():
 		_wake_pamana(m)
+		m.stun_records = 0
+		m.first_cleanse_used = false
 	# Kabiyak: an other half who left during an earlier trial is replaced now.
 	for m in mortals.values():
 		if m.has_favor(&"kabiyak") and not mortals.has(m.kabiyak):
@@ -804,13 +815,70 @@ func _share_with_kabiyak(m: Mortal, gained: int) -> void:
 # root ends. Returns how many mortals it reached.
 func cast_down_to_homeland(caster_id: int, favor: GodFavor) -> int:
 	var reached := 0
+	# A Little More Control: the caster's Q window makes every root it hands out
+	# a second longer, the same as it does for stuns.
+	var root_time := favor.param("root_time", 3.0) + control_bonus(caster_id)
 	for m in mortals.values():
 		if m.id == caster_id:
 			continue
-		m.rooted_time = maxf(m.rooted_time, favor.param("root_time", 3.0))
+		m.rooted_time = maxf(m.rooted_time, root_time)
 		m.rooted_caster = caster_id
 		reached += 1
 	return reached
+
+
+# --- SIDAPA'S FAVORS (the underworld's rules) -----------------------------------
+# Every stun in a trial is announced here on the host, so the favors that watch
+# for them all read the same event: The First Cleanse cancels the holder's first
+# one, Departure Is Not Now shortens their own, A Little More Control lengthens
+# the ones their Q put on someone else, and Lifeline pays the others for watching.
+# Returns the seconds the stun really lasts (0 when it was cancelled).
+func stun_mortal(target_id: int, seconds: float, source_id := -1) -> float:
+	var m := mortal(target_id)
+	if m == null or seconds <= 0.0:
+		return 0.0
+	var cleanse: GodFavor = m.favor_by_id(&"first_cleanse")
+	if cleanse != null and not m.first_cleanse_used:
+		m.first_cleanse_used = true
+		favor_fired.emit(m.id, cleanse, "The First Cleanse - %s's first stun is cancelled" % m.display_name)
+		return 0.0
+	var length := seconds
+	var departure: GodFavor = m.favor_by_id(&"departure_is_not_now")
+	if departure != null:
+		length *= 1.0 - departure.param("stun_reduction", 0.15)
+	if source_id != m.id:
+		length += control_bonus(source_id)
+	m.stun_time = maxf(m.stun_time, length)
+	m.stun_records += 1
+	for holder in mortals.values():
+		if holder.id == m.id:
+			continue
+		var lifeline: GodFavor = holder.favor_by_id(&"lifeline")
+		if lifeline == null:
+			continue
+		var paid := int(lifeline.param("gain", 30.0))
+		add_favor(paid, lifeline.display_name, holder.id)
+		favor_fired.emit(holder.id, lifeline, "Lifeline - %s gains %d FAVOR for another mortal's stun" % [holder.display_name, paid])
+	return length
+
+
+# A Little More Control opens a short window on the caster: while it lasts, the
+# roots, stuns and trances they put on anybody else last `extra_time` longer.
+func begin_control(caster_id: int, favor: GodFavor) -> void:
+	var m := mortal(caster_id)
+	if m == null:
+		return
+	m.control_time = maxf(m.control_time, favor.param("window", 3.0))
+
+
+func control_bonus(source_id: int) -> float:
+	if source_id < 0:
+		return 0.0
+	var m := mortal(source_id)
+	if m == null or m.control_time <= 0.0:
+		return 0.0
+	var control: GodFavor = m.favor_by_id(&"a_little_more_control")
+	return control.param("extra_time", 1.0) if control != null else 0.0
 
 
 # Ligaw na Damo: weeds in every other mortal's field (the latest caster wins).
@@ -979,6 +1047,9 @@ func snapshot() -> Dictionary:
 			"rooted": m.rooted_time,
 			"rooted_caster": m.rooted_caster,
 			"stun": m.stun_time,
+			"stun_records": m.stun_records,
+			"cleanse": m.first_cleanse_used,
+			"control": m.control_time,
 			}
 	return out
 
@@ -1022,6 +1093,9 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.rooted_time = float(entry.get("rooted", 0.0))
 		m.rooted_caster = int(entry.get("rooted_caster", m.rooted_caster))
 		m.stun_time = float(entry.get("stun", 0.0))
+		m.stun_records = int(entry.get("stun_records", m.stun_records))
+		m.first_cleanse_used = bool(entry.get("cleanse", m.first_cleanse_used))
+		m.control_time = float(entry.get("control", 0.0))
 		# A drop that came with a new Pamana was a purchase, not a loss.
 		var bought := (m.pamana_next != previous_next and m.pamana_next != &"") \
 			or (m.surigao_early > 0 and previous_surigao <= 0)
@@ -1173,6 +1247,7 @@ func _tick_mortal(m: Mortal, delta: float) -> void:
 	# trial_active false, and a cast just before a trial ends must not wait out
 	# the intermission. Regrowth and a Pamana's window still need a running trial.
 	m.weeds_time = maxf(0.0, m.weeds_time - delta)
+	m.control_time = maxf(0.0, m.control_time - delta)
 	if trial_active:
 		m.pamana_window = maxf(0.0, m.pamana_window - delta)
 		_tick_harvest(m, delta)
@@ -1188,8 +1263,9 @@ func _tick_afflictions(m: Mortal, delta: float) -> void:
 		return
 	m.drowsy_time = maxf(0.0, m.drowsy_time - delta)
 	if m.drowsy_time <= 0.0 and m.drowsy_stun > 0.0:
-		m.stun_time = maxf(m.stun_time, m.drowsy_stun)
+		var length := m.drowsy_stun
 		m.drowsy_stun = 0.0
+		stun_mortal(m.id, length, m.drowsy_caster)
 
 
 func _simulate_rivals(delta: float) -> void:
@@ -1215,6 +1291,15 @@ func end_trial() -> Dictionary:
 		# The Manunggul Jar gives back its share of what was lost, before Favorable
 		# Outcome judges the top: straight to the total, so Full Moon cannot inflate it.
 		harvest[m.id] = int(harvest[m.id]) + _settle_jar(m)
+		# Time Is Now: every stun this trial is worth FAVOR once it closes.
+		var now: GodFavor = m.favor_by_id(&"time_is_now")
+		if now != null and m.stun_records > 0:
+			var paid: int = int(m.stun_records) * int(now.param("per_stun", 50.0))
+			_apply(m, paid, now.display_name)
+			harvest[m.id] = int(harvest[m.id]) + paid
+			favor_fired.emit(m.id, now, "Time Is Now - %d stuns, +%d FAVOR" % [m.stun_records, paid])
+		m.stun_records = 0
+		m.control_time = 0.0
 		# What a cast left running does not follow them out of the trial.
 		m.drowsy_time = 0.0
 		m.drowsy_stun = 0.0

@@ -42,6 +42,7 @@ signal god_favor_requested(peer_id, amount, reason)
 signal god_skill_requested(peer_id, slot)
 signal god_grant_requested(peer_id, favor_id)
 signal arena_score_requested(peer_id, amount, reason)  # client -> host: score my mortal
+signal arena_stun_requested(peer_id, seconds, source_id)  # client -> host: stun my mortal
 signal tala_throw_requested(peer_id, direction, origin)
 signal arena_layout_received(layout)      # host -> clients: field / corners / clones
 signal arena_state_received(state)        # host -> clients: 10 Hz world tick
@@ -1580,6 +1581,19 @@ func request_arena_score(amount: int, reason: String, scene: String) -> void:
 	if sender == 0:
 		return
 	emit_signal("arena_score_requested", sender, amount, reason)
+
+
+# A private game of the client's own (Piko's countdown running out) stuns its
+# mortal. The host runs the stun through the rules - the favors that watch stuns
+# live there - and the next snapshot brings the real length back.
+@rpc("any_peer", "reliable")
+func request_arena_stun(seconds: float, source_id: int, scene: String) -> void:
+	if not multiplayer.is_server() or not is_current_scene(scene, "stun request"):
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	emit_signal("arena_stun_requested", sender, seconds, source_id)
 
 
 # --- Langit Lupa: the Taya's chant -----------------------------------------------

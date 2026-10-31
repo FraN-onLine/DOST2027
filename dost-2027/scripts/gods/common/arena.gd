@@ -405,6 +405,12 @@ var _root_leashes: Dictionary = {}
 # drag home, so every screen sees the mortal pulled back to it.
 var _root_pulls: Dictionary = {}
 var _drowsy_seen: Dictionary = {}  # mortal id -> still drowsy (so the end is announced once)
+# A Little More Structure: Sidapa's rings. One entry per ring that is still
+# counting down: {id, caster, at: Vector2, radius, left, total, stun}. Every
+# screen draws them; the host's clock judges them.
+var _structures: Array[Dictionary] = []
+var _structure_nodes: Dictionary = {}  # ring id -> its Node2D on this screen
+var _structure_seq := 0
 var _dash_cd := 0.0
 var _dash_buffered := 0.0  # seconds a too-early SPACE still waits (see dash_buffer)
 # The impact currently running on THIS screen: seconds left of the field's
@@ -693,6 +699,7 @@ func _start_countdown() -> void:
 	_count_shown = -1
 	_reset_drop()
 	_clear_roots()
+	_clear_structures()
 	player.set_lock(true)
 	# The full round is already on the clock while the mortals wait through the
 	# 3 - 2 - 1, and the host broadcasts it, so every screen shows the round
@@ -812,6 +819,7 @@ func _tick_world(delta: float) -> void:
 	_tick_sun_patch_slots(delta)
 	_apply_blindness(delta)
 	_move_ghosts(delta)
+	_tick_structures(delta)
 	_update_movement_favors(delta)
 	_watch_afflictions(delta)
 	_watch_local_pamana()
@@ -997,6 +1005,47 @@ func _on_arena_score_requested(peer_id: int, amount: int, reason: String) -> voi
 		lose_favor(-amount, reason, peer_id)
 
 
+# The arena's one way to say "my mortal is stunned now", for the games a peer
+# judges on its own (Piko's head countdown running out). Every stun goes through
+# the rules, so Sidapa's favors see it wherever it came from.
+func request_stun(seconds: float, source_id := -1) -> float:
+	if seconds <= 0.0:
+		return 0.0
+	if _authority:
+		var length := rules.stun_mortal(_my_id, seconds, source_id)
+		if length > 0.0:
+			_publish_god_state()
+		return length
+	var predicted := _predict_stun(seconds)
+	if predicted > 0.0 and _net != null and _net.has_multiplayer_peer():
+		_net.rpc_id(1, "request_arena_stun", seconds, source_id, scene_token())
+	return predicted
+
+
+# What the client can work out before the host says it: its own cleanse and
+# departure, nothing that depends on another mortal's window.
+func _predict_stun(seconds: float) -> float:
+	var m := rules.local()
+	if m == null:
+		return seconds
+	var cleanse: GodFavor = m.favor_by_id(&"first_cleanse")
+	if cleanse != null and not m.first_cleanse_used:
+		return 0.0
+	var departure: GodFavor = m.favor_by_id(&"departure_is_not_now")
+	if departure != null:
+		seconds *= 1.0 - departure.param("stun_reduction", 0.15)
+	return seconds
+
+
+func _on_arena_stun_requested(peer_id: int, seconds: float, source_id: int) -> void:
+	if not _authority:
+		return
+	var length := rules.stun_mortal(peer_id, seconds, source_id)
+	if length > 0.0:
+		announce_stun(peer_id, length)
+	_publish_god_state()
+
+
 # Mercy seconds: a mortal that was just hit cannot be hit again until they run
 # out. Whatever hit it decides for how long.
 func set_mortal_invuln(mortal_id: int, seconds: float) -> void:
@@ -1025,8 +1074,12 @@ func knock_mortal(mortal_id: int, from_position: Vector2, stun := 0.0, force := 
 		var shove := player.global_position - from_position
 		if shove.length() < 0.01:
 			shove = Vector2.LEFT
-		announce_hit(mortal_id, player.global_position, shove, knock_stun if stun <= 0.0 else stun)
-		_apply_knockback(shove, stun, force)
+		var seconds := knock_stun if stun <= 0.0 else stun
+		if _authority:
+			# Every stun is announced to the rules: Sidapa's favors watch them.
+			seconds = rules.stun_mortal(mortal_id, seconds)
+		announce_hit(mortal_id, player.global_position, shove, seconds)
+		_apply_knockback(shove, seconds, force, seconds <= 0.0)
 		if impact:
 			_impact_hit()
 		return
@@ -1038,17 +1091,23 @@ func knock_mortal(mortal_id: int, from_position: Vector2, stun := 0.0, force := 
 	var direction := position - from_position
 	if direction.length() < 0.01:
 		direction = Vector2.LEFT
-	announce_hit(mortal_id, position, direction, knock_stun if stun <= 0.0 else stun)
+	var remote_seconds := knock_stun if stun <= 0.0 else stun
+	remote_seconds = rules.stun_mortal(mortal_id, remote_seconds) if _authority else remote_seconds
+	announce_hit(mortal_id, position, direction, remote_seconds)
 	_net.send_arena_hit(mortal_id, {
 		"direction": direction.normalized(),
-		"stun": knock_stun if stun <= 0.0 else stun,
+		"stun": remote_seconds,
+		"no_stun": remote_seconds <= 0.0,
 		"force": knock_force if force <= 0.0 else force,
 		"impact": impact,
 	})
 
 
-func _apply_knockback(direction: Vector2, stun := 0.0, force := 0.0) -> void:
+func _apply_knockback(direction: Vector2, stun := 0.0, force := 0.0, no_stun := false) -> void:
 	if player == null or not is_instance_valid(player):
+		return
+	if no_stun:
+		player.shove(direction, knock_force if force <= 0.0 else force)
 		return
 	player.hit(direction, knock_stun if stun <= 0.0 else stun, knock_force if force <= 0.0 else force)
 
@@ -1062,7 +1121,7 @@ func _on_arena_hit_received(hit: Dictionary) -> void:
 	var direction: Vector2 = hit.get("direction", Vector2.LEFT)
 	if direction.length() < 0.01:
 		direction = Vector2.LEFT
-	_apply_knockback(direction, float(hit.get("stun", 0.0)), float(hit.get("force", 0.0)))
+	_apply_knockback(direction, float(hit.get("stun", 0.0)), float(hit.get("force", 0.0)), bool(hit.get("no_stun", false)))
 	# The host also asked for the screen answer (knock_mortal's `impact` flag):
 	# this is where a hit scored on OUR mortal shakes OUR field.
 	if bool(hit.get("impact", false)):
@@ -1521,6 +1580,7 @@ func _end_trial() -> void:
 	_end_intro_shot()
 	_reset_drop()
 	_clear_roots()
+	_clear_structures()
 	player.set_lock(true)
 	_blind_time = 0.0
 	_gain_pending.clear()
@@ -1688,7 +1748,8 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_add_sun_patches(mortal.id, 7, duration, caster_id)
 		_publish_god_state()
 	elif favor.id == &"let_us_light_your_way":
-		var duration := maxf(0.0, favor.duration)
+		# A Little More Control stretches the Tranced pull too.
+		var duration := maxf(0.0, favor.duration) + rules.control_bonus(caster_id)
 		_start_movement_override(caster_id, duration)
 		if _authority and _networked and _net != null:
 			_net.send_arena_movement_override(caster_id, duration)
@@ -1734,6 +1795,16 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 			_refresh_sun_patches()
 		if _authority:
 			_publish_god_state()
+	elif favor.id == &"a_little_more_structure" and _authority:
+		_open_structure(caster_id, favor)
+		if caster_id == _my_id:
+			_log("A Little More Structure - every mortal has %ds to step inside the ring" % int(ceil(favor.param("countdown", 3.0))), favor.color)
+		_publish_god_state()
+	elif favor.id == &"a_little_more_control" and _authority:
+		rules.begin_control(caster_id, favor)
+		if caster_id == _my_id:
+			_log("A Little More Control - roots, stuns and trances on rivals last %ds longer" % int(ceil(favor.param("extra_time", 1.0))), favor.color)
+		_publish_god_state()
 
 
 # A duration of 0 means "stop now" (the host's word that the pull is over).
@@ -1750,6 +1821,180 @@ func _on_movement_override_received(caster_id: int, duration: float) -> void:
 	if caster_id == _my_id:
 		return
 	_start_movement_override(caster_id, duration)
+
+
+# --- A LITTLE MORE STRUCTURE: THE RING ------------------------------------------
+# Sidapa opens a ring where the caster stands and every mortal gets a few seconds
+# to step inside it; whoever is still outside when the count reaches zero is
+# stunned. The host keeps the clock and judges the field; the ring itself rides
+# the arena tick, so it is drawn on every screen.
+
+func _open_structure(caster_id: int, favor: GodFavor) -> void:
+	var at := mortal_position(caster_id)
+	if at == Vector2.INF:
+		at = _field.get_center() if _field.size != Vector2.ZERO else player.global_position
+	_structure_seq += 1
+	var total := maxf(0.1, favor.param("countdown", 3.0))
+	_structures.append({
+		"id": _structure_seq,
+		"caster": caster_id,
+		"at": at,
+		"radius": favor.param("radius", 130.0),
+		"left": total,
+		"total": total,
+		"stun": favor.param("stun_time", 3.0),
+	})
+	_sync_structure_visuals()
+
+
+func _tick_structures(delta: float) -> void:
+	if _structures.is_empty():
+		return
+	if _authority and _phase == Phase.PLAYING:
+		for structure in _structures.duplicate():
+			structure["left"] = float(structure["left"]) - delta
+			if float(structure["left"]) <= 0.0:
+				_expire_structure(structure)
+	_sync_structure_visuals()
+
+
+func _expire_structure(structure: Dictionary) -> void:
+	var ring_id := int(structure["id"])
+	for index in range(_structures.size()):
+		if int(_structures[index]["id"]) == ring_id:
+			_structures.remove_at(index)
+			break
+	var at: Vector2 = structure["at"]
+	var radius := float(structure["radius"])
+	var caster := int(structure["caster"])
+	var seconds := float(structure.get("stun", 3.0))
+	for key in rules.mortals.keys():
+		var mortal_id := int(key)
+		var pos := mortal_position(mortal_id)
+		if pos == Vector2.INF:
+			# A solo bot has no body to place; in a networked game an unknown
+			# rival is simply not ours to judge.
+			if _networked:
+				continue
+		elif pos.distance_to(at) <= radius:
+			continue
+		var length := rules.stun_mortal(mortal_id, seconds, caster)
+		if length > 0.0:
+			announce_stun(mortal_id, length)
+	_publish_god_state()
+
+
+func _clear_structures() -> void:
+	_structures.clear()
+	for ring_id in _structure_nodes.keys():
+		var node: Node2D = _structure_nodes[ring_id]
+		if is_instance_valid(node):
+			node.queue_free()
+	_structure_nodes.clear()
+
+
+func _structure_wire() -> Array:
+	var out: Array = []
+	for structure in _structures:
+		var at: Vector2 = structure["at"]
+		out.append({
+			"id": int(structure["id"]),
+			"caster": int(structure["caster"]),
+			"x": at.x,
+			"y": at.y,
+			"radius": float(structure["radius"]),
+			"left": float(structure["left"]),
+			"total": float(structure["total"]),
+		})
+	return out
+
+
+func _read_structure_wire(entries: Array) -> void:
+	var next: Array[Dictionary] = []
+	for entry in entries:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		next.append({
+			"id": int(entry.get("id", 0)),
+			"caster": int(entry.get("caster", -1)),
+			"at": Vector2(float(entry.get("x", 0.0)), float(entry.get("y", 0.0))),
+			"radius": float(entry.get("radius", 130.0)),
+			"left": float(entry.get("left", 0.0)),
+			"total": maxf(0.001, float(entry.get("total", 3.0))),
+			"stun": 3.0,
+		})
+	_structures = next
+	_sync_structure_visuals()
+
+
+func _structure_tint() -> Color:
+	var favor := Gods.favor_by_id(&"a_little_more_structure")
+	return favor.color if favor != null else Color(0.62, 0.45, 0.95)
+
+
+func _circle_points(radius: float, count: int) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for index in range(count):
+		var angle := TAU * float(index) / float(count)
+		points.append(Vector2(cos(angle) * radius, sin(angle) * radius))
+	return points
+
+
+func _make_structure_node(radius: float) -> Node2D:
+	var tint := _structure_tint()
+	var node := Node2D.new()
+	node.name = "Structure"
+	node.z_index = 2
+	add_child(node)
+	var fill := Polygon2D.new()
+	fill.name = "Fill"
+	fill.color = Color(tint.r, tint.g, tint.b, 0.13)
+	fill.polygon = _circle_points(radius, 32)
+	node.add_child(fill)
+	var ring := Line2D.new()
+	ring.name = "Ring"
+	ring.width = 3.0
+	ring.closed = true
+	ring.default_color = tint
+	ring.points = _circle_points(radius, 48)
+	node.add_child(ring)
+	var count := Label.new()
+	count.name = "Count"
+	count.theme_type_variation = &"WorldValue"
+	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	count.size = Vector2(48.0, 24.0)
+	count.position = Vector2(-24.0, -radius - 24.0)
+	count.add_theme_color_override("font_color", tint)
+	node.add_child(count)
+	return node
+
+
+func _sync_structure_visuals() -> void:
+	var tint := _structure_tint()
+	var alive := {}
+	for structure in _structures:
+		var ring_id := int(structure["id"])
+		alive[ring_id] = true
+		var node: Node2D = _structure_nodes.get(ring_id)
+		if node == null or not is_instance_valid(node):
+			node = _make_structure_node(float(structure["radius"]))
+			_structure_nodes[ring_id] = node
+		node.global_position = structure["at"]
+		var left := float(structure["left"])
+		var count := node.get_node_or_null("Count") as Label
+		if count != null:
+			count.text = str(maxi(1, int(ceil(left))))
+			count.add_theme_color_override("font_color", Color(0.88, 0.38, 0.31) if left <= 1.0 else tint)
+		var ring := node.get_node_or_null("Ring") as Line2D
+		if ring != null:
+			ring.modulate.a = 1.0 if reduce_flashing() else 0.74 + 0.26 * sin(Time.get_ticks_msec() * 0.008)
+	for ring_id in _structure_nodes.keys().duplicate():
+		if alive.has(int(ring_id)):
+			continue
+		var node: Node2D = _structure_nodes[ring_id]
+		if is_instance_valid(node):
+			node.queue_free()
+		_structure_nodes.erase(ring_id)
 
 
 func _erase_sun_patches(mortal_id: int) -> void:
@@ -2473,6 +2718,8 @@ func _connect_network() -> void:
 		_net.god_grant_requested.connect(_on_god_grant_requested)
 		if _net.has_signal("arena_score_requested"):
 			_net.connect("arena_score_requested", _on_arena_score_requested)
+		if _net.has_signal("arena_stun_requested"):
+			_net.connect("arena_stun_requested", _on_arena_stun_requested)
 	else:
 		_net.rpc_id(1, "request_god_state")
 
@@ -2608,6 +2855,7 @@ func _publish_arena_tick() -> void:
 		"event_color": hud.event_label.get_theme_color("font_color"),
 		"sun_patches": _sun_patches.duplicate(true),
 		"loss_boost": _loss_boost.duplicate(),
+		"structures": _structure_wire(),
 	}
 	state.merge(arena_tick_fields(), true)
 	_net.publish_arena_state(state)
@@ -2657,6 +2905,7 @@ func _apply_arena_tick(state: Dictionary) -> void:
 		_mortal_positions[int(id)] = mortals[id]
 	_sun_patches = state.get("sun_patches", {}).duplicate(true)
 	_loss_boost_seen = state.get("loss_boost", {}).duplicate()
+	_read_structure_wire(state.get("structures", []))
 	var local_mortal := rules.local()
 	if local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0:
 		_erase_sun_patches(_my_id)
@@ -2913,6 +3162,8 @@ func local_effects() -> Array[Dictionary]:
 		out.append(effect(&"loss_boost", "LOSS +%d%%" % int(round(loss_boost_share() * 100.0)), Gods.favor_by_id(&"siblings_compromise_sun").icon, UITokens.EMBER, boosted, 0.0, true))
 	if _movement_override_time > 0.0 and _movement_override_caster != _my_id:
 		out.append(favor_effect(&"pulled", &"let_us_light_your_way", _movement_override_time, 0.0, true))
+	if mortal.control_time > 0.0:
+		out.append(favor_effect(&"control", &"a_little_more_control", mortal.control_time, 0.0))
 	if player != null and player.stun_left() > 0.0:
 		out.append(effect(&"stun", "STUNNED", null, UITokens.EMBER, player.stun_left(), 0.0, true))
 	out.append_array(arena_local_effects())
@@ -2937,6 +3188,7 @@ const E_ICONS := {
 	Gods.TALA: "res://Assets/Gods/Tala/Tala-E-PopUp.png",
 	Gods.HANAN: "res://Assets/Gods/Hanan/Hanan-E-PopUp.png",
 	Gods.MAPULON_IKAPATI: "res://Assets/Gods/MapulonIkapati/Mapulon-Popup-E.png",
+	Gods.SIDAPA: "res://Assets/Gods/Sidapa/Sidapa-E-PopUp.png",
 	Gods.BATHALA: "res://Assets/Gods/Bathala/Bathala-Popup-E.png",
 }
 

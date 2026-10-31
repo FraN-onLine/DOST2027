@@ -30,17 +30,19 @@ const DUMMY_BANDANA := 6  # orange, so it never reads as our own mortal
 # walk holds into it.
 const DUMMY_PUSH_GAP := 44.0
 const ALTAR_REACH := 120.0
-# Six altars around the fire (Camp/Campfire is at 700, 340), one per god, in a
-# hexagon turned on its side so none stands on the mortal's spawn below the fire
-# and no altar's name tag covers another's. Every one stays inside the field and
+# Seven altars around the fire (Camp/Campfire is at 700, 340), one per god: three
+# across the top, one at each side, two along the bottom. The bottom centre is
+# left open for the mortal's spawn below the fire, and the gaps are wide enough
+# that no altar's name tag covers another's. Every one stays inside the field and
 # above the band.
 const ALTAR_RING: Array[Vector2] = [
-	Vector2(560, 210),
-	Vector2(840, 210),
-	Vector2(960, 340),
-	Vector2(840, 470),
-	Vector2(560, 470),
-	Vector2(440, 340),
+	Vector2(500, 205),
+	Vector2(700, 205),
+	Vector2(900, 205),
+	Vector2(1000, 345),
+	Vector2(845, 470),
+	Vector2(555, 470),
+	Vector2(400, 345),
 ]
 
 @onready var leave_button: Button = get_node_or_null("PrepHud/LeaveButton") as Button

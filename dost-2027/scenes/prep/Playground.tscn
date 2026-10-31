@@ -12,7 +12,7 @@ simulate_rivals = true
 rival_names = PackedStringArray("DUMMY")
 
 [node name="DummySpawn" type="Marker2D" parent="."]
-position = Vector2(700, 250)
+position = Vector2(370, 485)
 
 [node name="LeaveButton" type="Button" parent="PrepHud"]
 anchors_preset = 3

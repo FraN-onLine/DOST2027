@@ -1,0 +1,125 @@
+[gd_resource type="Resource" script_class="God" format=3 uid="uid://buy7boeu4tc2l"]
+
+[ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
+[ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_god"]
+[ext_resource type="Texture2D" uid="uid://2k14435xm3sv" path="res://Assets/Placeholders/favor.png" id="3_favor"]
+[ext_resource type="Texture2D" uid="uid://b3hkvrfg3hjsl" path="res://Assets/Placeholders/god.png" id="4_god"]
+
+[sub_resource type="Resource" id="Favor_a_little_more_structure"]
+script = ExtResource("1_favor")
+id = &"a_little_more_structure"
+god_id = &"sidapa"
+display_name = "A Little More Structure"
+description = "E - open a ring where you stand. Every mortal has 3s to step inside; whoever is still outside is stunned for 3s. Cooldown: 30s."
+slot = 1
+kind = 1
+cooldown = 30.0
+duration = 3.0
+color = Color(0.42, 0.25, 0.55, 1)
+icon = ExtResource("3_favor")
+params = {
+"countdown": 3.0,
+"radius": 130.0,
+"stun_time": 3.0
+}
+
+[sub_resource type="Resource" id="Favor_a_little_more_control"]
+script = ExtResource("1_favor")
+id = &"a_little_more_control"
+god_id = &"sidapa"
+display_name = "A Little More Control"
+description = "Q - for 3s, every Rooted, Stun and Tranced you put on another mortal lasts 1s longer. Cooldown: 30s."
+slot = 2
+kind = 1
+cooldown = 30.0
+duration = 3.0
+color = Color(0.42, 0.25, 0.55, 1)
+icon = ExtResource("3_favor")
+params = {
+"extra_time": 1.0,
+"window": 3.0
+}
+
+[sub_resource type="Resource" id="Favor_departure_is_not_now"]
+script = ExtResource("1_favor")
+id = &"departure_is_not_now"
+god_id = &"sidapa"
+display_name = "Departure Is Not Now"
+description = "Stuns on you last 15% shorter."
+color = Color(0.42, 0.25, 0.55, 1)
+icon = ExtResource("3_favor")
+params = {
+"stun_reduction": 0.15
+}
+
+[sub_resource type="Resource" id="Favor_first_cleanse"]
+script = ExtResource("1_favor")
+id = &"first_cleanse"
+god_id = &"sidapa"
+display_name = "The First Cleanse"
+description = "The first stun that would land on you in each trial is cancelled."
+color = Color(0.42, 0.25, 0.55, 1)
+icon = ExtResource("3_favor")
+
+[sub_resource type="Resource" id="Favor_lifeline"]
+script = ExtResource("1_favor")
+id = &"lifeline"
+god_id = &"sidapa"
+display_name = "Lifeline"
+description = "When another mortal is stunned, gain 30 FAVOR."
+color = Color(0.42, 0.25, 0.55, 1)
+icon = ExtResource("3_favor")
+params = {
+"gain": 30
+}
+
+[sub_resource type="Resource" id="Favor_guilty_pleasure"]
+script = ExtResource("1_favor")
+id = &"guilty_pleasure"
+god_id = &"sidapa"
+display_name = "Guilty Pleasure"
+description = "FAVOR you lose while stunned is reduced by 80%."
+color = Color(0.42, 0.25, 0.55, 1)
+icon = ExtResource("3_favor")
+params = {
+"loss_reduction": 0.8
+}
+
+[sub_resource type="Resource" id="Favor_time_is_now"]
+script = ExtResource("1_favor")
+id = &"time_is_now"
+god_id = &"sidapa"
+display_name = "Time Is Now"
+description = "At the end of the trial, gain 50 FAVOR for every time you were stunned during it."
+color = Color(0.42, 0.25, 0.55, 1)
+icon = ExtResource("3_favor")
+params = {
+"per_stun": 50
+}
+
+[resource]
+script = ExtResource("2_god")
+id = &"sidapa"
+display_name = "SIDAPA"
+epithet = "Lord of Mount Madja-as"
+color = Color(0.42, 0.25, 0.55, 1)
+icon = ExtResource("4_god")
+game_name = "PIKO"
+game_blurb = "Throw your stone onto one of the nine tiles, then hop the grid in order without touching a line and skip the tile your stone holds. Land clean and leap on; miss and lose FAVOR and start over from the throw. Touch the stone and hop back the way you came, picking it up on the last square. A countdown follows your head all the while - keep hopping to feed it."
+arena_scene = "res://scenes/gods/sidapa/SidapaArena.tscn"
+implemented = true
+favors = Array[ExtResource("1_favor")]([SubResource("Favor_a_little_more_structure"), SubResource("Favor_a_little_more_control"), SubResource("Favor_departure_is_not_now"), SubResource("Favor_first_cleanse"), SubResource("Favor_lifeline"), SubResource("Favor_guilty_pleasure"), SubResource("Favor_time_is_now")])
+portrait = ExtResource("4_god")
+intro_lines = Array[String](["[The field goes cold. A single star burns above the grid, and the squares wait like open graves.]", "Piko. The little ones' game, played on the edge of my mountain.", "Throw your stone, hop the squares in order, and come back for it. Simple - if you do not look down.", "The sun is falling, mortals. Hop cleanly, or stay in the dark with me."])
+trial_end_lines = Array[String](["You hopped well enough. The stone always comes home, in the end.", "I have watched every star burn out. You are brighter than most."])
+success_lines = Array[String](["You leapt and returned and kept your stone. Even the underworld will remember your name."])
+failure_lines = Array[String](["You stumbled on the lines. Do not worry - every grave is patient."])
+transition_lines = {
+"*": ["The field is cold now. Go, mortals."],
+"apolaki": ["Apolaki, the sun is yours again. Do not burn what I have not yet buried."],
+"bathala": ["Bathala waits, and Bathala does not wait kindly. Go."],
+"hanan": ["Hanan, the morning comes. Let them wake."],
+"mapulon_ikapati": ["Uncle, Auntie, the harvest is yours. They have earned their bread."],
+"mayari": ["Mayari, the moon still remembers you. Go gently with them."],
+"tala": ["Tala, the stars are yours. Light their way back."]
+}

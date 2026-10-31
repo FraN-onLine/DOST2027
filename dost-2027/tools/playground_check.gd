@@ -76,12 +76,14 @@ func _run() -> void:
 
 	# --- AN ALTAR OF EVERY GOD ----------------------------------------------------------
 	var gods := Gods.all()
-	_check(gods.size() == 6, "six gods in the registry (%d)" % gods.size())
+	_check(gods.size() == 7, "seven gods in the registry (%d)" % gods.size())
 	_check(playground._altars.size() == gods.size(), "one altar per god (%d)" % playground._altars.size())
 	var seen_gods := {}
 	var seen_positions := {}
 	var painted := true
 	var lit := true
+	var inside := true
+	var spawn_clear := true
 	for altar in playground._altars.keys():
 		var altar_god: God = playground._altars[altar]
 		seen_gods[altar_god.id] = true
@@ -91,8 +93,12 @@ func _run() -> void:
 		painted = painted and name_label.text == "ALTAR OF %s" % altar_god.display_name
 		painted = painted and altar_god.icon != null and icon.texture == altar_god.icon
 		lit = lit and (altar as Node2D).visible
+		inside = inside and playground._field.has_point((altar as Node2D).global_position)
+		spawn_clear = spawn_clear and playground._start_position.distance_to((altar as Node2D).global_position) > 120.0
 	_check(seen_gods.size() == gods.size(), "every god has an altar (%s)" % str(seen_gods.keys()))
 	_check(seen_positions.size() == gods.size(), "the altars stand apart around the fire")
+	_check(inside, "every altar stands inside the field")
+	_check(spawn_clear, "the mortal spawns clear of every altar")
 	_check(painted, "each altar is painted with its god's name and icon")
 	_check(lit, "...and every altar is visible")
 

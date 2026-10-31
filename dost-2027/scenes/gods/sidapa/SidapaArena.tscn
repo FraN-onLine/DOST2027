@@ -1,0 +1,189 @@
+[gd_scene format=3 uid="uid://jm7jh30xdegw"]
+
+[ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://d1sjp5oehd4dy" path="res://scripts/gods/sidapa/sidapa_arena.gd" id="2_arena"]
+[ext_resource type="Script" uid="uid://chln8n2o3e5if" path="res://scripts/gods/sidapa/piko_board.gd" id="3_board"]
+[ext_resource type="Script" uid="uid://2jaestjif6e4" path="res://scripts/gods/sidapa/piko_arrow.gd" id="4_arrow"]
+[ext_resource type="Script" uid="uid://d3cadlov1ova6" path="res://scripts/gods/sidapa/piko_gauge.gd" id="5_gauge"]
+[ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="6_bg"]
+[ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="7_floor"]
+[ext_resource type="PackedScene" path="res://scenes/gods/sidapa/PikoTile.tscn" id="8_tile"]
+[ext_resource type="PackedScene" path="res://scenes/gods/sidapa/PikoPad.tscn" id="9_pad"]
+[ext_resource type="Script" uid="uid://sh4g1lox3v0e" path="res://scripts/gods/sidapa/piko_throw.gd" id="9_throw"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_court"]
+bg_color = Color(0.085, 0.092, 0.104, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.78, 0.8, 0.76, 0.22)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+
+[sub_resource type="Gradient" id="Gradient_blitz"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.7, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_blitz"]
+gradient = SubResource("Gradient_blitz")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[node name="SidapaArena" unique_id=917264501 instance=ExtResource("1_base")]
+script = ExtResource("2_arena")
+head_time = 12.0
+head_bonus = 1.5
+head_stun = 3.0
+arrow_speed = 60.0
+blitz_time = 30.0
+blitz_arrow_scale = 1.5
+blitz_hop_bonus = 20
+hop_min = 70.0
+hop_max = 290.0
+hop_time = 0.38
+hop_height = 46.0
+charge_time = 1.1
+land_snap = 62.0
+start_hop_time = 0.3
+spawn_spacing = 36.0
+throw_min = 90.0
+throw_max = 460.0
+throw_charge_time = 0.9
+throw_time = 0.45
+throw_height = 96.0
+stone_miss_penalty = 50
+wrong_tile_penalty = 100
+stone_penalty = 200
+hop_reward = 100
+end_reward = 200
+pickup_reward = 250
+god_id = &"sidapa"
+embedded = true
+dialogue_prefix = "sidapa"
+shake_pixels = 5.0
+
+[node name="Court" type="Panel" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=227650481]
+visible = false
+offset_left = 228.0
+offset_top = 286.0
+offset_right = 1160.0
+offset_bottom = 604.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_court")
+
+[node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1833207421]
+points = PackedVector2Array(258, 240, 1010, 240, 1010, 590, 258, 590, 258, 240)
+width = 4.0
+default_color = Color(0.42, 0.25, 0.55, 0)
+
+[node name="Pad" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=413159027 instance=ExtResource("9_pad")]
+position = Vector2(330, 497)
+
+[node name="Tile1" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=947213401 instance=ExtResource("8_tile")]
+position = Vector2(467, 492)
+
+[node name="Tile2" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="4" unique_id=147029153 instance=ExtResource("8_tile")]
+position = Vector2(550, 455)
+number = 2
+
+[node name="Tile3" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="5" unique_id=300285744 instance=ExtResource("8_tile")]
+position = Vector2(550, 540)
+number = 3
+
+[node name="Tile4" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="6" unique_id=635621980 instance=ExtResource("8_tile")]
+position = Vector2(634, 497)
+number = 4
+
+[node name="Tile5" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="7" unique_id=885452166 instance=ExtResource("8_tile")]
+position = Vector2(717, 455)
+number = 5
+
+[node name="Tile6" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="8" unique_id=722638505 instance=ExtResource("8_tile")]
+position = Vector2(717, 540)
+number = 6
+
+[node name="Tile7" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="9" unique_id=196741830 instance=ExtResource("8_tile")]
+position = Vector2(803, 492)
+number = 7
+
+[node name="Tile8" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="10" unique_id=560183417 instance=ExtResource("8_tile")]
+position = Vector2(880, 445)
+number = 8
+
+[node name="Tile9" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="11" unique_id=775920316 instance=ExtResource("8_tile")]
+position = Vector2(880, 540)
+number = 9
+
+[node name="Tile10" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="12" unique_id=412907631 instance=ExtResource("8_tile")]
+position = Vector2(978, 497)
+number = 10
+turn = true
+
+[node name="Board" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="13" unique_id=902347118]
+script = ExtResource("3_board")
+
+[node name="Player" parent="." index="5" unique_id=1489401219]
+position = Vector2(319, 509)
+
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=556721390]
+layout_mode = 2
+theme_type_variation = &"HudLabel"
+text = "LAPS 0   STONE -   THROW   HEAD 12s"
+
+[node name="Arrow" type="Node2D" parent="." index="12" unique_id=771402913]
+visible = false
+z_index = 6
+position = Vector2(400, 380)
+script = ExtResource("4_arrow")
+
+[node name="Gauge" type="Node2D" parent="." index="13" unique_id=889351206]
+visible = false
+z_index = 6
+position = Vector2(368, 466)
+script = ExtResource("5_gauge")
+
+[node name="ThrowAim" type="Node2D" parent="." index="14" unique_id=661472039]
+visible = false
+z_index = 6
+script = ExtResource("9_throw")
+
+[node name="BarLayer" type="CanvasLayer" parent="." index="15" unique_id=664120338]
+layer = 4
+
+[node name="Head" type="Label" parent="BarLayer" index="0" unique_id=1209385577]
+visible = false
+offset_left = 372.0
+offset_top = 320.0
+offset_right = 428.0
+offset_bottom = 346.0
+theme_type_variation = &"WorldValue"
+theme_override_font_sizes/font_size = 20
+text = "12s"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ArenaBG" type="Node2D" parent="." index="16" unique_id=445289116]
+position = Vector2(944, 92)
+
+[node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=1087412033]
+z_index = -2
+position = Vector2(-368.25, 226.5)
+scale = Vector2(0.6040356, 0.63663363)
+texture = ExtResource("6_bg")
+metadata/_edit_lock_ = true
+
+[node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=336508740]
+position = Vector2(-288, 178.00003)
+scale = Vector2(2.0124998, 2.2680554)
+texture = ExtResource("7_floor")
+metadata/_edit_lock_ = true
+
+[node name="BlitzGlow" type="Sprite2D" parent="ArenaBG" index="2" unique_id=812045579]
+visible = false
+texture = SubResource("GradientTexture2D_blitz")
