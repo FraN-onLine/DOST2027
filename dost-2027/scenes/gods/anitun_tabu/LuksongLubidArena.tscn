@@ -3,8 +3,38 @@
 [ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://b3ergkaxcdc6a" path="res://scripts/gods/anitun_tabu/luksong_lubid_arena.gd" id="2_arena"]
 [ext_resource type="PackedScene" uid="uid://dv0icff27016d" path="res://scenes/gods/anitun_tabu/Lubid.tscn" id="3_lubid"]
+[ext_resource type="Texture2D" uid="uid://5odnt6i14lnr" path="res://Assets/Gods/Unknown/Unknown God.png" id="4_2brwb"]
 [ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="4_bg"]
 [ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="5_floor"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_88geg"]
+atlas = ExtResource("4_2brwb")
+region = Rect2(0, 0, 56, 56)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_olmub"]
+atlas = ExtResource("4_2brwb")
+region = Rect2(56, 0, 56, 56)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ynoma"]
+atlas = ExtResource("4_2brwb")
+region = Rect2(112, 0, 56, 56)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ejwv5"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_88geg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_olmub")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ynoma")
+}],
+"loop": 2,
+"name": &"default",
+"speed": 6.0
+}]
 
 [node name="LuksongLubidArena" unique_id=1623605932 instance=ExtResource("1_base")]
 script = ExtResource("2_arena")
@@ -39,6 +69,13 @@ scale = Vector2(1.1486843, 0.576087)
 points = PackedVector2Array(258, 232, 1010, 232, 1010, 408.5962, 1010, 592, 258, 592, 258, 232)
 width = 4.0
 default_color = Color(0.38, 0.7, 0.84, 0)
+
+[node name="OverSeerGod" type="AnimatedSprite2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="3" unique_id=1266263846]
+z_index = -1
+position = Vector2(949, 181.00002)
+scale = Vector2(3.3423078, 3.5984848)
+sprite_frames = SubResource("SpriteFrames_ejwv5")
+autoplay = "default"
 
 [node name="Player" parent="." index="5" unique_id=1489401219]
 position = Vector2(330, 500)
