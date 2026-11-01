@@ -6,6 +6,7 @@
 [ext_resource type="Shader" uid="uid://y0uyfc41fh00" path="res://UI/GodsArena/vision_mask.gdshader" id="4_vision"]
 [ext_resource type="Texture2D" uid="uid://cbxhacid8hdcr" path="res://Assets/Gods/Apolaki/Sun-Patch.png" id="5_hxyp3"]
 [ext_resource type="Script" uid="uid://bpe8osuir3cim" path="res://UI/GodsArena/hint_strip.gd" id="6_hint"]
+[ext_resource type="PackedScene" path="res://scenes/gods/common/WindsAndGales.tscn" id="7_wind"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_strip"]
 size = Vector2(244, 654)
@@ -174,7 +175,6 @@ texture = ExtResource("5_hxyp3")
 
 [node name="VisionLayer" type="CanvasLayer" parent="." unique_id=1780669298]
 layer = 5
-
 [node name="VisionMask" type="ColorRect" parent="VisionLayer" unique_id=2121570625]
 visible = false
 material = SubResource("ShaderMaterial_vision")
@@ -185,6 +185,8 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 1)
+
+[node name="WindsAndGales" parent="." instance=ExtResource("7_wind")]
 
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=139203851]
 layer = 10

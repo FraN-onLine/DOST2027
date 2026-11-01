@@ -1,0 +1,136 @@
+[gd_resource type="Resource" script_class="God" format=3 uid="uid://877vgu4urwsy"]
+
+[ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
+[ext_resource type="Texture2D" uid="uid://b62se7pjdvl35" path="res://Assets/Gods/Anitun Tabu/Tabu_General_Favor.png" id="2_eln2r"]
+[ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_god"]
+[ext_resource type="Texture2D" uid="uid://dx2lbm7of88hc" path="res://Assets/Gods/Unknown/Unknown.png" id="3_ucobq"]
+[ext_resource type="Texture2D" uid="uid://b3hkvrfg3hjsl" path="res://Assets/Placeholders/god.png" id="4_god"]
+
+[sub_resource type="Resource" id="Favor_the_west_wind"]
+script = ExtResource("1_favor")
+id = &"the_west_wind"
+god_id = &"anitun_tabu"
+display_name = "The West Wind"
+description = "E - call the Winds and Gales of Yesterday onto the field for 5s, dragging every other mortal leftward. While you hold this favor the gales leave you untouched. Cast it while the wind already blows to gain 10% movement speed instead. Cooldown: 30s."
+slot = 1
+kind = 1
+cooldown = 30.0
+duration = 5.0
+color = Color(0.38, 0.7, 0.84, 1)
+icon = ExtResource("2_eln2r")
+params = {
+"gale_immunity": true,
+"speed_boost": 0.1,
+"wind_time": 5.0
+}
+
+[sub_resource type="Resource" id="Favor_mustve_been_the_wind"]
+script = ExtResource("1_favor")
+id = &"mustve_been_the_wind"
+god_id = &"anitun_tabu"
+display_name = "Must've Been the Wind"
+description = "Q - shrug off the next instance of FAVOR loss. Cooldown: 10s."
+slot = 2
+kind = 1
+cooldown = 10.0
+color = Color(0.38, 0.7, 0.84, 1)
+icon = ExtResource("2_eln2r")
+params = {
+"shields": 1.0
+}
+
+[sub_resource type="Resource" id="Favor_blow_back"]
+script = ExtResource("1_favor")
+id = &"blow_back"
+god_id = &"anitun_tabu"
+display_name = "Blow Back"
+description = "An instance of FAVOR you lose returns 50% of itself after 10s. Only one return may be pending at a time."
+color = Color(0.38, 0.7, 0.84, 1)
+icon = ExtResource("2_eln2r")
+params = {
+"delay": 10.0,
+"return_share": 0.5
+}
+
+[sub_resource type="Resource" id="Favor_a_silent_song"]
+script = ExtResource("1_favor")
+id = &"a_silent_song"
+god_id = &"anitun_tabu"
+display_name = "A Silent Song"
+description = "Gain 10% of the first FAVOR each other mortal gains in a trial."
+color = Color(0.38, 0.7, 0.84, 1)
+icon = ExtResource("2_eln2r")
+params = {
+"share": 0.1
+}
+
+[sub_resource type="Resource" id="Favor_tabus_delivery_service"]
+script = ExtResource("1_favor")
+id = &"tabus_delivery_service"
+god_id = &"anitun_tabu"
+display_name = "Tabu's Delivery Service"
+description = "At 10s left, every other mortal receives 100 FAVOR, after their own multipliers. Gain 100% of what they actually received."
+color = Color(0.38, 0.7, 0.84, 1)
+icon = ExtResource("2_eln2r")
+params = {
+"at_time": 10.0,
+"gift": 100,
+"share": 1.0
+}
+
+[sub_resource type="Resource" id="Favor_its_kinda_tabu"]
+script = ExtResource("1_favor")
+id = &"its_kinda_tabu"
+god_id = &"anitun_tabu"
+display_name = "It's Kinda Tabu"
+description = "Requires a Q skill. While it is ready, gain 8 FAVOR per second and 5% movement speed. While it cools down, lose 8 FAVOR per second and 5% movement speed."
+color = Color(0.38, 0.7, 0.84, 1)
+icon = ExtResource("2_eln2r")
+params = {
+"per_second": 8,
+"requires_slot": "Q",
+"speed": 0.05
+}
+
+[sub_resource type="Resource" id="Favor_all_winds_lead_to_tabu"]
+script = ExtResource("1_favor")
+id = &"all_winds_lead_to_tabu"
+god_id = &"anitun_tabu"
+display_name = "All Winds Lead to Tabu"
+description = "Blow Back returns 100% instead of 50%, A Silent Song shares 75% instead of 10%, and Tabu's Delivery Service brings back 150% instead of 100%."
+color = Color(0.38, 0.7, 0.84, 1)
+icon = ExtResource("2_eln2r")
+params = {
+"blow_back": 1.0,
+"delivery": 1.5,
+"silent_song": 0.75
+}
+
+[resource]
+script = ExtResource("2_god")
+id = &"anitun_tabu"
+display_name = "ANITUN TABU"
+epithet = "Goddess of the Winds"
+color = Color(0.38, 0.7, 0.84, 1)
+icon = ExtResource("3_ucobq")
+game_name = "LUKSONG LUBID"
+game_blurb = "A lubid swings across the field from right to left and back again. Jump it with a click and land cleanly for FAVOR; touch it and lose FAVOR. Bursts of wind fall on and around you now and then - stand clear. When the Winds and Gales of Yesterday rise, the whole field drags you west; keep jumping, and the rope pays more."
+arena_scene = "res://scenes/gods/anitun_tabu/LuksongLubidArena.tscn"
+implemented = true
+favors = Array[ExtResource("1_favor")]([SubResource("Favor_the_west_wind"), SubResource("Favor_mustve_been_the_wind"), SubResource("Favor_blow_back"), SubResource("Favor_a_silent_song"), SubResource("Favor_tabus_delivery_service"), SubResource("Favor_its_kinda_tabu"), SubResource("Favor_all_winds_lead_to_tabu")])
+portrait = ExtResource("4_god")
+intro_lines = Array[String](["[The field is restless. Dust lifts from the earth and hangs there, waiting.]", "The wind remembers every step the mortals ever took. Tonight it remembers yours.", "A lubid swings across the grass. Jump it, and the wind will sing for you. Touch it, and the wind will take its due.", "Blow true, little mortals. The west wind is already listening."])
+trial_end_lines = Array[String](["The wind settles. You jumped well - most of you.", "Go now. The next gust will find you soon enough."])
+success_lines = Array[String](["You danced with the wind and it let you pass. Even the gales will whisper your name."])
+failure_lines = Array[String](["The wind took more than it gave. It usually does."])
+transition_lines = {
+"*": ["The air changes. Keep walking, and keep your feet under you."],
+"apolaki": ["Apolaki, the sun still burns behind the wind. Go, and do not scorch what the breeze carried here."],
+"bathala": ["Bathala waits beyond the last gust. The wind will not follow you there."],
+"hanan": ["Hanan, the morning is yours. Let the air be still a while."],
+"mapulon_ikapati": ["Uncle, Auntie, the harvest is yours. May the wind be gentle on it."],
+"mayari": ["Mayari, the moon pulls the tides and the winds both. They are yours now."],
+"tala": ["Tala, the stars are yours. Let the wind carry them somewhere kind."]
+}
+hidden_visitor = true
+unknown_force_lines = Array[String](["Hmmm... another force rides the wind. It is not one of yours.", "The air thickens. Something old is coming - and it is not mine to name."])

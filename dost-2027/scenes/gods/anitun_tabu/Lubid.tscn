@@ -1,0 +1,80 @@
+[gd_scene format=3 uid="uid://dv0icff27016d"]
+
+[ext_resource type="Script" uid="uid://cnmyk7rpxh2u3" path="res://scripts/gods/anitun_tabu/lubid.gd" id="1_lubid"]
+[ext_resource type="Texture2D" uid="uid://cnaq344ulh4cp" path="res://Assets/Gods/Anitun Tabu/WindFairy.png" id="2_fairy"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rope"]
+size = Vector2(13, 351)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fairy_1"]
+atlas = ExtResource("2_fairy")
+region = Rect2(0, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fairy_2"]
+atlas = ExtResource("2_fairy")
+region = Rect2(48, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fairy_3"]
+atlas = ExtResource("2_fairy")
+region = Rect2(96, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fairy_4"]
+atlas = ExtResource("2_fairy")
+region = Rect2(144, 0, 48, 48)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_fairy"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fairy_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fairy_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fairy_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fairy_4")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 10.0
+}]
+
+[node name="Lubid" type="Node2D" unique_id=1128331666]
+script = ExtResource("1_lubid")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=288629797]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=357522922]
+position = Vector2(0, -6.5)
+shape = SubResource("RectangleShape2D_rope")
+
+[node name="Rope" type="Line2D" parent="." unique_id=2084845897]
+points = PackedVector2Array(0, 167)
+width = 7.0
+default_color = Color(0.82, 0.66, 0.42, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="Shine" type="Line2D" parent="." unique_id=1807285024]
+position = Vector2(-1.5, 0)
+width = 2.0
+default_color = Color(0.98, 0.92, 0.75, 0.55)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="FairyTop" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -14)
+sprite_frames = SubResource("SpriteFrames_fairy")
+autoplay = "default"
+frame_progress = 0.25
+
+[node name="FairyBottom" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, 167)
+sprite_frames = SubResource("SpriteFrames_fairy")
+autoplay = "default"
+frame_progress = 0.6

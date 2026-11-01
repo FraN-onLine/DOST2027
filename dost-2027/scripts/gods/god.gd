@@ -64,6 +64,14 @@ func transition_voices_for(next_god_id: StringName) -> Array:
 @export var failure_lines: Array[String] = []
 @export var transition_lines: Dictionary = {}  # next god id (String) -> Array[String]
 
+# --- UNWANTED VISITORS --------------------------------------------------------
+# A god the pantheon does not name until it walks onto the field. It plays like
+# any other god - same arena, same favors, same Bato Bato - but before its own
+# trial every mention reads "??? - ???" and the other gods only sense an unknown
+# force coming next (see unknown_force_transition()).
+@export var hidden_visitor := false
+@export var unknown_force_lines: Array[String] = []
+
 
 # --- SPEAKERS -----------------------------------------------------------------
 # A god that is really two (Mapulon & Ikapati) fills `speakers`: name ->
@@ -95,6 +103,19 @@ func get_favor(favor_id: StringName) -> GodFavor:
 		if favor.id == favor_id:
 			return favor
 	return null
+
+
+# What this god says when an unwanted visitor takes the field: the visitor is
+# never named, only felt. Empty falls back to the two lines below.
+func unknown_force_transition() -> Array[String]:
+	var lines: Array[String] = []
+	for line in unknown_force_lines:
+		if str(line).strip_edges() != "":
+			lines.append(str(line))
+	if lines.is_empty():
+		lines.append("Hmmm... an unknown force is coming next.")
+		lines.append("Something old stirs at the edge of the field. It is not one of ours.")
+	return lines
 
 
 # What this god says about moving on to `next_god_id`, falling back to the "*"

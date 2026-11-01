@@ -38,10 +38,13 @@ const NUMBER_COLOR := UITokens.MUTED
 @onready var intro_option: OptionButton = $Margin/VBox/Scroll/Body/IntroRow/IntroOption
 @onready var opening_option: OptionButton = $Margin/VBox/Scroll/Body/OpeningRow/OpeningOption
 @onready var blitz_box: CheckBox = $Margin/VBox/Scroll/Body/BlitzRow/BlitzBox
+@onready var starter_option: OptionButton = $Margin/VBox/Scroll/Body/StarterRow/StarterOption
 @onready var camera_option: OptionButton = $Margin/VBox/Scroll/Body/CameraRow/CameraOption
 @onready var host_note: Label = $Margin/VBox/Scroll/Body/HostNote
 @onready var reset_button: Button = $Margin/VBox/Buttons/ResetButton
 @onready var done_button: Button = $Margin/VBox/Buttons/DoneButton
+
+const STARTER_MODES := [RunSettings.STARTER_OFF, RunSettings.STARTER_RANDOM, RunSettings.STARTER_CUSTOM]
 
 var editable := false
 var _syncing := false  # true while refresh() repaints, so the controls' signals are ignored
@@ -69,6 +72,9 @@ func _ready() -> void:
 	opening_option.add_item("SKIP")
 	camera_option.add_item("WHOLE ARENA")
 	camera_option.add_item("FOLLOW PLAYER")
+	starter_option.add_item("OFF")
+	starter_option.add_item("RANDOM (unique set each)")
+	starter_option.add_item("CUSTOM (each player picks)")
 	time_option.item_selected.connect(func(index: int) -> void: _change("trial_time", RunSettings.TRIAL_TIMES[index]))
 	prep_option.item_selected.connect(func(index: int) -> void: _change("prep_time", RunSettings.PREP_TIMES[index]))
 	due_option.item_selected.connect(func(index: int) -> void: _change("due_step", RunSettings.DUE_STEPS[index]))
@@ -78,6 +84,7 @@ func _ready() -> void:
 		_change("opening_cutscene", RunSettings.OPENING_FULL if index == 0 else RunSettings.OPENING_SKIP))
 	camera_option.item_selected.connect(func(index: int) -> void:
 		_change("camera_mode", RunSettings.CAMERA_ARENA if index == 0 else RunSettings.CAMERA_FOLLOW))
+	starter_option.item_selected.connect(func(index: int) -> void: _change("starter_mode", STARTER_MODES[index]))
 	blitz_box.toggled.connect(_on_blitz_toggled)
 	reset_button.pressed.connect(_on_reset_pressed)
 	done_button.pressed.connect(close)
@@ -120,7 +127,11 @@ func refresh() -> void:
 	camera_option.select(0 if settings.camera_mode == RunSettings.CAMERA_ARENA else 1)
 	blitz_box.button_pressed = settings.god_blitz_mode
 	blitz_box.disabled = not editable
-	for option in [time_option, prep_option, due_option, intro_option, opening_option, camera_option]:
+	# CUSTOM is played with the builds each player picks in the lobby card, not
+	# with a run-wide pair, so this row is the whole setup here.
+	starter_option.select(maxi(0, STARTER_MODES.find(settings.starter_mode)))
+	for option in [time_option, prep_option, due_option, intro_option, opening_option, camera_option,
+			starter_option]:
 		option.disabled = not editable
 	reset_button.disabled = not editable
 	host_note.visible = not editable

@@ -13,6 +13,7 @@ const ARENAS := [
 	"res://scenes/gods/hanan/HananArena.tscn",
 	"res://scenes/gods/mapulon_ikapati/LangitLupaArena.tscn",
 	"res://scenes/gods/sidapa/SidapaArena.tscn",
+	"res://scenes/gods/anitun_tabu/LuksongLubidArena.tscn",
 	"res://scenes/gods/bathala/BathalaArena.tscn",
 ]
 
@@ -77,9 +78,11 @@ func _run() -> void:
 			problems += 1
 		if god.id != Gods.BATHALA:
 			# Every god that can follow it (any other playable god, then Bathala).
+			# An unwanted visitor is never named: the speaker senses an unknown
+			# force instead (God.unknown_force_transition), so it needs no line.
 			var followers: Array[StringName] = []
 			for other in playable:
-				if other != god.id:
+				if other != god.id and not Gods.by_id(other).hidden_visitor:
 					followers.append(other)
 			followers.append(Gods.BATHALA)
 			for next_id in followers:

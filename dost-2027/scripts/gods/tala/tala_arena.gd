@@ -70,6 +70,9 @@ extends Arena
 # The gold the field pulses in blitz: a rect over the floor, under the lines, cans and mortals.
 @onready var blitz_glow: ColorRect = get_node_or_null("ArenaField/BlitzGlow")
 @onready var slippers_root: Node2D = get_node_or_null("Slippers")
+# The throw hint: an arrow beside the mortal, toward the cursor, shown only while
+# a slipper is in hand and the line lets you throw.
+@onready var slipper_arrow: Node2D = get_node_or_null("SlipperArrow")
 @onready var stars_root: Node2D = get_node_or_null("ArenaField/Stars")
 @onready var status_label: Label = get_node_or_null(BAND_STATE + "Status")
 # Slipper.tscn: the slipper's own scene. `toss` while it flies, `grounded`
@@ -420,7 +423,28 @@ func _process(delta: float) -> void:
 	_render_stars()
 	_update_local_bounds()
 	_render_slippers()
+	_update_slipper_arrow()
 	_refresh_status()
+
+
+# The throw hint (SlipperArrow): a short arrow beside the mortal aimed at the
+# cursor, shown only while a throw is allowed at all - a slipper in hand, behind
+# the line, the round running. It reads the same conditions _try_throw does, so
+# the hint never promises a throw that would be refused.
+func _update_slipper_arrow() -> void:
+	if slipper_arrow == null or player == null:
+		return
+	var ready_now := _can_throw_now()
+	slipper_arrow.active = ready_now
+	if ready_now:
+		slipper_arrow.global_position = player.global_position
+		slipper_arrow.heading = (get_global_mouse_position() - player.global_position).angle()
+
+
+func _can_throw_now() -> bool:
+	return _phase == Phase.PLAYING and _local_mode == "ready" and not player.locked \
+		and not dialogue.is_active() and not due_menu.is_open() \
+		and player.global_position.x <= _shoot_x - player.radius
 
 
 func _input(event: InputEvent) -> void:
@@ -451,6 +475,7 @@ func _try_throw(mouse_position: Vector2) -> void:
 		_start_throw(_my_id, direction)
 	elif _net != null and _net.has_multiplayer_peer():
 		_net.rpc_id(1, "request_tala_throw", direction, player.global_position, scene_token())
+	_update_slipper_arrow()  # the slipper left the hand: the hint goes with it
 
 
 func _on_throw_requested(mortal_id: int, direction: Vector2, requested_origin: Vector2) -> void:

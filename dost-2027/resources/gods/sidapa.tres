@@ -1,8 +1,9 @@
 [gd_resource type="Resource" script_class="God" format=3 uid="uid://buy7boeu4tc2l"]
 
 [ext_resource type="Script" uid="uid://2l85xbyt8skx" path="res://scripts/gods/god_favor.gd" id="1_favor"]
+[ext_resource type="Texture2D" uid="uid://elmqruepxt50" path="res://Assets/Gods/Sidapa/Sidapa_General_Favor.png" id="2_7eclb"]
 [ext_resource type="Script" uid="uid://cqusylvywuag" path="res://scripts/gods/god.gd" id="2_god"]
-[ext_resource type="Texture2D" uid="uid://2k14435xm3sv" path="res://Assets/Placeholders/favor.png" id="3_favor"]
+[ext_resource type="Texture2D" uid="uid://dx2lbm7of88hc" path="res://Assets/Gods/Unknown/Unknown.png" id="3_benhg"]
 [ext_resource type="Texture2D" uid="uid://b3hkvrfg3hjsl" path="res://Assets/Placeholders/god.png" id="4_god"]
 
 [sub_resource type="Resource" id="Favor_a_little_more_structure"]
@@ -16,7 +17,7 @@ kind = 1
 cooldown = 30.0
 duration = 3.0
 color = Color(0.42, 0.25, 0.55, 1)
-icon = ExtResource("3_favor")
+icon = ExtResource("2_7eclb")
 params = {
 "countdown": 3.0,
 "radius": 130.0,
@@ -34,7 +35,7 @@ kind = 1
 cooldown = 30.0
 duration = 3.0
 color = Color(0.42, 0.25, 0.55, 1)
-icon = ExtResource("3_favor")
+icon = ExtResource("2_7eclb")
 params = {
 "extra_time": 1.0,
 "window": 3.0
@@ -47,7 +48,7 @@ god_id = &"sidapa"
 display_name = "Departure Is Not Now"
 description = "Stuns on you last 15% shorter."
 color = Color(0.42, 0.25, 0.55, 1)
-icon = ExtResource("3_favor")
+icon = ExtResource("2_7eclb")
 params = {
 "stun_reduction": 0.15
 }
@@ -59,7 +60,7 @@ god_id = &"sidapa"
 display_name = "The First Cleanse"
 description = "The first stun that would land on you in each trial is cancelled."
 color = Color(0.42, 0.25, 0.55, 1)
-icon = ExtResource("3_favor")
+icon = ExtResource("2_7eclb")
 
 [sub_resource type="Resource" id="Favor_lifeline"]
 script = ExtResource("1_favor")
@@ -68,7 +69,7 @@ god_id = &"sidapa"
 display_name = "Lifeline"
 description = "When another mortal is stunned, gain 30 FAVOR."
 color = Color(0.42, 0.25, 0.55, 1)
-icon = ExtResource("3_favor")
+icon = ExtResource("2_7eclb")
 params = {
 "gain": 30
 }
@@ -80,7 +81,7 @@ god_id = &"sidapa"
 display_name = "Guilty Pleasure"
 description = "FAVOR you lose while stunned is reduced by 80%."
 color = Color(0.42, 0.25, 0.55, 1)
-icon = ExtResource("3_favor")
+icon = ExtResource("2_7eclb")
 params = {
 "loss_reduction": 0.8
 }
@@ -92,7 +93,7 @@ god_id = &"sidapa"
 display_name = "Time Is Now"
 description = "At the end of the trial, gain 50 FAVOR for every time you were stunned during it."
 color = Color(0.42, 0.25, 0.55, 1)
-icon = ExtResource("3_favor")
+icon = ExtResource("2_7eclb")
 params = {
 "per_stun": 50
 }
@@ -103,7 +104,7 @@ id = &"sidapa"
 display_name = "SIDAPA"
 epithet = "Lord of Mount Madja-as"
 color = Color(0.42, 0.25, 0.55, 1)
-icon = ExtResource("4_god")
+icon = ExtResource("3_benhg")
 game_name = "PIKO"
 game_blurb = "Throw your stone onto one of the nine tiles, then hop the grid in order without touching a line and skip the tile your stone holds. Land clean and leap on; miss and lose FAVOR and start over from the throw. Touch the stone and hop back the way you came, picking it up on the last square. A countdown follows your head all the while - keep hopping to feed it."
 arena_scene = "res://scenes/gods/sidapa/SidapaArena.tscn"
@@ -123,3 +124,4 @@ transition_lines = {
 "mayari": ["Mayari, the moon still remembers you. Go gently with them."],
 "tala": ["Tala, the stars are yours. Light their way back."]
 }
+hidden_visitor = true

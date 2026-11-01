@@ -28,6 +28,9 @@ const DEFAULT_TRIAL_TIME := 90.0
 const DEFAULT_PREP_TIME := 20.0
 const CAMERA_ARENA := "arena"    # the whole field at once, world = screen (the default)
 const CAMERA_FOLLOW := "follow"  # a Camera2D on the local mortal (Arena.follow_camera)
+const STARTER_OFF := "off"       # every mortal starts with empty hands
+const STARTER_RANDOM := "random" # each mortal draws its own E and Q
+const STARTER_CUSTOM := "custom" # each player picks its own two in the lobby
 
 var trials: int = Gods.TRIALS_DEFAULT
 var order_mode: String = ORDER_RANDOM
@@ -41,6 +44,12 @@ var opening_cutscene: String = OPENING_FULL
 var god_blitz_mode: bool = true
 # Only what this screen draws: the host's rules never read the camera.
 var camera_mode: String = CAMERA_ARENA
+# STARTER SKILLS: what every mortal opens the run holding. RANDOM deals each
+# mortal a unique pair from the host's seed; CUSTOM lets each player pick its own
+# two in the lobby (Network.custom_builds), not a shared run-wide pair. The host
+# draws the seed at START and it rides the setup to every peer.
+var starter_mode: String = STARTER_OFF
+var starter_seed: int = 0
 
 
 static func defaults() -> RunSettings:
@@ -64,6 +73,8 @@ func to_dict() -> Dictionary:
 		"opening_cutscene": opening_cutscene,
 		"god_blitz_mode": god_blitz_mode,
 		"camera_mode": camera_mode,
+		"starter_mode": starter_mode,
+		"starter_seed": starter_seed,
 	}
 
 
@@ -84,10 +95,14 @@ static func from_dict(data: Dictionary) -> RunSettings:
 	settings.opening_cutscene = str(data.get("opening_cutscene", OPENING_FULL))
 	settings.god_blitz_mode = bool(data.get("god_blitz_mode", true))
 	settings.camera_mode = str(data.get("camera_mode", CAMERA_ARENA))
+	# A file saved before CUSTOM loadouts existed only knew "starter_skills".
+	var legacy_random := bool(data.get("starter_skills", false))
+	settings.starter_mode = str(data.get("starter_mode", STARTER_RANDOM if legacy_random else STARTER_OFF))
+	settings.starter_seed = int(data.get("starter_seed", 0))
 	return settings
 
 
-# Puts every field back inside the rules: trials 3..5, only known choices for the
+# Puts every field back inside the rules: trials 3..6, only known choices for the
 # times / steps / modes, custom_order made of playable gods and exactly `trials`
 # long (new slots are filled with gods not playing yet, extra ones are cut from
 # the end). With `fix_repeats` it also replaces a god that already plays in an
@@ -113,6 +128,8 @@ func validate(fix_repeats := true) -> Array[String]:
 		camera_mode = CAMERA_ARENA
 	if not DUE_STEPS.has(due_step):
 		due_step = GodMatch.MILESTONE_STEP
+	if starter_mode != STARTER_RANDOM and starter_mode != STARTER_CUSTOM:
+		starter_mode = STARTER_OFF
 	var playable := playable_ids()
 	var kept: Array[StringName] = []
 	for god_id in custom_order:
@@ -213,21 +230,146 @@ static func draw_order(count: int) -> Array[StringName]:
 	return order
 
 
+# What every mortal opens the run holding, keyed by mortal id. RANDOM deals the
+# shuffled pools so no two mortals open with the same pair. CUSTOM is each
+# player's own build (Network.build_favors), so it deals nothing here. The host
+# runs this once, from one seed, so the deal is the same on every screen.
+func starter_deal(mortal_ids: Array) -> Dictionary:
+	var ids: Array[int] = []
+	for id in mortal_ids:
+		ids.append(int(id))
+	ids.sort()
+	if starter_mode != STARTER_RANDOM:
+		return {}
+	return starter_deal_for(starter_seed, ids)
+
+
+# One random god's E and a DIFFERENT god's Q for each mortal, from `seed_value`.
+# Dealing from one shuffled pool - instead of drawing per mortal - is what makes
+# the sets unique: a favor is taken out of the pool once, and only a run with more
+# mortals than starter favors sees one come round again.
+static func starter_deal_for(seed_value: int, mortal_ids: Array) -> Dictionary:
+	var ids: Array[int] = []
+	for id in mortal_ids:
+		ids.append(int(id))
+	ids.sort()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var es := starter_pool(GodFavor.Slot.E)
+	var qs := starter_pool(GodFavor.Slot.Q)
+	_shuffle(es, rng)
+	_shuffle(qs, rng)
+	var used_e := {}
+	var used_q := {}
+	var deal := {}
+	for id in ids:
+		var e := _deal_favor(es, used_e, &"")
+		var q := _deal_favor(qs, used_q, e.god_id if e != null else &"")
+		if e == null or q == null:
+			continue
+		used_e[e.id] = true
+		used_q[q.id] = true
+		var pair: Array[GodFavor] = [e, q]
+		deal[id] = pair
+	return deal
+
+
+# Every favor a starter can draw: an implemented god's, in its slot, that asks
+# for nothing else to be held first. Bathala's are never in it - he closes the run.
+static func starter_pool(slot: int) -> Array[GodFavor]:
+	var pool: Array[GodFavor] = []
+	for god in Gods.all():
+		if god.id == Gods.BATHALA or not god.implemented:
+			continue
+		pool.append_array(_starter_favors_of(god, slot))
+	return pool
+
+
+# The pick a CUSTOM loadout falls back to when its box was left unselected:
+# Mayari's own E or Q.
+static func default_starter(slot: int) -> GodFavor:
+	var mayari := Gods.mayari()
+	if mayari == null:
+		return null
+	var favors := _starter_favors_of(mayari, slot)
+	return favors[0] if not favors.is_empty() else null
+
+
+# The starter favor with this id in this slot, or null when a CUSTOM build may
+# not pick it (another slot, a favor that asks for something to be held first).
+static func starter_favor(slot: int, favor_id: StringName) -> GodFavor:
+	if favor_id == &"":
+		return null
+	for favor in starter_pool(slot):
+		if favor.id == favor_id:
+			return favor
+	return null
+
+
+# An unused favor, preferring one from a different god than the partner
+# (`avoid_god`); once the pool is spent, a used one comes round again.
+static func _deal_favor(pool: Array[GodFavor], used: Dictionary, avoid_god: StringName) -> GodFavor:
+	if pool.is_empty():
+		return null
+	for favor in pool:
+		if not used.has(favor.id) and favor.god_id != avoid_god:
+			return favor
+	for favor in pool:
+		if favor.god_id != avoid_god:
+			return favor
+	return pool[0]
+
+
+static func _shuffle(items: Array, rng: RandomNumberGenerator) -> void:
+	for index in range(items.size() - 1, 0, -1):
+		var swap := rng.randi_range(0, index)
+		var held = items[index]
+		items[index] = items[swap]
+		items[swap] = held
+
+
+static func _starter_favors_of(god: God, slot: int) -> Array[GodFavor]:
+	var open: Array[GodFavor] = []
+	for favor in god.favors:
+		if favor.slot != slot:
+			continue
+		if favor.requires_favor_id() != &"" or favor.requires_slot() >= 0:
+			continue
+		if favor.requires_god_id() != &"" or not favor.requires_any_god_ids().is_empty():
+			continue
+		open.append(favor)
+	return open
+
+
 # The run as text, e.g. "Mayari -> Tala -> Apolaki -> BATHALA". A random run
-# shows one RANDOM per trial, since its gods are only drawn at START.
+# shows one RANDOM per trial, since its gods are only drawn at START. An
+# unwanted visitor is never named: the plan shows "??? - ???".
 func run_line() -> String:
 	var names: Array[String] = []
 	for index in range(trials):
 		if order_mode == ORDER_CUSTOM and index < custom_order.size():
 			var god := Gods.by_id(custom_order[index])
-			names.append(god.display_name.capitalize() if god != null else str(custom_order[index]))
+			if god != null and god.hidden_visitor:
+				names.append("??? - ???")
+			else:
+				names.append(god.display_name.capitalize() if god != null else str(custom_order[index]))
 		else:
 			names.append("Random")
 	names.append("BATHALA")
 	return "  ->  ".join(names)
 
 
+# Whether the run hands out opening favors at all.
+func has_starters() -> bool:
+	return starter_mode == STARTER_RANDOM or starter_mode == STARTER_CUSTOM
+
+
 # The one-line read-only summary everyone sees under the player list.
 func summary() -> String:
-	return "%d trials + Bathala   |   %s order   |   %ds" % [
+	var line := "%d trials + Bathala   |   %s order   |   %ds" % [
 		trials, "Custom" if order_mode == ORDER_CUSTOM else "Random", int(trial_time)]
+	if starter_mode == STARTER_RANDOM:
+		line += "   |   random starters"
+	elif starter_mode == STARTER_CUSTOM:
+		line += "   |   custom builds"
+	return line

@@ -1,0 +1,65 @@
+[gd_scene format=3 uid="uid://dqurkrhutt7yh"]
+
+[ext_resource type="PackedScene" uid="uid://bvf26dvy16r1m" path="res://scenes/gods/common/Arena.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://b3ergkaxcdc6a" path="res://scripts/gods/anitun_tabu/luksong_lubid_arena.gd" id="2_arena"]
+[ext_resource type="PackedScene" uid="uid://dv0icff27016d" path="res://scenes/gods/anitun_tabu/Lubid.tscn" id="3_lubid"]
+[ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="4_bg"]
+[ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="5_floor"]
+
+[node name="LuksongLubidArena" unique_id=1623605932 instance=ExtResource("1_base")]
+script = ExtResource("2_arena")
+rope_speed = 230.0
+rope_margin = 26.0
+jump_favor = 125
+rope_penalty = 75
+jump_time = 0.55
+jump_height = 30.0
+burst_min_time = 5.0
+burst_max_time = 8.0
+burst_penalty = 150
+burst_spawn_radius = 60.0
+burst_hit_radius = 48.0
+blitz_time = 30.0
+blitz_jump_favor = 200
+blitz_immune_jump_favor = 150
+god_id = &"anitun_tabu"
+embedded = true
+dialogue_prefix = "anitun_tabu"
+shake_pixels = 6.0
+
+[node name="Lubid" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=58659364 instance=ExtResource("3_lubid")]
+z_index = 4
+
+[node name="WindBursts" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1461452881]
+z_index = 6
+
+[node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=1145151878]
+position = Vector2(-37.765747, 252.65218)
+scale = Vector2(1.1486843, 0.576087)
+points = PackedVector2Array(258, 232, 1010, 232, 1010, 408.5962, 1010, 592, 258, 592, 258, 232)
+width = 4.0
+default_color = Color(0.38, 0.7, 0.84, 0)
+
+[node name="Player" parent="." index="5" unique_id=1489401219]
+position = Vector2(330, 500)
+
+[node name="Status" type="Label" parent="BandLayer/Band/Rows/State" parent_id_path=PackedInt32Array(1958472023) index="0" unique_id=959005378]
+layout_mode = 2
+theme_type_variation = &"HudLabel"
+text = "JUMP THE LUBID"
+
+[node name="ArenaBG" type="Node2D" parent="." index="13" unique_id=1345775385]
+position = Vector2(944, 92)
+
+[node name="TempBackground" type="Sprite2D" parent="ArenaBG" index="0" unique_id=1597830847]
+z_index = -2
+position = Vector2(-368.25, 226.5)
+scale = Vector2(0.6040356, 0.63663363)
+texture = ExtResource("4_bg")
+metadata/_edit_lock_ = true
+
+[node name="Arena1" type="Sprite2D" parent="ArenaBG" index="1" unique_id=1436303842]
+position = Vector2(-288, 178.00003)
+scale = Vector2(2.0124998, 2.2680554)
+texture = ExtResource("5_floor")
+metadata/_edit_lock_ = true

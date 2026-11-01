@@ -85,6 +85,15 @@ func _run() -> void:
 	me.pamana_window = 0.0
 
 	# --- the Tindahan's offers ---------------------------------------------------------------
+	# The shelf is rolled from a randomized generator; pin the seed so the run reads
+	# the same three cards every time, and keep the first one a plain item (Surigao
+	# Gold pays out at once when a God's Due is already within reach).
+	prep.rng.seed = 20261101
+	var shelf: Array[StringName] = prep._roll_offers(1)
+	while shelf.is_empty() or shelf[0] == Pamanas.SURIGAO_GOLD:
+		prep.rng.seed += 1
+		shelf = prep._roll_offers(1)
+	prep._offers[1] = shelf
 	var offers: Array[StringName] = prep.offers_for(1)
 	var distinct := {}
 	for id in offers:

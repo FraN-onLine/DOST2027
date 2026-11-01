@@ -29,8 +29,13 @@ func _build_god_list() -> void:
 		var god: God = order[index]
 		var label := Label.new()
 		var suffix := "" if god.implemented else "   (COMING SOON)"
-		label.text = "%d.  %s  -  %s%s" % [index + 1, god.display_name, _game_name(god), suffix]
-		label.add_theme_color_override("font_color", UITokens.god_text(god) if god.implemented else UITokens.FAINT)
+		if god.hidden_visitor:
+			# An unwanted visitor: the title screen never names it.
+			label.text = "%d.  ???  -  ???" % [index + 1]
+			label.add_theme_color_override("font_color", UITokens.FAINT)
+		else:
+			label.text = "%d.  %s  -  %s%s" % [index + 1, god.display_name, _game_name(god), suffix]
+			label.add_theme_color_override("font_color", UITokens.god_text(god) if god.implemented else UITokens.FAINT)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		gods_list.add_child(label)
 
@@ -45,7 +50,11 @@ func _start() -> void:
 	var order := Gods.trial_order()
 	var target := FALLBACK_ARENA
 	# God trials always run inside the shared Game shell.
-	status_label.text = "Entering %s's arena..." % order[0].display_name
+	var first := order[0] if not order.is_empty() else null
+	if first != null and first.hidden_visitor:
+		status_label.text = "Entering an unknown force's arena..."
+	else:
+		status_label.text = "Entering %s's arena..." % (first.display_name if first != null else "the gods")
 	get_tree().change_scene_to_file(target)
 
 

@@ -44,6 +44,51 @@ func _run() -> void:
 	_arena.player.global_position = _lane()
 	_arena._update_local_bounds()
 
+	# --- THE THROW HINT (SlipperArrow) ------------------------------------------
+	# An arrow beside the mortal toward the cursor, shown only while a throw is
+	# actually allowed - the same conditions _try_throw reads - and hidden (not
+	# just inactive) the moment it is not, so no arrow is left on screen.
+	_check(_arena.slipper_arrow != null, "the arena carries the slipper arrow node")
+	_arena._update_slipper_arrow()
+	_check(_arena.slipper_arrow.active and _arena.slipper_arrow.visible,
+		"a slipper in hand behind the line shows the arrow")
+	_check(_arena.slipper_arrow.global_position == _arena.player.global_position, "...beside the mortal")
+	var aim := (_arena.get_global_mouse_position() - _arena.player.global_position).angle()
+	_check(is_equal_approx(_arena.slipper_arrow.heading, aim), "...pointing at the cursor")
+	_arena.player.global_position = Vector2(_arena._shoot_x + 20.0, _arena.player.global_position.y)
+	_arena._update_slipper_arrow()
+	_check(not _arena.slipper_arrow.active and not _arena.slipper_arrow.visible,
+		"past the line there is no throw, so no arrow")
+	_arena.player.global_position = _lane()
+	_arena._local_mode = "flying"
+	_arena._update_slipper_arrow()
+	_check(not _arena.slipper_arrow.active and not _arena.slipper_arrow.visible,
+		"the arrow goes away while the slipper is in the air")
+	_arena._local_mode = "ready"
+	_arena.player.set_lock(true)
+	_arena._update_slipper_arrow()
+	_check(not _arena.slipper_arrow.active and not _arena.slipper_arrow.visible,
+		"...and while the mortal cannot act")
+	_arena.player.set_lock(false)
+	_arena._phase = Arena.Phase.INTRO
+	_arena._update_slipper_arrow()
+	_check(not _arena.slipper_arrow.active and not _arena.slipper_arrow.visible,
+		"...and outside a running round")
+	_arena._phase = Arena.Phase.PLAYING
+	_arena._update_slipper_arrow()
+	_check(_arena.slipper_arrow.active and _arena.slipper_arrow.visible,
+		"the arrow comes back when a throw is possible again")
+	# A real throw: the hint is gone the moment the slipper leaves the hand, not
+	# only when something else happens to redraw the screen.
+	_arena._try_throw(_arena.player.global_position + Vector2.RIGHT * 200.0)
+	_check(not _arena.slipper_arrow.active and not _arena.slipper_arrow.visible,
+		"shooting hides the arrow at once")
+	_arena._slippers.erase(_arena._my_id)
+	_arena._modes[_arena._my_id] = "ready"
+	_arena._local_mode = "ready"
+	_arena._end_seek()  # the throw may have rolled an intercept
+	_arena._seek_cd = 0.0
+
 	# --- Tala walks the route drawn for her in the scene ------------------------
 	# The path is read from ArenaField/TalaPath in world space, so moving or
 	# reshaping that Line2D in the editor moves Tala with it.
@@ -259,6 +304,9 @@ func _run() -> void:
 	_arena._invuln.clear()
 	_arena.player.global_position = _lane()
 	_arena.player._knockback = Vector2.ZERO
+	# Solo, only this mortal is really on the field; a rival spot left over from
+	# the Guidance check would aim a star at a stale point and skew the spread.
+	_arena._mortal_positions.clear()
 	_arena.rules.local().favor = 500
 	_arena.star_scatter = 0.0
 	_arena._trial_time = _arena.trial_time * _arena.star_start_fraction

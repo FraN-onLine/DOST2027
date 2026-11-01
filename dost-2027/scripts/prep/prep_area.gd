@@ -178,7 +178,11 @@ func _paint_camp() -> void:
 	_paint_altar_hint()
 	var next := Gods.by_id(next_god_id) if next_god_id != &"" else null
 	next_label.visible = next != null
-	if next != null:
+	if next != null and next.hidden_visitor:
+		# An unwanted visitor is never named before it takes the field.
+		next_label.text = "NEXT: ??? - ???"
+		next_label.add_theme_color_override("font_color", UITokens.FAINT)
+	elif next != null:
 		next_label.text = "NEXT: %s - %s" % [next.display_name.to_upper(), next.game_name.to_upper()]
 		next_label.add_theme_color_override("font_color", UITokens.god_text(next))
 	hint_label.text = "[WASD] WALK   %s BLESSING   %s READY   %s TINDAHAN" % [

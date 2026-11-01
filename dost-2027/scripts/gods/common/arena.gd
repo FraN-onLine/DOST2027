@@ -206,6 +206,15 @@ const CAST_TEXT_CONTRAST := 7.0
 # to Homeland's root. The host keeps their clocks in GodMatch; each screen plays
 # them for its OWN mortal, so only the numbers travel.
 const DROWSY_SPEED := 0.5          # a drowsy mortal walks at this share of their speed
+# Anitun Tabu's winds. The gales drag a walking mortal west (never during a dash or
+# a jump, and never on a mortal holding her E) and every screen draws the same
+# full-screen overlay (WindsAndGales.tscn, instanced in Arena.tscn).
+const WIND_SCENE := preload("res://scenes/gods/common/WindsAndGales.tscn")
+const WIND_DRAG := 80.0            # px/s the gales pull a walking mortal to the left
+const WEST_WIND_FORCE := 1.5      # her E blows harder than the blitz's own gales
+const WIND_BOOST := 0.1            # the E's recast while the gales already blow
+# Sidapa's ring: the field, the wormhole and the countdown (its own scene).
+const SIDAPA_RING_SCENE := preload("res://scenes/gods/sidapa/ALittleBitMoreStructure.tscn")
 const ROOT_SHADOW_BACK := 90.0     # px behind the mortal the dark shadow waits
 const ROOT_DRAG_TIME := 0.6        # seconds the shadow drags them back when the root ends
 const ROOT_SHADOW_LINGER := 0.2    # a beat at the shadow before the leash fades
@@ -334,6 +343,8 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 # The wash a landed hit paints over the whole screen (authored in Arena.tscn -
 # this script never builds nodes on the fly).
 @onready var hit_flash: ColorRect = get_node_or_null("FlashLayer/ScreenFlash")
+# The full-screen gale overlay every arena shares (WindsAndGales.tscn).
+@onready var winds: Node = get_node_or_null("WindsAndGales")
 # The shade over the world while a god speaks: the field dims, the HUD (every
 # CanvasLayer, the shell's panels too) stays as bright as ever.
 @onready var field_dim: ColorRect = get_node_or_null("FieldDim")
@@ -362,8 +373,15 @@ var _trial_time := 0.0
 var _countdown := 0.0
 var _count_shown := -1
 var _invuln: Dictionary = {}          # mortal id -> seconds of mercy left
-var _blind_time := 0.0                # seconds of darkness on THIS screen (never the caster's)
-var _blind_radius := 0.16
+var _blind_time := 0.0
+# Anitun Tabu: how long the gales still blow, and which mortals ride them at +10%
+# (the E's recast while the wind was already up).
+var _wind_time := 0.0
+var _wind_boost: Dictionary = {}  # mortal id -> seconds of the speed boost left
+# How hard the gales push THIS screen's bodies (px/s, westward) while they blow;
+# every screen moves its own mortal with it, and the Playground its dummy too.
+var wind_push := Vector2.ZERO
+var _blind_radius := 0.16         # the blindness mask's radius on THIS screen
 var _free_grants := 0
 var _awaiting_grant: StringName = &""  # client: the favor asked of the host, not yet confirmed
 var _results: Dictionary = {}
@@ -638,6 +656,18 @@ func arena_speed_scale() -> float:
 	return 1.0
 
 
+# True while this screen's mortal is off the ground (Luksong Lubid's jump): the
+# gales and every other ground effect leave an airborne mortal alone.
+func mortal_airborne() -> bool:
+	return false
+
+
+# True while an arena turns the gales on by itself (Luksong Lubid's blitz). The
+# E's `_wind_time` is the host's shared clock; this one is each screen's own.
+func wind_forced() -> bool:
+	return false
+
+
 func shares_mortal_positions() -> bool:
 	return true
 
@@ -750,6 +780,9 @@ func _start_trial(show_go := true) -> void:
 	_great_pending.clear()
 	_victor_claimed.clear()
 	_rivalry_claimed.clear()
+	# The gales of yesterday die with the round.
+	_wind_time = 0.0
+	_wind_boost.clear()
 	# Everyone is back at the start: the first position of the round is a jump,
 	# so it goes out at once instead of after a beat of the stale spawn point.
 	_last_reported_position = Vector2.INF
@@ -822,6 +855,7 @@ func _tick_world(delta: float) -> void:
 	_move_ghosts(delta)
 	_tick_structures(delta)
 	_update_movement_favors(delta)
+	_tick_wind(delta)
 	_watch_afflictions(delta)
 	_watch_local_pamana()
 	_tick_shake(delta)
@@ -1508,6 +1542,11 @@ func _speech(speaker: God, lines: Array, voices: Array = []) -> Array:
 
 
 func _speech_transition(speaker: God, next_id: StringName, next_name: String) -> Array:
+	# An unwanted visitor is never named by the pantheon: the god only senses
+	# that something is coming.
+	var next: God = Gods.by_id(next_id)
+	if next != null and next.hidden_visitor:
+		return _speech(speaker, speaker.unknown_force_transition())
 	return _speech(speaker, speaker.transition_to(next_id, next_name), speaker.transition_voices_for(next_id))
 
 
@@ -1822,6 +1861,20 @@ func _apply_skill_effect(favor: GodFavor, caster_id: int) -> void:
 		if caster_id == _my_id:
 			_log("A Little More Control - roots, stuns and trances on rivals last %ds longer" % int(ceil(favor.param("extra_time", 1.0))), favor.color)
 		_publish_god_state()
+	elif favor.id == &"the_west_wind" and _authority:
+		# The host owns the gales' clock; every other screen mirrors it from the
+		# arena tick. Cast while they already blow: the caster rides them instead.
+		var seconds := maxf(0.0, favor.param("wind_time", favor.duration))
+		if wind_active():
+			_wind_boost[caster_id] = maxf(float(_wind_boost.get(caster_id, 0.0)), seconds)
+			if caster_id == _my_id:
+				var boost: float = favor.param("speed_boost", WIND_BOOST)
+				_log("The West Wind - the gales already blow; you ride them at +%d%% speed" % int(round(boost * 100.0)), favor.color)
+		else:
+			_wind_time = maxf(_wind_time, seconds)
+			if caster_id == _my_id:
+				_log("The West Wind - the gales of yesterday turn westward", favor.color)
+		_publish_god_state()
 
 
 # A duration of 0 means "stop now" (the host's word that the pull is over).
@@ -1886,6 +1939,12 @@ func _expire_structure(structure: Dictionary) -> void:
 		if int(_structures[index]["id"]) == ring_id:
 			_structures.remove_at(index)
 			break
+	# The count ran out: the ring tears itself open and frees itself (Sidapa's
+	# ring scene owns that burst).
+	var ring_node: ALittleBitMoreStructure = _structure_nodes.get(ring_id) as ALittleBitMoreStructure
+	if ring_node != null and is_instance_valid(ring_node):
+		ring_node.explode()
+	_structure_nodes.erase(ring_id)
 	var at: Vector2 = structure["at"]
 	var radius := float(structure["radius"])
 	var caster := int(structure["caster"])
@@ -1954,69 +2013,38 @@ func _structure_tint() -> Color:
 	return favor.color if favor != null else Color(0.62, 0.45, 0.95)
 
 
-func _circle_points(radius: float, count: int) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for index in range(count):
-		var angle := TAU * float(index) / float(count)
-		points.append(Vector2(cos(angle) * radius, sin(angle) * radius))
-	return points
-
-
-func _make_structure_node(radius: float) -> Node2D:
-	var tint := _structure_tint()
-	var node := Node2D.new()
+func _make_structure_node(radius: float) -> ALittleBitMoreStructure:
+	var node: ALittleBitMoreStructure = SIDAPA_RING_SCENE.instantiate()
 	node.name = "Structure"
 	node.z_index = 2
 	add_child(node)
-	var fill := Polygon2D.new()
-	fill.name = "Fill"
-	fill.color = Color(tint.r, tint.g, tint.b, 0.13)
-	fill.polygon = _circle_points(radius, 32)
-	node.add_child(fill)
-	var ring := Line2D.new()
-	ring.name = "Ring"
-	ring.width = 3.0
-	ring.closed = true
-	ring.default_color = tint
-	ring.points = _circle_points(radius, 48)
-	node.add_child(ring)
-	var count := Label.new()
-	count.name = "Count"
-	count.theme_type_variation = &"WorldValue"
-	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	count.size = Vector2(48.0, 24.0)
-	count.position = Vector2(-24.0, -radius - 24.0)
-	count.add_theme_color_override("font_color", tint)
-	node.add_child(count)
+	node.setup(radius, _structure_tint())
 	return node
 
 
 func _sync_structure_visuals() -> void:
-	var tint := _structure_tint()
 	var alive := {}
 	for structure in _structures:
 		var ring_id := int(structure["id"])
 		alive[ring_id] = true
-		var node: Node2D = _structure_nodes.get(ring_id)
+		var node := _structure_nodes.get(ring_id) as ALittleBitMoreStructure
 		if node == null or not is_instance_valid(node):
 			node = _make_structure_node(float(structure["radius"]))
 			_structure_nodes[ring_id] = node
 		node.global_position = structure["at"]
 		var left := float(structure["left"])
-		var count := node.get_node_or_null("Count") as Label
-		if count != null:
-			count.text = str(maxi(1, int(ceil(left))))
-			count.add_theme_color_override("font_color", Color(0.88, 0.38, 0.31) if left <= 1.0 else tint)
-		var ring := node.get_node_or_null("Ring") as Line2D
-		if ring != null:
-			ring.modulate.a = 1.0 if reduce_flashing() else 0.74 + 0.26 * sin(Time.get_ticks_msec() * 0.008)
+		node.set_remaining(left, left <= 1.0)
+		node.set_pulse(1.0 if reduce_flashing() else 0.74 + 0.26 * sin(Time.get_ticks_msec() * 0.008))
 	for ring_id in _structure_nodes.keys().duplicate():
 		if alive.has(int(ring_id)):
 			continue
-		var node: Node2D = _structure_nodes[ring_id]
-		if is_instance_valid(node):
-			node.queue_free()
+		var node := _structure_nodes[ring_id] as ALittleBitMoreStructure
 		_structure_nodes.erase(ring_id)
+		if node == null or not is_instance_valid(node) or node.is_exploding():
+			continue
+		# A ring that leaves the field (its count ran out on the host) still owes
+		# this screen its burst.
+		node.explode()
 
 
 func _erase_sun_patches(mortal_id: int) -> void:
@@ -2055,6 +2083,17 @@ func _update_movement_favors(delta: float) -> void:
 	# Rest and Refreshed: a drowsy mortal drags their feet.
 	if mortal.drowsy_time > 0.0:
 		speed *= DROWSY_SPEED
+	# The West Wind, cast again while the gales already blew: a short tailwind.
+	if float(_wind_boost.get(_my_id, 0.0)) > 0.0:
+		var west: GodFavor = mortal.favor_by_id(&"the_west_wind")
+		speed *= 1.0 + (west.param("speed_boost", WIND_BOOST) if west != null else WIND_BOOST)
+	# It's Kinda Tabu: the Q's readiness is a tailwind or a drag.
+	var kinda: GodFavor = mortal.favor_by_id(&"its_kinda_tabu")
+	if kinda != null:
+		var q_skill: GodFavor = mortal.favor_in_slot(GodFavor.Slot.Q)
+		var q_ready := q_skill != null and mortal.cooldown_left(q_skill.id) <= 0.0
+		var share := kinda.param("speed", 0.05)
+		speed *= 1.0 + share if q_ready else 1.0 - share
 	player.move_speed = speed * arena_speed_scale()
 
 	if _movement_override_time > 0.0:
@@ -2066,6 +2105,47 @@ func _update_movement_favors(delta: float) -> void:
 			if target != Vector2.INF:
 				player.force_movement(target - player.global_position, 0.08)
 		_pull_solo_ghosts(delta)
+
+
+# --- WINDS AND GALES OF YESTERDAY ---------------------------------------------
+# One clock for every screen: the host's `_wind_time` (Anitun Tabu's E) rides the
+# arena tick; an arena may also force the gales on by itself (Luksong Lubid's
+# blitz, wind_forced). The drag is applied here, to this screen's own mortal only
+# - it is never sent, because every screen moves its own body.
+func wind_active() -> bool:
+	return _wind_time > 0.0 or wind_forced()
+
+
+# A favor's own clause: The West Wind makes its owner walk through the gales
+# untouched ("gale_immunity" in its params).
+func wind_immunity() -> bool:
+	var mortal := rules.local()
+	if mortal == null:
+		return false
+	for favor in mortal.favors:
+		if favor.gale_immunity():
+			return true
+	return false
+
+
+func _tick_wind(delta: float) -> void:
+	_wind_time = maxf(0.0, _wind_time - delta)
+	for id in _wind_boost.keys().duplicate():
+		_wind_boost[id] = maxf(0.0, float(_wind_boost[id]) - delta)
+		if float(_wind_boost[id]) <= 0.0:
+			_wind_boost.erase(id)
+	var blowing := wind_active()
+	# Her E is the wind's own: its gales (her E, `_wind_time`) blow half again as
+	# hard as the blitz's, which raises the same wind by itself.
+	wind_push = Vector2(-WIND_DRAG * (WEST_WIND_FORCE if _wind_time > 0.0 else 1.0), 0.0) if blowing else Vector2.ZERO
+	# The holder walks through them untouched.
+	var immune := wind_immunity()
+	if blowing and not immune and not mortal_airborne() and not player.locked:
+		player.wind_drag = wind_push
+	else:
+		player.wind_drag = Vector2.ZERO
+	if winds != null and winds.has_method("set_active"):
+		winds.set_active(blowing)
 
 
 # Tala's pull on a body no peer is reporting (the Playground's dummy): step it
@@ -2881,6 +2961,8 @@ func _publish_arena_tick() -> void:
 		"sun_patches": _sun_patches.duplicate(true),
 		"loss_boost": _loss_boost.duplicate(),
 		"structures": _structure_wire(),
+		"wind": _wind_time,
+		"wind_boost": _wind_boost.duplicate(),
 	}
 	state.merge(arena_tick_fields(), true)
 	_net.publish_arena_state(state)
@@ -2930,6 +3012,8 @@ func _apply_arena_tick(state: Dictionary) -> void:
 		_mortal_positions[int(id)] = mortals[id]
 	_sun_patches = state.get("sun_patches", {}).duplicate(true)
 	_loss_boost_seen = state.get("loss_boost", {}).duplicate()
+	_wind_time = float(state.get("wind", _wind_time))
+	_wind_boost = state.get("wind_boost", {}).duplicate()
 	_read_structure_wire(state.get("structures", []))
 	var local_mortal := rules.local()
 	if local_mortal != null and local_mortal.duration_left(&"unswerved_unbothered") > 0.0:
@@ -3217,6 +3301,7 @@ const E_ICONS := {
 	Gods.HANAN: "res://Assets/Gods/Hanan/Hanan-E-PopUp.png",
 	Gods.MAPULON_IKAPATI: "res://Assets/Gods/MapulonIkapati/Mapulon-Popup-E.png",
 	Gods.SIDAPA: "res://Assets/Gods/Sidapa/Sidapa-E-PopUp.png",
+	Gods.ANITUN_TABU: "res://Assets/Gods/Anitun Tabu/Tabu-E-PopUP.png",
 	Gods.BATHALA: "res://Assets/Gods/Bathala/Bathala-Popup-E.png",
 }
 

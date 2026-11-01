@@ -39,12 +39,22 @@ const COPIED_SECONDS := 1.5
 # The run setup: everyone reads it in one line in "The run", and OPTIONS opens
 # the full panel (editable for the host, read-only for clients).
 @onready var run_summary_label: Label = $Page/VBox/Scroll/Columns/Side/RunCard/VBox/Row/RunSummaryLabel
+@onready var build_card: PanelContainer = $Page/VBox/Scroll/Columns/Side/BuildCard
+@onready var build_slots: HBoxContainer = $Page/VBox/Scroll/Columns/Side/BuildCard/VBox/Slots
 @onready var lobby_options = $LobbyOptions
 
 var connected_players = {}
 var is_host = false
 # The icon picker, one toggle button per god with an icon (metadata "god_id").
 var god_icon_buttons: Array[Button] = []
+# CUSTOM BUILD: one icon box per slot (E, Q) and the all-skills popup it opens.
+# Each player edits only its own pair - Network.choose_custom_build reads the
+# sender, never an argument - so the card never shows anyone else's picks.
+var _build_buttons: Array[Button] = []
+var _build_names: Array[Label] = []
+var _picker: Control
+var _picker_title: Label
+var _picker_grid: GridContainer
 
 func _ready():
 	# Connect button signals
@@ -61,6 +71,7 @@ func _ready():
 	Network.player_list_updated.connect(_on_player_list_updated)
 	Network.player_god_icon_changed.connect(_on_player_god_icon_changed)
 	_populate_god_icons()
+	_setup_build_card()
 	Network.run_settings_changed.connect(_on_run_settings_changed)
 
 	# Check if we're the host
@@ -98,6 +109,7 @@ func _ready():
 
 	_update_player_list()
 	_refresh_run_summary()
+	_refresh_build_card()
 	_update_start_button()
 	for button in god_icon_buttons:
 		if button.button_pressed:
@@ -106,6 +118,7 @@ func _ready():
 
 func _on_run_settings_changed(_settings: Dictionary) -> void:
 	_refresh_run_summary()
+	_refresh_build_card()
 	_update_start_button()
 
 
@@ -168,10 +181,16 @@ func _on_copy_pressed() -> void:
 
 
 # Esc means back - but here "back" closes the lobby for everyone (host) or drops
-# the player out of it, so Esc only takes focus to LEAVE; Enter confirms. The
-# OPTIONS panel handles its own Esc first while it is open.
+# the player out of it, so Esc only takes focus to LEAVE; Enter confirms. An open
+# popup (OPTIONS, the build picker) handles Esc first - it is the nearer "back".
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") and not lobby_options.visible:
+	if not event.is_action_pressed("ui_cancel"):
+		return
+	if _picker != null and _picker.visible:
+		get_viewport().set_input_as_handled()
+		_close_build_picker()
+		return
+	if not lobby_options.visible:
 		get_viewport().set_input_as_handled()
 		leave_button.grab_focus()
 
@@ -206,6 +225,7 @@ func _change_name():
 func _on_player_list_updated(players: Dictionary):
 	connected_players = players.duplicate()
 	_update_player_list()
+	_refresh_build_card()
 
 func _update_player_list():
 	# Clear existing slots immediately (not deferred) to prevent overlap
@@ -378,3 +398,161 @@ func _on_player_god_icon_changed(peer_id: int, god_id: StringName) -> void:
 				button.set_pressed_no_signal(true)
 				break
 	_update_player_list()
+
+
+# ============================================
+# CUSTOM BUILD
+# ============================================
+# The card under THE RUN, shown only while the starter mode is CUSTOM: two icon
+# boxes, E and Q. It always reads THIS player's pair - builds are not shared, and
+# Network.choose_custom_build can only ever change the sender's own - so picking
+# an icon here never touches anyone else's hands. An empty (or never picked)
+# side is Mayari's own skill, the same fallback the host grants at START.
+
+const BUILD_SLOT_SIZE := Vector2(72, 72)
+const PICKER_CARD_COLUMNS := 3
+
+
+func _setup_build_card() -> void:
+	for slot in [GodFavor.Slot.E, GodFavor.Slot.Q]:
+		var column := VBoxContainer.new()
+		column.name = "Slot%s" % ("E" if slot == GodFavor.Slot.E else "Q")
+		column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		column.add_theme_constant_override("separation", UITokens.SPACE_4)
+		var caption := Label.new()
+		caption.text = "E" if slot == GodFavor.Slot.E else "Q"
+		caption.theme_type_variation = &"CaptionLabel"
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(caption)
+		var button := Button.new()
+		button.name = "Skill"
+		button.theme_type_variation = &"IconButton"
+		button.custom_minimum_size = BUILD_SLOT_SIZE
+		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.expand_icon = true
+		button.pressed.connect(_open_build_picker.bind(slot))
+		column.add_child(button)
+		var name_label := Label.new()
+		name_label.name = "Name"
+		name_label.theme_type_variation = &"MutedLabel"
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name_label.custom_minimum_size.x = 120
+		column.add_child(name_label)
+		build_slots.add_child(column)
+		_build_buttons.append(button)
+		_build_names.append(name_label)
+	_build_picker()
+
+
+# The all-skills popup: a dim backdrop under a card of every favor this slot can
+# deal (RunSettings.starter_pool - an implemented god's, asking nothing first).
+# The current pick is gold; pressing any card sends that pick to the host.
+func _build_picker() -> void:
+	_picker = Control.new()
+	_picker.name = "BuildPicker"
+	_picker.visible = false
+	_picker.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_picker)
+	_picker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var dim := ColorRect.new()
+	dim.color = Color(UITokens.NIGHT_900, 0.72)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_picker.add_child(dim)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_picker.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	panel.theme_type_variation = &"PanelCard"
+	center.add_child(panel)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", UITokens.SPACE_8)
+	panel.add_child(vbox)
+	_picker_title = Label.new()
+	_picker_title.theme_type_variation = &"HeadingLabel"
+	vbox.add_child(_picker_title)
+	var hint := Label.new()
+	hint.theme_type_variation = &"MutedLabel"
+	hint.text = "Every skill a mortal may open with. Yours is gold."
+	vbox.add_child(hint)
+	_picker_grid = GridContainer.new()
+	_picker_grid.name = "Skills"
+	_picker_grid.columns = PICKER_CARD_COLUMNS
+	_picker_grid.add_theme_constant_override("h_separation", UITokens.SPACE_8)
+	_picker_grid.add_theme_constant_override("v_separation", UITokens.SPACE_8)
+	vbox.add_child(_picker_grid)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_END
+	vbox.add_child(row)
+	var cancel := Button.new()
+	cancel.theme_type_variation = &"SmallButton"
+	cancel.text = "CANCEL"
+	cancel.pressed.connect(_close_build_picker)
+	row.add_child(cancel)
+
+
+func _open_build_picker(slot: int) -> void:
+	var pair := Network.my_build_favors()
+	var current: GodFavor = pair[0] if slot == GodFavor.Slot.E else pair[1]
+	_picker_title.text = "YOUR %s" % ("E" if slot == GodFavor.Slot.E else "Q")
+	for child in _picker_grid.get_children():
+		_picker_grid.remove_child(child)
+		child.queue_free()
+	for favor in RunSettings.starter_pool(slot):
+		var god := Gods.by_id(favor.god_id)
+		var card := Button.new()
+		card.custom_minimum_size = Vector2(176, 88)
+		card.icon = favor.icon
+		card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		card.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.text = "%s\n%s" % [god.display_name.capitalize() if god != null else str(favor.god_id),
+			favor.display_name]
+		card.tooltip_text = "%s - %s\n%s" % [god.display_name if god != null else str(favor.god_id),
+			favor.display_name, favor.description]
+		if current != null and current.id == favor.id:
+			card.add_theme_color_override("font_color", UITokens.GOLD)
+			card.tooltip_text += "\n(yours)"
+		card.pressed.connect(_pick_build.bind(slot, favor.id))
+		_picker_grid.add_child(card)
+	_picker.visible = true
+	UITokens.reveal(_picker)
+
+
+func _pick_build(slot: int, favor_id: StringName) -> void:
+	Network.choose_custom_build(slot, favor_id)
+	_close_build_picker()
+
+
+func _close_build_picker() -> void:
+	if _picker != null:
+		_picker.visible = false
+
+
+# Repaint the two boxes from this machine's own build (and hide the card outside
+# a CUSTOM run). Called whenever the setup or the roster changes - a pick comes
+# back from the host with the roster, so this is the one place the boxes learn it.
+func _refresh_build_card() -> void:
+	var custom := Network.run_settings.starter_mode == RunSettings.STARTER_CUSTOM
+	build_card.visible = custom
+	if not custom:
+		_close_build_picker()
+		return
+	var pair := Network.my_build_favors()
+	for index in range(_build_buttons.size()):
+		var favor: GodFavor = pair[index] if index < pair.size() else null
+		var button := _build_buttons[index]
+		var name_label := _build_names[index]
+		if favor == null:
+			button.icon = null
+			button.tooltip_text = "Click to pick a skill."
+			name_label.text = "-"
+			continue
+		var god := Gods.by_id(favor.god_id)
+		button.icon = favor.icon
+		button.tooltip_text = "%s - %s\n%s\nClick to change." % [
+			god.display_name if god != null else str(favor.god_id), favor.display_name, favor.description]
+		name_label.text = favor.display_name

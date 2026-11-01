@@ -29,6 +29,7 @@ signal player_left(peer_id)
 signal connected(success, reason)
 signal player_list_updated(players)
 signal player_god_icon_changed(peer_id, god_id)
+signal custom_build_changed(peer_id, slot, favor_id)  # a mortal picked its own CUSTOM starter
 signal trial_order_changed(ids)
 signal run_settings_changed(settings)  # the host's run setup (RunSettings.to_dict()) changed
 signal game_started
@@ -75,6 +76,10 @@ var player_icons := {} # peer_id -> god id (replicated roster icon)
 # peer_id -> index into UITokens.BANDANA_COLORS (replicated with the roster). The
 # host decides it: no two players share one, and it is locked once START is pressed.
 var player_bandanas := {}
+# peer_id -> {"e": favor id, "q": favor id}: the two starter skills a mortal
+# picks for itself in a CUSTOM run (see choose_custom_build). The host owns it and
+# it travels with the roster; a side left unpicked falls back to Mayari's own.
+var custom_builds := {}
 var my_god_icon_id: StringName = &"mayari"
 var trial_order_ids: Array[StringName] = []
 var run_settings: RunSettings = RunSettings.defaults()  # host's run setup, mirrored on every peer
@@ -162,6 +167,7 @@ func start_host(port: int = DEFAULT_PORT) -> void:
 	# order from the host's own choice, and never from a previous session's.
 	trial_order_ids.clear()
 	announced_trial_order.clear()
+	custom_builds.clear()
 	# ...but the SETUP is remembered: the next lobby opens with the host's last one.
 	load_host_settings()
 
@@ -204,6 +210,7 @@ func stop_host() -> void:
 		player_data.clear()
 		player_icons.clear()
 		player_bandanas.clear()
+		custom_builds.clear()
 		trial_order_ids.clear()
 		announced_trial_order.clear()
 		run_settings = RunSettings.defaults()
@@ -272,6 +279,7 @@ func leave_host() -> void:
 		player_data.clear()
 		player_icons.clear()
 		player_bandanas.clear()
+		custom_builds.clear()
 		trial_order_ids.clear()
 		announced_trial_order.clear()
 		run_settings = RunSettings.defaults()
@@ -705,6 +713,7 @@ func _on_peer_disconnected(id: int) -> void:
 				player_data.erase(id)
 			player_icons.erase(id)
 			player_bandanas.erase(id)
+			custom_builds.erase(id)
 			broadcast_player_list()
 	emit_signal("player_left", id)
 
@@ -736,7 +745,7 @@ func broadcast_player_list() -> void:
 		emit_signal("player_god_icon_changed", int(peer_id), god_id)
 	_announce_names()
 	if multiplayer.get_multiplayer_peer():
-		rpc("rpc_update_player_list", players, player_icons, player_bandanas)
+		rpc("rpc_update_player_list", players, player_icons, player_bandanas, custom_builds)
 
 
 # Names are shown live - above a mortal, on the HUD, on the results - so every
@@ -789,10 +798,11 @@ func request_name_change(peer_id: int, new_name: String) -> void:
 
 
 @rpc("any_peer", "reliable")
-func rpc_update_player_list(remote_players: Dictionary, remote_icons: Dictionary = {}, remote_bandanas: Dictionary = {}) -> void:
+func rpc_update_player_list(remote_players: Dictionary, remote_icons: Dictionary = {}, remote_bandanas: Dictionary = {}, remote_builds: Dictionary = {}) -> void:
 	players = remote_players.duplicate()
 	player_icons = remote_icons.duplicate()
 	player_bandanas = remote_bandanas.duplicate()
+	custom_builds = remote_builds.duplicate()
 	for peer_id in players.keys():
 		if not player_icons.has(peer_id):
 			player_icons[peer_id] = &"mayari"
@@ -808,6 +818,14 @@ func rpc_update_player_list(remote_players: Dictionary, remote_icons: Dictionary
 	emit_signal("player_list_updated", players)
 	for peer_id in player_icons.keys():
 		emit_signal("player_god_icon_changed", int(peer_id), StringName(str(player_icons[peer_id])))
+	for peer_id in custom_builds.keys():
+		var build: Dictionary = custom_builds[peer_id]
+		if not (build is Dictionary):
+			continue
+		for slot in [GodFavor.Slot.E, GodFavor.Slot.Q]:
+			var key := "e" if slot == GodFavor.Slot.E else "q"
+			if build.has(key):
+				emit_signal("custom_build_changed", int(peer_id), slot, StringName(str(build[key])))
 	_announce_names()
 	print("[Network] Received player list update: %s" % players)
 
@@ -918,6 +936,67 @@ func bandana_of(mortal_id: int) -> int:
 
 
 # ============================================
+# CUSTOM starter builds
+# ============================================
+# In a CUSTOM run every mortal picks its own E and Q in the lobby - the pick is
+# not shared. The host owns the table (peer_id -> {"e", "q"}); a player asks for
+# its own two (request_custom_build), the host accepts only a favor the run's
+# starter pool offers for that slot, and the result travels with the roster.
+# Nothing changes once START is pressed: the run opens with these hands.
+
+@rpc("any_peer", "call_local", "reliable")
+func request_custom_build(slot: int, favor_id: StringName) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	_set_custom_build(sender, slot, favor_id)
+
+
+# This player's own pick: only ever for ourselves (the host reads the sender).
+func choose_custom_build(slot: int, favor_id: StringName) -> void:
+	if has_multiplayer_peer() and not multiplayer.is_server():
+		rpc_id(1, "request_custom_build", slot, favor_id)
+	else:
+		request_custom_build(slot, favor_id)
+
+
+func _set_custom_build(peer_id: int, slot: int, favor_id: StringName) -> void:
+	if _game_in_progress or not players.has(peer_id):
+		return
+	var favor := RunSettings.starter_favor(slot, favor_id)
+	if favor == null:
+		return
+	var key := "e" if slot == GodFavor.Slot.E else "q"
+	var build: Dictionary = custom_builds.get(peer_id, {}).duplicate()
+	build[key] = favor.id
+	custom_builds[peer_id] = build
+	emit_signal("custom_build_changed", int(peer_id), slot, favor.id)
+	if multiplayer.is_server():
+		broadcast_player_list()
+
+
+# The two favors a mortal opens a CUSTOM run holding: its own lobby build, or
+# Mayari's own E / Q for a side it never picked (a solo rival, a late join).
+func build_favors(peer_id: int) -> Array[GodFavor]:
+	var build = custom_builds.get(int(peer_id), {})
+	var pair: Array[GodFavor] = []
+	for slot in [GodFavor.Slot.E, GodFavor.Slot.Q]:
+		var key := "e" if slot == GodFavor.Slot.E else "q"
+		var picked := StringName(str(build.get(key, ""))) if build is Dictionary else &""
+		var favor := RunSettings.starter_favor(slot, picked)
+		pair.append(favor if favor != null else RunSettings.default_starter(slot))
+	return pair
+
+
+# What this machine picked for itself, for the lobby card.
+func my_build_favors() -> Array[GodFavor]:
+	var local_id := multiplayer.get_unique_id() if has_multiplayer_peer() else GodMatch.LOCAL_ID
+	return build_favors(local_id)
+
+
+# ============================================
 # Game Start
 # ============================================
 
@@ -1010,6 +1089,10 @@ func request_trial_order() -> void:
 # very order it was promised), a fresh draw otherwise. The announcement is
 # consumed here, so the NEXT run draws fresh again.
 func _settle_trial_order() -> Array[StringName]:
+	# A STARTER SKILLS run draws its deal here, once: the seed travels in the
+	# setup every peer receives, so every screen deals the same pairs.
+	if run_settings.has_starters():
+		run_settings.starter_seed = randi()
 	if not announced_trial_order.is_empty():
 		trial_order_ids = announced_trial_order.duplicate()
 		announced_trial_order.clear()

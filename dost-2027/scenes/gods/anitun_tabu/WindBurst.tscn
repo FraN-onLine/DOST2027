@@ -1,0 +1,36 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gods/anitun_tabu/windburst.gd" id="1_burst"]
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/fx/impact_ring.png" id="2_ring"]
+
+[node name="WindBurst" type="Node2D"]
+visible = false
+script = ExtResource("1_burst")
+
+[node name="Ring" type="Sprite2D" parent="."]
+modulate = Color(0.72, 0.86, 1, 0.8)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_ring")
+
+[node name="Gusts" type="Node2D" parent="."]
+
+[node name="Gust1" type="Line2D" parent="Gusts"]
+width = 4.0
+default_color = Color(0.78, 0.9, 1, 0.75)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="Gust2" type="Line2D" parent="Gusts"]
+width = 4.0
+default_color = Color(0.78, 0.9, 1, 0.75)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="Gust3" type="Line2D" parent="Gusts"]
+width = 4.0
+default_color = Color(0.78, 0.9, 1, 0.75)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2

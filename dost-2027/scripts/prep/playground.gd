@@ -13,8 +13,10 @@ extends PrepArea
 # WHY IT STILL EXTENDS THE PREP AREA: it inherits the camp's scene, its fire, its
 # altar art and its network plumbing; it runs no rest at all - no clock, no READY,
 # no Tindahan, no trial end - and keeps the phase PLAYING so the favors, their
-# cooldowns, the afflictions (a stolen drowsiness, a dragged root) and the skill
-# bars all behave exactly as they do in a trial.
+# cooldowns, the per-second passives (It's Kinda Tabu), the winds of Anitun Tabu's
+# E (which shove the dummy, never their own caster), the afflictions (a stolen
+# drowsiness, a dragged root) and the skill bars all behave exactly as they do in
+# a trial.
 #
 # THE DUMMY: solo rules still create the rival when the scene asks for it
 # (simulate_rivals = true in Playground.tscn). We turn the FAVOR ticker off and
@@ -30,19 +32,19 @@ const DUMMY_BANDANA := 6  # orange, so it never reads as our own mortal
 # walk holds into it.
 const DUMMY_PUSH_GAP := 44.0
 const ALTAR_REACH := 120.0
-# Seven altars around the fire (Camp/Campfire is at 700, 340), one per god: three
-# across the top, one at each side, two along the bottom. The bottom centre is
-# left open for the mortal's spawn below the fire, and the gaps are wide enough
-# that no altar's name tag covers another's. Every one stays inside the field and
-# above the band.
+# Eight altars around the fire (Camp/Campfire is at 700, 340), one per god: four
+# along the top, four along the bottom, the middle left open for the fire and for
+# the mortal's spawn below it. The gaps are wide enough that no altar's name tag
+# covers another's. Every one stays inside the field and above the band.
 const ALTAR_RING: Array[Vector2] = [
-	Vector2(500, 205),
-	Vector2(700, 205),
-	Vector2(900, 205),
-	Vector2(1000, 345),
-	Vector2(845, 470),
-	Vector2(555, 470),
-	Vector2(400, 345),
+	Vector2(380, 205),
+	Vector2(575, 205),
+	Vector2(825, 205),
+	Vector2(1020, 205),
+	Vector2(1020, 475),
+	Vector2(825, 475),
+	Vector2(575, 475),
+	Vector2(380, 475),
 ]
 
 @onready var leave_button: Button = get_node_or_null("PrepHud/LeaveButton") as Button
@@ -61,6 +63,7 @@ func _start_intro() -> void:
 	_phase = Phase.PLAYING
 	rules.simulate_rivals = false  # the dummy is a target, not a rival gathering FAVOR
 	rules.trial_active = false     # no per-trial harvest/pamana ticker here
+	rules.passives_live = true     # ...but per-second passives (It's Kinda Tabu) do run
 	rules.time_left = INF          # nor any "last seconds" passive
 	player.clear_trial_state()
 	player.set_lock(false)
@@ -238,6 +241,22 @@ func edge_targets() -> Array:
 	return _altars.keys()
 
 
+# The gales push the dummy the way they push a rival's body on its own screen:
+# the caster holds The West Wind (and its gale_immunity clause), so here the
+# dummy is what the wind is seen to move. It stays locked - the rules' copy of
+# its position moves with it, or the ghost glide would pull it straight back.
+func _drift_dummy(delta: float) -> void:
+	var dummy := _ghosts.get(DUMMY_ID) as ArenaMortal
+	if dummy == null or not is_instance_valid(dummy) or wind_push == Vector2.ZERO:
+		return
+	var here := dummy.global_position + wind_push * delta
+	if _field.size != Vector2.ZERO:
+		var inset := Vector2(dummy.radius, dummy.radius)
+		here = here.clamp(_field.position + inset, _field.end - inset)
+	dummy.global_position = here
+	_mortal_positions[DUMMY_ID] = here
+
+
 # --- FRAME ------------------------------------------------------------------------
 
 # No trial flow and no rest clock: the world's own frame, the favors that are
@@ -248,6 +267,7 @@ func _process(delta: float) -> void:
 	_tick_sun_favors(delta)
 	_tick_world(delta)
 	_push_dummy()
+	_drift_dummy(delta)
 	_refresh_playground_hud()
 
 

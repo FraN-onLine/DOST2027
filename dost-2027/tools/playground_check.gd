@@ -11,6 +11,8 @@ extends SceneTree
 #   * the favors reach the dummy exactly as in a trial: a 3 - 2 - 1 drowsiness
 #     then the stars, a root leash that lets it move and ends after 3s (ours is
 #     dragged back), 7 sun patches from Apolaki's E, and Bathala's Blindside
+#   * It's Kinda Tabu's per-second clock runs here, and The West Wind blows at
+#     1.5x the blitz's force - shoving the dummy, never its own (immune) holder
 #   * Esc / LEAVE is wired to walk out (checked through its signal), and the
 #     MainMenu has a PLAYGROUND button that leads here
 # Run: godot --headless --path <project> -s res://tools/playground_check.gd
@@ -76,7 +78,7 @@ func _run() -> void:
 
 	# --- AN ALTAR OF EVERY GOD ----------------------------------------------------------
 	var gods := Gods.all()
-	_check(gods.size() == 7, "seven gods in the registry (%d)" % gods.size())
+	_check(gods.size() == 8, "eight gods in the registry (%d)" % gods.size())
 	_check(playground._altars.size() == gods.size(), "one altar per god (%d)" % playground._altars.size())
 	var seen_gods := {}
 	var seen_positions := {}
@@ -112,6 +114,14 @@ func _run() -> void:
 	if dummy != null:
 		_check(dummy.global_position.distance_to(playground.dummy_spawn.global_position) < 1.0,
 			"it stands on the authored spawn")
+	# The dummy is a target, not decoration: it stands in the open, clear of the
+	# altars around the fire it used to be parked on.
+	var dummy_clear := true
+	for altar in playground._altars.keys():
+		dummy_clear = dummy_clear and playground.dummy_spawn.global_position.distance_to((altar as Node2D).global_position) > 120.0
+	dummy_clear = dummy_clear and playground.dummy_spawn.global_position.distance_to(
+		(playground.get_node("Camp/Campfire") as Node2D).global_position) > 100.0
+	_check(dummy_clear, "it stands in the open, clear of the altars and the fire (%s)" % str(playground.dummy_spawn.global_position))
 
 	# The dummy is pushable: leaning into it shoves it along the field.
 	var dummy_start: Vector2 = playground.dummy_spawn.global_position
@@ -341,6 +351,46 @@ func _run() -> void:
 	playground._unhandled_input(q_key)
 	_check(float(me.cooldowns.get(&"the_unmoving", 0.0)) > 0.0, "Q casts the favor in the Q slot")
 	_check(me.loss_immunity > 0.0, "...and its loss immunity is on")
+
+	# --- ANITUN TABU: THE PASSIVE AND THE WINDS IN THE PLAYGROUND -----------------------
+	var kinda := Gods.favor_by_id(&"its_kinda_tabu")
+	_check(playground.rules.passives_live, "per-second passives run with no trial clock")
+	_check(playground.rules.bestow_favor(kinda), "It's Kinda Tabu can be taken here")
+	me.bathala_regrowth.clear()  # the Vantage Point test above must not pay during the count
+	me.favor = 1000
+	me.cooldowns.clear()
+	_tick(playground, 1.0)
+	_check(me.favor == 1008, "a ready Q pays 8 FAVOR a second here (%d)" % me.favor)
+	playground._use_skill(GodFavor.Slot.Q)
+	me.favor = 1000
+	_tick(playground, 1.0)
+	_check(me.favor == 992, "a recharging Q takes 8 FAVOR a second here (%d)" % me.favor)
+
+	var west := Gods.favor_by_id(&"the_west_wind")
+	_check(west.gale_immunity(), "The West Wind carries its gale_immunity clause")
+	_check(playground.rules.bestow_favor(west), "The West Wind can be taken here")
+	# Clear of the mortal's reach, so only the gales can move the dummy.
+	playground.player.global_position = Vector2(700, 460)
+	dummy.global_position = Vector2(900, 300)
+	playground._mortal_positions[DUMMY_ID] = dummy.global_position
+	playground.player.wind_drag = Vector2.ZERO
+	playground._use_skill(GodFavor.Slot.E)
+	var dummy_from: Vector2 = dummy.global_position
+	playground._process(DT)
+	_check(playground.wind_active() and playground.wind_push.x < 0.0,
+		"the gales blow west here (%s)" % str(playground.wind_push))
+	_check(is_equal_approx(-playground.wind_push.x, Arena.WIND_DRAG * Arena.WEST_WIND_FORCE),
+		"...at %s%% of the blitz's force" % str(Arena.WEST_WIND_FORCE * 100.0))
+	_check(playground.player.wind_drag == Vector2.ZERO, "...and their own holder walks through untouched")
+	_tick(playground, 0.5)
+	_check(dummy.global_position.x < dummy_from.x - 50.0 and is_equal_approx(dummy.global_position.y, dummy_from.y),
+		"the dummy is shoved west too (%s -> %s)" % [str(dummy_from), str(dummy.global_position)])
+	_check(playground.winds != null and playground.winds.visible, "...and the full-screen gale plays")
+	playground._wind_time = 0.0
+	_tick(playground, DT)
+	var settled: Vector2 = dummy.global_position
+	_tick(playground, 0.5)
+	_check(dummy.global_position.distance_to(settled) < 0.01, "...and the dummy stops when the gales do")
 
 	# --- LEAVING ------------------------------------------------------------------------
 	var leaves := false

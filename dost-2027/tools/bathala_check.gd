@@ -12,10 +12,14 @@ extends SceneTree
 # Run: godot --headless --path <project> -s res://tools/bathala_check.gd
 
 const DT := 0.125  # exact in binary, so eight steps are exactly one second
-const FIELD := Vector2(640, 340)  # the common field, away from both bases
+const FIELD := Vector2(696, 481)  # the middle of the authored field, away from both bases
 
 var _arena: BathalaArena
 var _rules: GodMatch
+var _apolaki: AgawanGod
+var _tala: AgawanGod
+var _mayari: AgawanGod
+var _hanan: AgawanGod
 var _problems := 0
 
 
@@ -37,6 +41,7 @@ func _run() -> void:
 	view.add_child(_arena)
 	await _frames(2)
 	_rules = _arena.rules
+	_rules.milestone_step = 1 << 30  # no God's Due in the middle of the numbers below
 	var guard := 0
 	while _arena.dialogue.is_active() and guard < 40:
 		_arena.dialogue.advance()
@@ -101,32 +106,28 @@ func _run() -> void:
 	_fresh_round()
 
 	# --- the mortal's swing ----------------------------------------------------
-	var apolaki := _god(&"apolaki")
-	var tala := _god(&"tala")
-	var mayari := _god(&"mayari")
-	var hanan := _god(&"hanan")
-	apolaki.global_position = FIELD + Vector2(60, 0)
+	_apolaki.global_position = FIELD + Vector2(60, 0)
 	_set_favor(0, 0, 0)
-	_arena._resolve_attack(1, apolaki.global_position)
-	_check(apolaki.is_frozen(), "a swing on a god in the field freezes it")
+	_swing(_apolaki.global_position)
+	_check(_apolaki.is_frozen(), "a swing on a god in the field freezes it")
 	_check(_mine() == _arena.tag_god_favor, "tagging a god pays %d FAVOR (%d)" % [_arena.tag_god_favor, _mine()])
-	apolaki.unfreeze()
+	_apolaki.unfreeze()
 	_set_favor(0, 0, 0)
-	_arena._resolve_attack(1, FIELD + Vector2(0, 200))
+	_swing(FIELD + Vector2(0, 200))
 	_check(_mine() == 0, "a swing that catches nothing pays nothing")
-	tala.global_position = _arena._bathala_base + Vector2(10, 0)
-	_arena._resolve_attack(1, tala.global_position)
-	_check(not tala.is_frozen() and _mine() == 0, "a god inside Bathala's base cannot be tagged")
-	tala.global_position = _arena._my_base + Vector2(10, 0)
-	_arena._resolve_attack(1, tala.global_position)
-	_check(tala.is_frozen(), "a god inside the mortals' base can be tagged (that is how you defend it)")
+	_tala.global_position = _arena._bathala_base + Vector2(10, 0)
+	_swing(_tala.global_position)
+	_check(not _tala.is_frozen() and _mine() == 0, "a god inside Bathala's base cannot be tagged")
+	_tala.global_position = _arena._my_base + Vector2(10, 0)
+	_swing(_tala.global_position)
+	_check(_tala.is_frozen(), "a god inside the mortals' base can be tagged (that is how you defend it)")
 	_fresh_round()
 
 	# --- a frozen ally mortal thaws on the same swing ---------------------------
 	_arena._mortal_positions[2] = FIELD + Vector2(5, 0)
 	_freeze(2)
 	_set_favor(0, 0, 0)
-	_arena._resolve_attack(1, FIELD + Vector2(2, 0))
+	_swing(FIELD + Vector2(2, 0))
 	_check(not _arena._is_frozen(2), "a swing on a frozen ally mortal thaws them")
 	_check(_mine() == _arena.unfreeze_favor, "unfreezing an ally pays %d FAVOR (%d)" % [_arena.unfreeze_favor, _mine()])
 
@@ -134,12 +135,13 @@ func _run() -> void:
 	_fresh_round()
 	_arena._stars.append({"pos": FIELD + Vector2(8, 0), "vel": Vector2.ZERO, "left": 3.0})
 	_set_favor(0, 0, 0)
-	_arena._resolve_attack(1, FIELD)
+	_swing(FIELD)
 	_check(_arena._stars.is_empty() and _mine() == _arena.star_break_favor,
 		"a swing breaks Tala's star for %d FAVOR (%d)" % [_arena.star_break_favor, _mine()])
 	_fresh_round()
 	_arena.star_interval = 5.0
-	tala.global_position = FIELD + Vector2(150, 0)
+	_arena._mortal_positions.clear()
+	_tala.global_position = FIELD + Vector2(150, 0)
 	_arena.player.global_position = FIELD
 	_arena._star_cd = DT
 	_set_favor(500, 0, 0)
@@ -152,13 +154,13 @@ func _run() -> void:
 	# --- gods tag mortals in the field, never on their own base -----------------
 	_fresh_round()
 	_set_favor(0, 500, 0)
-	apolaki.global_position = FIELD
+	_apolaki.global_position = FIELD
 	_arena._mortal_positions[2] = FIELD + Vector2(4, 0)
 	_tick(1)
 	_check(_arena._is_frozen(2), "a god touching a mortal in the field freezes them")
 	_check(_rules.mortal(2).favor == 500 - _arena.tagged_favor, "being tagged costs that mortal %d FAVOR" % _arena.tagged_favor)
 	_fresh_round()
-	apolaki.global_position = _arena._my_base + Vector2(4, 0)
+	_apolaki.global_position = _arena._my_base + Vector2(4, 0)
 	_arena._mortal_positions[2] = _arena._my_base
 	_tick(1)
 	_check(not _arena._is_frozen(2), "a mortal on its own base cannot be tagged")
@@ -172,14 +174,17 @@ func _run() -> void:
 	_arena._refresh_marks()
 	var mark: Label = _arena._mark_labels.get(1)
 	_check(mark != null and mark.text == "5", "a frozen mortal carries a 5-4-3-2-1 over its head")
-	apolaki.global_position = _arena.player.global_position + Vector2(10, 0)
+	_apolaki.global_position = _arena.player.global_position + Vector2(10, 0)
 	_set_favor(0, 0, 0)
-	_arena._resolve_attack(1, _arena.player.global_position)
-	_check(not apolaki.is_frozen() and _mine() == 0, "a frozen mortal's swing does nothing")
+	_arena._shock_cd = 0.0
+	_arena._try_attack()
+	_arena._tick_shocks(0.6)
+	_check(not _apolaki.is_frozen() and _mine() == 0, "a frozen mortal's swing does nothing")
 	_freeze(2)
-	apolaki.global_position = _arena._mortal_positions[2] + Vector2(5, 0)
-	_arena._on_agawan_attack_requested(2, _arena._mortal_positions[2])
-	_check(not apolaki.is_frozen() and _rules.mortal(2).favor == 0, "a frozen client's attack request is rejected")
+	_apolaki.global_position = _arena._mortal_positions[2] + Vector2(5, 0)
+	_arena._on_arena_shock_requested(2, _arena._mortal_positions[2])
+	_arena._tick_shocks(0.6)
+	_check(not _apolaki.is_frozen() and _rules.mortal(2).favor == 0, "a frozen client's attack request is rejected")
 	_park()
 	_arena.player.global_position = _arena._bathala_base
 	var round_before: int = _arena._round
@@ -209,7 +214,7 @@ func _run() -> void:
 	_arena._refresh_lock()
 	_check(_arena.player.locked, "the mortals cannot move while the field stands still")
 	_arena.player.global_position = FIELD
-	_tick(int(ceil((_arena.round_pause + _arena.countdown_time) / DT)) + 2)
+	_tick(int(ceil((_arena.round_pause + _arena.countdown_time + _arena.drop_time) / DT)) + 2)
 	_check(_arena._pause <= 0.0 and _arena._count <= 0.0 and _arena.player.global_position == _arena._start_position,
 		"after the pause and the 3-2-1 everyone is back at spawn")
 	_arena._refresh_lock()
@@ -256,7 +261,7 @@ func _run() -> void:
 	_arena.player.global_position = FIELD + Vector2(0, -60)
 	_fresh_round()
 	_set_favor(1000, 1000, 1000)
-	apolaki.global_position = _arena._my_base
+	_apolaki.global_position = _arena._my_base
 	round_before = _arena._round
 	_tick(int(_arena.god_hold_to_capture / DT) - 1)
 	_check(_arena._round == round_before and _arena._god_hold > 0.5, "the gods' hold fills a ring on your base (%.2f)" % _arena._god_hold)
@@ -266,29 +271,29 @@ func _run() -> void:
 	_check(_mine() == 500 and _rules.mortal(2).favor == 500 and _rules.mortal(3).favor == 500,
 		"every mortal loses %d exactly once (%d %d %d)" % [_arena.base_lost_favor, _mine(), _rules.mortal(2).favor, _rules.mortal(3).favor])
 	_fresh_round()
-	apolaki.global_position = _arena._my_base
-	apolaki.freeze_for(_arena.freeze_time)
+	_apolaki.global_position = _arena._my_base
+	_apolaki.freeze_for(_arena.freeze_time)
 	round_before = _arena._round
 	_tick(int(_arena.god_hold_to_capture / DT) * 2)
 	_check(_arena._round == round_before and _arena._god_hold == 0.0, "a god frozen inside your base stops its hold")
 
 	# --- the gods thaw each other ------------------------------------------------
 	_fresh_round()
-	tala.global_position = FIELD + Vector2(0, 200)
-	tala.freeze_for(_arena.freeze_time)
-	mayari.global_position = tala.global_position + Vector2(20, 0)
+	_tala.global_position = FIELD + Vector2(0, 200)
+	_tala.freeze_for(_arena.freeze_time)
+	_mayari.global_position = _tala.global_position + Vector2(20, 0)
 	_tick(1)
-	_check(not tala.is_frozen(), "a live god touching a frozen god thaws it")
+	_check(not _tala.is_frozen(), "a live god touching a frozen god thaws it")
 	_fresh_round()
 	_arena.ally_pulse_interval = 5.0
-	hanan.global_position = FIELD + Vector2(0, 200)
-	tala.global_position = hanan.global_position + Vector2(80, 0)
-	mayari.global_position = hanan.global_position + Vector2(-200, 0)
-	tala.freeze_for(_arena.freeze_time)
-	mayari.freeze_for(_arena.freeze_time)
-	_arena._pulse_timers[_arena._gods.find(hanan)] = DT
+	_hanan.global_position = FIELD + Vector2(0, 200)
+	_tala.global_position = _hanan.global_position + Vector2(80, 0)
+	_mayari.global_position = _hanan.global_position + Vector2(-200, 0)
+	_tala.freeze_for(_arena.freeze_time)
+	_mayari.freeze_for(_arena.freeze_time)
+	_arena._pulse_timers[_arena._gods.find(_hanan)] = DT
 	_tick(1)
-	_check(not tala.is_frozen() and mayari.is_frozen(), "Hanan's dawn thaws the frozen gods in range, and only those")
+	_check(not _tala.is_frozen() and _mayari.is_frozen(), "Hanan's dawn thaws the frozen gods in range, and only those")
 	_arena.ally_pulse_interval = 0.0
 
 	# --- Bathala grows wary -------------------------------------------------------
@@ -297,7 +302,7 @@ func _run() -> void:
 	_arena._wary = 20
 	_check(is_equal_approx(_arena.wary_speed(), 1.0 + _arena.wary_speed_cap), "the wariness caps at +%d%% (%.2f)" % [int(_arena.wary_speed_cap * 100), _arena.wary_speed()])
 	_tick(1)
-	_check(is_equal_approx(apolaki.speed_mult, _arena.wary_speed()), "the gods walk at the wary speed")
+	_check(is_equal_approx(_apolaki.speed_mult, _arena.wary_speed()), "the gods walk at the wary speed")
 
 	print("Bathala Agawan Base checks: %d problem(s)" % _problems)
 	print("--- DONE ---")
@@ -312,6 +317,15 @@ func _god(id: StringName) -> AgawanGod:
 # only meets the gods it puts somewhere. Tala's star and Hanan's dawn stay off
 # unless a test turns them on.
 func _fresh_round() -> void:
+	# The random draw is checked above; the mechanics below need all four gods
+	# present under their own names. A capture also restarts the round through
+	# _start_round, which rebuilds the god nodes, so every block pins its gods
+	# from the round it is about to set up.
+	_arena._build_gods(["apolaki", "tala", "mayari", "hanan"])
+	_apolaki = _god(&"apolaki")
+	_tala = _god(&"tala")
+	_mayari = _god(&"mayari")
+	_hanan = _god(&"hanan")
 	_arena.star_interval = 0.0
 	_arena.stun_interval = 0.0
 	_arena.teleport_interval = 0.0
@@ -332,6 +346,15 @@ func _park() -> void:
 func _tick(steps: int) -> void:
 	for step in range(steps):
 		_arena.arena_rules_tick(DT)
+		_arena._tick_drop(DT)  # the round-start drop is a frame clock, not a rules one
+
+
+# A mortal's swing is an expanding wave now: throw it from `at` and let it grow
+# to its full reach, the way the host resolves it (_tick_shocks).
+func _swing(at: Vector2) -> void:
+	_arena._start_shock(at, 1, _arena._spawn_shockwave(at))
+	_arena._tick_shocks(0.6)
+	_arena._shocks.clear()
 
 
 # Rules steps until the round ends (at most 40).

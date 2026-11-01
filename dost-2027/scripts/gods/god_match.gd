@@ -98,6 +98,13 @@ class Mortal:
 	var kampilan_ready: bool = false   # Kampilan: the first cast is still to come
 	var balangay_spent: bool = false   # Miniature Balangay: its one fend has been used
 	var surigao_early: int = 0         # Surigao Gold: FAVOR early for the next God's Due (0 = none)
+	# Anitun Tabu's favors (see ANITUN TABU'S FAVORS below):
+	var wind_shield: int = 0           # Must've Been the Wind: losses it can still shrug off
+	var blow_back_left: float = 0.0    # Blow Back: seconds until the return...
+	var blow_back_amount: int = 0      # ...and how much comes back
+	var silent_paid: Array[int] = []   # A Silent Song: whose first gain has already paid this holder
+	var delivery_done: bool = false    # Tabu's Delivery Service: this trial's gift is sent
+	var kinda_pending: float = 0.0     # It's Kinda Tabu: fractional FAVOR still to be applied
 
 	func favor_by_id(favor_id: StringName) -> GodFavor:
 		for favor in favors:
@@ -126,6 +133,9 @@ var mortals: Dictionary = {}  # player id -> Mortal
 var local_id: int = LOCAL_ID
 var simulate_rivals: bool = false
 var trial_active: bool = false
+# The Playground keeps no trial clock but still wants the per-second passives
+# (It's Kinda Tabu's Q clock) to run the way they do inside a trial.
+var passives_live: bool = false
 # FAVOR per God's Due for this run. The lobby can change it (RunSettings.due_step);
 # a standalone arena keeps the default.
 var milestone_step: int = MILESTONE_STEP
@@ -240,6 +250,7 @@ func add_favor(amount: int, reason: String = "", player_id: int = -1) -> int:
 		_apply(m, gained, reason)
 	if weeded > 0:
 		_apply(caster, weeded, "Ligaw na Damo")
+	_share_silent_song(m, gained)
 	_share_with_kabiyak(m, gained)
 	return gained
 
@@ -262,6 +273,16 @@ func lose_favor(amount: int, reason: String = "", player_id: int = -1, drain := 
 	lost = mini(lost, m.favor)
 	if lost <= 0:
 		return 0
+	# Must've Been the Wind: the next real loss is shrugged off entirely (a drain
+	# is a trickle, not the "instance" the shield is meant to eat).
+	if not drain and m.wind_shield > 0:
+		m.wind_shield -= 1
+		var wind: GodFavor = m.favor_by_id(&"mustve_been_the_wind")
+		if wind != null:
+			favor_fired.emit(m.id, wind, "Must've Been the Wind - the loss is shrugged off (%d left)" % m.wind_shield)
+		else:
+			notice.emit("FAVOR shielded - nothing lost")
+		return 0
 	# The Agimat: a loss that would really land is cancelled while charges last.
 	if not drain and m.pamana_active == Pamanas.AGIMAT and m.agimat_charges > 0:
 		m.agimat_charges -= 1
@@ -275,6 +296,7 @@ func lose_favor(amount: int, reason: String = "", player_id: int = -1, drain := 
 	m.loss_history.append([_clock, lost])
 	while not m.loss_history.is_empty() and _clock - float(m.loss_history[0][0]) > LOSS_HISTORY_SECONDS:
 		m.loss_history.pop_front()
+	_queue_blow_back(m, lost)
 	return lost
 
 
@@ -338,6 +360,12 @@ func top_player_id() -> int:
 func is_favor_eligible(favor: GodFavor, player_id: int = -1) -> bool:
 	var m := _resolve(player_id)
 	if m == null or favor == null:
+		return false
+	var required_favor := favor.requires_favor_id()
+	if required_favor != &"" and not m.has_favor(required_favor):
+		return false
+	var required_slot := favor.requires_slot()
+	if required_slot >= 0 and m.favor_in_slot(required_slot) == null:
 		return false
 	var required_god := favor.requires_god_id()
 	var any_of := favor.requires_any_god_ids()
@@ -748,6 +776,13 @@ func begin_trial() -> void:
 		_wake_pamana(m)
 		m.stun_records = 0
 		m.first_cleanse_used = false
+		# Anitun Tabu's passives are per trial.
+		m.wind_shield = 0
+		m.blow_back_left = 0.0
+		m.blow_back_amount = 0
+		m.silent_paid.clear()
+		m.delivery_done = false
+		m.kinda_pending = 0.0
 	# Kabiyak: an other half who left during an earlier trial is replaced now.
 	for m in mortals.values():
 		if m.has_favor(&"kabiyak") and not mortals.has(m.kabiyak):
@@ -1084,6 +1119,9 @@ func snapshot() -> Dictionary:
 			"stun_records": m.stun_records,
 			"cleanse": m.first_cleanse_used,
 			"control": m.control_time,
+			"wind_shield": m.wind_shield,
+			"blow_back": m.blow_back_left,
+			"delivery": m.delivery_done,
 			}
 	return out
 
@@ -1131,6 +1169,9 @@ func apply_snapshot(state: Dictionary) -> void:
 		m.stun_records = int(entry.get("stun_records", m.stun_records))
 		m.first_cleanse_used = bool(entry.get("cleanse", m.first_cleanse_used))
 		m.control_time = float(entry.get("control", 0.0))
+		m.wind_shield = int(entry.get("wind_shield", m.wind_shield))
+		m.blow_back_left = float(entry.get("blow_back", m.blow_back_left))
+		m.delivery_done = bool(entry.get("delivery", m.delivery_done))
 		# A drop that came with a new Pamana was a purchase, not a loss.
 		var bought := (m.pamana_next != previous_next and m.pamana_next != &"") \
 			or (m.surigao_early > 0 and previous_surigao <= 0)
@@ -1176,6 +1217,128 @@ func apply_snapshot(state: Dictionary) -> void:
 			# FAVOR that moved in or out of the granary is a transfer, not a loss.
 			var reason := TRANSFER_REASON if m.granary != previous_granary else (PURCHASE_REASON if bought else "")
 			favor_changed.emit(m.id, m.favor, m.favor - previous_favor, reason)
+
+
+# --- ANITUN TABU'S FAVORS (the winds) ------------------------------------------
+# Must've Been the Wind stands in front of a loss (a shield, consumed in
+# lose_favor), Blow Back owes the mortal part of what did land, A Silent Song
+# takes a cut of every other mortal's first gain, Tabu's Delivery Service hands
+# the field a gift at the ten-second mark and takes a share of what it was worth,
+# and It's Kinda Tabu pays (or takes) FAVOR every second its Q sits unused (or
+# recharging). All Winds Lead to Tabu raises the first three shares.
+
+# All Winds Lead to Tabu's own numbers, keyed by the share it rewrites.
+func _wind_share(m: Mortal, key: String, base: float) -> float:
+	var all: GodFavor = m.favor_by_id(&"all_winds_lead_to_tabu")
+	return all.param(key, base) if all != null else base
+
+
+# Blow Back: the first loss that really lands while nothing is owed comes back
+# after `delay` seconds. One return at a time - a second loss waits its turn
+# (there is no second slot), and once it is paid the next loss may queue again.
+func _queue_blow_back(m: Mortal, lost: int) -> void:
+	if lost <= 0 or m.blow_back_left > 0.0:
+		return
+	var favor: GodFavor = m.favor_by_id(&"blow_back")
+	if favor == null:
+		return
+	var share := _wind_share(m, "blow_back", favor.param("return_share", 0.5))
+	var back := int(round(float(lost) * share))
+	if back <= 0:
+		return
+	m.blow_back_amount = back
+	m.blow_back_left = maxf(0.1, favor.param("delay", 10.0))
+	favor_fired.emit(m.id, favor, "Blow Back - %d FAVOR returns in %.0fs" % [back, m.blow_back_left])
+
+
+func _tick_blow_back(m: Mortal, delta: float) -> void:
+	if m.blow_back_left <= 0.0:
+		return
+	m.blow_back_left = maxf(0.0, m.blow_back_left - delta)
+	if m.blow_back_left <= 0.0:
+		_settle_blow_back(m)
+
+
+# The return lands: straight to the total (it is what the mortal lost, not a
+# fresh gain the field's multipliers get to inflate).
+func _settle_blow_back(m: Mortal) -> int:
+	if m.blow_back_amount <= 0:
+		m.blow_back_left = 0.0
+		return 0
+	var back := m.blow_back_amount
+	m.blow_back_amount = 0
+	m.blow_back_left = 0.0
+	_apply(m, back, "Blow Back")
+	var favor: GodFavor = m.favor_by_id(&"blow_back")
+	if favor != null:
+		favor_fired.emit(m.id, favor, "Blow Back - +%d FAVOR returns" % back)
+	return back
+
+
+# A Silent Song: the first FAVOR each OTHER mortal gains in a trial pays every
+# holder its share once. `gained` is what the mortal really banked (weeds and
+# multipliers already settled).
+func _share_silent_song(m: Mortal, gained: int) -> void:
+	if gained <= 0:
+		return
+	for holder in mortals.values():
+		if holder.id == m.id:
+			continue
+		var song: GodFavor = holder.favor_by_id(&"a_silent_song")
+		if song == null or m.silent_paid.has(holder.id):
+			continue
+		m.silent_paid.append(holder.id)
+		var share := _wind_share(holder, "silent_song", song.param("share", 0.1))
+		var paid := int(round(float(gained) * share))
+		if paid <= 0:
+			continue
+		_apply(holder, paid, song.display_name)
+		favor_fired.emit(holder.id, song, "A Silent Song - %s's first gain pays %d FAVOR" % [m.display_name, paid])
+
+
+# Tabu's Delivery Service: at `at_time` seconds left the holder sends every other
+# mortal `gift` FAVOR (their own multipliers decide what it is worth), then takes
+# `share` of what was really handed out. Once per trial, host only.
+func _tick_delivery(m: Mortal) -> void:
+	if m.delivery_done:
+		return
+	var delivery: GodFavor = m.favor_by_id(&"tabus_delivery_service")
+	if delivery == null:
+		return
+	var at := delivery.param("at_time", 10.0)
+	if time_left > at:
+		return
+	m.delivery_done = true
+	var gift := int(delivery.param("gift", 100.0))
+	var total := 0
+	for other in mortals.values():
+		if other.id == m.id:
+			continue
+		total += add_favor(gift, delivery.display_name, other.id)
+	var share := _wind_share(m, "delivery", delivery.param("share", 1.0))
+	var paid := int(round(float(total) * share))
+	if paid > 0:
+		_apply(m, paid, delivery.display_name)
+	favor_fired.emit(m.id, delivery, "Tabu's Delivery Service - %d FAVOR sent, %d received back" % [total, paid])
+
+
+# It's Kinda Tabu: while the Q is ready it pays, while the Q recharges it takes.
+# A second of punishment while the mortal holds nothing at all is simply clamped
+# at zero by _apply.
+func _tick_its_kinda_tabu(m: Mortal, delta: float) -> void:
+	var kinda: GodFavor = m.favor_by_id(&"its_kinda_tabu")
+	if kinda == null or not (trial_active or passives_live):
+		return
+	var q_skill: GodFavor = m.favor_in_slot(GodFavor.Slot.Q)
+	var ready := q_skill != null and m.cooldown_left(q_skill.id) <= 0.0
+	var rate: float = kinda.param("per_second", 8.0)
+	m.kinda_pending += (rate if ready else -rate) * delta
+	if absf(m.kinda_pending) < 1.0:
+		return
+	var step := int(m.kinda_pending)
+	m.kinda_pending -= float(step)
+	if step != 0:
+		_apply(m, step, kinda.display_name)
 
 
 # --- E / Q SKILLS -----------------------------------------------------------
@@ -1249,6 +1412,10 @@ func use_skill(slot: int, player_id: int = -1) -> GodFavor:
 	var immunity := favor.param("loss_immunity", 0.0)
 	if immunity > 0.0:
 		m.loss_immunity = maxf(m.loss_immunity, immunity)
+	# Must've Been the Wind: each cast stacks one shrug.
+	var shields := int(round(favor.param("shields", 0.0)))
+	if shields > 0:
+		m.wind_shield += shields
 	skill_used.emit(m.id, favor)
 	return favor
 
@@ -1278,6 +1445,10 @@ func _tick_mortal(m: Mortal, delta: float) -> void:
 		m.durations[favor_id] = maxf(0.0, float(m.durations[favor_id]) - delta)
 	if authority:
 		_tick_afflictions(m, delta)
+		_tick_blow_back(m, delta)
+		_tick_delivery(m)
+		if trial_active or passives_live:
+			_tick_its_kinda_tabu(m, delta)
 	# A weed's clock runs everywhere its victim is: the Playground keeps
 	# trial_active false, and a cast just before a trial ends must not wait out
 	# the intermission. Regrowth and a Pamana's window still need a running trial.
@@ -1326,6 +1497,8 @@ func end_trial() -> Dictionary:
 		# The Manunggul Jar gives back its share of what was lost, before Favorable
 		# Outcome judges the top: straight to the total, so Full Moon cannot inflate it.
 		harvest[m.id] = int(harvest[m.id]) + _settle_jar(m)
+		# Blow Back owes the mortal part of what it took: the trial's end settles it.
+		harvest[m.id] = int(harvest[m.id]) + _settle_blow_back(m)
 		# Time Is Now: every stun this trial is worth FAVOR once it closes.
 		var now: GodFavor = m.favor_by_id(&"time_is_now")
 		if now != null and m.stun_records > 0:

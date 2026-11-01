@@ -89,6 +89,9 @@ var radius := 13.0
 # arena sets it each frame; a dash or a shove is the arena's own move and is not
 # inverted.
 var movement_inverted := false
+# Winds and Gales of Yesterday: a sideways shove laid over the walk keys each
+# frame (the arena zeroes it while the mortal is airborne, dashing or held).
+var wind_drag := Vector2.ZERO
 # Which of UITokens.BANDANA_COLORS this mortal's bandana wears (0 = the drawn red).
 var bandana_index := 0
 
@@ -658,7 +661,7 @@ func _steer(input: Vector2, delta: float) -> void:
 	if _moving:
 		var turning_back := velocity.length() > 1.0 and input.normalized().dot(velocity.normalized()) < TURN_DOT
 		rate = turn_accel if turning_back else accel
-	velocity = velocity.move_toward(input * move_speed, rate * delta)
+	velocity = velocity.move_toward(input * move_speed + wind_drag, rate * delta)
 
 
 # --- LOOK ---------------------------------------------------------------------

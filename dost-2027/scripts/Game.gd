@@ -112,6 +112,9 @@ var _favor_shown := 0.0              # the FAVOR the card shows this frame
 var _pips_shown := -1                # God's Due drawn as pips (-1: not drawn yet)
 var _favor_seen := -1                # the FAVOR last drawn (-1: none yet), to pulse on a change
 var _favor_tween: Tween
+# The run's starter skills (the lobby's STARTER SKILLS option) are handed out
+# once, on the first arena, before gains are announced.
+var _starters_given := false
 # The Tindahan's offers are rolled from this, once per run (Game is the run).
 var pamana_rng := RandomNumberGenerator.new()
 
@@ -375,6 +378,7 @@ func _on_arena_ready() -> void:
 	arena.register_tap_panel(GodFavor.Slot.Q, q_bar)
 	if not run_snapshot.is_empty():
 		rules.apply_snapshot(run_snapshot)
+	_give_starter_skills()
 	# From here on a skill that appears is a gain worth a popup; what the mortal carried
 	# in (just loaded) is not.
 	rules.announce_gains = true
@@ -382,6 +386,29 @@ func _on_arena_ready() -> void:
 	if arena is PrepArea:
 		# Only now do the mortals hold their favors - the offers are filtered by them.
 		arena.open_prep()
+
+
+# STARTER SKILLS: the run opens with favors in every mortal's hands - a unique
+# E + Q pair for each under RANDOM, each player's OWN pair under CUSTOM. Only the
+# authority hands them out (a client meets them in the first snapshot), and they
+# arrive before announce_gains, so their own arrival is not announced as a gain.
+func _give_starter_skills() -> void:
+	if _starters_given or trial_index != 0 or rules == null:
+		return
+	_starters_given = true
+	if not Network.run_settings.has_starters() or not rules.authority:
+		return
+	if Network.run_settings.starter_mode == RunSettings.STARTER_CUSTOM:
+		for mortal_id in rules.mortals.keys():
+			for favor in Network.build_favors(int(mortal_id)):
+				if favor != null:
+					rules.bestow_favor(favor, mortal_id)
+		return
+	var deal := Network.run_settings.starter_deal(rules.mortals.keys())
+	for mortal_id in deal.keys():
+		for favor in deal[mortal_id]:
+			if favor != null:
+				rules.bestow_favor(favor, mortal_id)
 
 
 # The mouse is over (or left) one of our favor bars: the arena's HUD shows that skill's card.

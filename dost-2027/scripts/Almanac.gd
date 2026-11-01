@@ -416,8 +416,10 @@ func _seconds(value: float) -> String:
 # duration are chips and "Bestowed by" is the subtitle, so this line keeps only
 # the conditions: a `requires_god` favor is only OFFERED while the mortal
 # already holds a favor of that god (Mayari's and Apolaki's Sibling's Rivalry
-# each ask for a favor of the other sibling), and a `requires_any_god` favor
-# while they hold a favor of at least one of those gods.
+# each ask for a favor of the other sibling), a `requires_any_god` favor while
+# they hold a favor of at least one of those gods, a `requires_favor` favor
+# while they hold that exact one, and a `requires_slot` favor while they hold
+# any skill in that slot (It's Kinda Tabu rides whatever Q the mortal carries).
 func _condition_text(_god: God, favor: GodFavor) -> String:
 	var parts: Array[String] = []
 	var required := favor.requires_god_id()
@@ -432,6 +434,14 @@ func _condition_text(_god: God, favor: GodFavor) -> String:
 			var other := Gods.by_id(id)
 			names.append(other.display_name if other != null else str(id).to_upper())
 		parts.append("CONDITION: only offered while you already hold a favor of %s" % " or ".join(names))
+	var needed := favor.requires_favor_id()
+	if needed != &"":
+		var other := Gods.favor_by_id(needed)
+		var other_name := other.display_name if other != null else str(needed).to_upper()
+		parts.append("CONDITION: only offered while you already hold %s" % other_name)
+	var slot := favor.requires_slot()
+	if slot >= 0:
+		parts.append("CONDITION: only offered while you hold any %s skill" % ("E" if slot == GodFavor.Slot.E else "Q"))
 	return "\n".join(parts)
 
 

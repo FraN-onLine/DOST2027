@@ -2,7 +2,7 @@ extends SceneTree
 
 # Validation for the lobby's OPTIONS menu (scenes/LobbyOptions.tscn) and the run
 # setup behind it (scripts/RunSettings.gd, Network.run_settings):
-#   * trials stay within 3..5
+#   * trials stay within 3..6
 #   * every planned run ends with exactly one Bathala and has trials + 1 entries
 #   * no god plays twice in a run (RANDOM and CUSTOM)
 #   * CUSTOM rows follow the trial count, a god already in a slot is greyed out
@@ -11,6 +11,8 @@ extends SceneTree
 #   * trial length, God's Due step and intro mode reach the arena and GodMatch
 #   * PREP TIME (shown as 0:20) and CAMERA survive to_dict / from_dict, a bad
 #     value is put back by validate(), and the prep time reaches the rest
+#   * STARTER SKILLS: OFF / RANDOM (a unique E + Q deal per mortal) / CUSTOM
+#     (every player picks its own E and Q in the CUSTOM BUILD card, unshared)
 #   * RESET restores the defaults, and the host's saved setup loads back
 # Uses a temporary settings file, never the host's user://lobby_settings.cfg.
 # Run: godot --headless --path <project> -s res://tools/lobby_options_check.gd
@@ -61,10 +63,10 @@ func _run() -> void:
 	_check(_settings().trials == Gods.TRIALS_MIN, "trials cannot go below 3")
 	_check(options.minus_button.disabled, "the - button stops at 3")
 	_network.set_run_setting("trials", 42)
-	_check(Gods.TRIALS_MAX == 5 and _settings().trials == 5, "trials cannot go above 5")
-	_check(options.plus_button.disabled, "the + button stops at 5")
+	_check(Gods.TRIALS_MAX == 6 and _settings().trials == 6, "trials cannot go above 6")
+	_check(options.plus_button.disabled, "the + button stops at 6")
 	options._step_trials(1)
-	_check(_settings().trials == Gods.TRIALS_MAX, "+ at 5 changes nothing")
+	_check(_settings().trials == Gods.TRIALS_MAX, "+ at 6 changes nothing")
 
 	# --- PREP TIME and CAMERA ----------------------------------------------------------
 	var defaults := RunSettings.defaults()
@@ -163,6 +165,104 @@ func _run() -> void:
 	options._on_reset_pressed()
 	_check(_settings().to_dict() == RunSettings.defaults().to_dict(), "RESET restores the defaults")
 
+	# --- STARTER SKILLS ----------------------------------------------------------------
+	_check(RunSettings.defaults().starter_mode == RunSettings.STARTER_OFF, "STARTER SKILLS is off by default")
+	_check(not lobby.build_card.visible, "...with no CUSTOM BUILD card")
+	options.starter_option.item_selected.emit(1)
+	_check(_settings().starter_mode == RunSettings.STARTER_RANDOM, "picking RANDOM turns the random starters on")
+	_check(not lobby.build_card.visible, "...with no build card (the deal is random)")
+	_check(lobby.run_summary_label.text.ends_with("random starters"),
+		"...and the run summary says so (%s)" % lobby.run_summary_label.text)
+	options.starter_option.item_selected.emit(2)
+	_check(_settings().starter_mode == RunSettings.STARTER_CUSTOM, "picking CUSTOM turns custom builds on")
+	_check(lobby.build_card.visible, "...and the CUSTOM BUILD card appears below THE RUN")
+	_check(lobby._build_buttons.size() == 2 and lobby._build_names.size() == 2, "the card holds two skill boxes (E and Q)")
+	var default_pair: Array = _network.my_build_favors()
+	_check(default_pair[0].id == &"half_vision" and default_pair[1].id == &"siblings_compromise",
+		"an unpicked build opens with Mayari's own E and Q")
+	_check(lobby._build_names[0].text == "Half Vision" and lobby._build_names[1].text == "Sibling's Compromise",
+		"...and the boxes name them (%s + %s)" % [lobby._build_names[0].text, lobby._build_names[1].text])
+	_check(lobby.run_summary_label.text.ends_with("custom builds"),
+		"...the summary saying custom builds (%s)" % lobby.run_summary_label.text)
+	# The popup: every E the pool offers, and a press picks one.
+	lobby._open_build_picker(GodFavor.Slot.E)
+	_check(lobby._picker.visible, "a box opens the all-skills popup")
+	_check(lobby._picker_title.text == "YOUR E", "...titled for the slot it edits (%s)" % lobby._picker_title.text)
+	var e_pool := RunSettings.starter_pool(GodFavor.Slot.E)
+	_check(lobby._picker_grid.get_child_count() == e_pool.size(), "the popup shows every E skill (%d)" % e_pool.size())
+	var shown_es := {}
+	for card in lobby._picker_grid.get_children():
+		shown_es[str(card.text).get_slice("\n", 1)] = true
+	_check(shown_es.size() == e_pool.size(), "...each one once")
+	lobby._pick_build(GodFavor.Slot.E, &"let_us_light_your_way")
+	_check(not lobby._picker.visible, "picking one closes the popup")
+	_check(_network.custom_builds.get(1, {}).get("e", &"") == &"let_us_light_your_way",
+		"the pick reaches this player's build")
+	_network.choose_custom_build(GodFavor.Slot.Q, &"unswerved_unbothered")
+	var mine: Array = _network.my_build_favors()
+	_check(mine[0].id == &"let_us_light_your_way" and mine[1].id == &"unswerved_unbothered",
+		"the two boxes hold this player's own E and Q")
+	_check(lobby._build_buttons[0].icon == mine[0].icon and lobby._build_buttons[1].icon == mine[1].icon,
+		"...and the boxes wear those skills' icons")
+	# Builds are not shared: a second mortal can hold a different pair.
+	_network._set_custom_build(2, GodFavor.Slot.E, &"the_west_wind")
+	_network._set_custom_build(2, GodFavor.Slot.Q, &"mustve_been_the_wind")
+	var rival: Array = _network.build_favors(2)
+	_check(rival[0].id == &"the_west_wind" and rival[1].id == &"mustve_been_the_wind",
+		"another mortal can hold a different build")
+	var kept: Array = _network.build_favors(1)
+	_check(kept[0].id == &"let_us_light_your_way" and kept[1].id == &"unswerved_unbothered",
+		"...without touching this player's")
+	# The host only accepts a skill the slot can actually start with.
+	_network._set_custom_build(1, GodFavor.Slot.E, &"unswerved_unbothered")
+	_check(_network.build_favors(1)[0].id == &"let_us_light_your_way", "an E box refuses a Q skill")
+	_network._set_custom_build(1, GodFavor.Slot.E, &"not_a_favor")
+	_check(_network.build_favors(1)[0].id == &"let_us_light_your_way", "...and an unknown one")
+	_check(RunSettings.starter_favor(GodFavor.Slot.Q, &"unswerved_unbothered") != null
+		and RunSettings.starter_favor(GodFavor.Slot.E, &"unswerved_unbothered") == null,
+		"a starter lookup finds only the skills its slot can start with")
+	options.starter_option.item_selected.emit(0)
+	_check(_settings().starter_mode == RunSettings.STARTER_OFF and not lobby.build_card.visible,
+		"picking OFF hides the card again")
+	_network.custom_builds.clear()
+	var deal_ok := true
+	var unique_ok := true
+	var pairs_seen := {}
+	var six := [1, 2, 3, 4, 5, 6]
+	for seed_value in range(200):
+		var deal := RunSettings.starter_deal_for(seed_value, six)
+		var es := {}
+		var qs := {}
+		for id in six:
+			var pair: Array = deal.get(id, [])
+			if pair.size() != 2 or pair[0].slot != GodFavor.Slot.E or pair[1].slot != GodFavor.Slot.Q:
+				deal_ok = false
+				continue
+			if pair[0].god_id == pair[1].god_id or pair[0].god_id == Gods.BATHALA or pair[1].god_id == Gods.BATHALA:
+				deal_ok = false
+			if pair[0].requires_god_id() != &"" or pair[1].requires_god_id() != &"" \
+				or pair[0].requires_favor_id() != &"" or pair[1].requires_favor_id() != &"":
+				deal_ok = false
+			es[pair[0].id] = true
+			qs[pair[1].id] = true
+			pairs_seen["%s|%s" % [pair[0].id, pair[1].id]] = true
+		if es.size() != 6 or qs.size() != 6:
+			unique_ok = false
+	_check(deal_ok, "every seed deals one god's E and a DIFFERENT god's Q, never Bathala's")
+	_check(unique_ok, "six mortals open with six different Es and six different Qs")
+	_check(pairs_seen.size() > 20, "...and the deals really vary (%d pairs in 200 seeds)" % pairs_seen.size())
+	var deal_a := RunSettings.starter_deal_for(12345, [3, 1, 2])
+	var deal_b := RunSettings.starter_deal_for(12345, [2, 3, 1])
+	_check(deal_a[1][0].id == deal_b[1][0].id and deal_a[2][1].id == deal_b[2][1].id
+		and deal_a[3][0].id == deal_b[3][0].id,
+		"the same seed deals the same pairs to the same mortals, in any order")
+	var carried := RunSettings.from_dict({"starter_mode": "custom", "starter_seed": 777})
+	_check(carried.starter_mode == RunSettings.STARTER_CUSTOM and carried.starter_seed == 777,
+		"a custom setup survives to_dict / from_dict")
+	var old_file := RunSettings.from_dict({"starter_skills": true, "starter_seed": 5})
+	_check(old_file.starter_mode == RunSettings.STARTER_RANDOM, "an old random-starters file loads as RANDOM")
+	_apply(RunSettings.defaults().to_dict())
+
 	# --- a client cannot change anything --------------------------------------------------
 	_apply({"trials": 5, "order_mode": "custom"})
 	var locked := _settings().to_dict()
@@ -171,7 +271,9 @@ func _run() -> void:
 	await _frames(1)
 	var all_disabled: bool = options.minus_button.disabled and options.plus_button.disabled \
 		and options.random_box.disabled and options.custom_box.disabled and options.time_option.disabled \
-		and options.due_option.disabled and options.intro_option.disabled and options.reset_button.disabled 		and options.prep_option.disabled and options.camera_option.disabled
+		and options.due_option.disabled and options.intro_option.disabled and options.reset_button.disabled \
+		and options.prep_option.disabled and options.camera_option.disabled \
+		and options.blitz_box.disabled and options.starter_option.disabled
 	for row in options.order_list.get_children():
 		if row is HBoxContainer:
 			all_disabled = all_disabled and row.get_node("God").disabled and row.get_node("Up").disabled and row.get_node("Down").disabled
@@ -186,8 +288,16 @@ func _run() -> void:
 	options.intro_option.item_selected.emit(1)
 	options.prep_option.item_selected.emit(4)
 	options.camera_option.item_selected.emit(1)
+	options.starter_option.item_selected.emit(1)
 	options._on_reset_pressed()
 	_check(_settings().to_dict() == locked, "a client cannot change any setting")
+	# ...but the build card is the player's own: a non-host can still pick.
+	_apply({"starter_mode": "custom"})
+	await _frames(1)
+	_check(lobby.build_card.visible, "a non-host sees the CUSTOM BUILD card")
+	lobby._pick_build(GodFavor.Slot.E, &"the_west_wind")
+	_check(_network.my_build_favors()[0].id == &"the_west_wind", "a non-host can still pick its own build")
+	_network.custom_builds.clear()
 
 	# --- a synced setup reaches a client's lobby -------------------------------------------
 	_network.rpc_sync_run_settings({"trials": 4, "order_mode": "random", "trial_time": 60.0, "due_step": 750, "intro_mode": "full"})
@@ -199,7 +309,8 @@ func _run() -> void:
 	options.close()
 
 	# --- trial length, God's Due step and intros reach the run ---------------------------
-	_apply({"trials": 3, "order_mode": "random", "trial_time": 150.0, "due_step": 1500, "intro_mode": "short", "prep_time": 45.0})
+	_apply({"trials": 3, "order_mode": "random", "trial_time": 150.0, "due_step": 1500, "intro_mode": "short",
+		"prep_time": 45.0, "starter_mode": "random", "starter_seed": 4242})
 	_network.rpc_sync_trial_order([&"mayari", &"tala", &"apolaki", &"bathala"])
 	var game: Control = load("res://scenes/Game.tscn").instantiate()
 	view.add_child(game)
@@ -208,6 +319,22 @@ func _run() -> void:
 	_check(game.arena != null and game.arena.rules.milestone_step == 1500, "the God's Due step reaches GodMatch")
 	_check(game.arena != null and not game.arena.first_visit, "SHORT intros skip the full intro even on a first visit")
 	var mortal = game.arena.rules.local()
+	var deal := RunSettings.starter_deal_for(4242, game.arena.rules.mortals.keys())
+	var dealt: Array = deal.get(mortal.id, [])
+	_check(dealt.size() == 2 and mortal.favor_in_slot(GodFavor.Slot.E) != null
+		and mortal.favor_in_slot(GodFavor.Slot.Q) != null,
+		"a RANDOM starter run opens with an E and a Q in hand")
+	_check(mortal.favor_in_slot(GodFavor.Slot.E).id == dealt[0].id
+		and mortal.favor_in_slot(GodFavor.Slot.Q).id == dealt[1].id,
+		"...the pair the run dealt this mortal (%s + %s)" % [
+			str(mortal.favor_in_slot(GodFavor.Slot.E).id), str(mortal.favor_in_slot(GodFavor.Slot.Q).id)])
+	var sets := {}
+	for id in game.arena.rules.mortals.keys():
+		var pair: Array = deal.get(int(id), [])
+		if pair.size() == 2:
+			sets["%s|%s" % [pair[0].id, pair[1].id]] = true
+	_check(sets.size() == game.arena.rules.mortals.size() and sets.size() > 1,
+		"every mortal in the run opens with its own pair (%d mortals)" % game.arena.rules.mortals.size())
 	mortal.favor = 0
 	game.arena.rules.add_favor(1499, "test")
 	_check(mortal.due == 0, "1499 FAVOR is not yet a God's Due at 1500")
@@ -219,14 +346,39 @@ func _run() -> void:
 		"the prep time reaches the rest (%s)" % game.timer_label.text)
 	game.queue_free()
 	await _frames(2)
-	_apply({"intro_mode": "full", "trial_time": 90.0})
+	# CUSTOM: each mortal opens with its own lobby build, not a shared pair.
+	_network.custom_builds.clear()
+	_network._set_custom_build(1, GodFavor.Slot.E, &"the_west_wind")
+	_network._set_custom_build(1, GodFavor.Slot.Q, &"unswerved_unbothered")
+	_network._set_custom_build(2, GodFavor.Slot.E, &"let_us_light_your_way")
+	_network._set_custom_build(2, GodFavor.Slot.Q, &"mustve_been_the_wind")
+	_apply({"intro_mode": "full", "trial_time": 90.0, "starter_mode": "custom"})
 	var second: Control = load("res://scenes/Game.tscn").instantiate()
 	view.add_child(second)
 	await _frames(4)
 	_check(second.arena != null and second.arena.first_visit, "FULL intros keep the full intro on a first visit")
 	_check(second.arena != null and is_equal_approx(second.arena.trial_time, 90.0), "a 90s setting gives a 90s round")
+	var custom_mortal = second.arena.rules.local()
+	_check(custom_mortal.favor_in_slot(GodFavor.Slot.E) != null
+		and custom_mortal.favor_in_slot(GodFavor.Slot.E).id == &"the_west_wind"
+		and custom_mortal.favor_in_slot(GodFavor.Slot.Q) != null
+		and custom_mortal.favor_in_slot(GodFavor.Slot.Q).id == &"unswerved_unbothered",
+		"a CUSTOM run opens with this player's own E and Q (%s + %s)" % [
+			str(custom_mortal.favor_in_slot(GodFavor.Slot.E).id) if custom_mortal.favor_in_slot(GodFavor.Slot.E) != null else "none",
+			str(custom_mortal.favor_in_slot(GodFavor.Slot.Q).id) if custom_mortal.favor_in_slot(GodFavor.Slot.Q) != null else "none"])
+	var own_ok := true
+	for id in second.arena.rules.mortals.keys():
+		var other = second.arena.rules.mortals[id]
+		var wanted: Array = _network.build_favors(int(id))
+		if other.favor_in_slot(GodFavor.Slot.E) == null or other.favor_in_slot(GodFavor.Slot.Q) == null \
+			or other.favor_in_slot(GodFavor.Slot.E).id != wanted[0].id \
+			or other.favor_in_slot(GodFavor.Slot.Q).id != wanted[1].id:
+			own_ok = false
+	_check(own_ok and second.arena.rules.mortals.size() > 1,
+		"every mortal opens with its own CUSTOM build (%d mortals)" % second.arena.rules.mortals.size())
 	second.queue_free()
 	await _frames(2)
+	_network.custom_builds.clear()
 	_network.trial_order_ids.clear()
 
 	# --- the host's last setup loads back ------------------------------------------------------
@@ -243,9 +395,9 @@ func _run() -> void:
 	cfg.save(TEMP_SETTINGS)
 	_network.load_host_settings()
 	var loaded := _settings()
-	_check(loaded.trials == 5 and loaded.trial_time == 90.0 and loaded.due_step == 1000 and loaded.intro_mode == "full"
+	_check(loaded.trials == 6 and loaded.trial_time == 90.0 and loaded.due_step == 1000 and loaded.intro_mode == "full"
 		and loaded.prep_time == 20.0 and loaded.camera_mode == "arena", "a bad saved file is validated on load")
-	_check(not loaded.custom_order.has(Gods.BATHALA) and loaded.custom_order.size() == 5 and loaded.repeat_slots().is_empty(),
+	_check(not loaded.custom_order.has(Gods.BATHALA) and loaded.custom_order.size() == 6 and loaded.repeat_slots().is_empty(),
 		"...and its order is cleaned (no Bathala, no unknown god, no repeat)")
 	# A file saved when a run could hold 9 trials (and gods came round again).
 	cfg.set_value("run", "settings", {"trials": 9, "order_mode": "custom", "trial_time": 90.0, "due_step": 1000, "intro_mode": "full",
@@ -253,8 +405,8 @@ func _run() -> void:
 	cfg.save(TEMP_SETTINGS)
 	_network.load_host_settings()
 	loaded = _settings()
-	_check(loaded.trials == 5 and loaded.custom_order.size() == 5 and _unique(loaded.custom_order) == 5,
-		"an old 9-trial setup loads as 5 trials, every god once (%s)" % str(loaded.custom_order))
+	_check(loaded.trials == 6 and loaded.custom_order.size() == 6 and _unique(loaded.custom_order) == 6,
+		"an old 9-trial setup loads as 6 trials, every god once (%s)" % str(loaded.custom_order))
 	_check(loaded.custom_order.slice(0, 4) == [&"mayari", &"tala", &"apolaki", &"hanan"], "...keeping the gods it already had in order")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SETTINGS))
 	_apply(RunSettings.defaults().to_dict())

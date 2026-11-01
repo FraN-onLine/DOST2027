@@ -9,6 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://c5faeg35jn743" path="res://Assets/Gods/Tala/TalaOverseer-Sheet.png" id="7_28pec"]
 [ext_resource type="Texture2D" uid="uid://bl1pm0hifcxv3" path="res://Assets/Map/temp-background.png" id="8_yq6ct"]
 [ext_resource type="Texture2D" uid="uid://dos0pj4iibgik" path="res://Assets/Map/Arena1.png" id="9_cgjks"]
+[ext_resource type="Script" path="res://scripts/gods/tala/slipper_arrow.gd" id="10_arrow"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cgjks"]
 atlas = ExtResource("4_28pec")
@@ -348,3 +349,7 @@ texture = ExtResource("8_yq6ct")
 position = Vector2(-288, 178.00003)
 scale = Vector2(2.0124998, 2.2680554)
 texture = ExtResource("9_cgjks")
+
+[node name="SlipperArrow" type="Node2D" parent="." index="15" unique_id=1971443551]
+z_index = 5
+script = ExtResource("10_arrow")

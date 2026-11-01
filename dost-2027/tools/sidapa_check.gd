@@ -455,12 +455,24 @@ func _run() -> void:
 	_arena._apply_skill_effect(Gods.favor_by_id(&"a_little_more_structure"), _arena._my_id)
 	_check(_arena._structures.size() == 1 and _arena._structure_nodes.size() == 1,
 		"E opens a ring where the caster stands, and draws it")
+	var ring_node: ALittleBitMoreStructure = _arena._structure_nodes.values()[0]
+	_check(ring_node.wormhole != null and ring_node.wormhole.sprite_frames != null
+		and ring_node.wormhole.sprite_frames.has_animation(&"default") and ring_node.wormhole.animation == &"default",
+		"the authored ring scene plays its wormhole")
+	_check(ring_node.timer_label != null and ring_node.timer_label.text == "3" and ring_node.timer_label.position.y < 0.0,
+		"the count hangs over the ring (%s)" % (ring_node.timer_label.text if ring_node.timer_label != null else "none"))
+	_check(ring_node.ring.points.size() == 48 and ring_node.fill.polygon.size() == 32
+		and ring_node.ring.default_color == ring_node.tint and ring_node.fill.color.a < 0.2,
+		"the rim and the faint fill are drawn to the caster's radius and color")
 	_arena._tick_structures(2.9)
 	_check(_arena._structures.size() == 1 and _arena.rules.local().stun_time == 0.0,
 		"inside the ring the countdown runs harmlessly")
+	_check(ring_node.timer_label.text == "1", "...and its label counts down (%s)" % ring_node.timer_label.text)
 	_arena.player.global_position = Vector2(770.0, 450.0)
 	_arena._tick_structures(0.2)
 	_check(_arena._structures.is_empty(), "the ring closes when the count ends")
+	_check(ring_node.is_exploding() and ring_node.wormhole.animation == &"explode",
+		"...and the wormhole bursts on its way out")
 	_check(is_equal_approx(_arena.rules.local().stun_time, 3.0), "a mortal still outside is stunned for 3 s")
 	_check(is_equal_approx(_arena.rules.mortal(2).stun_time, 3.0), "and every rival who could not step in is judged too")
 

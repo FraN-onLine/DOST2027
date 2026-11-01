@@ -11,18 +11,6 @@
 [ext_resource type="PackedScene" path="res://scenes/gods/sidapa/PikoPad.tscn" id="9_pad"]
 [ext_resource type="Script" uid="uid://sh4g1lox3v0e" path="res://scripts/gods/sidapa/piko_throw.gd" id="9_throw"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_court"]
-bg_color = Color(0.085, 0.092, 0.104, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.78, 0.8, 0.76, 0.22)
-corner_radius_top_left = 24
-corner_radius_top_right = 24
-corner_radius_bottom_right = 24
-corner_radius_bottom_left = 24
-
 [sub_resource type="Gradient" id="Gradient_blitz"]
 offsets = PackedFloat32Array(0, 0.55, 1)
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.7, 1, 1, 1, 0)
@@ -68,14 +56,14 @@ embedded = true
 dialogue_prefix = "sidapa"
 shake_pixels = 5.0
 
-[node name="Court" type="Panel" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=227650481]
+[node name="Court" type="ColorRect" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="0" unique_id=227650481]
 visible = false
 offset_left = 228.0
 offset_top = 286.0
 offset_right = 1160.0
 offset_bottom = 604.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_court")
+color = Color(0.085, 0.092, 0.104, 1)
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1833207421]
 points = PackedVector2Array(258, 240, 1010, 240, 1010, 590, 258, 590, 258, 240)
@@ -163,7 +151,7 @@ offset_top = 320.0
 offset_right = 428.0
 offset_bottom = 346.0
 theme_type_variation = &"WorldValue"
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "12s"
 horizontal_alignment = 1
 vertical_alignment = 1

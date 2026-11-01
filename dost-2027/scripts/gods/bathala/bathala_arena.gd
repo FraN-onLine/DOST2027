@@ -956,6 +956,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _try_attack() -> void:
+	if _is_frozen(_my_id):
+		return  # frozen means frozen: no swing until it thaws
 	if _shock_cd > 0.0:
 		_log("Attack recharging  (%.1fs)" % _shock_cd, UITokens.GOLD)
 		return
@@ -983,7 +985,10 @@ func _freeze_god(index: int, seconds: float, caster_id: int = -1) -> void:
 	god_node.freeze_for(seconds)
 	_frozen_gods[index] = seconds
 	_cancel_jaunt(god_node)
-	bank_favor(tag_god_favor, "Tagged a god", caster_id)
+	if caster_id >= 0:
+		# Only a mortal's swing pays to tag a god; a god's own shockwave (caster -1)
+		# that freezes another god pays nobody.
+		bank_favor(tag_god_favor, "Tagged a god", caster_id)
 	_show_banner("GOD FROZEN!", UITokens.GOLD, 1.2)
 
 # Spawn the players' expanding wave at `origin`. A `radius` overrides the full
@@ -1132,6 +1137,8 @@ func _resolve_god_shock(god_node: AgawanGod, caster_index: int) -> void:
 func _on_arena_shock_requested(caster_id: int, origin: Vector2) -> void:
 	if not _authority or _phase != Phase.PLAYING:
 		return
+	if _is_frozen(caster_id):
+		return  # frozen means frozen: a locked mortal's swing never lands
 	var known := mortal_position(caster_id)
 	if known != Vector2.INF and known.distance_to(origin) > 90.0:
 		return  # the attack is nowhere near where the host last saw that mortal

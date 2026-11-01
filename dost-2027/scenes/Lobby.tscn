@@ -217,6 +217,30 @@ size_flags_vertical = 4
 theme_type_variation = &"SmallButton"
 text = "OPTIONS"
 
+[node name="BuildCard" type="PanelContainer" parent="Page/VBox/Scroll/Columns/Side"]
+visible = false
+layout_mode = 2
+theme_type_variation = &"PanelCard"
+
+[node name="VBox" type="VBoxContainer" parent="Page/VBox/Scroll/Columns/Side/BuildCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Heading" type="Label" parent="Page/VBox/Scroll/Columns/Side/BuildCard/VBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "CUSTOM BUILD"
+
+[node name="Caption" type="Label" parent="Page/VBox/Scroll/Columns/Side/BuildCard/VBox"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Each mortal picks their own E and Q."
+autowrap_mode = 3
+
+[node name="Slots" type="HBoxContainer" parent="Page/VBox/Scroll/Columns/Side/BuildCard/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
 [node name="BottomBar" type="HBoxContainer" parent="Page/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16

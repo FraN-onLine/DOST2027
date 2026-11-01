@@ -114,10 +114,23 @@ func _run() -> void:
 	for source in gods:
 		if not source.implemented or source.arena_scene == "":
 			continue
-		_check(source.intro_lines.size() <= 3, "%s opening has at most three dialogue lines" % source.display_name)
+		# A bracketed line is a stage direction the cutscene stages, not spoken.
+		# Bathala's finale opening is the run's one long speech; every trial before
+		# it keeps to three lines so the pacing does not drag.
+		var spoken := 0
+		for line in source.intro_lines:
+			if not (str(line).begins_with("[") and str(line).ends_with("]")):
+				spoken += 1
+		if source.id != Gods.BATHALA:
+			_check(spoken <= 3, "%s opening has at most three dialogue lines" % source.display_name)
 		_check(not source.trial_end_lines.is_empty(), "%s has neutral trial-end dialogue" % source.display_name)
 		for destination in gods:
-			_check(source.transition_lines.has(str(destination.id)), "%s has a transition to %s" % [source.display_name, destination.display_name])
+			# A god never follows itself, and an unwanted visitor is never named:
+			# the speaker only senses an unknown force (God.unknown_force_transition).
+			if destination.id == source.id or destination.hidden_visitor:
+				continue
+			_check(source.transition_lines.has(str(destination.id)) or source.transition_lines.has("*"),
+				"%s has a transition to %s" % [source.display_name, destination.display_name])
 
 	var order: Array[StringName] = [&"apolaki", &"mayari", &"tala", &"bathala"]
 	network.rpc_sync_trial_order(order)
