@@ -153,6 +153,13 @@ func _run() -> void:
 	_arena.arena_round_reset()
 	_arena._phase = Arena.Phase.PLAYING
 	_check(_arena._stage == THROW and _arena.player.locked, "a round opens on the throw, the mortal held on the pad")
+	# The stone is thrown from the start pad: while it is in the hand the mortal
+	# walks only on the pad's own square, never off it with the stone.
+	_arena._update_bounds()
+	var pad_half: float = _arena.pad_size * 0.5
+	_check(_arena.player.bounds.is_equal_approx(
+			Rect2(PAD - Vector2(pad_half, pad_half), Vector2(_arena.pad_size, _arena.pad_size))),
+		"a stone in hand holds the mortal to the start pad (%.0f px square)" % _arena.pad_size)
 
 	# --- the throw ------------------------------------------------------------------------
 	_arena._sync_nodes()
@@ -196,6 +203,9 @@ func _run() -> void:
 	_check(_arena._stone == 4 and _arena._stage == AIM, "a stone on tile 4 starts the lap")
 	_check(_arena.player.global_position.is_equal_approx(PAD) and _arena.player.locked,
 		"the mortal waits on the start pad, movement locked")
+	_arena._update_bounds()
+	_check(_arena.player.bounds.is_equal_approx(_arena._field),
+		"with the lap under way the whole court is the walking bound again")
 	_check(str(_arena._targets) == "[1, 2, 3, 5, 6, 7, 8, 9, 10]", "the way out skips the stone's tile (%s)" % str(_arena._targets))
 	_check(_arena._expected_tile() == 1 and _arena._sweep_low() < 0.0,
 		"the first hop expects tile 1, in the right half of the circle")

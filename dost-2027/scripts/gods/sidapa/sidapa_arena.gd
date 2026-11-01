@@ -33,7 +33,9 @@ extends Arena
 #   THROW   Aim with the mouse. The dotted arc and the reticle show where the
 #           stone will come down (gold over a tile); HOLD LEFT CLICK to load the
 #           throw - the bar under the mortal gets longer, farther - and RELEASE to
-#           throw it, tumbang preso style. The stone flies, and landing on a tile
+#           throw it, tumbang preso style. Until the stone leaves the hand the
+#           mortal is held to the start pad's own square: a throw always starts
+#           where the board says it does. The stone flies, and landing on a tile
 #           starts the lap; a throw that misses every tile costs stone_miss_penalty
 #           and the stone bounces back for another try.
 #   AIM     The arrow bobs across the leg's half of the circle. HOLD LEFT CLICK to
@@ -119,6 +121,7 @@ enum Stage { THROW, FLIGHT, AIM, HOP }
 var tiles: Array[Vector2] = []
 var start := Vector2.ZERO
 var tile_size := 84.0
+var pad_size := 150.0
 
 var _stage := Stage.THROW
 var _stone := 0             # the tile the mortal's stone sits on (0: no stone)
@@ -170,6 +173,7 @@ func _ready() -> void:
 		tiles.assign(board.centers)
 		start = board.start
 		tile_size = board.tile_size
+		pad_size = board.pad_size
 	_aim_world = start + Vector2(throw_max * 0.6, 0.0)
 	if throw_aim != null:
 		throw_aim.visible = false
@@ -185,6 +189,7 @@ func collect_units() -> void:
 		tiles.assign(board.centers)
 		start = board.start
 		tile_size = board.tile_size
+		pad_size = board.pad_size
 
 
 func arena_round_reset() -> void:
@@ -252,6 +257,7 @@ func _process(delta: float) -> void:
 
 
 func _tick_piko(delta: float) -> void:
+	_update_bounds()
 	_update_blitz(delta)
 	var stunned := player.is_stunned()
 	if stunned and not _was_stunned:
@@ -286,6 +292,17 @@ func _tick_piko(delta: float) -> void:
 		Stage.HOP:
 			_tick_hop(delta)
 	_sync_nodes()
+
+
+# While the stone is in the hand the mortal walks only on the start pad's own
+# square (the square the pad's art draws), so a throw always starts from the pad
+# and the lap is the same for everybody. Every other stage locks them in place.
+func _update_bounds() -> void:
+	if _stage == Stage.THROW and _phase == Phase.PLAYING:
+		var size := Vector2(pad_size, pad_size)
+		player.bounds = Rect2(start - size * 0.5, size)
+	else:
+		player.bounds = _field
 
 
 # --- THE HEAD COUNT (blitz only) ---------------------------------------------

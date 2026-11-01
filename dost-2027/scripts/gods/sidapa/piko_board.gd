@@ -14,6 +14,7 @@ const STONE_FILL := Color(0.72, 0.68, 0.60)
 var tiles: Array[Node2D] = []
 var centers: Array[Vector2] = []   # tile 1..10 centres, in world coordinates
 var start := Vector2.ZERO          # the pad's centre
+var pad_size := 150.0              # the start pad's own square (PikoPad.tscn)
 var tile_size := 84.0
 
 var stone_tile := 0
@@ -49,6 +50,7 @@ func rebind() -> void:
 	var pad := field.get_node_or_null("Pad") as Node2D
 	if pad != null:
 		start = pad.global_position
+		pad_size = float(pad.get("tile_size"))
 	queue_redraw()
 
 
