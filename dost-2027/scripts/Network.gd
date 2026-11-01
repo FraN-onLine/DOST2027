@@ -17,11 +17,14 @@ const LOBBY_ID_ALPHABET := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 const RANDOM_NAMES := [
 	"SunnyReign",
-	"TracerKhoi",
+	"CiscoPT",
 	"BrrBrrPataLin",
 	"KingJames",
-	"HackerMacoy",
+	"BattungSahur",
 	"LoiPogi",
+	"7B1G",
+	"BackinBiskits",
+	"MuniMundus",
 ]
 
 signal player_joined(peer_id)

@@ -59,6 +59,15 @@ func _run() -> void:
 	_check(prep.god.id == &"apolaki" and prep.next_god_id == &"tala", "it is hosted by the god who just played, and knows the next")
 	_check(prep.next_label.visible and prep.next_label.text == "NEXT: TALA - %s" % Gods.tala().game_name.to_upper(),
 		"the banner names the next trial (%s)" % prep.next_label.text)
+	# The rest is the one place an unwanted visitor stays unknown (the lobby's run
+	# plan names it; here the banner does not).
+	prep.next_god_id = &"sidapa"
+	prep._paint_camp()
+	_check(prep.next_label.text == "NEXT: ??? - ???"
+			and prep.next_label.get_theme_color("font_color") == UITokens.FAINT,
+		"an unwanted visitor stays unknown in the rest (%s)" % prep.next_label.text)
+	prep.next_god_id = &"tala"
+	prep._paint_camp()
 	_check(game.timer_label.text.begins_with("PAHINGA "), "the timer pill reads PAHINGA (%s)" % game.timer_label.text)
 	_check(game.rules == prep.rules and game.rules.local().favor == 1000, "the shell reads the rest's match, carrying the run")
 	_check(not prep.rules.trial_active, "no trial is running in the rest")

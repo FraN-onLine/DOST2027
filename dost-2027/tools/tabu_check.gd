@@ -4,8 +4,8 @@ extends SceneTree
 # and Luksong Lubid.
 #
 #   * the god is registered, hidden, playable and closes on her own arena
-#   * an unwanted visitor is never named: the run line reads "??? - ???", the
-#     pantheon only senses an unknown force coming next, the intro does too
+#   * an unwanted visitor is only unknown in the rest: the lobby's run plan and
+#     the pantheon's transitions name it, the prep's NEXT banner does not
 #   * It's Kinda Tabu needs a Q (any god's); Bato Bato can hand Tabu's E and Q over
 #   * Must've Been the Wind shrugs off one loss per cast (host rules)
 #   * Blow Back returns half of the first loss after 10s, one at a time
@@ -80,7 +80,7 @@ func _run() -> void:
 		and is_equal_approx(all_winds.param("silent_song", 0.0), 0.75) and is_equal_approx(all_winds.param("delivery", 0.0), 1.5),
 		"All Winds Lead to Tabu names the three new shares")
 
-	# --- the unwanted visitor is never named -------------------------------------------------
+	# --- the unwanted visitor is named in the plan, unknown in the rest --------------------
 	_check(Gods.sidapa().hidden_visitor and Gods.anitun_tabu().hidden_visitor, "Sidapa and Tabu are both unwanted visitors")
 	_check(not Gods.mayari().hidden_visitor, "...while the pantheon is not")
 	var sensed := god.unknown_force_transition()
@@ -94,8 +94,8 @@ func _run() -> void:
 	plan.custom_order = [&"anitun_tabu", &"sidapa", &"tala", &"mayari"]
 	plan.trials = 4
 	var line := plan.run_line()
-	_check(line.begins_with("??? - ???") and line.count("??? - ???") == 2 and not line.contains("ANITUN") and not line.contains("SIDAPA"),
-		"the run plan hides both visitors (%s)" % line)
+	_check(line.begins_with("Anitun Tabu") and line.contains("Sidapa") and not line.contains("???"),
+		"the lobby's run plan names both visitors (%s)" % line)
 	plan.custom_order = [&"tala", &"mayari", &"apolaki", &"hanan"]
 	_check(plan.run_line().begins_with("Tala") and not plan.run_line().contains("???"),
 		"...and names the rest as usual (%s)" % plan.run_line())

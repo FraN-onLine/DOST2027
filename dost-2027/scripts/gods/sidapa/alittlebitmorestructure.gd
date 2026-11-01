@@ -4,11 +4,11 @@ extends Node2D
 # Sidapa's ring (scenes/gods/sidapa/ALittleBitMoreStructure.tscn). The arena
 # only says how wide it is, what color it wears and how long is left; the fill,
 # the rim, the wormhole and the count all live here so the look is editable
-# without touching the rules.
+# without touching the rules. The wormhole is drawn exactly as authored - its
+# art is the hitbox - so nothing here scales or turns it.
 
 @export var radius := 130.0
 @export var tint := Color(0.62, 0.45, 0.95)
-@export var swirl_speed := 0.9
 
 @onready var fill: Polygon2D = $Fill
 @onready var ring: Line2D = $Ring
@@ -17,7 +17,6 @@ extends Node2D
 @onready var timer_label: Label = get_node_or_null("Timer Label")
 
 var _exploding := false
-var _time := 0.0
 
 
 func _ready() -> void:
@@ -67,14 +66,6 @@ func explode() -> void:
 	tween.tween_callback(queue_free)
 
 
-func _process(delta: float) -> void:
-	if _exploding:
-		return
-	_time += delta
-	if wormhole != null and wormhole.animation == &"default":
-		wormhole.rotation += delta * swirl_speed
-
-
 func _apply_radius() -> void:
 	if fill != null:
 		fill.polygon = _circle(radius, 32)
@@ -88,8 +79,6 @@ func _apply_radius() -> void:
 			var circle := shape_node.shape as CircleShape2D
 			if circle != null:
 				circle.radius = radius
-	if wormhole != null:
-		wormhole.scale = Vector2.ONE * (radius / 64.0)
 	if timer_label != null:
 		timer_label.position = Vector2(-24.0, -radius - 28.0)
 		timer_label.size = Vector2(48.0, 24.0)

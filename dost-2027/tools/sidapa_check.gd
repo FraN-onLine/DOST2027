@@ -462,6 +462,9 @@ func _run() -> void:
 
 	# A Little More Structure: the ring.
 	_arena.player.global_position = Vector2(620.0, 450.0)
+	var template: Node = load("res://scenes/gods/sidapa/ALittleBitMoreStructure.tscn").instantiate()
+	var authored_scale: Vector2 = (template.get_node("AnimatedSprite2D") as Node2D).scale
+	template.free()
 	_arena._apply_skill_effect(Gods.favor_by_id(&"a_little_more_structure"), _arena._my_id)
 	_check(_arena._structures.size() == 1 and _arena._structure_nodes.size() == 1,
 		"E opens a ring where the caster stands, and draws it")
@@ -469,6 +472,10 @@ func _run() -> void:
 	_check(ring_node.wormhole != null and ring_node.wormhole.sprite_frames != null
 		and ring_node.wormhole.sprite_frames.has_animation(&"default") and ring_node.wormhole.animation == &"default",
 		"the authored ring scene plays its wormhole")
+	await process_frame
+	_check(ring_node.wormhole.scale.is_equal_approx(authored_scale),
+		"the wormhole keeps the size drawn in the scene (%s)" % str(ring_node.wormhole.scale))
+	_check(is_zero_approx(ring_node.wormhole.rotation), "...and is never turned by the arena")
 	_check(ring_node.timer_label != null and ring_node.timer_label.text == "3" and ring_node.timer_label.position.y < 0.0,
 		"the count hangs over the ring (%s)" % (ring_node.timer_label.text if ring_node.timer_label != null else "none"))
 	_check(ring_node.ring.points.size() == 48 and ring_node.fill.polygon.size() == 32

@@ -342,17 +342,15 @@ static func _starter_favors_of(god: God, slot: int) -> Array[GodFavor]:
 
 
 # The run as text, e.g. "Mayari -> Tala -> Apolaki -> BATHALA". A random run
-# shows one RANDOM per trial, since its gods are only drawn at START. An
-# unwanted visitor is never named: the plan shows "??? - ???".
+# shows one RANDOM per trial, since its gods are only drawn at START. This is the
+# host's own plan, so every god is named here, unwanted visitors included; the
+# rest before a trial is the only place that keeps one unknown.
 func run_line() -> String:
 	var names: Array[String] = []
 	for index in range(trials):
 		if order_mode == ORDER_CUSTOM and index < custom_order.size():
 			var god := Gods.by_id(custom_order[index])
-			if god != null and god.hidden_visitor:
-				names.append("??? - ???")
-			else:
-				names.append(god.display_name.capitalize() if god != null else str(custom_order[index]))
+			names.append(god.display_name.capitalize() if god != null else str(custom_order[index]))
 		else:
 			names.append("Random")
 	names.append("BATHALA")
