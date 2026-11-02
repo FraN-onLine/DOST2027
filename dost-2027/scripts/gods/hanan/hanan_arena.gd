@@ -538,8 +538,9 @@ INVERTED!" if _blitz_vault else "READY...", god.color, ready_time)
 func _tick_vault(delta: float) -> void:
 	# Opening the God's Due menu (or a dialogue landing) mid-vault must not cost a
 	# trip: the whole vault - indicator, box, clock, grace - waits, and nothing is
-	# banked, until it closes.
-	if dialogue.is_active() or due_menu.is_open():
+	# banked, until it closes. The shell's Esc menu does the same, or a held click
+	# would keep rising (and banking) while its owner reads the menu.
+	if dialogue.is_active() or due_menu.is_open() or menu_open:
 		_frozen = true
 		return
 	if _frozen:

@@ -8,8 +8,8 @@ extends SceneTree
 #
 # In Mayari's trial the host gives the client an E skill (the client's skill card pops up
 # from the host's snapshot), uses a skill of its own (the client sees its name over the
-# host's ghost) and then watches the client use its skill (the host sees the name over the
-# client's ghost, and the client over its own mortal).
+# host's ghost) and then watches the client use its skill (the host sees its E icon over
+# the client's ghost, and the client over its own mortal).
 
 const PORT := 24684
 const PORT_FILE := "user://cast_net_host.txt"
@@ -99,11 +99,20 @@ func _run() -> void:
 		"the host sees its own cast over its mortal (%s)" % arena.player.floating_text.text)
 
 	# --- the client casts: the host sees it over the client's ghost ---------------------------------
-	var ghost: ArenaMortal = arena._ghosts[client_id]
-	_check(await _until(func() -> bool: return ghost.floating_text.visible and ghost.floating_text.text == e_skill.display_name.to_upper()),
-		"the host sees the client's cast over its ghost (%s)" % ghost.floating_text.text)
+	# An E cast flies its god's icon in the mortal's popup stack, not a name.
+	_check(await _until(func() -> bool: return _e_icon_shown(arena, client_id)),
+		"the host sees the client's E icon over its ghost")
 	await _until(func() -> bool: return false, 3.0)  # the client reads it too
 	_finish()
+
+
+func _e_icon_shown(arena: Arena, mortal_id: int) -> bool:
+	var icon := Arena.e_icon(Gods.MAYARI)
+	var stack: Array = arena._popup_stacks.get(mortal_id, [])
+	for each in stack:
+		if is_instance_valid(each) and each.visible and each.icon.visible and each.icon.texture == icon:
+			return true
+	return false
 
 
 func _check(condition: bool, label: String) -> void:

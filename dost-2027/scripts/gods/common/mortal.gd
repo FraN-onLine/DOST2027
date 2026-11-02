@@ -72,6 +72,10 @@ extends CharacterBody2D
 @export var land_sound: AudioStream  # the thud of coming down from the sky at GO (skipped when empty)
 
 var locked := false
+# The game shell's own menu: the trial keeps running, but held movement keys no
+# longer walk this mortal. Unlike `locked` it is only about the local hands, so a
+# stun, a knockback or a chant still plays out underneath the menu.
+var walk_muted := false
 # THE DROP AT GO (the arena's, see Arena THE GO DROP): look only, like everything
 # below FEEL. The body never moves - it waits on its spawn point - while the sprite
 # and what rides above it (name tag, glow, stars) are lifted by drop_offset, so a
@@ -582,7 +586,7 @@ func _physics_process(delta: float) -> void:
 	elif locked:
 		velocity = Vector2.ZERO
 	else:
-		var walk := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		var walk := Vector2.ZERO if walk_muted else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 		if movement_inverted:
 			walk = -walk
 		_steer(walk, delta)

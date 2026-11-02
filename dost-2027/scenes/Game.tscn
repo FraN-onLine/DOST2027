@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://c8if6nvl5ehs" path="res://UI/opponentpanels.tscn" id="3_opponent"]
 [ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="4_ornament"]
 [ext_resource type="Texture2D" path="res://Assets/Placeholders/favor.png" id="5_icon"]
+[ext_resource type="PackedScene" path="res://scenes/GameMenu.tscn" id="6_menu"]
 
 [node name="Game" type="Control" unique_id=1698441976]
 layout_mode = 3
@@ -337,5 +338,10 @@ text = "Esc"
 [node name="Hint" type="Label" parent="HudLayer/FinalePanel/Margin/VBox/HintRow" unique_id=512967822]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
-text = "LEAVE"
+text = "MENU"
 vertical_alignment = 1
+
+[node name="MenuLayer" type="CanvasLayer" parent="."]
+layer = 50
+
+[node name="GameMenu" parent="MenuLayer" instance=ExtResource("6_menu")]

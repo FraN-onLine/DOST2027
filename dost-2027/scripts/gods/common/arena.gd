@@ -229,6 +229,9 @@ enum Phase { INTRO, COUNTDOWN, PLAYING, RESULTS }
 # Set by the Game shell when the arena runs as one of its trials: the shell
 # draws the shared panels and the arena hides its duplicates.
 @export var embedded := false
+# While the Game shell's Esc menu is open, the shell takes this screen's input
+# away and the arena must not spend a held key or a buffered dash either.
+var menu_open := false
 @export var dialogue_prefix := "mayari"
 @export var next_god_id: StringName = &""
 @export var final_trial := false
@@ -864,7 +867,7 @@ func _tick_world(delta: float) -> void:
 	_tick_field_dim()
 	_tick_band()
 	_dash_cd = maxf(0.0, _dash_cd - delta)
-	if _dash_buffered > 0.0:
+	if _dash_buffered > 0.0 and not menu_open:
 		_dash_buffered = maxf(0.0, _dash_buffered - delta)
 		if try_dash():  # every refusal still applies: it only fires once one would
 			_dash_buffered = 0.0
@@ -1600,6 +1603,10 @@ func _on_dialogue_released(dialogue_id: String) -> void:
 
 func _continue_dialogue() -> void:
 	if _dialogue_wait_id.ends_with("_intro"):
+		# A release that arrived after the host's ticks already walked this screen
+		# into the round must not send it back to the 3 - 2 - 1.
+		if _phase != Phase.INTRO:
+			return
 		if _authority:
 			_start_countdown()
 		else:
@@ -1737,7 +1744,7 @@ func _use_skill(slot: int) -> void:
 # Our own mortal is ours to move on every peer, so no host round trip is needed:
 # the new position travels like any other step. Returns true when it dashed.
 func try_dash() -> bool:
-	if not dash_enabled or _phase != Phase.PLAYING or _dash_cd > 0.0 or player.locked or player.is_stunned():
+	if menu_open or not dash_enabled or _phase != Phase.PLAYING or _dash_cd > 0.0 or player.locked or player.is_stunned():
 		return false
 	if dialogue.is_active() or due_menu.is_open():
 		return false
@@ -3924,6 +3931,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if viewport == null:
 		return
 	if event.is_action_pressed("ui_cancel"):
+		# Embedded in the Game shell, Esc belongs to the shell's own menu: hand the
+		# event up untouched (the shell opens or closes it). Standalone, Esc leaves.
+		if embedded:
+			return
 		viewport.set_input_as_handled()
 		_leave()
 		return

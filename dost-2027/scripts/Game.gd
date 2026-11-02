@@ -73,6 +73,7 @@ extends Control
 const OPPONENT_PANEL_SCENE := preload("res://UI/opponentpanels.tscn")
 const PREP_SCENE := preload("res://scenes/prep/PrepArea.tscn")
 const OPENING_SCENE := preload("res://scenes/OpeningCutscene.tscn")
+const OPTIONS_SCENE := preload("res://scenes/Options.tscn")
 const LOW_TIME := 10.0          # seconds left when the clock turns EMBER
 const COUNT_RATE := 12.0        # FAVOR count-up speed (fraction of the gap per second)
 const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
@@ -98,6 +99,7 @@ const MAX_PIPS := 5             # more God's Due than this shows as pips + "+N"
 @onready var timer_label: Label = $HudLayer/TrialTimer
 @onready var finale_panel: PanelContainer = $HudLayer/FinalePanel
 @onready var finale_summary: VBoxContainer = $HudLayer/FinalePanel/Margin/VBox/Summary
+@onready var game_menu: Control = $MenuLayer/GameMenu
 
 var arena: Node = null
 var rules: GodMatch = null
@@ -112,6 +114,11 @@ var _favor_shown := 0.0              # the FAVOR the card shows this frame
 var _pips_shown := -1                # God's Due drawn as pips (-1: not drawn yet)
 var _favor_seen := -1                # the FAVOR last drawn (-1: none yet), to pulse on a change
 var _favor_tween: Tween
+# The Esc menu is open: the trials keep running underneath, but this screen's
+# hands are off the mortal until it closes.
+var _menu_open := false
+var _options: Control = null  # the Options screen opened from the menu
+var _cutscene: Node = null    # the opening story, while it plays
 # The run's starter skills (the lobby's STARTER SKILLS option) are handed out
 # once, on the first arena, before gains are announced.
 var _starters_given := false
@@ -131,6 +138,11 @@ func _ready() -> void:
 	Network.player_list_updated.connect(_on_player_list_updated)
 	Network.player_name_changed.connect(_on_player_name_changed)
 	Network.player_god_icon_changed.connect(_on_player_god_icon_changed)
+	game_menu.resume_requested.connect(_close_menu)
+	game_menu.options_requested.connect(_open_options)
+	game_menu.lobby_requested.connect(_return_to_lobby)
+	game_menu.menu_requested.connect(_return_to_menu)
+	game_menu.quit_requested.connect(func() -> void: get_tree().quit())
 	if _build_trial_order():
 		_begin_run()
 	else:
@@ -160,9 +172,11 @@ func _begin_run() -> void:
 		var cutscene: Node = OPENING_SCENE.instantiate()
 		# The host decides in multiplayer: only it may skip, and its skip skips for all.
 		cutscene.can_skip = not Network.has_multiplayer_peer() or multiplayer.is_server()
+		_cutscene = cutscene
 		add_child(cutscene)
 		cutscene.play()
 		await cutscene.finished
+		_cutscene = null
 		cutscene.queue_free()
 	_start_current_trial()
 
@@ -386,6 +400,9 @@ func _on_arena_ready() -> void:
 	if arena is PrepArea:
 		# Only now do the mortals hold their favors - the offers are filtered by them.
 		arena.open_prep()
+	# A trial can change under an open menu: the new arena starts just as muted.
+	if _menu_open:
+		_set_arena_input(false)
 
 
 # STARTER SKILLS: the run opens with favors in every mortal's hands - a unique
@@ -703,11 +720,82 @@ func _on_arena_exited(exited_arena: Node) -> void:
 		rules = null
 
 
+# Esc opens the run's menu - and closes it again. The trials never pause: the
+# arena is only muted, and everyone else keeps playing. An open popup nearer the
+# player (a dialogue, the God's Due menu, the Options screen) gets the key first;
+# the arena hands Esc up untouched while embedded for exactly this.
 func _unhandled_input(event: InputEvent) -> void:
-	if not finale_panel.visible or not event.is_action_pressed("ui_cancel"):
+	if not event.is_action_pressed("ui_cancel"):
 		return
+	if _cutscene != null and is_instance_valid(_cutscene):
+		return  # the host's own skip owns Esc during the opening
 	var viewport := get_viewport()
 	if viewport != null:
 		viewport.set_input_as_handled()
-	var destination := "res://scenes/Lobby.tscn" if Network.has_multiplayer_peer() else "res://scenes/MainMenu.tscn"
-	get_tree().change_scene_to_file(destination)
+	if game_menu.is_open():
+		_close_menu()
+	elif _options == null:
+		_open_menu()
+
+
+func _open_menu() -> void:
+	if _menu_open:
+		return
+	_menu_open = true
+	# Only a host can send the table back; quitting is offered only when no other
+	# player would be stranded by it.
+	game_menu.open(Network.is_game_host(), not (multiplayer.is_server() and Network.has_remote_peers()))
+	_set_arena_input(false)
+
+
+func _close_menu() -> void:
+	if not _menu_open:
+		return
+	_menu_open = false
+	game_menu.close()
+	_set_arena_input(true)
+
+
+# The menu takes this screen's hands off the trial: the arena (and every popup
+# under it) stops reading input, and the local mortal stops walking. Nothing is
+# paused - the clock, the gods and the rivals run exactly as before.
+func _set_arena_input(enabled: bool) -> void:
+	if arena == null or not is_instance_valid(arena):
+		return
+	arena.menu_open = not enabled
+	_set_subtree_input(arena, enabled)
+	var player = arena.get("player")
+	if player != null and is_instance_valid(player) and "walk_muted" in player:
+		player.walk_muted = not enabled
+
+
+func _set_subtree_input(node: Node, enabled: bool) -> void:
+	node.set_process_input(enabled)
+	node.set_process_unhandled_input(enabled)
+	for child in node.get_children():
+		_set_subtree_input(child, enabled)
+
+
+func _open_options() -> void:
+	if _options != null:
+		return
+	# The menu steps aside (the trials stay muted), Options sits above it.
+	game_menu.close()
+	_options = OPTIONS_SCENE.instantiate()
+	$MenuLayer.add_child(_options)
+	_options.closed.connect(_on_options_closed)
+
+
+func _on_options_closed() -> void:
+	_options = null
+	if _menu_open:
+		game_menu.visible = true
+		game_menu.resume_button.grab_focus()
+
+
+func _return_to_lobby() -> void:
+	Network.end_run("res://scenes/Lobby.tscn")
+
+
+func _return_to_menu() -> void:
+	Network.close_session("res://scenes/MainMenu.tscn")

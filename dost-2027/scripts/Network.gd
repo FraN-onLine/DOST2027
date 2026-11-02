@@ -120,6 +120,11 @@ var _game_in_progress := false
 var opening_pending := false
 var _bandana_memory := {}  # host: player name -> the colour they last held (a rejoin gets it back)
 var _dialogue_done := {}
+# Host: the dialogue barriers it has already released. A screen that reaches the
+# same line late (a slow load, the trial's 20 s timeout) missed the one-time
+# release; its report is answered from here with the release again, so it is never
+# left waiting for a handshake everybody else has walked past.
+var _dialogue_released := {}
 
 # --- Lobby ID join state ---
 var _pending_lobby_join_id := ""
@@ -1051,6 +1056,80 @@ func rpc_change_scene(scene_path: String) -> void:
 		get_tree().change_scene_to_file(scene_path)
 
 
+# ============================================
+# Ending a run (the Game shell's Esc menu)
+# ============================================
+# The host closes the run for everyone; a client can only ever leave for itself.
+# Going back to the LOBBY keeps the table: the roster (names, icons, bandanas and
+# custom builds) and the host's setup all stay, and only the run is forgotten, so
+# the next START draws its order fresh. Going back to the MENU also closes the
+# session - a host with rivals in the room tells them first, then stops hosting.
+
+func has_remote_peers() -> bool:
+	return has_multiplayer_peer() and not multiplayer.get_peers().is_empty()
+
+
+func end_run(scene_path := "res://scenes/Lobby.tscn") -> void:
+	if has_multiplayer_peer() and not multiplayer.is_server():
+		return
+	_forget_run()
+	if has_multiplayer_peer():
+		# A lobby with no players is worse than none at all: advertise it again.
+		start_host_discovery()
+		rpc("rpc_run_ended", scene_path)
+	get_tree().change_scene_to_file(scene_path)
+
+
+func close_session(scene_path := "res://scenes/MainMenu.tscn") -> void:
+	if has_multiplayer_peer() and not multiplayer.is_server():
+		leave_host()
+		get_tree().change_scene_to_file(scene_path)
+		return
+	_forget_run()
+	if has_multiplayer_peer():
+		var had_peers := has_remote_peers()
+		rpc("rpc_session_closed", scene_path)
+		if had_peers:
+			# Let the reliable "we're done" reach every rival before the server goes.
+			await get_tree().create_timer(0.25).timeout
+		stop_host()
+	get_tree().change_scene_to_file(scene_path)
+
+
+@rpc("any_peer", "reliable")
+func rpc_run_ended(scene_path: String) -> void:
+	if multiplayer.is_server() or not ResourceLoader.exists(scene_path):
+		return
+	_forget_run()
+	get_tree().change_scene_to_file(scene_path)
+
+
+@rpc("any_peer", "reliable")
+func rpc_session_closed(scene_path: String) -> void:
+	if multiplayer.is_server():
+		return
+	leave_host()
+	_forget_run()
+	if ResourceLoader.exists(scene_path):
+		get_tree().change_scene_to_file(scene_path)
+
+
+# The run's own state, and nothing of the lobby's: the order goes (the next START
+# draws fresh), the scene token and per-run caches go, the roster stays.
+func _forget_run() -> void:
+	_game_in_progress = false
+	opening_pending = false
+	scene_token = ""
+	_stale_logged.clear()
+	_dialogue_done.clear()
+	_dialogue_released.clear()
+	god_state.clear()
+	mortal_positions.clear()
+	piko_stones.clear()
+	trial_order_ids.clear()
+	announced_trial_order.clear()
+
+
 @rpc("authority", "call_local", "reliable")
 func rpc_sync_trial_order(order: Array) -> void:
 	# A GDScript array is a REFERENCE: with call_local the host hands this very
@@ -1357,6 +1436,16 @@ func report_dialogue_finished(dialogue_id: String) -> void:
 		if not _dialogue_done.has(dialogue_id):
 			_dialogue_done[dialogue_id] = {}
 		_dialogue_done[dialogue_id][peer_id] = true
+		if _dialogue_released.has(dialogue_id):
+			# This screen is late: everybody else already walked past this line. Answer
+			# it alone - a broadcast release could rewind a screen that is already in
+			# the round - and stop counting it.
+			_dialogue_done.erase(dialogue_id)
+			if peer_id == multiplayer.get_unique_id():
+				rpc_dialogue_release(dialogue_id)  # the host's own late report: a send to self never lands
+			else:
+				rpc_id(peer_id, "rpc_dialogue_release", dialogue_id)
+			return
 		_check_dialogue_complete(dialogue_id)
 	else:
 		rpc_id(1, "report_dialogue_finished", dialogue_id)
@@ -1378,6 +1467,7 @@ func _check_dialogue_complete(dialogue_id: String) -> void:
 	if dialogue_finished_count(dialogue_id) < players.size():
 		return
 	_dialogue_done.erase(dialogue_id)
+	_dialogue_released[dialogue_id] = true
 	rpc("rpc_dialogue_release", dialogue_id)
 	emit_signal("dialogue_released", dialogue_id)
 
@@ -1386,6 +1476,7 @@ func release_dialogue(dialogue_id: String) -> void:
 	if not multiplayer.is_server():
 		return
 	_dialogue_done.erase(dialogue_id)
+	_dialogue_released[dialogue_id] = true
 	rpc("rpc_dialogue_release", dialogue_id)
 	emit_signal("dialogue_released", dialogue_id)
 

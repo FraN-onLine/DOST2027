@@ -88,11 +88,21 @@ func _run() -> void:
 		"the host's cast shows over the host's ghost on this screen (%s)" % host_ghost.floating_text.text)
 
 	# --- the client casts ------------------------------------------------------------------------------
+	# An E cast flies its god's icon in the mortal's popup stack, not a name.
 	arena._use_skill(GodFavor.Slot.E)
-	_check(await _until(func() -> bool: return arena.player.floating_text.visible and arena.player.floating_text.text == e_skill.display_name.to_upper()),
-		"the client's own cast shows over its mortal, sent back by the host (%s)" % arena.player.floating_text.text)
+	_check(await _until(func() -> bool: return _e_icon_shown(arena, arena._my_id)),
+		"the client's own cast shows over its mortal, sent back by the host")
 	await _until(func() -> bool: return false, 2.0)
 	_finish()
+
+
+func _e_icon_shown(arena: Arena, mortal_id: int) -> bool:
+	var icon := Arena.e_icon(Gods.MAYARI)
+	var stack: Array = arena._popup_stacks.get(mortal_id, [])
+	for each in stack:
+		if is_instance_valid(each) and each.visible and each.icon.visible and each.icon.texture == icon:
+			return true
+	return false
 
 
 func _check(condition: bool, label: String) -> void:

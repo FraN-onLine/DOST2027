@@ -20,6 +20,7 @@ const SCENES := [
 	"res://UI/GodsArena/tindahan_menu.tscn",
 	"res://UI/Popups/favor_popup.tscn",
 	"res://scenes/Game.tscn",
+	"res://scenes/GameMenu.tscn",
 	"res://scenes/GodIntro.tscn",
 	"res://scenes/Lobby.tscn",
 	"res://scenes/MainMenu.tscn",

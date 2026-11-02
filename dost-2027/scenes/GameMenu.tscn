@@ -1,0 +1,128 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/game_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://UI/theme/ornament_frame.gd" id="2_ornament"]
+
+[node name="GameMenu" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_menu")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.043137256, 0.0627451, 0.1254902, 0.72)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+theme_type_variation = &"PanelCard"
+
+[node name="Ornament" type="Control" parent="Center/Panel"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("2_ornament")
+inset = -8
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+text = "THE GODS WATCH"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "The trials go on while this menu is open."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Rule" type="Control" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(320, 12)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+script = ExtResource("2_ornament")
+rule_only = true
+
+[node name="Resume" type="Button" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(300, 52)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"PrimaryButton"
+text = "RESUME"
+
+[node name="Options" type="Button" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(300, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+tooltip_text = "Audio, video, controls and comfort settings."
+text = "OPTIONS"
+
+[node name="Lobby" type="Button" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(300, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+tooltip_text = "End the run and bring everyone back to the lobby."
+text = "BACK TO LOBBY"
+
+[node name="MainMenu" type="Button" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(300, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"GhostButton"
+tooltip_text = "Close the session for everyone and return to the title screen."
+text = "MAIN MENU"
+
+[node name="Quit" type="Button" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(300, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"DangerButton"
+tooltip_text = "Close the game. Only offered when no other player is connected."
+text = "QUIT GAME"
+
+[node name="HintRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Key" type="Label" parent="Center/Panel/Margin/VBox/HintRow"]
+layout_mode = 2
+theme_type_variation = &"KeycapLabel"
+text = "Esc"
+
+[node name="Hint" type="Label" parent="Center/Panel/Margin/VBox/HintRow"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "CLOSE"
+vertical_alignment = 1
