@@ -1,21 +1,84 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://h0py2pqqah51"]
 
-[ext_resource type="PackedScene" path="res://scenes/prep/PrepArea.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scripts/prep/playground.gd" id="2_playground"]
+[ext_resource type="PackedScene" uid="uid://b0mo4mq7o45s8" path="res://scenes/prep/PrepArea.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://byexqm0i3lmfh" path="res://scripts/prep/playground.gd" id="2_playground"]
 [ext_resource type="PackedScene" path="res://UI/GodsArena/game_test_menu.tscn" id="3_tests"]
+[ext_resource type="PackedScene" path="res://scenes/prep/Altar.tscn" id="4_altar"]
+[ext_resource type="PackedScene" uid="uid://caeyjvhbdf8ae" path="res://scenes/gods/common/Mortal.tscn" id="5_dummy"]
 
-[node name="Playground" instance=ExtResource("1_base")]
+[node name="Playground" unique_id=1850611778 instance=ExtResource("1_base")]
 script = ExtResource("2_playground")
 prep_time = 0.0
+release_grace = 1.0
+client_follow_time = 2.0
+presence_grace = 5.0
 embedded = false
 dialogue_prefix = "playground"
 simulate_rivals = true
 rival_names = PackedStringArray("DUMMY")
 
-[node name="DummySpawn" type="Marker2D" parent="."]
-position = Vector2(920, 390)
+[node name="ArenaField" parent="." index="2" unique_id=518833116]
+visible = true
 
-[node name="LeaveButton" type="Button" parent="PrepHud"]
+[node name="Border" parent="ArenaField" index="0" unique_id=1755927782]
+visible = false
+position = Vector2(-196.42993, 0)
+scale = Vector2(1.1763285, 1)
+
+[node name="Ground" parent="ArenaField" index="1" unique_id=1460488952]
+visible = false
+
+[node name="Dummy" parent="Ghosts" parent_id_path=PackedInt32Array(1337375854) index="0" unique_id=631110683 instance=ExtResource("5_dummy")]
+position = Vector2(242, 360)
+
+[node name="Player" parent="." index="5" unique_id=1489401219]
+position = Vector2(350, 500)
+
+[node name="PlayHint" type="Label" parent="Camp/Campfire" parent_id_path=PackedInt32Array(1947551979) index="3" unique_id=248487065]
+offset_left = -130.0
+offset_top = 42.0
+offset_right = 130.0
+offset_bottom = 64.0
+theme_type_variation = &"WorldLabel"
+text = "CLICK THE CAMPFIRE TO PLAY"
+horizontal_alignment = 1
+
+[node name="Altar" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="1" unique_id=518928254]
+visible = false
+
+[node name="Altar_anitun_tabu" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="3" unique_id=324684885 instance=ExtResource("4_altar")]
+position = Vector2(520, 205)
+metadata/god_id = &"anitun_tabu"
+
+[node name="Altar_apolaki" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="4" unique_id=1734478404 instance=ExtResource("4_altar")]
+position = Vector2(700, 205)
+metadata/god_id = &"apolaki"
+
+[node name="Altar_bathala" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="5" unique_id=110991757 instance=ExtResource("4_altar")]
+position = Vector2(880, 205)
+metadata/god_id = &"bathala"
+
+[node name="Altar_hanan" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="6" unique_id=1771610900 instance=ExtResource("4_altar")]
+position = Vector2(400, 340)
+metadata/god_id = &"hanan"
+
+[node name="Altar_mapulon_ikapati" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="7" unique_id=1184333603 instance=ExtResource("4_altar")]
+position = Vector2(1000, 340)
+metadata/god_id = &"mapulon_ikapati"
+
+[node name="Altar_mayari" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="8" unique_id=1419180387 instance=ExtResource("4_altar")]
+position = Vector2(520, 500)
+metadata/god_id = &"mayari"
+
+[node name="Altar_sidapa" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="9" unique_id=67241893 instance=ExtResource("4_altar")]
+position = Vector2(700, 500)
+metadata/god_id = &"sidapa"
+
+[node name="Altar_tala" parent="Camp" parent_id_path=PackedInt32Array(1281223518) index="10" unique_id=673135153 instance=ExtResource("4_altar")]
+position = Vector2(880, 500)
+metadata/god_id = &"tala"
+
+[node name="LeaveButton" type="Button" parent="PrepHud" parent_id_path=PackedInt32Array(801358590) index="2" unique_id=94093205]
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
@@ -30,7 +93,10 @@ grow_vertical = 0
 theme_type_variation = &"GhostButton"
 text = "LEAVE"
 
-[node name="GameTestLayer" type="CanvasLayer" parent="."]
+[node name="Lobbymap" parent="." index="13" unique_id=86944327]
+metadata/_edit_lock_ = true
+
+[node name="GameTestLayer" type="CanvasLayer" parent="." index="16" unique_id=2062995744]
 layer = 40
 
-[node name="GameTestMenu" parent="GameTestLayer" instance=ExtResource("3_tests")]
+[node name="GameTestMenu" parent="GameTestLayer" index="0" unique_id=957538824 instance=ExtResource("3_tests")]

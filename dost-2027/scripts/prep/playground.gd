@@ -5,10 +5,13 @@ extends PrepArea
 #
 # The same camp as the preparation area (scripts/prep/prep_area.gd): the fire, the
 # shared field, the mortals' walk. Instead of the one altar of the god who just
-# hosted, there is an altar of EVERY god, each one giving that god's favors for
-# free (Gods.all() - Bathala's too), and a DUMMY rival stands on the field to
-# aim them at. Nothing is timed and nothing closes: walk up to an altar, press F,
-# take a blessing, then E / Q to try it. Esc (or LEAVE) walks out to the menu.
+# hosted, there is an altar of EVERY god - authored under Camp in Playground.tscn,
+# three above the fire, two beside it and three below - each one giving that god's
+# favors for free (Gods.all() - Bathala's too). A DUMMY rival, also authored there
+# under Ghosts, stands off to the left to aim them at. Nothing is timed and nothing
+# closes: walk up to an altar, press F, take a blessing, then E / Q to try it; walk
+# to the fire and left click to play any god's game on its own. Esc (or LEAVE)
+# walks out to the menu.
 #
 # WHY IT STILL EXTENDS THE PREP AREA: it inherits the camp's scene, its fire, its
 # altar art and its network plumbing; it runs no rest at all - no clock, no READY,
@@ -32,27 +35,13 @@ const DUMMY_BANDANA := 6  # orange, so it never reads as our own mortal
 # walk holds into it.
 const DUMMY_PUSH_GAP := 44.0
 const ALTAR_REACH := 120.0
-# How close to the fire a left click opens the game list. The mortal spawns 120 px
-# below it, so they have to take a step toward the fire first.
+# How close to the fire a left click opens the game list. The mortal spawns across
+# the field from it, so they walk up to it - and the click never fights an altar
+# (those are F), so standing by one is no obstacle.
 const CAMPFIRE_REACH := 110.0
 const TRIAL_TEST_SCENE := "res://scenes/prep/TrialTest.tscn"
-# Eight altars around the fire (Camp/Campfire is at 700, 340), one per god: four
-# along the top, four along the bottom, the middle left open for the fire and for
-# the mortal's spawn below it. The gaps are wide enough that no altar's name tag
-# covers another's. Every one stays inside the field and above the band.
-const ALTAR_RING: Array[Vector2] = [
-	Vector2(380, 205),
-	Vector2(575, 205),
-	Vector2(825, 205),
-	Vector2(1020, 205),
-	Vector2(1020, 475),
-	Vector2(825, 475),
-	Vector2(575, 475),
-	Vector2(380, 475),
-]
 
 @onready var leave_button: Button = get_node_or_null("PrepHud/LeaveButton") as Button
-@onready var dummy_spawn: Marker2D = get_node_or_null("DummySpawn") as Marker2D
 @onready var campfire: Node2D = get_node_or_null("Camp/Campfire") as Node2D
 # Untyped on purpose: the menu is a scene script, not a class the headless checks
 # must know before the project imports it.
@@ -77,7 +66,7 @@ func _start_intro() -> void:
 	player.clear_trial_state()
 	player.set_lock(false)
 	popups_enabled = true
-	_build_altars()
+	_collect_altars()
 	_spawn_dummy()
 	_style_hud()
 	due_menu.boon_chosen.connect(_on_boon_chosen)
@@ -112,23 +101,21 @@ func _style_hud() -> void:
 		key_cap(&"skill_e"), key_cap(&"skill_q")]
 
 
-# One altar of every god, the camp's own altar art duplicated around the fire.
-func _build_altars() -> void:
+# The altars are authored under Camp in Playground.tscn, each naming its god in
+# `god_id` metadata. This only paints them from the god resources and remembers
+# whose each one is - move or retune an altar in the scene, never here.
+func _collect_altars() -> void:
 	var camp := get_node("Camp") as Node2D
-	var template := get_node("Camp/Altar") as Node2D
-	var gods := Gods.all()
 	_altars.clear()
-	for index in range(gods.size()):
-		var altar: Node2D
-		if index == 0:
-			altar = template
-		else:
-			altar = template.duplicate() as Node2D
-			camp.add_child(altar)
-		altar.position = ALTAR_RING[posmod(index, ALTAR_RING.size())]
-		altar.visible = true
-		_paint_altar(altar, gods[index])
-		_altars[altar] = gods[index]
+	for child in camp.get_children():
+		var god_id := StringName(str(child.get_meta("god_id", "")))
+		if god_id == &"":
+			continue
+		var altar_god := Gods.by_id(god_id)
+		if altar_god == null or altar_god.id != god_id:
+			continue
+		_paint_altar(child as Node2D, altar_god)
+		_altars[child] = altar_god
 
 
 func _paint_altar(altar: Node2D, altar_god: God) -> void:
@@ -144,13 +131,13 @@ func _paint_altar(altar: Node2D, altar_god: God) -> void:
 	hint.add_theme_color_override("font_color", UITokens.MUTED)
 
 
-# The dummy: the rival the rules already made (id 2) gets a body where every
-# rule looks for a rival.
+# The dummy: the rival the rules already made (id 2) gets the body authored under
+# Ghosts in Playground.tscn, where every rule looks for a rival.
 func _spawn_dummy() -> void:
-	var dummy: ArenaMortal = MORTAL_SCENE.instantiate()
-	ghosts_root.add_child(dummy)
-	if dummy_spawn != null:
-		dummy.global_position = dummy_spawn.global_position
+	var dummy: ArenaMortal = ghosts_root.get_node_or_null("Dummy") as ArenaMortal
+	if dummy == null:
+		dummy = MORTAL_SCENE.instantiate() as ArenaMortal
+		ghosts_root.add_child(dummy)
 	dummy.set_lock(true)
 	dummy.ring_color = UITokens.EMBER
 	dummy.set_bandana(DUMMY_BANDANA)
@@ -360,7 +347,7 @@ func _refresh_playground_hud() -> void:
 # --- INPUT ------------------------------------------------------------------------
 
 # The skill bars are tappable exactly as in a trial, and a left click at the fire
-# opens the game list.
+# opens the game list - even beside an altar, which only listens to F.
 func _input(event: InputEvent) -> void:
 	if _game_menu_open():
 		return
@@ -368,7 +355,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if not (event is InputEventMouseButton) or not event.is_action_pressed("attack"):
 		return
-	if due_menu.is_open() or _nearest_altar() != null or not _near_fire():
+	if due_menu.is_open() or not _near_fire():
 		return
 	var viewport := get_viewport()
 	if viewport != null:

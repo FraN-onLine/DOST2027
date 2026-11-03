@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/Placeholders/god.png" id="1_icon"]
+[ext_resource type="Texture2D" path="res://Assets/Altar.png" id="2_stone"]
+
+[node name="Altar" type="Node2D"]
+
+[node name="GodIcon" type="Sprite2D" parent="."]
+position = Vector2(0, -69)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("1_icon")
+
+[node name="Name" type="Label" parent="."]
+offset_left = -90.0
+offset_top = 44.0
+offset_right = 90.0
+offset_bottom = 64.0
+theme_type_variation = &"WorldLabel"
+text = "ALTAR"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="."]
+offset_left = -90.0
+offset_top = 64.0
+offset_right = 90.0
+offset_bottom = 84.0
+theme_type_variation = &"WorldLabel"
+text = "F - GOD'S DUE"
+horizontal_alignment = 1
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(1.1444092e-05, 9.00001)
+scale = Vector2(1.6093752, 1.7187498)
+texture = ExtResource("2_stone")
+metadata/_edit_lock_ = true

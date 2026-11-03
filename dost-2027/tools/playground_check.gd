@@ -76,6 +76,16 @@ func _run() -> void:
 	_check(playground.hint_label.text.contains("LEAVE"), "the hint band says how to leave (%s)" % playground.hint_label.text)
 	_check(playground.leave_button != null and playground.leave_button.text == "LEAVE", "there is a LEAVE button")
 
+	# --- THE CAMPFIRE'S SIGN ------------------------------------------------------------
+	var fire: Node2D = playground.get_node("Camp/Campfire") as Node2D
+	var play_hint := fire.get_node_or_null("PlayHint") as Label
+	_check(play_hint != null and play_hint.visible, "a message under the campfire says how to play")
+	_check(play_hint != null and play_hint.text.to_upper().contains("CLICK")
+		and play_hint.text.to_upper().contains("PLAY"),
+		"...telling the mortal to click it to play (%s)" % (play_hint.text if play_hint != null else "none"))
+	_check(play_hint != null and play_hint.global_position.y > fire.global_position.y + 20.0,
+		"...and it sits below the fire (%s)" % (str(play_hint.global_position) if play_hint != null else "none"))
+
 	# --- AN ALTAR OF EVERY GOD ----------------------------------------------------------
 	var gods := Gods.all()
 	_check(gods.size() == 8, "eight gods in the registry (%d)" % gods.size())
@@ -86,8 +96,14 @@ func _run() -> void:
 	var lit := true
 	var inside := true
 	var spawn_clear := true
+	var above := 0
+	var beside := 0
+	var below := 0
+	var left_beside := 0
+	var right_beside := 0
 	for altar in playground._altars.keys():
 		var altar_god: God = playground._altars[altar]
+		var at := (altar as Node2D).global_position
 		seen_gods[altar_god.id] = true
 		seen_positions[str((altar as Node2D).position)] = true
 		var name_label := (altar as Node2D).get_node("Name") as Label
@@ -95,14 +111,27 @@ func _run() -> void:
 		painted = painted and name_label.text == "ALTAR OF %s" % altar_god.display_name
 		painted = painted and altar_god.icon != null and icon.texture == altar_god.icon
 		lit = lit and (altar as Node2D).visible
-		inside = inside and playground._field.has_point((altar as Node2D).global_position)
-		spawn_clear = spawn_clear and playground._start_position.distance_to((altar as Node2D).global_position) > 120.0
+		inside = inside and playground._field.has_point(at)
+		spawn_clear = spawn_clear and playground._start_position.distance_to(at) > 120.0
+		if at.y < fire.global_position.y - 24.0:
+			above += 1
+		elif at.y > fire.global_position.y + 24.0:
+			below += 1
+		else:
+			beside += 1
+			if at.x < fire.global_position.x:
+				left_beside += 1
+			else:
+				right_beside += 1
 	_check(seen_gods.size() == gods.size(), "every god has an altar (%s)" % str(seen_gods.keys()))
 	_check(seen_positions.size() == gods.size(), "the altars stand apart around the fire")
 	_check(inside, "every altar stands inside the field")
 	_check(spawn_clear, "the mortal spawns clear of every altar")
 	_check(painted, "each altar is painted with its god's name and icon")
 	_check(lit, "...and every altar is visible")
+	_check(above == 3 and beside == 2 and below == 3,
+		"the altars ring the fire 3 above, 2 beside, 3 below (%d/%d/%d)" % [above, beside, below])
+	_check(left_beside == 1 and right_beside == 1, "one altar stands on each side of the fire")
 
 	# --- THE DUMMY ----------------------------------------------------------------------
 	var dummy_mortal: GodMatch.Mortal = playground.rules.mortal(DUMMY_ID)
@@ -111,27 +140,28 @@ func _run() -> void:
 	_check(dummy != null and dummy.name_tag.text == "DUMMY", "its name tag reads DUMMY (%s)" % (dummy.name_tag.text if dummy != null else "none"))
 	_check(dummy_mortal != null and dummy_mortal.favor == 1000, "the dummy can be aimed at (%d FAVOR)" % (dummy_mortal.favor if dummy_mortal != null else -1))
 	_check(playground._mortal_positions.has(DUMMY_ID), "the rules know where the dummy stands")
-	if dummy != null:
-		_check(dummy.global_position.distance_to(playground.dummy_spawn.global_position) < 1.0,
-			"it stands on the authored spawn")
-	# The dummy is a target, not decoration: it stands in the open, clear of the
-	# altars around the fire it used to be parked on.
+	var authored_dummy := playground.get_node_or_null("Ghosts/Dummy") as ArenaMortal
+	_check(authored_dummy != null and authored_dummy == dummy,
+		"the dummy is authored under Ghosts and used as the rival's body")
+	var dummy_start: Vector2 = dummy.global_position if dummy != null else Vector2.ZERO
+	# The dummy is a target, not decoration: it is authored off to the left, clear
+	# of the altars and the fire.
 	var dummy_clear := true
 	for altar in playground._altars.keys():
-		dummy_clear = dummy_clear and playground.dummy_spawn.global_position.distance_to((altar as Node2D).global_position) > 120.0
-	dummy_clear = dummy_clear and playground.dummy_spawn.global_position.distance_to(
-		(playground.get_node("Camp/Campfire") as Node2D).global_position) > 100.0
-	_check(dummy_clear, "it stands in the open, clear of the altars and the fire (%s)" % str(playground.dummy_spawn.global_position))
+		dummy_clear = dummy_clear and dummy_start.distance_to((altar as Node2D).global_position) > 120.0
+	dummy_clear = dummy_clear and dummy_start.distance_to(fire.global_position) > 100.0
+	_check(dummy_clear, "it stands in the left area, clear of the altars and the fire (%s)" % str(dummy_start))
+	_check(dummy_start.x < fire.global_position.x - 200.0,
+		"the dummy is off to the fire's left (%s)" % str(dummy_start))
 
 	# The dummy is pushable: leaning into it shoves it along the field.
-	var dummy_start: Vector2 = playground.dummy_spawn.global_position
 	playground.player.global_position = dummy_start - Vector2(40.0, 0.0)
 	playground._process(DT)
 	_check(dummy.global_position.x > dummy_start.x + 1.0,
 		"walking into the dummy pushes it along (%.1f -> %.1f)" % [dummy_start.x, dummy.global_position.x])
 	_check(playground._mortal_positions[DUMMY_ID].distance_to(dummy.global_position) < 0.01,
 		"...and the rules follow where it was pushed, so it stays there")
-	playground.player.global_position = Vector2(700, 460)
+	playground.player.global_position = playground._start_position
 	dummy.global_position = dummy_start
 	playground._mortal_positions[DUMMY_ID] = dummy_start
 
@@ -210,7 +240,7 @@ func _run() -> void:
 		menu.close()
 
 	# Away from every altar and the fire F does nothing.
-	playground.player.global_position = Vector2(700, 460)
+	playground.player.global_position = playground._start_position
 	playground._process(DT)
 	_check(playground._nearest_altar() == null, "the fire is out of reach of every altar")
 	_check(not playground._near_fire(), "...and the fire is out of reach too")
@@ -232,7 +262,6 @@ func _run() -> void:
 	# --- THE CAMPFIRE: EVERY GAME, TESTABLE SOLO -----------------------------------------
 	_check(playground.game_menu != null, "the Playground carries the game list")
 	_check(not playground.game_menu.is_open(), "the game list starts closed")
-	var fire: Node2D = playground.get_node("Camp/Campfire") as Node2D
 	playground.player.global_position = fire.global_position
 	playground._process(DT)
 	_check(playground._near_fire(), "standing at the campfire finds it")
@@ -293,14 +322,27 @@ func _run() -> void:
 	_check(not playground.player.locked, "...and frees the mortal")
 
 	# Away from the fire a left click opens nothing.
-	playground.player.global_position = Vector2(700, 460)
+	playground.player.global_position = playground._start_position
 	playground._process(DT)
 	playground._input(click)
 	await _frames(1)
 	_check(not game_menu.is_open(), "a left click away from the fire opens nothing")
 
+	# The 3-below row crowds the fire's foot, but altars only listen to F: a click
+	# still opens the list from an altar's reach.
+	playground.player.global_position = Vector2(700, 450)
+	playground._process(DT)
+	_check(playground._nearest_altar() != null and playground._near_fire(),
+		"the fire can be reached from the edge of an altar")
+	playground._input(click)
+	await _frames(1)
+	_check(game_menu.is_open(), "a click at the fire opens the list even beside an altar")
+	playground._unhandled_input(esc)
+	await _frames(1)
+	_check(not game_menu.is_open() and not playground.player.locked, "Esc closes it again")
+
 	# --- HANAN: REST AND REFRESHED, 3 - 2 - 1, THEN THE STARS ---------------------------
-	playground.player.global_position = Vector2(700, 460)
+	playground.player.global_position = playground._start_position
 	var me := playground.rules.local()
 	var rest := Gods.favor_by_id(&"rest_and_refreshed")
 	_check(playground.rules.bestow_favor(rest), "Rest and Refreshed can be taken")
@@ -349,7 +391,7 @@ func _run() -> void:
 		"...landing on it before the leash fades")
 
 	# Our own mortal's root is drawn here too, and drags us back when it ends.
-	playground.player.global_position = Vector2(700, 460)
+	playground.player.global_position = playground._start_position
 	playground.rules.cast_down_to_homeland(DUMMY_ID, homeland)
 	playground._process(DT)
 	_check(playground._root_leashes.has(playground._my_id), "our own root gets its own leash")
@@ -361,7 +403,7 @@ func _run() -> void:
 		"...and drags us back toward the shadow")
 
 	# --- TALA: THE PULL REACHES THE DUMMY TOO -------------------------------------------
-	playground.player.global_position = Vector2(700, 460)
+	playground.player.global_position = playground._start_position
 	var light_way := Gods.favor_by_id(&"let_us_light_your_way")
 	_check(playground.rules.bestow_favor(light_way), "Let Us Light Your Way can be taken")
 	var pulled_from := dummy.global_position.distance_to(playground.player.global_position)
@@ -384,7 +426,7 @@ func _run() -> void:
 	_check(float(playground._loss_boost.get(DUMMY_ID, 0.0)) > 0.0, "...and marks what it loses while they last")
 	var dummy_favor: int = playground.rules.mortal(DUMMY_ID).favor
 	playground.lose_favor(100, "test", DUMMY_ID)
-	_check(playground.rules.mortal(DUMMY_ID).favor == dummy_favor - 110, "...making that loss 10% larger (%d)" % (dummy_favor - playground.rules.mortal(DUMMY_ID).favor))
+	_check(playground.rules.mortal(DUMMY_ID).favor == dummy_favor - 110, "...making that loss 10%% larger (%d)" % (dummy_favor - playground.rules.mortal(DUMMY_ID).favor))
 
 	# --- BATHALA: BLINDSIDE (THE PLAYGROUND'S OWN OVERRIDE) -----------------------------
 	var blind := Gods.favor_by_id(&"half_vision_sacrifice")
@@ -441,7 +483,7 @@ func _run() -> void:
 	_check(west.gale_immunity(), "The West Wind carries its gale_immunity clause")
 	_check(playground.rules.bestow_favor(west), "The West Wind can be taken here")
 	# Clear of the mortal's reach, so only the gales can move the dummy.
-	playground.player.global_position = Vector2(700, 460)
+	playground.player.global_position = playground._start_position
 	dummy.global_position = Vector2(900, 300)
 	playground._mortal_positions[DUMMY_ID] = dummy.global_position
 	playground.player.wind_drag = Vector2.ZERO
