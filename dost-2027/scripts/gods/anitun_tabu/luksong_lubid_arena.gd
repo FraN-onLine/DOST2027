@@ -6,11 +6,12 @@ extends Arena
 # EVERYTHING SHARED LIVES IN THE BASE (scripts/gods/common/arena.gd); this file
 # is only what makes the game Tabu's.
 #
-# A PRIVATE PLAYGROUND
-#   Like Apolaki's duel, every mortal plays this one on their own screen: the
-#   rope and the gusts never cross the wire, and only FAVOR does (separate_players).
-#   The gales of her E are still the host's shared clock (Arena._wind_time), so a
-#   cast anywhere blows on every screen.
+# ONE FIELD
+#   Like Patintero and the other shared games, every mortal stands on the same
+#   field: positions travel, rivals are drawn and the rope sweeps for everyone.
+#   Only the hop is each screen's own (it moves nobody on the wire). The gales of
+#   her E are still the host's shared clock (Arena._wind_time), so a cast anywhere
+#   blows on every screen.
 #
 # THE LUBID
 #   A rope strung across the field (scenes/gods/anitun_tabu/Lubid.tscn, held by
@@ -19,12 +20,16 @@ extends Arena
 #   look (drop_offset), drawn over the rope while it is up (JUMP_Z), so the hop
 #   never costs a step. Crossing the rope in the air pays jump_favor; crossing it
 #   on the ground costs rope_penalty, shoves the mortal away from the rope and
-#   starts the mercy seconds.
+#   starts the mercy seconds. The host's rope is the one everyone sees
+#   (arena_tick_fields); each screen judges only its own mortal against it.
 #
 # THE GUSTS
-#   Every few seconds a wind burst (WindBurst.tscn) swells on or around the mortal.
-#   The middle of that swell is live: standing in it costs burst_penalty. A mortal
-#   in the air is above it.
+#   Every few seconds the host throws a wind burst (WindBurst.tscn) at a mortal
+#   picked from the whole field, so they scatter across the players instead of
+#   following the host. Every screen draws the host's gusts and judges its OWN
+#   mortal against them: the middle of a swell is live, standing in it costs
+#   burst_penalty, and a mortal in the air is above it. In the blitz the gusts
+#   come a second sooner and two rise at once.
 #
 # THE BLITZ (the last blitz_time seconds)
 #   Winds and Gales of Yesterday blow over the field by themselves (wind_forced),
@@ -41,8 +46,8 @@ extends Arena
 @export var jump_height := 30.0       # px the figure lifts at the top of the hop
 
 @export_category("Wind Bursts")
-@export var burst_min_time := 5.0     # seconds between gusts, rolled fresh each time
-@export var burst_max_time := 8.0
+@export var burst_min_time := 4.0     # seconds between gusts, rolled fresh each time
+@export var burst_max_time := 7.0
 @export var burst_penalty := 150      # FAVOR lost standing in a live gust
 @export var burst_spawn_radius := 60.0  # how far from the mortal one may swell
 @export var burst_hit_radius := 48.0    # how close the mortal must stand to be caught
@@ -55,6 +60,9 @@ extends Arena
 const LUBID_SCENE := preload("res://scenes/gods/anitun_tabu/Lubid.tscn")
 const WIND_BURST_SCENE := preload("res://scenes/gods/anitun_tabu/WindBurst.tscn")
 const JUMP_Z := 6  # the lubid draws at 5 (its 4 over the field's 1); a hop lifts over it
+const BLITZ_BURST_CUT := 1.0   # seconds shaved off the gust clock in the blitz
+const BLITZ_BURSTS := 2        # gusts the blitz raises at once
+const ROPE_SNAP := 48.0        # px a client may drift before it takes the host's rope
 
 @onready var lubid: LuksongLubid = get_node_or_null("ArenaField/Lubid")
 @onready var bursts_root: Node2D = get_node_or_null("ArenaField/WindBursts")
@@ -67,7 +75,8 @@ var _prev_rel := 0.0          # the rope's side of the mortal last frame
 var _cross_guard := 0.0       # seconds before another crossing can count
 var _jump_left := 0.0
 var _burst_timer := 0.0
-var _bursts: Array = []       # {node, hit}
+var _burst_seq := 0
+var _bursts: Array = []       # {id, node, hit}
 var _blitz_announced := false
 var _player_z := 0            # the player's authored draw order, back to it on landing
 
@@ -83,20 +92,6 @@ func _ready() -> void:
 
 
 # --- ARENA HOOKS (see scripts/gods/common/arena.gd) --------------------------
-
-# The mortals play this one alone: no rival is drawn and no position travels.
-func separate_players() -> bool:
-	return true
-
-
-func shares_mortal_positions() -> bool:
-	return false
-
-
-# The Guidance reads "another mortal is nearby" - there is none on this field.
-func nearby_movement_favors_enabled() -> bool:
-	return false
-
 
 # The hop: the gales (and every other ground effect) leave the mortal alone.
 func mortal_airborne() -> bool:
@@ -179,7 +174,9 @@ func _tick_jump(delta: float) -> void:
 # --- THE LUBID ---------------------------------------------------------------
 
 func _tick_rope(delta: float) -> void:
-	if lubid == null or _field.size == Vector2.ZERO:
+	# A client waits for the host's first tick to place the rope (a 0 here means
+	# no round has started on this screen), then sweeps it locally between ticks.
+	if lubid == null or _field.size == Vector2.ZERO or _rope_x == 0.0:
 		return
 	var low := _field.position.x + rope_margin
 	var high := _field.end.x - rope_margin
@@ -231,10 +228,11 @@ func _holds_west_wind() -> bool:
 # --- THE GUSTS ---------------------------------------------------------------
 
 func _tick_bursts(delta: float) -> void:
-	_burst_timer -= delta
-	if _burst_timer <= 0.0:
-		_spawn_burst()
-		_burst_timer = _roll_burst_time()
+	if _authority:
+		_burst_timer -= delta
+		if _burst_timer <= 0.0:
+			_spawn_burst_cycle()
+			_burst_timer = _roll_burst_time()
 	for index in range(_bursts.size() - 1, -1, -1):
 		var burst: Dictionary = _bursts[index]
 		var node: WindBurst = burst.get("node")
@@ -247,25 +245,66 @@ func _tick_bursts(delta: float) -> void:
 				burst["hit"] = true
 				_bursts[index] = burst
 				_resolve_burst(node.global_position)
-		if node.is_finished():
+		# The host retires a spent gust; a client keeps the node until the host's
+		# own list drops it (it hides itself when its clip ends).
+		if _authority and node.is_finished():
 			node.queue_free()
 			_bursts.remove_at(index)
 
 
 func _roll_burst_time() -> float:
-	return _rng.randf_range(burst_min_time, burst_max_time)
+	var cut := BLITZ_BURST_CUT if _in_blitz() else 0.0
+	return _rng.randf_range(maxf(1.0, burst_min_time - cut), maxf(1.0, burst_max_time - cut))
 
 
-# One gust, ON or around the mortal: at the mortal's feet or up to
+# One cycle of the gust clock: one gust, or two in the blitz, each thrown at a
+# mortal picked from the whole field - so they scatter across the players.
+func _spawn_burst_cycle() -> void:
+	for target_id in _burst_targets(BLITZ_BURSTS if _in_blitz() else 1):
+		_spawn_burst(target_id)
+
+
+# The mortals this cycle aims at, shuffled: two gusts never stack on the same
+# mortal while someone else is standing there. Solo falls back to this screen.
+func _burst_targets(count: int) -> Array:
+	var ids: Array = []
+	for entry in mortal_entries():
+		ids.append(int(entry["id"]))
+	if ids.is_empty():
+		return [-1]
+	for index in range(ids.size() - 1, 0, -1):
+		var swap := _rng.randi_range(0, index)
+		var held = ids[index]
+		ids[index] = ids[swap]
+		ids[swap] = held
+	var targets: Array = []
+	for index in range(count):
+		targets.append(ids[index % ids.size()])
+	return targets
+
+
+# One gust, ON or around the mortal it aims at: at that mortal's feet or up to
 # burst_spawn_radius away, kept inside the field.
-func _spawn_burst() -> void:
+func _spawn_burst(target_id := -1) -> void:
 	if player == null:
 		return
+	var around := player.global_position
+	if target_id >= 0:
+		var at := mortal_position(target_id)
+		if at != Vector2.INF:
+			around = at
 	var offset := Vector2.RIGHT.rotated(_rng.randf_range(0.0, TAU)) * _rng.randf_range(0.0, burst_spawn_radius)
-	var spot := player.global_position + offset
+	var spot := around + offset
 	if _field.size != Vector2.ZERO:
 		spot.x = clampf(spot.x, _field.position.x, _field.end.x)
 		spot.y = clampf(spot.y, _field.position.y, _field.end.y)
+	_burst_seq += 1
+	_add_burst(_burst_seq, spot)
+
+
+# Draw a gust at `spot` and start its clip. The host spawns them; a client builds
+# the same node from the tick (arena_read_tick) so everyone sees the same field.
+func _add_burst(id: int, spot: Vector2) -> void:
 	var burst: WindBurst = WIND_BURST_SCENE.instantiate()
 	if bursts_root != null:
 		bursts_root.add_child(burst)
@@ -273,7 +312,64 @@ func _spawn_burst() -> void:
 		field_root.add_child(burst)
 	burst.global_position = spot
 	burst.play()
-	_bursts.append({"node": burst, "hit": false})
+	_bursts.append({"id": id, "node": burst, "hit": false})
+
+
+# The host's gusts and rope on the wire: enough for a client to draw (and dodge)
+# exactly what the host's field carries.
+func arena_tick_fields() -> Dictionary:
+	var gusts: Array = []
+	for burst in _bursts:
+		var node: WindBurst = burst.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		gusts.append({"id": int(burst.get("id", 0)), "at": node.global_position})
+	return {"rope_x": _rope_x, "rope_dir": _rope_dir, "bursts": gusts}
+
+
+# The host's field, mirrored: take the rope's place when this screen has none or
+# has drifted, and build / retire the gusts the host lists.
+func arena_read_tick(state: Dictionary) -> void:
+	if state.has("rope_x"):
+		var host_rope := float(state.get("rope_x", _rope_x))
+		if _rope_x == 0.0 or absf(host_rope - _rope_x) > ROPE_SNAP:
+			_rope_x = host_rope
+			_rope_dir = float(state.get("rope_dir", _rope_dir))
+			_prev_rel = _rope_x - player.global_position.x
+			_place_rope()
+	_sync_bursts(state.get("bursts", []))
+
+
+func _sync_bursts(wire: Array) -> void:
+	var listed := {}
+	for entry in wire:
+		if not (entry is Dictionary):
+			continue
+		var id := int(entry.get("id", 0))
+		listed[id] = true
+		if _burst_by_id(id) != null:
+			continue
+		var at := Vector2.ZERO
+		if player != null:
+			at = player.global_position
+		if entry.get("at") is Vector2:
+			at = entry["at"]
+		_add_burst(id, at)
+	for index in range(_bursts.size() - 1, -1, -1):
+		if listed.has(int(_bursts[index].get("id", 0))):
+			continue
+		var node: WindBurst = _bursts[index].get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+		_bursts.remove_at(index)
+
+
+func _burst_by_id(id: int) -> WindBurst:
+	for burst in _bursts:
+		if int(burst.get("id", 0)) == id:
+			var node: WindBurst = burst.get("node")
+			return node if is_instance_valid(node) else null
+	return null
 
 
 func _resolve_burst(at: Vector2) -> void:

@@ -302,7 +302,9 @@ func _run() -> void:
 	_arena._finale_stars = false
 	_arena._finale_timer = 0.0
 	_arena._invuln.clear()
-	_arena.player.global_position = _lane()
+	# In the middle of the field, so a wide throw never clamps into a neighbour
+	# and the spread is measured where the stars actually land.
+	_arena.player.global_position = _arena._field.get_center() - Vector2(0.0, 40.0)
 	_arena.player._knockback = Vector2.ZERO
 	# Solo, only this mortal is really on the field; a rival spot left over from
 	# the Guidance check would aim a star at a stale point and skew the spread.
@@ -359,6 +361,32 @@ func _run() -> void:
 	_check(_arena._star_nodes["99"].global_position == Vector2(640, 420), "...where the host says they fall")
 	_arena._stars.clear()
 	_arena._render_stars()
+
+	# The stars scatter across the whole roster: a lone finale star does not keep
+	# falling on whoever joined first (the host). With two mortals and two stars,
+	# each one takes exactly one.
+	var kept_rival: GodMatch.Mortal = _arena.rules.mortals.get(2)
+	var rival := GodMatch.Mortal.new()
+	rival.id = 2
+	rival.display_name = "RIVAL"
+	_arena.rules.mortals[2] = rival
+	var rival_spot := Vector2(900, 550)
+	_arena._mortal_positions[2] = rival_spot
+	var me_spot := Vector2(400, 500)
+	_arena.player.global_position = me_spot
+	_arena._stars.clear()
+	_arena._drop_stars(2, true)
+	var aimed: Array[Vector2] = []
+	for star in _arena._stars:
+		aimed.append(star["position"])
+	_check(aimed.size() == 2 and aimed.has(me_spot) and aimed.has(rival_spot),
+		"a volley spreads across every mortal, the host included")
+	_arena._stars.clear()
+	_arena._mortal_positions.erase(2)
+	if kept_rival != null:
+		_arena.rules.mortals[2] = kept_rival
+	else:
+		_arena.rules.mortals.erase(2)
 	_arena.star_scatter = 24.0
 
 	# --- THE LAST LIGHT: Tala's dusk pays better --------------------------------

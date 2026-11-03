@@ -916,14 +916,21 @@ func _tick_stars(delta: float) -> void:
 	_move_stars(delta)
 
 
-# One star per mortal, so a volley spreads across the field. A mortal that would
-# take a second star from the same volley has it thrown wide of them instead
-# (star_spread px out, on its own angle), never on top of the one already aimed
-# at them, and every star is kept inside the field's own floor.
+# One star per mortal, so a volley spreads across the field. The roster is
+# shuffled every volley, so a lone finale star is as likely to fall on a rival as
+# on this screen's mortal - it never just follows whoever joined first. A mortal
+# that would take a second star from the same volley has it thrown wide of them
+# instead (star_spread px out, on its own angle), never on top of the one already
+# aimed at them, and every star is kept inside the field's own floor.
 func _drop_stars(count: int, opening: bool) -> void:
 	var entries := mortal_entries()
 	if entries.is_empty():
 		return
+	for index in range(entries.size() - 1, 0, -1):
+		var swap := _rng.randi_range(0, index)
+		var held = entries[index]
+		entries[index] = entries[swap]
+		entries[swap] = held
 	var phase := _rng.randf_range(0.0, TAU)
 	var repeats := maxi(1, count - entries.size())
 	for index in range(count):

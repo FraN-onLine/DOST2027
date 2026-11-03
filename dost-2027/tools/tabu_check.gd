@@ -15,10 +15,14 @@ extends SceneTree
 #   * It's Kinda Tabu pays +8/s with the Q ready, takes -8/s while it recharges
 #   * the lubid is held by two animated wind fairies, one at each end
 #   * a mortal draws over the lubid while the hop has it in the air
-#   * Luksong Lubid: the rope sweeps and pongs, a jump pays 125, the rope costs
-#     75, a gust costs 150. In the blitz the gales blow on their own (200 a
-#     jump, 150 for a mortal holding The West Wind), the wind pushes west and
-#     leaves the airborne alone, and a West Wind holder walks through it
+#   * Luksong Lubid is one shared field: positions travel and rivals are drawn
+#   * the rope sweeps and pongs, a jump pays 125, the rope costs 75, a gust
+#     costs 150; the host's rope and gusts mirror to every screen
+#   * gusts keep the 4-7s clock, come 3-6s in the blitz and two at once, each
+#     thrown at a mortal picked from the whole field (never always the host)
+#   * in the blitz the gales blow on their own (200 a jump, 150 for a mortal
+#     holding The West Wind), the wind pushes west and leaves the airborne
+#     alone, and a West Wind holder walks through it
 #   * the Winds and Gales overlay fades in and out of its own scene
 #   * GodMatch keeps the new passives through snapshot / apply_snapshot
 # Run: godot --headless --path <project> -s res://tools/tabu_check.gd
@@ -256,8 +260,8 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_check(arena.god != null and arena.god.id == &"anitun_tabu", "the arena wears its god")
-	_check(arena.separate_players() and not arena.shares_mortal_positions() and not arena.nearby_movement_favors_enabled(),
-		"Luksong is played alone, like Apolaki's duel")
+	_check(not arena.separate_players() and arena.shares_mortal_positions() and arena.nearby_movement_favors_enabled(),
+		"Luksong is played on one shared field, like Patintero")
 	_check(arena.edge_targets().is_empty(), "there is no rival to point an edge arrow at")
 	_check(arena.lubid != null and arena.bursts_root != null and arena.state_label != null,
 		"the authored rope, the gusts' root and the band label all exist")
@@ -377,6 +381,64 @@ func _run() -> void:
 	_check(arena.rules.local().favor == 1000, "a mortal in the air is above the gust")
 	arena._jump_left = 0.0
 	arena._clear_bursts()
+
+	# The gust clock: 4-7s, a second sooner again in the blitz.
+	_check(is_equal_approx(arena.burst_min_time, 4.0) and is_equal_approx(arena.burst_max_time, 7.0),
+		"gusts come every 4-7s")
+	arena._trial_time = 60.0
+	var in_range := true
+	for roll in range(60):
+		var wait: float = arena._roll_burst_time()
+		if wait < arena.burst_min_time - 0.001 or wait > arena.burst_max_time + 0.001:
+			in_range = false
+	_check(in_range, "...and every roll stays inside that range")
+	arena._trial_time = arena.blitz_time
+	var blitz_range := true
+	for roll in range(60):
+		var wait: float = arena._roll_burst_time()
+		if wait < arena.burst_min_time - arena.BLITZ_BURST_CUT - 0.001 \
+				or wait > arena.burst_max_time - arena.BLITZ_BURST_CUT + 0.001:
+			blitz_range = false
+	_check(blitz_range, "in the blitz they come a second sooner again (3-6s)")
+
+	# The gusts scatter across the whole field: two at once in the blitz, each
+	# aimed at a different mortal, not both at the host.
+	var rival := GodMatch.Mortal.new()
+	rival.id = 2
+	rival.display_name = "RIVAL"
+	arena.rules.mortals[2] = rival
+	var rival_spot := Vector2(field.position.x + 80.0, field.position.y + 80.0)
+	arena._mortal_positions[2] = rival_spot
+	arena.burst_spawn_radius = 0.0
+	arena._clear_bursts()
+	arena._burst_seq = 0
+	arena._rope_x = field.position.x + 100.0
+	arena._trial_time = arena.blitz_time
+	arena._spawn_burst_cycle()
+	var host_spots: Array = []
+	for burst in arena._bursts:
+		host_spots.append((burst["node"] as WindBurst).global_position)
+	_check(host_spots.size() == 2, "in the blitz two gusts rise at once (%d)" % host_spots.size())
+	_check(host_spots.has(rival_spot) and host_spots.has(arena.player.global_position),
+		"they are thrown at two different mortals, not both at the host")
+	var wire: Dictionary = arena.arena_tick_fields()
+	_check(wire.has("rope_x") and is_equal_approx(float(wire["rope_x"]), arena._rope_x)
+		and (wire["bursts"] as Array).size() == 2,
+		"the host puts its rope and gusts on the wire")
+	arena._clear_bursts()
+	arena._rope_x = 0.0
+	arena.arena_read_tick(wire)
+	_check(is_equal_approx(arena._rope_x, float(wire["rope_x"])), "a client takes the host's rope")
+	_check(arena._bursts.size() == 2, "...and builds the host's gusts")
+	var client_spots: Array = []
+	for burst in arena._bursts:
+		client_spots.append((burst["node"] as WindBurst).global_position)
+	_check(client_spots == host_spots, "...where the host says they swell")
+	arena._clear_bursts()
+	arena.rules.mortals.erase(2)
+	arena._mortal_positions.erase(2)
+	arena.burst_spawn_radius = 60.0
+	arena._rope_x = high
 
 	# The blitz: the gales blow on their own.
 	arena._phase = Arena.Phase.PLAYING
