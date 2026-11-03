@@ -32,6 +32,10 @@ const DUMMY_BANDANA := 6  # orange, so it never reads as our own mortal
 # walk holds into it.
 const DUMMY_PUSH_GAP := 44.0
 const ALTAR_REACH := 120.0
+# How close to the fire a left click opens the game list. The mortal spawns 120 px
+# below it, so they have to take a step toward the fire first.
+const CAMPFIRE_REACH := 110.0
+const TRIAL_TEST_SCENE := "res://scenes/prep/TrialTest.tscn"
 # Eight altars around the fire (Camp/Campfire is at 700, 340), one per god: four
 # along the top, four along the bottom, the middle left open for the fire and for
 # the mortal's spawn below it. The gaps are wide enough that no altar's name tag
@@ -49,10 +53,15 @@ const ALTAR_RING: Array[Vector2] = [
 
 @onready var leave_button: Button = get_node_or_null("PrepHud/LeaveButton") as Button
 @onready var dummy_spawn: Marker2D = get_node_or_null("DummySpawn") as Marker2D
+@onready var campfire: Node2D = get_node_or_null("Camp/Campfire") as Node2D
+# Untyped on purpose: the menu is a scene script, not a class the headless checks
+# must know before the project imports it.
+@onready var game_menu = get_node_or_null("GameTestLayer/GameTestMenu")
 
 var _altars: Dictionary = {}  # Node2D -> God (the altar's own list)
 var _menu_god: God = null     # the altar whose menu is open / was last open
 var _last_near: Node2D = null
+var _last_fire_near := false
 
 
 # --- OPENING ---------------------------------------------------------------------
@@ -74,8 +83,12 @@ func _start_intro() -> void:
 	due_menu.boon_chosen.connect(_on_boon_chosen)
 	if leave_button != null:
 		leave_button.pressed.connect(_leave)
+	if game_menu != null:
+		game_menu.test_requested.connect(_launch_test)
+		game_menu.closed.connect(_on_game_menu_closed)
 	_show_banner("PLAYGROUND", UITokens.GOLD, 2.0)
 	_log("Stand by an altar and press %s for its blessings." % key_cap(&"due_menu"), UITokens.MUTED)
+	_log("Left click the campfire to test any game.", UITokens.MUTED)
 
 
 func _style_hud() -> void:
@@ -94,9 +107,9 @@ func _style_hud() -> void:
 	next_label.text = "PLAYGROUND - STAND BY AN ALTAR"
 	ready_label.visible = false
 	stall.visible = false
-	hint_label.text = "%s WALK   %s BLESSING   %s %s FAVOR   [ESC] LEAVE" % [
-		key_cap(&"move_left"), key_cap(&"due_menu"), key_cap(&"skill_e"),
-		key_cap(&"skill_q")]
+	hint_label.text = "%s WALK   %s GAME TESTS   %s BLESSING   %s %s FAVOR   [ESC] LEAVE" % [
+		key_cap(&"move_left"), key_cap(&"attack"), key_cap(&"due_menu"),
+		key_cap(&"skill_e"), key_cap(&"skill_q")]
 
 
 # One altar of every god, the camp's own altar art duplicated around the fire.
@@ -163,6 +176,38 @@ func _nearest_altar() -> Node2D:
 			best_distance = distance
 			best = altar
 	return best
+
+
+func _near_fire() -> bool:
+	return campfire != null and player.global_position.distance_to(campfire.global_position) <= CAMPFIRE_REACH
+
+
+func _game_menu_open() -> bool:
+	return game_menu != null and game_menu.is_open()
+
+
+# The campfire opens the game list: every god's game, playable on its own.
+func _open_game_menu() -> void:
+	if game_menu == null or _game_menu_open():
+		return
+	if due_menu.is_open():
+		due_menu.close()
+	player.set_lock(true)
+	game_menu.open()
+
+
+func _on_game_menu_closed() -> void:
+	if player != null:
+		player.set_lock(false)
+
+
+# The list asked for one god's trial: hand the god over and let the wrapper run
+# it. The Playground is rebuilt (fresh favor, fresh dummy) when the test returns.
+func _launch_test(god_id: StringName) -> void:
+	if god_id == &"":
+		return
+	Global.test_god_id = god_id
+	get_tree().change_scene_to_file(TRIAL_TEST_SCENE)
 
 
 # The base's God's Due menu as an altar: the nearest god's whole list, free.
@@ -263,6 +308,8 @@ func _drift_dummy(delta: float) -> void:
 # running, and this screen's title / nearest altar.
 func _process(delta: float) -> void:
 	_tick_fire(delta)
+	if _game_menu_open():
+		return
 	_tick_invuln(delta)
 	_tick_sun_favors(delta)
 	_tick_world(delta)
@@ -292,30 +339,53 @@ func _push_dummy() -> void:
 
 func _refresh_playground_hud() -> void:
 	var near := _nearest_altar()
-	if near == _last_near:
+	var by_fire := _near_fire()
+	if near == _last_near and by_fire == _last_fire_near:
 		return
 	_last_near = near
-	if near == null:
-		next_label.text = "PLAYGROUND - STAND BY AN ALTAR"
+	_last_fire_near = by_fire
+	if near != null:
+		var altar_god: God = _altars[near]
+		next_label.text = "ALTAR OF %s - %s BLESSING" % [altar_god.display_name.to_upper(), key_cap(&"due_menu")]
+		next_label.add_theme_color_override("font_color", UITokens.god_text(altar_god))
+		return
+	if by_fire:
+		next_label.text = "CAMPFIRE - %s TEST A GAME" % key_cap(&"attack")
 		next_label.add_theme_color_override("font_color", UITokens.GOLD)
 		return
-	var altar_god: God = _altars[near]
-	next_label.text = "ALTAR OF %s - %s BLESSING" % [altar_god.display_name.to_upper(), key_cap(&"due_menu")]
-	next_label.add_theme_color_override("font_color", UITokens.god_text(altar_god))
+	next_label.text = "PLAYGROUND - STAND BY AN ALTAR"
+	next_label.add_theme_color_override("font_color", UITokens.GOLD)
 
 
 # --- INPUT ------------------------------------------------------------------------
 
-# The skill bars are tappable exactly as in a trial.
+# The skill bars are tappable exactly as in a trial, and a left click at the fire
+# opens the game list.
 func _input(event: InputEvent) -> void:
-	_tap_panel_click(event)
+	if _game_menu_open():
+		return
+	if _tap_panel_click(event):
+		return
+	if not (event is InputEventMouseButton) or not event.is_action_pressed("attack"):
+		return
+	if due_menu.is_open() or _nearest_altar() != null or not _near_fire():
+		return
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.set_input_as_handled()
+	_open_game_menu()
 
 
 # Only what the playground allows: F at an altar, E / Q for the favors they hold,
-# Esc to leave (or to close the altar first), and R to start over.
+# Esc to leave (or to close the altar / the game list first), and R to start over.
 func _unhandled_input(event: InputEvent) -> void:
 	var viewport := get_viewport()
 	if viewport == null:
+		return
+	if _game_menu_open():
+		if event.is_action_pressed("ui_cancel"):
+			viewport.set_input_as_handled()
+			game_menu.close()
 		return
 	if event.is_action_pressed("ui_cancel"):
 		viewport.set_input_as_handled()

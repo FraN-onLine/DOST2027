@@ -45,6 +45,24 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
+[node name="PresetRow" type="VBoxContainer" parent="Margin/VBox/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Caption" type="Label" parent="Margin/VBox/Scroll/Body/PresetRow"]
+layout_mode = 2
+text = "Loadout"
+
+[node name="Presets" type="HFlowContainer" parent="Margin/VBox/Scroll/Body/PresetRow"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 4
+
+[node name="PresetNote" type="Label" parent="Margin/VBox/Scroll/Body/PresetRow"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
 [node name="TrialsRow" type="HBoxContainer" parent="Margin/VBox/Scroll/Body"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2

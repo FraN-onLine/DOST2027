@@ -209,10 +209,11 @@ func _run() -> void:
 	if menu.is_open():
 		menu.close()
 
-	# Away from every altar F does nothing.
-	playground.player.global_position = Vector2(700, 340)
+	# Away from every altar and the fire F does nothing.
+	playground.player.global_position = Vector2(700, 460)
 	playground._process(DT)
 	_check(playground._nearest_altar() == null, "the fire is out of reach of every altar")
+	_check(not playground._near_fire(), "...and the fire is out of reach too")
 	_check(playground.next_label.text == "PLAYGROUND - STAND BY AN ALTAR", "...and the banner says so (%s)" % playground.next_label.text)
 	var f_key := InputEventAction.new()
 	f_key.action = &"due_menu"
@@ -227,6 +228,76 @@ func _run() -> void:
 	await _frames(2)
 	_check(menu.is_open() and menu._free_boons, "F at Apolaki's altar opens his free blessings")
 	menu.close()
+
+	# --- THE CAMPFIRE: EVERY GAME, TESTABLE SOLO -----------------------------------------
+	_check(playground.game_menu != null, "the Playground carries the game list")
+	_check(not playground.game_menu.is_open(), "the game list starts closed")
+	var fire: Node2D = playground.get_node("Camp/Campfire") as Node2D
+	playground.player.global_position = fire.global_position
+	playground._process(DT)
+	_check(playground._near_fire(), "standing at the campfire finds it")
+	_check(playground.next_label.text == "CAMPFIRE - %s TEST A GAME" % playground.key_cap(&"attack"),
+		"the banner names the campfire (%s)" % playground.next_label.text)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = Vector2(576, 340)
+	playground._input(click)
+	await _frames(2)
+	var game_menu = playground.game_menu
+	_check(game_menu.is_open(), "a left click at the fire opens the game list")
+	_check(playground.player.locked, "...and holds the mortal still while it is open")
+
+	var game_rows: Array[Control] = []
+	for row in game_menu.rows.get_children():
+		game_rows.append(row as Control)
+	_check(game_rows.size() == 8, "one game per god (%d)" % game_rows.size())
+	_check(game_rows.size() == Gods.all().size(), "...every god of the registry")
+	var named_games := true
+	var instructions := true
+	var test_buttons := true
+	for index in range(game_rows.size()):
+		var row: Control = game_rows[index]
+		var row_god: God = Gods.by_id(StringName(str(row.name).trim_prefix("Game_")))
+		var title := row.get_node("Margin/Body/Text/Title") as Label
+		var rules := row.get_node("Margin/Body/Text/Rules") as Label
+		var test := row.get_node("Margin/Body/Test") as Button
+		named_games = named_games and row_god != null \
+			and title.text == "%s  -  %s" % [row_god.display_name.to_upper(), row_god.game_name.to_upper()]
+		instructions = instructions and rules.text == row_god.game_blurb and rules.text != ""
+		test_buttons = test_buttons and test.text == "TEST" and not test.disabled
+	_check(named_games, "every row names its god and game")
+	_check(instructions, "...and carries that game's instructions")
+	_check(test_buttons, "...with a TEST button on each")
+	_check(game_rows[game_rows.size() - 1].name == "Game_bathala", "Bathala's Agawan Base sits last")
+	var sidapa_row: Control = null
+	for row in game_rows:
+		if row.name == "Game_sidapa":
+			sidapa_row = row
+	_check(sidapa_row != null, "Sidapa's Piko has a row")
+	_check(sidapa_row != null and sidapa_row.get_node_or_null("Margin/Body/Text/DeathNote") != null
+		and (sidapa_row.get_node("Margin/Body/Text/DeathNote") as Label).text == "Also the God of Death.",
+		"...and says he is also the God of Death")
+	var wired := false
+	for connection in game_menu.test_requested.get_connections():
+		if (connection["callable"] as Callable).get_method() == "_launch_test":
+			wired = true
+	_check(wired, "the TEST buttons hand the god to the Playground")
+
+	var esc := InputEventAction.new()
+	esc.action = &"ui_cancel"
+	esc.pressed = true
+	playground._unhandled_input(esc)
+	await _frames(1)
+	_check(not game_menu.is_open(), "Esc closes the game list")
+	_check(not playground.player.locked, "...and frees the mortal")
+
+	# Away from the fire a left click opens nothing.
+	playground.player.global_position = Vector2(700, 460)
+	playground._process(DT)
+	playground._input(click)
+	await _frames(1)
+	_check(not game_menu.is_open(), "a left click away from the fire opens nothing")
 
 	# --- HANAN: REST AND REFRESHED, 3 - 2 - 1, THEN THE STARS ---------------------------
 	playground.player.global_position = Vector2(700, 460)

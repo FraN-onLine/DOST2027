@@ -13,6 +13,9 @@ extends SceneTree
 #     value is put back by validate(), and the prep time reaches the rest
 #   * STARTER SKILLS: OFF / RANDOM (a unique E + Q deal per mortal) / CUSTOM
 #     (every player picks its own E and Q in the CUSTOM BUILD card, unshared)
+#   * the five loadouts (Default / Long / Short / Random / Strategic) set their
+#     own clock, rest and build on top of the house rules they share, light the
+#     one in use, and go back to "custom" the moment a row changes
 #   * RESET restores the defaults, and the host's saved setup loads back
 # Uses a temporary settings file, never the host's user://lobby_settings.cfg.
 # Run: godot --headless --path <project> -s res://tools/lobby_options_check.gd
@@ -85,9 +88,9 @@ func _run() -> void:
 	var prep_items: Array[String] = []
 	for index in range(options.prep_option.item_count):
 		prep_items.append(options.prep_option.get_item_text(index))
-	_check(prep_items == ["0:10", "0:20", "0:30", "0:45", "1:00"], "PREP TIME reads like the clock (%s)" % str(prep_items))
+	_check(prep_items == ["0:10", "0:20", "0:30", "0:40", "0:45", "1:00"], "PREP TIME reads like the clock (%s)" % str(prep_items))
 	_check(options.prep_option.get_item_text(options.prep_option.selected) == "0:20", "...and shows the default 0:20")
-	options.prep_option.item_selected.emit(3)
+	options.prep_option.item_selected.emit(4)
 	options.camera_option.item_selected.emit(1)
 	_check(_settings().prep_time == 45.0 and _settings().camera_mode == RunSettings.CAMERA_FOLLOW,
 		"the host's PREP TIME and CAMERA rows change the setup")
@@ -263,6 +266,59 @@ func _run() -> void:
 	_check(old_file.starter_mode == RunSettings.STARTER_RANDOM, "an old random-starters file loads as RANDOM")
 	_apply(RunSettings.defaults().to_dict())
 
+	# --- the five loadouts -----------------------------------------------------------------
+	_check(RunSettings.PRESETS.size() == 5, "there are five loadouts")
+	_check(options.presets.get_child_count() == RunSettings.PRESETS.size(),
+		"one button per loadout (%d)" % options.presets.get_child_count())
+	var named_ok := true
+	for entry in RunSettings.PRESETS:
+		var button: Button = options.presets.get_node_or_null("Preset_%s" % entry["id"])
+		named_ok = named_ok and button != null and button.text == str(entry["name"]).to_upper()
+	_check(named_ok, "every loadout is named on its button")
+	var expected := {
+		"default": [90.0, 30.0, RunSettings.STARTER_OFF],
+		"long": [120.0, 40.0, RunSettings.STARTER_OFF],
+		"short": [60.0, 20.0, RunSettings.STARTER_OFF],
+		"random": [90.0, 30.0, RunSettings.STARTER_RANDOM],
+		"strategic": [90.0, 40.0, RunSettings.STARTER_CUSTOM],
+	}
+	var loadout_ok := true
+	var house_ok := true
+	var light_ok := true
+	for entry in RunSettings.PRESETS:
+		var preset_id := str(entry["id"])
+		(options.presets.get_node("Preset_%s" % preset_id) as Button).pressed.emit()
+		var run := _settings()
+		var want: Array = expected[preset_id]
+		loadout_ok = loadout_ok and is_equal_approx(run.trial_time, want[0]) \
+			and is_equal_approx(run.prep_time, want[1]) and run.starter_mode == want[2]
+		house_ok = house_ok and run.trials == 4 and run.order_mode == RunSettings.ORDER_RANDOM \
+			and run.intro_mode == RunSettings.INTRO_FULL and run.opening_cutscene == RunSettings.OPENING_SKIP \
+			and run.god_blitz_mode and run.camera_mode == RunSettings.CAMERA_ARENA \
+			and run.due_step == GodMatch.MILESTONE_STEP
+		light_ok = light_ok and run.active_preset() == preset_id \
+			and (options.presets.get_node("Preset_%s" % preset_id) as Button) \
+				.get_theme_color("font_color") == UITokens.GOLD
+	_check(loadout_ok, "each loadout sets its own clock, rest and starting build")
+	_check(house_ok, "...on top of the house rules they all share (random order, full intros, no cutscene, blitz, whole arena)")
+	_check(light_ok, "the loadout in use is lit gold, and only it")
+	_check(options.preset_note.get_theme_color("font_color") == UITokens.GOLD
+		and options.preset_note.text == RunSettings.preset_info("strategic")["note"],
+		"the sheet explains the loadout in use (%s)" % options.preset_note.text)
+	options.prep_option.item_selected.emit(1)
+	_check(_settings().active_preset() == "" and options.preset_note.text.begins_with("Custom setup"),
+		"changing one row drops back to a custom setup")
+	var default_button: Button = options.presets.get_node("Preset_default")
+	_check(default_button.get_theme_color("font_color") != UITokens.GOLD,
+		"...and no loadout stays lit")
+	(default_button as Button).pressed.emit()
+	_check(_settings().active_preset() == "default" and is_equal_approx(_settings().prep_time, 30.0),
+		"Default Settings is a 0:30 rest again")
+	var strategic := RunSettings.from_dict({"trial_time": 90.0, "prep_time": 40.0, "starter_mode": RunSettings.STARTER_CUSTOM})
+	_check(strategic.active_preset() == "" and strategic.to_dict() != RunSettings.defaults().to_dict(),
+		"the same clock and rest without the house rules is still custom")
+	_apply(RunSettings.defaults().to_dict())
+
 	# --- a client cannot change anything --------------------------------------------------
 	_apply({"trials": 5, "order_mode": "custom"})
 	var locked := _settings().to_dict()
@@ -274,6 +330,8 @@ func _run() -> void:
 		and options.due_option.disabled and options.intro_option.disabled and options.reset_button.disabled \
 		and options.prep_option.disabled and options.camera_option.disabled \
 		and options.blitz_box.disabled and options.starter_option.disabled
+	for button in options.presets.get_children():
+		all_disabled = all_disabled and (button as Button).disabled
 	for row in options.order_list.get_children():
 		if row is HBoxContainer:
 			all_disabled = all_disabled and row.get_node("God").disabled and row.get_node("Up").disabled and row.get_node("Down").disabled
@@ -289,6 +347,8 @@ func _run() -> void:
 	options.prep_option.item_selected.emit(4)
 	options.camera_option.item_selected.emit(1)
 	options.starter_option.item_selected.emit(1)
+	for button in options.presets.get_children():
+		(button as Button).pressed.emit()
 	options._on_reset_pressed()
 	_check(_settings().to_dict() == locked, "a client cannot change any setting")
 	# ...but the build card is the player's own: a non-host can still pick.

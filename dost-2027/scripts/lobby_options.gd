@@ -26,6 +26,8 @@ const NUMBER_COLOR := UITokens.MUTED
 @onready var minus_button: Button = $Margin/VBox/Scroll/Body/TrialsRow/Minus
 @onready var plus_button: Button = $Margin/VBox/Scroll/Body/TrialsRow/Plus
 @onready var trials_value: Label = $Margin/VBox/Scroll/Body/TrialsRow/Value
+@onready var presets: HFlowContainer = $Margin/VBox/Scroll/Body/PresetRow/Presets
+@onready var preset_note: Label = $Margin/VBox/Scroll/Body/PresetRow/PresetNote
 @onready var run_line: Label = $Margin/VBox/Scroll/Body/RunLine
 @onready var random_box: CheckBox = $Margin/VBox/Scroll/Body/OrderRow/RandomBox
 @onready var custom_box: CheckBox = $Margin/VBox/Scroll/Body/OrderRow/CustomBox
@@ -88,6 +90,7 @@ func _ready() -> void:
 	blitz_box.toggled.connect(_on_blitz_toggled)
 	reset_button.pressed.connect(_on_reset_pressed)
 	done_button.pressed.connect(close)
+	_build_presets()
 	Network.run_settings_changed.connect(func(_settings: Dictionary) -> void: refresh())
 	refresh()
 
@@ -104,12 +107,38 @@ func close() -> void:
 	closed.emit()
 
 
+# The five loadouts, one button each. They are a shortcut for the rows below -
+# pressing one replaces the whole setup - so they write through the same
+# Network.set_run_settings() the manual controls use, and a client only ever
+# watches them.
+func _build_presets() -> void:
+	for child in presets.get_children():
+		presets.remove_child(child)
+		child.queue_free()
+	for entry in RunSettings.PRESETS:
+		var button := Button.new()
+		button.name = "Preset_%s" % entry["id"]
+		button.text = str(entry["name"]).to_upper()
+		button.theme_type_variation = &"SmallButton"
+		button.custom_minimum_size = Vector2(0, UITokens.BUTTON_SMALL.y)
+		button.tooltip_text = "%s.\nEvery loadout skips the cutscene, shows the whole arena and keeps God Blitz on." % entry["note"]
+		button.pressed.connect(_apply_preset.bind(str(entry["id"])))
+		presets.add_child(button)
+
+
+func _apply_preset(preset_id: String) -> void:
+	if _syncing or not editable:
+		return
+	Network.set_run_settings(RunSettings.preset(preset_id).to_dict())
+
+
 # Repaint every control from Network.run_settings.
 func refresh() -> void:
 	if not is_node_ready():
 		return
 	var settings: RunSettings = Network.run_settings
 	_syncing = true
+	_paint_presets(settings)
 	trials_value.text = str(settings.trials)
 	minus_button.disabled = not editable or settings.trials <= Gods.TRIALS_MIN
 	plus_button.disabled = not editable or settings.trials >= Gods.TRIALS_MAX
@@ -141,6 +170,27 @@ func refresh() -> void:
 	warning_label.visible = not problems.is_empty()
 	warning_label.text = "" if problems.is_empty() else "%s - START is disabled until it is fixed." % problems[0]
 	_syncing = false
+
+
+# Which loadout is on (gold), which are only a press away, and what the setup is
+# when it is none of them (the host added their own changes on top).
+func _paint_presets(settings: RunSettings) -> void:
+	var active := settings.active_preset()
+	var active_note := ""
+	for child in presets.get_children():
+		var button := child as Button
+		if button == null:
+			continue
+		var preset_id := str(button.name).trim_prefix("Preset_")
+		var on := preset_id == active
+		button.disabled = not editable
+		if on:
+			button.add_theme_color_override("font_color", UITokens.GOLD)
+			active_note = str(RunSettings.preset_info(preset_id).get("note", ""))
+		else:
+			button.remove_theme_color_override("font_color")
+	preset_note.text = active_note if active != "" else "Custom setup - pick a loadout to replace every row below."
+	preset_note.add_theme_color_override("font_color", UITokens.GOLD if active != "" else UITokens.MUTED)
 
 
 # One row per trial slot (CUSTOM): number, god dropdown, UP / DOWN. The last row

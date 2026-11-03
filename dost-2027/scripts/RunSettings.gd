@@ -22,7 +22,7 @@ const INTRO_SHORT := "short"  # always the short "take your place" line
 const OPENING_FULL := "full"  # the story cutscene plays before the first trial
 const OPENING_SKIP := "skip"  # straight to the first god
 const TRIAL_TIMES := [60.0, 90.0, 120.0, 150.0]
-const PREP_TIMES := [10.0, 20.0, 30.0, 45.0, 60.0]  # the preparation area (PAHINGA)
+const PREP_TIMES := [10.0, 20.0, 30.0, 40.0, 45.0, 60.0]  # the preparation area (PAHINGA)
 const DUE_STEPS := [750, 1000, 1500]
 const DEFAULT_TRIAL_TIME := 90.0
 const DEFAULT_PREP_TIME := 20.0
@@ -31,6 +31,54 @@ const CAMERA_FOLLOW := "follow"  # a Camera2D on the local mortal (Arena.follow_
 const STARTER_OFF := "off"       # every mortal starts with empty hands
 const STARTER_RANDOM := "random" # each mortal draws its own E and Q
 const STARTER_CUSTOM := "custom" # each player picks its own two in the lobby
+
+# The one-click loadouts in the lobby's OPTIONS sheet. They all share the same
+# house rules - the story cutscene skipped, the whole arena in view, god blitz on,
+# full intros, a random order and the default God's Due - and differ only in the
+# clock, the rest and what the mortals open the run holding. Picking one replaces
+# the whole setup, exactly like RESET does with its own defaults.
+const PRESETS := [
+	{
+		"id": "default",
+		"name": "Default Settings",
+		"note": "90s trials, 30s prep, no starting build",
+		"trial_time": 90.0,
+		"prep_time": 30.0,
+		"starter_mode": STARTER_OFF,
+	},
+	{
+		"id": "long",
+		"name": "Long Game",
+		"note": "120s trials, 40s prep, no starting build",
+		"trial_time": 120.0,
+		"prep_time": 40.0,
+		"starter_mode": STARTER_OFF,
+	},
+	{
+		"id": "short",
+		"name": "Short Game",
+		"note": "60s trials, 20s prep, no starting build",
+		"trial_time": 60.0,
+		"prep_time": 20.0,
+		"starter_mode": STARTER_OFF,
+	},
+	{
+		"id": "random",
+		"name": "Random Build",
+		"note": "90s trials, 30s prep, a random E and Q each",
+		"trial_time": 90.0,
+		"prep_time": 30.0,
+		"starter_mode": STARTER_RANDOM,
+	},
+	{
+		"id": "strategic",
+		"name": "Strategic",
+		"note": "90s trials, 40s prep, each player picks its build",
+		"trial_time": 90.0,
+		"prep_time": 40.0,
+		"starter_mode": STARTER_CUSTOM,
+	},
+]
 
 var trials: int = Gods.TRIALS_DEFAULT
 var order_mode: String = ORDER_RANDOM
@@ -56,6 +104,53 @@ static func defaults() -> RunSettings:
 	var settings := RunSettings.new()
 	settings.validate()
 	return settings
+
+
+static func preset_info(preset_id: String) -> Dictionary:
+	for entry in PRESETS:
+		if entry["id"] == preset_id:
+			return entry
+	return {}
+
+
+# A whole run from one click: the preset's clock, rest and starting build on top
+# of the house rules every preset shares. Already validated, so it can go straight
+# to Network.set_run_settings().
+static func preset(preset_id: String) -> RunSettings:
+	var settings := RunSettings.new()
+	var entry := preset_info(preset_id)
+	if not entry.is_empty():
+		settings.trial_time = float(entry["trial_time"])
+		settings.prep_time = float(entry["prep_time"])
+		settings.starter_mode = str(entry["starter_mode"])
+	settings.order_mode = ORDER_RANDOM
+	settings.intro_mode = INTRO_FULL
+	settings.opening_cutscene = OPENING_SKIP
+	settings.god_blitz_mode = true
+	settings.camera_mode = CAMERA_ARENA
+	settings.due_step = GodMatch.MILESTONE_STEP
+	settings.validate()
+	return settings
+
+
+# The id of the preset this setup is exactly, or "" once the host has changed
+# anything a preset sets (so the sheet never lights a loadout it no longer runs).
+func active_preset() -> String:
+	for entry in PRESETS:
+		if trial_time != float(entry["trial_time"]) or prep_time != float(entry["prep_time"]):
+			continue
+		if starter_mode != str(entry["starter_mode"]):
+			continue
+		if trials != Gods.TRIALS_DEFAULT or order_mode != ORDER_RANDOM:
+			continue
+		if intro_mode != INTRO_FULL or opening_cutscene != OPENING_SKIP:
+			continue
+		if not god_blitz_mode or camera_mode != CAMERA_ARENA:
+			continue
+		if due_step != GodMatch.MILESTONE_STEP:
+			continue
+		return str(entry["id"])
+	return ""
 
 
 func to_dict() -> Dictionary:

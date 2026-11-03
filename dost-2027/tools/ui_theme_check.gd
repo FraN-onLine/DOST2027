@@ -22,6 +22,8 @@ const SCAN_DIRS := ["res://scenes", "res://UI", "res://scripts"]
 # path -> why it may keep its own styling / off-scale sizes.
 const ALLOW := {
 	"res://UI/Server and Lobby handlers/hosting.tscn": "unused leftover (see tools/lobby_check.gd); nothing loads it",
+	"res://scenes/OpeningCutscene.tscn": "the opening's one call is a cinematic title drawn at 72 px, above the UI scale",
+	"res://scenes/MainMenu.tscn": "the host button keeps its painted B1 panel on purpose",
 }
 
 var _problems := 0

@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" path="res://scenes/prep/PrepArea.tscn" id="1_base"]
 [ext_resource type="Script" path="res://scripts/prep/playground.gd" id="2_playground"]
+[ext_resource type="PackedScene" path="res://UI/GodsArena/game_test_menu.tscn" id="3_tests"]
 
 [node name="Playground" instance=ExtResource("1_base")]
 script = ExtResource("2_playground")
@@ -28,3 +29,8 @@ grow_horizontal = 0
 grow_vertical = 0
 theme_type_variation = &"GhostButton"
 text = "LEAVE"
+
+[node name="GameTestLayer" type="CanvasLayer" parent="."]
+layer = 40
+
+[node name="GameTestMenu" parent="GameTestLayer" instance=ExtResource("3_tests")]

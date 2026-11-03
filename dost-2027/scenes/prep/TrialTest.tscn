@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/prep/trial_test.gd" id="1_trial_test"]
+
+[node name="TrialTest" type="Node"]
+script = ExtResource("1_trial_test")
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+layer = 40
+
+[node name="Row" type="HBoxContainer" parent="Overlay"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -388.0
+offset_top = -88.0
+offset_right = -16.0
+offset_bottom = -52.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="Hint" type="Label" parent="Overlay/Row"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "PLAYGROUND TEST"
+vertical_alignment = 1
+
+[node name="Return" type="Button" parent="Overlay/Row"]
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+text = "RETURN"
