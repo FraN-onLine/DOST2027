@@ -44,12 +44,12 @@ jump_favor = 125
 rope_penalty = 75
 jump_time = 0.55
 jump_height = 30.0
-burst_min_time = 4.0
-burst_max_time = 7.0
+burst_min_time = 3.0
+burst_max_time = 4.0
 burst_penalty = 150
-burst_spawn_radius = 60.0
-burst_hit_radius = 48.0
+burst_spawn_radius = 140.0
 blitz_time = 30.0
+blitz_rope_boost = 1.4
 blitz_jump_favor = 200
 blitz_immune_jump_favor = 150
 god_id = &"anitun_tabu"
@@ -61,7 +61,7 @@ shake_pixels = 6.0
 z_index = 4
 
 [node name="WindBursts" type="Node2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="1" unique_id=1461452881]
-z_index = 6
+z_index = 2
 
 [node name="Border" type="Line2D" parent="ArenaField" parent_id_path=PackedInt32Array(518833116) index="2" unique_id=1145151878]
 position = Vector2(-37.765747, 252.65218)

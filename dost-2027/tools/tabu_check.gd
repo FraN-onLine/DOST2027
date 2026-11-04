@@ -17,9 +17,13 @@ extends SceneTree
 #   * a mortal draws over the lubid while the hop has it in the air
 #   * Luksong Lubid is one shared field: positions travel and rivals are drawn
 #   * the rope sweeps and pongs, a jump pays 125, the rope costs 75, a gust
-#     costs 150; the host's rope and gusts mirror to every screen
-#   * gusts keep the 4-7s clock, come 3-6s in the blitz and two at once, each
-#     thrown at a mortal picked from the whole field (never always the host)
+#     costs 150; in the blitz the rope sweeps faster; the host's rope and gusts
+#     mirror to every screen
+#   * a gust only catches in its lift frames (8-10) and only inside its own
+#     authored Area2D
+#   * gusts keep the 3-4s clock, come 1-2s in the blitz and two at once, each
+#     thrown at a mortal picked from the whole field (never always the host),
+#     spread wide and spaced so the blitz's pair never overlaps
 #   * in the blitz the gales blow on their own (200 a jump, 150 for a mortal
 #     holding The West Wind), the wind pushes west and leaves the airborne
 #     alone, and a West Wind holder walks through it
@@ -353,6 +357,29 @@ func _run() -> void:
 	arena._tick_rope(0.001)
 	_check(arena.rules.local().favor == 925, "no second hit while the mercy runs")
 
+	# The lubid sweeps faster while the gales blow.
+	arena._invuln.clear()
+	arena.player.global_position = Vector2(field.position.x + 40.0, field.get_center().y)
+	arena._cross_guard = 1.0
+	arena._trial_time = 60.0
+	arena._rope_x = field.get_center().x
+	arena._rope_dir = 1.0
+	arena._prev_rel = arena._rope_x - arena.player.global_position.x
+	var calm_from: float = arena._rope_x
+	arena._tick_rope(0.1)
+	var calm_step: float = arena._rope_x - calm_from
+	arena._trial_time = arena.blitz_time
+	arena._rope_x = field.get_center().x
+	arena._rope_dir = 1.0
+	arena._prev_rel = arena._rope_x - arena.player.global_position.x
+	var blitz_from: float = arena._rope_x
+	arena._tick_rope(0.1)
+	var blitz_step: float = arena._rope_x - blitz_from
+	_check(blitz_step > calm_step * 1.2,
+		"in the blitz the lubid sweeps faster (%.0f vs %.0f px/s)" % [blitz_step * 10.0, calm_step * 10.0])
+	arena._trial_time = 60.0
+	arena._cross_guard = 0.0
+
 	# A gust: 150, and the air is above it.
 	await _settle(arena)
 	arena._invuln.clear()
@@ -361,11 +388,30 @@ func _run() -> void:
 	arena._burst_timer = 0.0
 	arena._tick_bursts(0.01)
 	_check(arena._bursts.size() == 1, "a gust swells on or around the mortal")
+	var burst_z: int = arena.field_root.z_index + arena.bursts_root.z_index
+	_check(arena.player.z_index > burst_z,
+		"the mortal draws over the wind burst (%d > %d)" % [arena.player.z_index, burst_z])
 	var gust = arena._bursts[0]["node"]
 	gust.global_position = arena.player.global_position
-	gust._process(0.31)
+	gust.anim.frame = 7
+	_check(not gust.catches(arena.player.global_position, arena.player.radius),
+		"a gust is harmless while it wells up (frame 7)")
+	gust.anim.frame = 8
+	_check(gust.catches(arena.player.global_position, arena.player.radius),
+		"the lift catches from frame 8")
+	gust.anim.frame = 10
+	_check(gust.catches(arena.player.global_position, arena.player.radius),
+		"...and through frame 10")
+	gust.anim.frame = 11
+	_check(not gust.catches(arena.player.global_position, arena.player.radius),
+		"...then lets go at frame 11")
+	gust.anim.frame = 9
+	gust.global_position = arena.player.global_position + Vector2(120.0, 0.0)
+	_check(not gust.catches(arena.player.global_position, arena.player.radius),
+		"outside the gust's own Area2D nothing is caught")
+	gust.global_position = arena.player.global_position
 	arena._tick_bursts(0.01)
-	_check(arena.rules.local().favor == 850, "standing in a live gust costs 150")
+	_check(arena.rules.local().favor == 850, "standing in the lift costs 150")
 	_check(bool(arena._bursts[0]["hit"]) if not arena._bursts.is_empty() else true, "...once")
 	await _settle(arena)
 	arena._invuln.clear()
@@ -375,16 +421,16 @@ func _run() -> void:
 	arena._tick_bursts(0.01)
 	gust = arena._bursts[0]["node"]
 	gust.global_position = arena.player.global_position
-	gust._process(0.31)
+	gust.anim.frame = 9
 	arena._jump_left = 0.3
 	arena._tick_bursts(0.01)
 	_check(arena.rules.local().favor == 1000, "a mortal in the air is above the gust")
 	arena._jump_left = 0.0
 	arena._clear_bursts()
 
-	# The gust clock: 4-7s, a second sooner again in the blitz.
-	_check(is_equal_approx(arena.burst_min_time, 4.0) and is_equal_approx(arena.burst_max_time, 7.0),
-		"gusts come every 4-7s")
+	# The gust clock: 3-4s, two seconds sooner again in the blitz.
+	_check(is_equal_approx(arena.burst_min_time, 3.0) and is_equal_approx(arena.burst_max_time, 4.0),
+		"gusts come every 3-4s")
 	arena._trial_time = 60.0
 	var in_range := true
 	for roll in range(60):
@@ -399,7 +445,25 @@ func _run() -> void:
 		if wait < arena.burst_min_time - arena.BLITZ_BURST_CUT - 0.001 \
 				or wait > arena.burst_max_time - arena.BLITZ_BURST_CUT + 0.001:
 			blitz_range = false
-	_check(blitz_range, "in the blitz they come a second sooner again (3-6s)")
+	_check(blitz_range, "in the blitz they come two seconds sooner again (1-2s)")
+	_check(is_equal_approx(arena.burst_spawn_radius, 140.0),
+		"a gust spreads over a wide patch of the field")
+
+	# Solo, the blitz's pair still lands apart: their areas never touch.
+	arena.player.global_position = field.get_center()
+	arena._trial_time = arena.blitz_time
+	arena._clear_bursts()
+	arena._burst_seq = 0
+	arena._spawn_burst_cycle()
+	var solo_spots: Array = []
+	for burst in arena._bursts:
+		solo_spots.append((burst["node"] as WindBurst).global_position)
+	var solo_gap := 0.0
+	if solo_spots.size() == 2:
+		solo_gap = (solo_spots[0] as Vector2).distance_to(solo_spots[1] as Vector2)
+	_check(solo_spots.size() == 2 and solo_gap >= arena.BLITZ_BURST_GAP,
+		"in solo the blitz's two gusts stay a gust apart (%.0f px)" % solo_gap)
+	arena._clear_bursts()
 
 	# The gusts scatter across the whole field: two at once in the blitz, each
 	# aimed at a different mortal, not both at the host.
@@ -407,7 +471,7 @@ func _run() -> void:
 	rival.id = 2
 	rival.display_name = "RIVAL"
 	arena.rules.mortals[2] = rival
-	var rival_spot := Vector2(field.position.x + 80.0, field.position.y + 80.0)
+	var rival_spot := Vector2(field.end.x - 80.0, field.end.y - 80.0)
 	arena._mortal_positions[2] = rival_spot
 	arena.burst_spawn_radius = 0.0
 	arena._clear_bursts()
@@ -437,7 +501,7 @@ func _run() -> void:
 	arena._clear_bursts()
 	arena.rules.mortals.erase(2)
 	arena._mortal_positions.erase(2)
-	arena.burst_spawn_radius = 60.0
+	arena.burst_spawn_radius = 140.0
 	arena._rope_x = high
 
 	# The blitz: the gales blow on their own.

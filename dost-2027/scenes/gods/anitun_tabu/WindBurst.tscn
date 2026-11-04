@@ -1,36 +1,121 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://d3r378t2q12a5"]
 
-[ext_resource type="Script" path="res://scripts/gods/anitun_tabu/windburst.gd" id="1_burst"]
-[ext_resource type="Texture2D" path="res://Assets/Placeholders/fx/impact_ring.png" id="2_ring"]
+[ext_resource type="Script" uid="uid://dolx2mc360qpr" path="res://scripts/gods/anitun_tabu/windburst.gd" id="1_burst"]
+[ext_resource type="Texture2D" uid="uid://dnptd4r76nd0d" path="res://Assets/Gods/Anitun Tabu/Wind_Burst.png" id="2_bqhci"]
 
-[node name="WindBurst" type="Node2D"]
-visible = false
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_g4v7s"]
+radius = 108.0
+height = 272.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pg4ap"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3tmc6"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lt2h0"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qrgyv"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a7768"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xafrh"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(640, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qyjy1"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(768, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g761i"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(896, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ogmig"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(1024, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1n4q5"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(1152, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2qk5k"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(1280, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ejebi"]
+atlas = ExtResource("2_bqhci")
+region = Rect2(1408, 0, 128, 128)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pg4ap")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3tmc6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lt2h0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qrgyv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a7768")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xafrh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qyjy1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g761i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ogmig")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1n4q5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2qk5k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ejebi")
+}, {
+"duration": 1.0,
+"texture": null
+}],
+"loop": 0,
+"name": &"default",
+"speed": 10.0
+}]
+
+[node name="WindBurst" type="Node2D" unique_id=1084589655]
+scale = Vector2(1.2, 1.2)
 script = ExtResource("1_burst")
 
-[node name="Ring" type="Sprite2D" parent="."]
-modulate = Color(0.72, 0.86, 1, 0.8)
+[node name="Area2D" type="Area2D" parent="." unique_id=411931749]
 scale = Vector2(0.25, 0.25)
-texture = ExtResource("2_ring")
 
-[node name="Gusts" type="Node2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1923645215]
+position = Vector2(0, -76)
+shape = SubResource("CapsuleShape2D_g4v7s")
 
-[node name="Gust1" type="Line2D" parent="Gusts"]
-width = 4.0
-default_color = Color(0.78, 0.9, 1, 0.75)
-joint_mode = 2
-begin_cap_mode = 2
-end_cap_mode = 2
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1331919164]
+position = Vector2(0, -34)
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+frame = 12
+frame_progress = 1.0
 
-[node name="Gust2" type="Line2D" parent="Gusts"]
-width = 4.0
-default_color = Color(0.78, 0.9, 1, 0.75)
-joint_mode = 2
-begin_cap_mode = 2
-end_cap_mode = 2
-
-[node name="Gust3" type="Line2D" parent="Gusts"]
-width = 4.0
-default_color = Color(0.78, 0.9, 1, 0.75)
-joint_mode = 2
-begin_cap_mode = 2
-end_cap_mode = 2

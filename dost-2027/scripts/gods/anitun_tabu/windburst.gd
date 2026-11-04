@@ -1,73 +1,61 @@
 class_name WindBurst
 extends Node2D
 
-# A gust of Anitun Tabu's wind (scenes/gods/anitun_tabu/WindBurst.tscn). It
-# swells around a spot for a moment; the middle of that swell is the window a
-# mortal can be caught in. The arena pays the penalty - this only plays.
+# A gust of Anitun Tabu's wind (scenes/gods/anitun_tabu/WindBurst.tscn). The
+# authored clip is the whole of it: the wind wells up, frames 8-10 are the lift
+# that catches a mortal, and frame 12 is the empty tail. The Area2D under the
+# animation is the patch of ground that lift reaches - it is the hitbox, tuned
+# in the scene, not in code. The arena pays the penalty - this only plays and
+# answers.
 
-@export var lifetime := 0.9
-@export var hit_at := 0.3      # seconds until the gust is dangerous...
-@export var hit_window := 0.35 # ...and how long that danger lasts
-@export var radius := 48.0
+@export var hit_first_frame := 8
+@export var hit_last_frame := 10
 
-@onready var ring: Sprite2D = $Ring
-@onready var gusts_root: Node2D = $Gusts
+@onready var anim: AnimatedSprite2D = $AnimatedSprite2D
+@onready var hit_shape: CollisionShape2D = $Area2D/CollisionShape2D
 
-var _time := 0.0
 var _playing := false
 
 
 func play() -> void:
-	_time = 0.0
 	_playing = true
 	visible = true
+	anim.frame = 0
+	anim.frame_progress = 0.0
+	anim.play(&"default")
 
 
 func is_playing() -> bool:
 	return _playing
 
 
+# Only the lift catches: the frames the mortal is actually being thrown.
 func is_hit_window() -> bool:
-	return _playing and _time >= hit_at and _time <= hit_at + hit_window
+	return _playing and anim.frame >= hit_first_frame and anim.frame <= hit_last_frame
 
 
 func is_finished() -> bool:
 	return not _playing
 
 
-func _process(delta: float) -> void:
-	if not _playing:
-		return
-	_time += delta
-	if _time >= lifetime:
+# Whether a body standing at `at` is inside the authored Area2D. The capsule is
+# tested in its own space, so the Area2D's offset and scale in the scene decide
+# both the spot and the reach.
+func catches(at: Vector2, body_radius := 0.0) -> bool:
+	if not is_hit_window() or hit_shape == null:
+		return false
+	var capsule := hit_shape.shape as CapsuleShape2D
+	if capsule == null:
+		return false
+	var xform := hit_shape.global_transform
+	var local := xform.affine_inverse() * at
+	var half := maxf(capsule.height * 0.5 - capsule.radius, 0.0)
+	var nearest := Vector2(0.0, clampf(local.y, -half, half))
+	var reach := capsule.radius + body_radius / maxf(xform.get_scale().x, 0.001)
+	return local.distance_to(nearest) <= reach
+
+
+func _process(_delta: float) -> void:
+	if _playing and not anim.is_playing():
 		_playing = false
 		visible = false
-		return
-	var t := clampf(_time / lifetime, 0.0, 1.0)
-	if ring != null:
-		ring.scale = Vector2.ONE * lerpf(0.25, 1.35, t)
-		ring.modulate.a = (1.0 - t) * 0.8
-	_draw_gusts(t)
-
-
-func _draw_gusts(t: float) -> void:
-	if gusts_root == null:
-		return
-	var children := gusts_root.get_children()
-	for index in range(children.size()):
-		var line := children[index] as Line2D
-		if line == null:
-			continue
-		var phase := float(index) / maxf(1.0, float(children.size()))
-		var angle := TAU * phase + _time * 2.4
-		var dist := lerpf(10.0, radius * 0.75, t) + float(index) * 5.0
-		var span := 0.5 + phase * 0.35
-		var points := PackedVector2Array()
-		var steps := 9
-		for step in range(steps + 1):
-			var f := float(step) / float(steps)
-			var a := angle + lerpf(-span, span, f)
-			var r := dist + sin(f * PI) * 8.0
-			points.append(Vector2(cos(a), sin(a)) * r)
-		line.points = points
-		line.modulate.a = (1.0 - t) * 0.75

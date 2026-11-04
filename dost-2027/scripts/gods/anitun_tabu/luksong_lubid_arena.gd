@@ -27,15 +27,17 @@ extends Arena
 #   Every few seconds the host throws a wind burst (WindBurst.tscn) at a mortal
 #   picked from the whole field, so they scatter across the players instead of
 #   following the host. Every screen draws the host's gusts and judges its OWN
-#   mortal against them: the middle of a swell is live, standing in it costs
-#   burst_penalty, and a mortal in the air is above it. In the blitz the gusts
-#   come a second sooner and two rise at once.
+#   mortal against them: the clip's lift frames (8-10) are live through the
+#   burst's own Area2D, standing in it costs burst_penalty, and a mortal in the
+#   air is above it. In the blitz the gusts come two seconds sooner and two rise
+#   at once, spaced so their areas never overlap.
 #
 # THE BLITZ (the last blitz_time seconds)
 #   Winds and Gales of Yesterday blow over the field by themselves (wind_forced),
 #   dragging every walking mortal west - every mortal but the one holding The West
-#   Wind. The rope pays more: blitz_jump_favor, or blitz_immune_jump_favor for a
-#   mortal the gales cannot touch.
+#   Wind. The rope rides the same gales: it sweeps blitz_rope_boost times faster.
+#   It also pays more: blitz_jump_favor, or blitz_immune_jump_favor for a mortal
+#   the gales cannot touch.
 
 @export_category("Lubid")
 @export var rope_speed := 230.0       # px/s the rope sweeps across the field
@@ -46,22 +48,24 @@ extends Arena
 @export var jump_height := 30.0       # px the figure lifts at the top of the hop
 
 @export_category("Wind Bursts")
-@export var burst_min_time := 4.0     # seconds between gusts, rolled fresh each time
-@export var burst_max_time := 7.0
+@export var burst_min_time := 3.0     # seconds between gusts, rolled fresh each time
+@export var burst_max_time := 4.0
 @export var burst_penalty := 150      # FAVOR lost standing in a live gust
-@export var burst_spawn_radius := 60.0  # how far from the mortal one may swell
-@export var burst_hit_radius := 48.0    # how close the mortal must stand to be caught
+@export var burst_spawn_radius := 140.0  # how far from the mortal one may swell
 
 @export_category("Blitz")
 @export var blitz_time := 30.0        # the last seconds: the gales blow on their own
+@export var blitz_rope_boost := 1.4   # how much faster the lubid sweeps in the blitz
 @export var blitz_jump_favor := 200   # clearing the rope while they blow
 @export var blitz_immune_jump_favor := 150  # ...for a mortal holding The West Wind
 
 const LUBID_SCENE := preload("res://scenes/gods/anitun_tabu/Lubid.tscn")
 const WIND_BURST_SCENE := preload("res://scenes/gods/anitun_tabu/WindBurst.tscn")
 const JUMP_Z := 6  # the lubid draws at 5 (its 4 over the field's 1); a hop lifts over it
-const BLITZ_BURST_CUT := 1.0   # seconds shaved off the gust clock in the blitz
+const BLITZ_BURST_CUT := 2.0   # seconds shaved off the gust clock in the blitz
 const BLITZ_BURSTS := 2        # gusts the blitz raises at once
+const BLITZ_BURST_GAP := 100.0 # px between the blitz's gusts: their areas never touch
+const BURST_SPOT_TRIES := 12   # rolls for a spot clear of the cycle's other gust
 const ROPE_SNAP := 48.0        # px a client may drift before it takes the host's rope
 
 @onready var lubid: LuksongLubid = get_node_or_null("ArenaField/Lubid")
@@ -180,7 +184,7 @@ func _tick_rope(delta: float) -> void:
 		return
 	var low := _field.position.x + rope_margin
 	var high := _field.end.x - rope_margin
-	_rope_x += _rope_dir * rope_speed * delta
+	_rope_x += _rope_dir * rope_speed * (blitz_rope_boost if _in_blitz() else 1.0) * delta
 	if _rope_x <= low:
 		_rope_x = low
 		_rope_dir = 1.0
@@ -241,7 +245,7 @@ func _tick_bursts(delta: float) -> void:
 			continue
 		if not bool(burst.get("hit", false)) and node.is_hit_window():
 			if not mortal_airborne() and not player.locked and not is_mortal_invulnerable(_my_id) \
-					and player.global_position.distance_to(node.global_position) <= burst_hit_radius + player.radius:
+					and node.catches(player.global_position, player.radius):
 				burst["hit"] = true
 				_bursts[index] = burst
 				_resolve_burst(node.global_position)
@@ -258,10 +262,18 @@ func _roll_burst_time() -> float:
 
 
 # One cycle of the gust clock: one gust, or two in the blitz, each thrown at a
-# mortal picked from the whole field - so they scatter across the players.
+# mortal picked from the whole field - so they scatter across the players. The
+# blitz's two are kept a gust's width apart, so their areas never touch.
 func _spawn_burst_cycle() -> void:
-	for target_id in _burst_targets(BLITZ_BURSTS if _in_blitz() else 1):
-		_spawn_burst(target_id)
+	if player == null:
+		return
+	var blitz := _in_blitz()
+	var spots: Array = []
+	for target_id in _burst_targets(BLITZ_BURSTS if blitz else 1):
+		spots.append(_pick_burst_spot(target_id, spots))
+	for spot in spots:
+		_burst_seq += 1
+		_add_burst(_burst_seq, spot)
 
 
 # The mortals this cycle aims at, shuffled: two gusts never stack on the same
@@ -283,23 +295,51 @@ func _burst_targets(count: int) -> Array:
 	return targets
 
 
-# One gust, ON or around the mortal it aims at: at that mortal's feet or up to
-# burst_spawn_radius away, kept inside the field.
-func _spawn_burst(target_id := -1) -> void:
-	if player == null:
-		return
+# One gust's spot: ON or around the mortal it aims at, up to burst_spawn_radius
+# away, kept inside the field. A spot that would crowd a gust already chosen for
+# this cycle is rolled again; if no roll fits, the best one is pushed clear.
+func _pick_burst_spot(target_id: int, taken: Array) -> Vector2:
 	var around := player.global_position
 	if target_id >= 0:
 		var at := mortal_position(target_id)
 		if at != Vector2.INF:
 			around = at
-	var offset := Vector2.RIGHT.rotated(_rng.randf_range(0.0, TAU)) * _rng.randf_range(0.0, burst_spawn_radius)
-	var spot := around + offset
-	if _field.size != Vector2.ZERO:
-		spot.x = clampf(spot.x, _field.position.x, _field.end.x)
-		spot.y = clampf(spot.y, _field.position.y, _field.end.y)
-	_burst_seq += 1
-	_add_burst(_burst_seq, spot)
+	var best := _keep_in_field(around)
+	var best_gap := -1.0
+	for attempt in range(BURST_SPOT_TRIES):
+		var offset := Vector2.RIGHT.rotated(_rng.randf_range(0.0, TAU)) * _rng.randf_range(0.0, burst_spawn_radius)
+		var spot := _keep_in_field(around + offset)
+		var gap := _nearest_gap(spot, taken)
+		if gap >= BLITZ_BURST_GAP:
+			return spot
+		if gap > best_gap:
+			best_gap = gap
+			best = spot
+	for other in taken:
+		var away: Vector2 = best - (other as Vector2)
+		if away.length() < 0.001:
+			away = Vector2.RIGHT.rotated(_rng.randf_range(0.0, TAU))
+		away = away.normalized()
+		var pushed := _keep_in_field((other as Vector2) + away * BLITZ_BURST_GAP)
+		if pushed.distance_to(other) < BLITZ_BURST_GAP:
+			pushed = _keep_in_field((other as Vector2) - away * BLITZ_BURST_GAP)
+		best = pushed
+	return best
+
+
+func _nearest_gap(spot: Vector2, taken: Array) -> float:
+	var gap := INF
+	for other in taken:
+		gap = minf(gap, spot.distance_to(other as Vector2))
+	return gap
+
+
+func _keep_in_field(spot: Vector2) -> Vector2:
+	if _field.size == Vector2.ZERO:
+		return spot
+	return Vector2(
+		clampf(spot.x, _field.position.x, _field.end.x),
+		clampf(spot.y, _field.position.y, _field.end.y))
 
 
 # Draw a gust at `spot` and start its clip. The host spawns them; a client builds
